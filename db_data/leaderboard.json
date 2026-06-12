@@ -1,0 +1,37 @@
+[
+  {
+    "id": 1,
+    "initials": "ERH",
+    "score": 3333,
+    "hero": "Eric Huang",
+    "date": "2026-06-11"
+  },
+  {
+    "id": 2,
+    "initials": "NKF",
+    "score": 2910,
+    "hero": "Nick Farrar",
+    "date": "2026-06-08"
+  },
+  {
+    "id": 3,
+    "initials": "SGB",
+    "score": 1030,
+    "hero": "Nick Hedgecock",
+    "date": "2026-06-10"
+  },
+  {
+    "id": 4,
+    "initials": "SBZ",
+    "score": 390,
+    "hero": "Jacob Lebby",
+    "date": "2026-06-11"
+  },
+  {
+    "id": 5,
+    "initials": "MYT",
+    "score": 850,
+    "hero": "Myat Maharko",
+    "date": "2026-06-05"
+  }
+]

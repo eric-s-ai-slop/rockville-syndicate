@@ -1,0 +1,81 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* Cozy forest palette */
+  --color-omega-bg: #0c1208;
+  --color-omega-panel: #111c0a;
+  --color-omega-panel-2: #142012;
+  --color-omega-line: #2a3d18;
+  --color-omega-line-2: #3a5520;
+  --color-omega-text: #e8f5d0;
+  --color-omega-text-dim: #8aaa60;
+  --color-omega-accent: #c8e89a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background-color: var(--color-omega-bg);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--color-omega-text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  scrollbar-width: thin;
+  scrollbar-color: #3a5520 #111c0a;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #0f1c09;
+}
+::-webkit-scrollbar-thumb {
+  background: #2a3d18;
+  border-radius: 6px;
+  border: 2px solid #0f1c09;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3a5520;
+}
+
+/* Phaser canvas should never grab a focus outline ring */
+#phaser-canvas-container canvas {
+  display: block;
+  outline: none;
+}
+
+/* Subtle reusable keyframes for cozy UI motion */
+@keyframes omega-fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.omega-fade-up {
+  animation: omega-fade-up 0.35s ease-out both;
+}
+
+@keyframes omega-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
+
+.omega-pulse {
+  animation: omega-pulse 1.6s ease-in-out infinite;
+}
+
+kbd {
+  font-family: 'JetBrains Mono', monospace;
+}

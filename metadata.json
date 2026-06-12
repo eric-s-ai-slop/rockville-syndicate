@@ -1,0 +1,6 @@
+{
+  "name": "Project Omega: The Rockville Syndicate",
+  "description": "A high-octane 2D Action-Brawler & Social Survival RPG exploring the hilarious deep waters, inside jokes, and epic clashes of the Rockville group chat.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

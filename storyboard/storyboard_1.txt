@@ -1,0 +1,106 @@
+🎮 PROJECT OMEGA: THE ROCKVILLE SYNDICATE RPG
+DESIGN & STORYBOARD EXTRACTION DOCUMENT
+1. CORE GAMEPLAY MECHANICS
+These are the foundational systems the AI should implement for the overworld and combat.
+* The B.I.Q. (Battle IQ) System: Replaces traditional "Level/XP". BIQ dictates turn order, persuasion success, and resistance to gaslighting.
+* The Time-of-Day Engine (The Deep Waters): The game world changes based on the in-game clock.
+    * Pre-10 PM: Normal gameplay.
+    * 10:00 PM (The Curse): Nick Hedgecock’s stats drop to 0.
+    * 0100 - 0500 Hours (Deep Waters): Random encounters skyrocket. Nick Farrar gains infinite Stamina but loses cognitive reasoning. Jacob Lebby has a higher chance to trigger a "Systemic Melt."
+* The WTM (What's The Move) Probe: The core quest-initiation system. A character drops "WTM" in the chat UI. The player must respond within a time limit (checking the Reaction Lag stat). Ignoring it causes Agility/Flake damage.
+* Environmental Multipliers:
+    * The Delusion Tax ( d M    dM ): A severe status debuff. Characters who believe in "Catfishes" or "Impossible Romances" take multiplicative damage to their logic stats.
+    * Financial Leverage ( f i n M    finM ): Characters with administrative control over subscriptions (e.g., Spotify) can passively drain gold from other party members per turn.
+* The GamePigeon Interruption System: In the middle of dialogue/combat, Eric or Nick F can deploy "Let's play CRAZY 8!" or "20 Questions" to completely derail an opponent's attack or reset aggro.
+
+2. CHARACTER CLASSES & PARTY MEMBERS
+1. Eric Huang (The Extortion Economist / Corporate Parasite)
+* Role: Logistical Support / Manipulator / Final Boss of the Spotify Arc.
+* Passives: WTM Spam (Assesses group vulnerability), Chief of Staff (Controls group logistics).
+* Ultimates:
+    * The "I'm Tired" Bailout + Crazy 8 Combo: Evades any social obligation while inflicting psychological whiplash on the target via a GamePigeon invite.
+    * Corporate Gaslighting: Converts a theft accusation into a joke ("Blame Joe Biden", "1000 pennies is 10 bucks").
+* Weakness: Hard Data / Spreadsheets. Cannot gaslight a calculator.
+2. Nick Farrar (The Kinetic Warlord / Hype-Engine)
+* Role: High-Motor Operator / DPS / The Engine.
+* Passives: T-Minus Countdown (Forces the party to make binary decisions), I'm On My Way! (Inflicts social obligation on the party, even if he hasn't left yet).
+* Ultimates:
+    * Group Chat Rebrand: Mid-battle, changes the chat name (e.g., "Medellín GC", "Gay (not winning) squad") to instantly shift the narrative frame and heal party morale.
+* Weakness: Boredom. If delayed by bureaucracy, he self-destructs. Will lock his keys in his car.
+3. Nick Hedgecock (The Strategic Anchor / The Obstructionist)
+* Role: Tank / Safety Valve / The Brake.
+* Passives: 10 PM Sleep Hard Cap (Automatically retreats to safety at 10 PM), I looooveee UMD (Deflection shield against Jacob’s complaints).
+* Ultimates:
+    * The Chicken Barrage (🐔): Spams poultry emojis to break an opponent's ego and force them to commit to a dangerous plan.
+    * The Bedtime Veto: Absolute inertia. Refuses to move, effectively stalling the entire party's momentum.
+* Weakness: Discomfort and surprise plans ("The Boiling Frog" incremental gaslight defeats him).
+4. Jacob Lebby (The Volatile Whale / Sub-Zero)
+* Role: Damage Sponge / Chaos Engine / Financial Resource.
+* Passives: The "Blocked" Loop (Gets mad  →    →  Blocks everyone →    →  Returns a day later), Sunk Cost Paralysis (Losing small amounts of gold triggers a berserker rage).
+* Ultimates:
+    * Systemic Melt: Reaches boiling point ("I'm getting hot now!"), screams, and initiates a chaotic breakdown.
+    * Sub-Zero Persona: Retreats into a cold, edgy persona when rejected by women.
+* Weakness: Needs extreme validation. The "Audrey Emotional Core" (Mentioning Audrey deals 999 psychic damage).
+5. Myat Maharko (The D1 Consumerism Critic / Digital Overwatch)
+* Role: Tracker / Ranged Sniper / Surveillance.
+* Ultimates:
+    * The Ben Pose: A visual channeling technique (finger over lips, rice cookers in background, holding toilet paper orb). Assimilates viewers into Ben-like behavior.
+    * The Location Hack: Drops a screenshot of an opponent's live location to instantly end an argument.
+6. Benjamin Bersofsky (The Bio-Hazard) [SECRET UNLOCKABLE / BOSS]
+* Role: Social Black Hole / Alchemist.
+* Status: Blacklisted (Omega Clearance).
+* Abilities: Suspicious Stew (Poisons players, morphing their personality), The Mass Block (Scorched earth threat). Believes in a digital phantom named "Maria Brooke."
+
+3. LOCATIONS, DUNGEONS & REALMS
+* Rockville (The Hub World): The starting zone. Safe, but boring. Nick F is constantly trying to escape it.
+* South Campus Commons Apt 1522 (The Base Camp): The UMD apartment. Features "The Sex Room" (Eric's room), a sink full of rotting dishes, and Zander (an unwanted roommate NPC).
+* Shepherd University (The Exile Zone): Jacob's distant domain. Reaching it requires a 1-hour drive. Enemies here include "Athletes" and "The Alt-Girl." Note: Spelling it "Shepard" deals damage to Jacob.
+* The Liminal Spaces (Late-Night Dungeons):
+    * Dogwood Park: A frequent smoke spot.
+    * Maryland Alleys / Robert Frost Sledding Hill: Dungeons that only unlock when it snows.
+* The Food Court (Vendors/Taverns):
+    * Honeypig: High-tier dining, requires high gold.
+    * Hot Lola's: Mid-tier vendor.
+    * Cstones / Looneys Pub: Nightlife hubs. "Looney Tuesdays" is a weekly raid event.
+* The Impossible Realms (Vaporware Locations): Places the group plans to visit but never reaches due to inertia or flake-outs. Include: New York City, Medellín (Colombia), Montreal, Ottawa, Japan, and the Cabin.
+
+4. ITEMS, LOOT, & ARTIFACTS
+* Galaxy Gas (Nitrous Oxide): A cursed consumable. Grants temporary euphoria but inflicts "Brainrot" and permanently deletes Vitamin B12, lowering the user's BIQ and Clutch Factor.
+* The $20 Spotify Deposit: A quest item hoarded by Eric. Trying to reclaim it triggers a boss fight.
+* The "Fuck It We Ball" Fit & The "Country Formal" Fit: Armor sets for Jacob Lebby. Equipping them changes his dialogue options.
+* Accutane: A potion that cures acne but inflicts the Tired debuff.
+* Suspicious Stew: An alchemical concoction brewed by Ben. If dropped from inventory, it must be salvaged into Tupperware. It is implied to be sentient.
+* Mancera Red Tobacco Intense: Nick F's legendary cologne artifact purchased off eBay to become "the best smelling gangster."
+
+5. KEY QUESTLINES & STORY ARCS (THE GAUNTLET)
+Act I: The Night-Time New York Mishap (Operation Inertia)
+* Setup: Nick F initiates a drive to NYC at 1:00 AM. Jacob invests $100.
+* Conflict: At the Baltimore checkpoint, Nick H initiates "Bedtime Protocol" and refuses to move forward. He offers a counter-bribe of $40 to turn back.
+* Climax: Jacob suffers a "Systemic Melt" over his lost $100. Eric snipes them with cold math ("We lost 90 minutes"). The party must navigate the chaos without breaking the social contract.
+Act II: The Spotify Family Insurgency
+* Setup: Jordan uncovers the mathematical truth: Eric is charging $4.50 for a plan that costs $3.33.
+* Conflict: A rebellion begins. Maharko attempts to start a competing labor union/family plan.
+* Boss Fight: Eric Huang. He uses Corporate Gaslighting and blames "Joe Biden and Inflation." He deflects using the Apple Music Audit.
+* Resolution: Eric wins because he holds the admin passwords.
+Act III: The Shepherd Siege & The "Chopped" Off
+* Setup: The group drives an hour to visit Jacob at his college. Jacob uses Weaponized Delusion to claim they aren't there ("That's Google Maps").
+* Side Quest (The Chopped Off): Jacob meets Makayla and Audrey. The party must rank the girls based on the "Chopped" metric. Jacob constantly fumbles the bag and adopts his "Sub-Zero" persona.
+Act IV: The AI Car Cyber-Warfare
+* Setup: Eric, Nick F, and Alex wage digital warfare against Maharko.
+* Mechanic: Players must use AI image generators to superimpose better cars (C55 AMG, Tesla) over Maharko's Instagram posts to "mog" him.
+* Counter-Attack: Maharko retaliates with "The D1 Consumerism Callout" ("holy consumer 💀").
+Act V: The Cabin Collapse (Endgame)
+* Setup: The planning of the 2026 Cabin Trip.
+* Conflict: Nick F creates a Google Doc with 9 options. Chaos ensues over beds, toilets, and random invites (including 15-year-olds and random NPCs).
+* The Twist: Nick F abruptly cancels the trip to fly to Spain for his girlfriend, pocketing the refunds. The group must decide whether to go to Japan, Key West, or completely dissolve.
+
+6. DIALOGUE, LORE, & RUNNING JOKES
+Implement these directly into the dialogue engine for authenticity:
+* "Jestermaxxing": Acting like a fool for female attention.
+* "D1 Consumerism": An insult used by Maharko when someone buys something stupid.
+* "Skibidi Protocol": When confronted with failure, characters use Gen-Alpha brainrot slang (Rizz, Ohio, Skibidi) to confuse logical operators.
+* "I'm 13x liquid": Jacob's ultimate financial flex (meaning he has about $3,900), which immediately gets ignored.
+* "Sybau": Shut your bitch ass up.
+* "Syrup of Frederick" / "Rejuvenation Syrup": A mythical healing elixir they joke about getting in Frederick, MD.
+* The "Chicken" Emoji (🐔): The ultimate provocation tool. If a character sends this, the target is forced to accept the quest or lose massive BIQ points.
+* "Syndicate" factions: The Rockville Core (The main party) vs. The Boca Syndicate vs. The Pariah Zone (Ben's exile realm).

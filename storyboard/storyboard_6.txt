@@ -1,0 +1,62 @@
+DESIGN & STORYBOARD EXTRACTION: PART 7 (THE FINAL SCRAPE)
+34. THE EQUIPMENT META: "NICHE FRAGRANCES" & AURA
+Armor isn't enough in this game. To succeed in social encounters, players must equip "Fragrances" to manipulate NPC aggro and increase their "Aura" stat.
+* The Mechanic: Players can purchase colognes from the "eBay Black Market" or official vendors. Equipping them grants passive buffs but drains massive amounts of gold.
+* Item: "Mancera Red Tobacco Intense"
+    * Stats: +50 Aura, -100 Gold.
+    * Lore: Nick F’s signature scent. He claims it makes him the "best smelling gangster of the whole gc."
+* Item: "Last Birthday Cake by Toskovat"
+    * Stats: Grants the Gourmand buff (smells like cake).
+    * Lore: A highly contested item. Nick F hoards this to "invest in girls."
+* The Dollar Store Cologne (Jacob's Debuff):
+    * If playing as Jacob, the player can buy an $8 cologne. However, if Nick F or Eric cast Forensic Sniff, they will instantly detect the cheap price tag, inflicting the [Public Shame] debuff on Jacob.
+35. AUDIO WARFARE: THE "PHONK" TORTURE SYSTEM
+Music is not just background noise; it is a weapon of psychological attrition used exclusively during the Cabin/Road Trip sequences.
+* The "Ultraphonk" & "Hyperphonk" Spells:
+    * Casters: Eric and Alex
+    * Effect: AoE (Area of Effect) psychological damage to the entire party.
+    * Condition: The spell Hyperphonk can only be cast after 3:00 AM.
+    * Lore/Dialogue: "Y'all already weren't gonna be allowed to sleep. Now NO one is sleeping. ALL 4 days." It completely disables the party's ability to use "Rest" to restore HP.
+* The Apple Music Inquisition (Faction Loyalty):
+    * Nick F operates as a Paladin for the Apple Music faction. He will relentlessly attempt to convert Spotify users.
+    * Dialogue Trap: Nick F will offer the service for only $2. If the player accepts, he attacks with a barrage of buzzwords: "Dolby atmos, lossless audio, enhanced airpods support! It even has a Windows app!" Yielding to him causes Jordan to suffer Playlist Loss anxiety.
+36. WARDROBE QUESTS: JESTERMAXXING & "LOONEY TUESDAYS"
+Clothing choices directly alter reality and grant access to hidden vendor tiers.
+* The "Looney Tuesdays" Cult Protocol:
+    * To enter the Cstones/Looneys Pub dungeon on a Tuesday, Nick F demands the player dress "URBAN."
+    * If Jacob equips the [Country Formal] set (Denim jacket and boots), he is barred from entry.
+    * The "Tipsy Tuesday" Exploit: Nick H gaslights Jacob into believing the dress code requires a bathing suit. If Jacob equips swimwear, his Social Standing drops to zero.
+* "Jestermaxxing": A specific stance Jacob can activate by sending awkward mirror selfies to the group. Nick F will respond with "So handsome!" to artificially inflate Jacob's ego before setting him up for a catastrophic fall.
+37. FACTIONS & GUILDS: THE "BELI" ELITE & SUBLEASING
+The game features esoteric guilds that players must navigate to survive the UMD Basecamp.
+* The "Beli" App Syndicate:
+    * Eric and Nick H will randomly spam the UI with "Beli" invite links (a restaurant tracking app).
+    * Quest: The player must accept the invite within a 24-hour ticking clock. Failing to do so restricts the player from joining "Food Court" raids (e.g., Honeypig, Hot Lola's).
+* The Aidan Room Sublease (Negotiation Minigame):
+    * Setup: NPC Aidan is leaving, creating a vacant room in Commons 1522.
+    * The Haggling: The base rent is $1050. Jacob (The Whale) attempts to lowball at $750, stating, "I'm not living under a communist building. That's how the market works."
+    * Resolution: Eric simply steals the room ("I'm migrating to Aidan's room"), bypassing the financial negotiation entirely and leaving Jacob stranded at Shepherd.
+38. THE MIDNIGHT GHOST OF 12 WATCHWATER WAY
+An ultra-rare, high-danger encounter tied to the Blacklisted NPC, Ben Bersofsky.
+* The Location: 12 Watchwater Way (The Pariah Zone).
+* The Go-Kart Apparition:
+    * Event: At exactly 12:38 AM in the UMD parking lot, the player has a 5% chance to encounter Ben aggressively racing a go-kart in complete silence.
+    * Dialogue: If approached, he simply states: "Ben Ber. Racing never stops."
+* The "Suspicious Stew" Assimilation: If the player stays too long in Ben's proximity, they ingest the "Stew" and undergo a permanent class-change into the "Alchemist of Suspicious Stew," adopting Ben's erratic, threatening communication style.
+39. TICKETMASTER TRENCH WARFARE (THE TAME IMPALA RAID)
+A high-stress Quick Time Event (QTE).
+* The Event: Tame Impala announces "The Deadbeat Tour" in Baltimore (July 18, 2026).
+* The Mechanic: Eric must battle the Ticketmaster UI. The player must mash buttons to bypass the digital queue.
+* The Financial Leverage: If Nick F secures the tickets first, he charges the group via Zelle with a mandatory 5% interest fee.
+40. THE "ARE YOU 291 LIQUID?" GATEKEEPING CHECK
+A recurring dialogue check used to establish dominance.
+* The Lore: Before any major trip (Medellín, Montreal, The Cabin), Nick F will halt the party and demand: "Are you 291 liquid?"
+* The Response Tree:
+    * Eric's Response: Checks his brokerage, realizes he only has $250, and demands someone front him $40.
+    * Jacob's Response: Arrogantly claims "I'm 13x that," completely missing the point of the question, which is about willingness to spend, not capacity to spend.
+41. THE CHRIS RIVAS "PHANTOM ALIBI" SYSTEM
+A deception mechanic exclusively available to Jacob.
+* The Skill: When the group chat demands to know Jacob's location, he can cast [Summon Chris Rivas].
+* Effect: Jacob claims he is hanging out with Chris Rivas to appear socially active.
+* Counter-play: The Syndicate can roll a Forensic Audit. If they realize Chris Rivas is just a guy whose only notable lore is possessing the "6th grade phone number" of a suicidal RM student, Jacob's bluff shatters, and he is exposed as sitting alone at Montgomery Mall.
+
