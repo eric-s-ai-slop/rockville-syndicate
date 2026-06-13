@@ -32,6 +32,7 @@ import bossNickFImg from '../assets/images/boss_nick_f.jpg';
 import coinImg from '../assets/images/coin.jpg';
 import shardImg from '../assets/images/shard.jpg';
 import { preprocessShowcaseSheet } from './SpritePreprocessor';
+import { extractPropSubject } from './PropExtractor';
 import { ChapterConfig, Beat, ActorPlacement, resolveSpeaker, MapConfig, CHAPTERS } from '../data/chapters';
 import {
   CHAPTER_MUSIC_KEY, STAGE_MUSIC_URL, BOSS_MUSIC_URL, BOSS_LOOP_URL,
@@ -88,6 +89,7 @@ export default class ChapterScene extends Phaser.Scene {
   // Active walkTo target the player must reach to advance.
   private walkTarget: { x: number; y: number; radius: number; marker?: Phaser.GameObjects.Container } | null = null;
   private bossBeatResolve: (() => void) | null = null;
+  private propAspects: Record<string, number> = {};
   private actorSprites: Record<string, Phaser.GameObjects.GameObject[]> = {};
 
   private player!: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
@@ -378,6 +380,19 @@ export default class ChapterScene extends Phaser.Scene {
 
     this.generatePropsAtlas();
     this.preloadNextChapterAudio();
+
+    // Process prop textures to remove backgrounds and cache aspect ratios
+    const PROP_SHEET_KEYS = [
+        'bg_hospital_room',
+        'bg_jungle_gym',
+        'bg_cars_01'
+    ];
+    for (const key of PROP_SHEET_KEYS) {
+        if (this.textures.exists(key)) {
+            // Apply extraction and cache the aspect ratio of the main subject
+            this.propAspects[key] = extractPropSubject(this, key);
+        }
+    }
 
     const heroIds = ['eric', 'jacob', 'nick_f', 'nick_h', 'jordan', 'maharko'];
     heroIds.forEach(id => {
@@ -920,7 +935,22 @@ export default class ChapterScene extends Phaser.Scene {
         this.propSprites.set(propKey, img);
         return;
       } else if (this.textures.exists(propKey)) {
-        const img = this.add.image(x, y, propKey).setDisplaySize(dw, dh).setDepth(y);
+        const img = this.add.image(x, y, propKey);
+
+        let aspect = this.propAspects[propKey];
+        if (!aspect) {
+          aspect = img.width / img.height;
+        }
+
+        let displayWidth = dw;
+        let displayHeight = dw / aspect;
+
+        if (displayHeight > dh) {
+          displayHeight = dh;
+          displayWidth = dh * aspect;
+        }
+
+        img.setDisplaySize(displayWidth, displayHeight).setDepth(y);
         this.propSprites.set(propKey, img);
         return;
       }
