@@ -1,0 +1,55 @@
+{
+  "_README": "VERIFIED crop-rects for the 5 owner-added asset packs, hand-labeled by Claude via grid-crop inspection. Each pack is a 1408x768 JPG (NO alpha — extraction must key on the gray mockup background color, like preprocessShowcaseSheet does for the boss JPGs; gray bg color is given per sheet). Coordinates are {sx,sy,sw,sh} in that sheet. These are AI-generated mockups with drop shadows + slight JPG softening, so expect to TRIM a few px and tune in-engine. 'rec' = recommended sprite for the game.",
+
+  "toll_booth": {
+    "_file": "src/assets/images/game_decor/special/toolbooth.jpg",
+    "_bg": [165, 171, 178],
+    "_use": "OWNER DECISION = use BOTH: a backdrop billboard along the top edge + barrier arms across the lane.",
+    "tollbooth_front":   { "sx": 40,   "sy": 470, "sw": 690, "sh": 195, "rec": true,  "note": "FLAT front elevation of the toll plaza — best as the top-edge backdrop billboard (reads head-on, unlike the isometric one)" },
+    "tollbooth_iso":     { "sx": 40,   "sy": 100, "sw": 700, "sh": 340, "rec": false, "note": "isometric 3-D plaza — alt backdrop; perspective clashes with top-down, use only if you prefer the look" },
+    "barrier_arm_down":  { "sx": 1040, "sy": 295, "sw": 185, "sh": 55,  "rec": true,  "note": "horizontal red/white arm — lay across a lane to block it" },
+    "barrier_arm_up":    { "sx": 885,  "sy": 110, "sw": 135, "sh": 95,  "rec": false, "note": "diagonal raised arm" },
+    "bollard":           { "sx": 1245, "sy": 100, "sw": 28,  "sh": 95,  "note": "post/bollard" },
+    "cone":              { "sx": 1300, "sy": 575, "sw": 42,  "sh": 72,  "note": "single traffic cone (cluster of 3 at ~1235,560 150x90)" },
+    "change_sign":       { "sx": 845,  "sy": 455, "sw": 100, "sh": 40,  "note": "'CHANGE PROVIDED' lane sign (decor)" }
+  },
+
+  "guardrail": {
+    "_file": "src/assets/images/game_decor/special/rail.jpg",
+    "_bg": [196, 196, 196],
+    "guardrail_h":     { "sx": 32,   "sy": 93,  "sw": 366, "sh": 214, "rec": true,  "note": "horizontal seamless straight section incl. posts — TILE horizontally. Trim the empty top/bottom to the rail band (~sy 150, sh ~110) for a tight tile" },
+    "guardrail_v":     { "sx": 161,  "sy": 396, "sw": 53,  "sh": 339, "rec": true,  "note": "vertical straight section — tile vertically (Ch shoulders that run N-S)" },
+    "guardrail_corner":{ "sx": 472,  "sy": 606, "sw": 136, "sh": 129, "note": "bottom-left corner transition (other corners nearby)" },
+    "road_satellite":  { "sx": 1055, "sy": 387, "sw": 322, "sh": 354, "rec": true,  "note": "top-down asphalt road tile w/ lane markings + MERGE arrow — great as a road backdrop for Ch2/Ch5" }
+  },
+
+  "hot_tub": {
+    "_file": "src/assets/images/game_decor/special/pool.jpg",
+    "_bg": [195, 195, 195],
+    "hottub":     { "sx": 1055, "sy": 395, "sw": 322, "sh": 346, "rec": true,  "note": "full spa/pool composite (coping + water + ladder + jet panel). Use as the Ch8 hottub sprite" },
+    "water_h":    { "sx": 495,  "sy": 150, "sw": 341, "sh": 156, "note": "tileable water surface (2 tiles — halve for one ~170x156)" },
+    "coping_h":   { "sx": 32,   "sy": 150, "sw": 421, "sh": 81,  "note": "stone coping edge (top), tileable" },
+    "jets_detail":{ "sx": 63,   "sy": 601, "sw": 140, "sh": 140, "note": "active-jets water detail (overlay/animation frame)" }
+  },
+
+  "arcade": {
+    "_file": "src/assets/images/game_decor/special/arcade cab.jpg",
+    "_bg": [196, 195, 193],
+    "arcade_cabinet":     { "sx": 64,  "sy": 344, "sw": 122, "sh": 196, "rec": true,  "note": "full front-view cabinet — use as the Ch8 arcade sprite" },
+    "arcade_cabinet_alt": { "sx": 307, "sy": 345, "sw": 99,  "sh": 172, "note": "alt cabinet (vertical screen variant)" },
+    "arcade_screen":      { "sx": 631, "sy": 119, "sw": 172, "sh": 147, "note": "active screen art (maze) — optional overlay" }
+  },
+
+  "cars": {
+    "_file": "src/assets/images/game_decor/special/cars.jpg",
+    "_bg": [193, 192, 190],
+    "_use": "RECOMMENDATION: for the generic-car stubs in Ch2/Ch6, reuse the existing 3 hero cars (prop_nick_f_corolla / prop_jordan_mustang / prop_maharko_camero) — they're cleaner. The top-down cars below are embedded in a parking-lot SCENE on dark asphalt, so extraction must key out the asphalt (dark gray) + parking lines; expect messier results. Optional/bonus.",
+    "car_blue":  { "sx": 812,  "sy": 250, "sw": 120, "sh": 90, "rec": false, "note": "top-down blue sedan (in parking space; approx — trim asphalt)" },
+    "car_green": { "sx": 990,  "sy": 250, "sw": 120, "sh": 90, "rec": false, "note": "top-down green car (approx)" },
+    "car_red":   { "sx": 1170, "sy": 250, "sw": 130, "sh": 90, "rec": false, "note": "top-down red car (approx)" }
+  },
+
+  "_STILL_MISSING": {
+    "firepit": "No firepit pack was provided. Keep the Ch8 firepit PROCEDURAL (stone ring + flame particles via the scene's particle system) until/unless a firepit sprite is added."
+  }
+}
