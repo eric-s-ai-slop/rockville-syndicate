@@ -43,9 +43,22 @@ export default function GameLayout() {
   const [titleCard, setTitleCard] = useState<TitleCardData | null>(null);
   const [titleCardVisible, setTitleCardVisible] = useState(false);
   const [muted, setMuted] = useState(() => localStorage.getItem('omega-muted') === 'true');
+  const [colorBlind, setColorBlind] = useState(() => localStorage.getItem('omega-colorblind') === 'true');
+  const [textScale, setTextScale] = useState<1 | 1.25 | 1.5>(() => {
+    const v = localStorage.getItem('omega-textscale');
+    return v === '1.5' ? 1.5 : v === '1.25' ? 1.25 : 1;
+  });
   const [freePlay, setFreePlay] = useState(() => {
     try { return JSON.parse(localStorage.getItem('omega-progress-v1') || '{}')?.freePlay === true; } catch { return false; }
   });
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('color-blind', colorBlind);
+  }, [colorBlind]);
+
+  useEffect(() => {
+    document.documentElement.style.setProperty('--text-scale', textScale.toString());
+  }, [textScale]);
 
   const phaserGameRef = useRef<Phaser.Game | null>(null);
   const resizeCleanupRef = useRef<(() => void) | null>(null);
@@ -321,18 +334,42 @@ export default function GameLayout() {
             <span className="opacity-70" style={{ color: '#8aaa60' }}>{activeChapter?.title}</span>
           </div>
         )}
-        <button
-          onClick={() => {
-            const next = !muted;
-            setMuted(next);
-            localStorage.setItem('omega-muted', String(next));
-            if (phaserGameRef.current) phaserGameRef.current.sound.mute = next;
-          }}
-          className="text-base opacity-60 hover:opacity-100 transition-opacity"
-          title={muted ? 'Unmute' : 'Mute'}
-        >
-          {muted ? '🔇' : '🔊'}
-        </button>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => {
+              const nextScale = textScale === 1 ? 1.25 : textScale === 1.25 ? 1.5 : 1;
+              setTextScale(nextScale);
+              localStorage.setItem('omega-textscale', nextScale.toString());
+            }}
+            className="text-base opacity-60 hover:opacity-100 transition-opacity font-mono"
+            title="Text Scale"
+          >
+            {textScale}x
+          </button>
+          <button
+            onClick={() => {
+              const next = !colorBlind;
+              setColorBlind(next);
+              localStorage.setItem('omega-colorblind', String(next));
+            }}
+            className="text-base opacity-60 hover:opacity-100 transition-opacity"
+            title={colorBlind ? 'Disable Color-Blind Mode' : 'Enable Color-Blind Mode'}
+          >
+            {colorBlind ? '👁️' : '🕶️'}
+          </button>
+          <button
+            onClick={() => {
+              const next = !muted;
+              setMuted(next);
+              localStorage.setItem('omega-muted', String(next));
+              if (phaserGameRef.current) phaserGameRef.current.sound.mute = next;
+            }}
+            className="text-base opacity-60 hover:opacity-100 transition-opacity"
+            title={muted ? 'Unmute' : 'Mute'}
+          >
+            {muted ? '🔇' : '🔊'}
+          </button>
+        </div>
       </header>
 
       {/* Main */}

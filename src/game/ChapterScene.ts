@@ -31,7 +31,7 @@ import bossNickFImg from '../assets/images/boss_nick_f.jpg';
 import coinImg from '../assets/images/coin.jpg';
 import shardImg from '../assets/images/shard.jpg';
 import { preprocessShowcaseSheet } from './SpritePreprocessor';
-import { ChapterConfig, Beat, ActorPlacement, resolveSpeaker, MapConfig } from '../data/chapters';
+import { ChapterConfig, Beat, ActorPlacement, resolveSpeaker, MapConfig, CHAPTERS } from '../data/chapters';
 import {
   CHAPTER_MUSIC_KEY, STAGE_MUSIC_URL, BOSS_MUSIC_URL, BOSS_LOOP_URL,
   THEME_FOOTSTEP, FOOTSTEP_URLS,
@@ -356,8 +356,26 @@ export default class ChapterScene extends Phaser.Scene {
     this.safeLoadAudio('victory_jingle', VICTORY_JINGLE_URL);
   }
 
+  private preloadNextChapterAudio() {
+    this.time.delayedCall(2000, () => {
+      const currentIndex = CHAPTERS.findIndex(c => c.id === this.chapter.id);
+      if (currentIndex >= 0 && currentIndex < CHAPTERS.length - 1) {
+        const nextChapter = CHAPTERS[currentIndex + 1];
+        const nextMusicKey = CHAPTER_MUSIC_KEY[nextChapter.id];
+        const nextMusicUrl = nextMusicKey ? STAGE_MUSIC_URL[nextMusicKey] : undefined;
+        if (nextMusicKey && nextMusicUrl && !this.cache.audio.exists(nextMusicKey)) {
+          this.load.audio(nextMusicKey, nextMusicUrl);
+          this.load.start();
+        }
+      }
+    });
+  }
+
   public create() {
     if (!this.playerClass) return;
+
+    this.generatePropsAtlas();
+    this.preloadNextChapterAudio();
 
     const heroIds = ['eric', 'jacob', 'nick_f', 'nick_h', 'jordan', 'maharko'];
     heroIds.forEach(id => {
@@ -841,10 +859,16 @@ export default class ChapterScene extends Phaser.Scene {
 
   private drawDecorativeRect(x: number, y: number, w: number, h: number, fill: number, stroke: number, propType?: string, propKey?: string) {
     // R1: sprite override — render a real image if the texture is loaded
-    if (propKey && this.textures.exists(propKey)) {
-      const img = this.add.image(x, y, propKey).setDisplaySize(w, h).setDepth(y);
-      this.propSprites.set(propKey, img);
-      return;
+    if (propKey) {
+      if (this.textures.exists('small_props_atlas') && this.textures.get('small_props_atlas').has(propKey)) {
+        const img = this.add.image(x, y, 'small_props_atlas', propKey).setDisplaySize(w, h).setDepth(y);
+        this.propSprites.set(propKey, img);
+        return;
+      } else if (this.textures.exists(propKey)) {
+        const img = this.add.image(x, y, propKey).setDisplaySize(w, h).setDepth(y);
+        this.propSprites.set(propKey, img);
+        return;
+      }
     }
     if (propType === 'rug') {
       const g = this.add.graphics().setDepth(-10);
@@ -869,13 +893,20 @@ export default class ChapterScene extends Phaser.Scene {
 
   private drawPropShape(x: number, y: number, w: number, h: number, fill: number, stroke: number, propType?: string, propKey?: string) {
     // R1: sprite override — render a real image if the texture is loaded
-    if (propKey && this.textures.exists(propKey)) {
+    if (propKey) {
       const override = ChapterScene.PROP_DISPLAY[propKey];
       const dw = override ? override.w : w;
       const dh = override ? override.h : h;
-      const img = this.add.image(x, y, propKey).setDisplaySize(dw, dh).setDepth(y);
-      this.propSprites.set(propKey, img);
-      return;
+
+      if (this.textures.exists('small_props_atlas') && this.textures.get('small_props_atlas').has(propKey)) {
+        const img = this.add.image(x, y, 'small_props_atlas', propKey).setDisplaySize(dw, dh).setDepth(y);
+        this.propSprites.set(propKey, img);
+        return;
+      } else if (this.textures.exists(propKey)) {
+        const img = this.add.image(x, y, propKey).setDisplaySize(dw, dh).setDepth(y);
+        this.propSprites.set(propKey, img);
+        return;
+      }
     }
     const g = this.add.graphics().setDepth(y);
     const l = x - w / 2, t = y - h / 2;
@@ -2732,6 +2763,56 @@ export default class ChapterScene extends Phaser.Scene {
   }
 
   // ─── Procedural Textures ──────────────────────────────────────────────────
+
+  private generatePropsAtlas() {
+    if (this.textures.exists('small_props_atlas')) return;
+    const propKeys = [
+      'coin_img', 'shard_img', 'prop_hospital_bed', 'prop_iv_drip',
+      'prop_cabinet', 'prop_red_toilet', 'prop_jungle_gym',
+      'prop_watchwater', 'prop_watchwater_open', 'prop_jordan_mustang',
+      'prop_maharko_camero', 'prop_nick_f_corolla'
+    ];
+    let loadedProps = propKeys.filter(k => this.textures.exists(k));
+    if (loadedProps.length === 0) return;
+
+    const atlasCanvas = document.createElement('canvas');
+    atlasCanvas.width = 1024;
+    atlasCanvas.height = 1024;
+    const ctx = atlasCanvas.getContext('2d')!;
+
+    let currentX = 0;
+    let currentY = 0;
+    let rowHeight = 0;
+    const atlasFrames: Record<string, {x: number, y: number, w: number, h: number}> = {};
+
+    for (const key of loadedProps) {
+      const img = this.textures.get(key).getSourceImage() as HTMLImageElement;
+      if (!img) continue;
+
+      if (currentX + img.width > atlasCanvas.width) {
+        currentX = 0;
+        currentY += rowHeight;
+        rowHeight = 0;
+      }
+
+      ctx.drawImage(img, currentX, currentY);
+      atlasFrames[key] = {x: currentX, y: currentY, w: img.width, h: img.height};
+
+      currentX += img.width;
+      rowHeight = Math.max(rowHeight, img.height);
+    }
+
+    this.textures.addAtlas('small_props_atlas', atlasCanvas as unknown as HTMLImageElement, {
+      frames: Object.entries(atlasFrames).map(([k, v]) => ({
+        filename: k,
+        frame: { x: v.x, y: v.y, w: v.w, h: v.h },
+        rotated: false,
+        trimmed: false,
+        spriteSourceSize: { x: 0, y: 0, w: v.w, h: v.h },
+        sourceSize: { w: v.w, h: v.h }
+      }))
+    });
+  }
 
   private createProceduralTextures() {
     // Vignette: radial gradient, transparent center → dark edges
