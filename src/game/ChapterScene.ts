@@ -15,6 +15,8 @@ import heroEricImg from '../assets/images/hero_eric_1781236098529.jpg';
 import heroJacobImg from '../assets/images/hero_jacob_1781236113357.jpg';
 import heroNickFImg from '../assets/images/hero_nick_f_1781236122782.jpg';
 import heroNickHImg from '../assets/images/hero_nick_h_1781236135006.jpg';
+import heroJordanImg from '../assets/images/hero_jordan.jpg';
+import heroMaharkoImg from '../assets/images/hero_maharko.jpg';
 import enemyTicketmasterImg from '../assets/images/enemy_ticketmaster.jpg';
 import enemyDishesImg from '../assets/images/enemy_dishes.jpg';
 import enemyZombieImg from '../assets/images/enemy_zombie.jpg';
@@ -23,12 +25,18 @@ import neighborhoodMapImg from '../assets/images/neighborhood_map.jpg';
 import bossEricImg from '../assets/images/boss_eric.jpg';
 import bossAudreyImg from '../assets/images/boss_audrey.jpg';
 import bossFloridaImg from '../assets/images/boss_florida.jpg';
-import bossBenImg from '../assets/images/boss_ben.jpg';
+// The boss_ben fight is actually Michael Bersofsky (Ben's dad) — use his sheet.
+import bossBenImg from '../assets/images/micheal_bersofsky.jpg';
 import bossNickFImg from '../assets/images/boss_nick_f.jpg';
 import coinImg from '../assets/images/coin.jpg';
 import shardImg from '../assets/images/shard.jpg';
 import { preprocessShowcaseSheet } from './SpritePreprocessor';
 import { ChapterConfig, Beat, ActorPlacement, resolveSpeaker, MapConfig } from '../data/chapters';
+import {
+  CHAPTER_MUSIC_KEY, STAGE_MUSIC_URL, BOSS_MUSIC_URL,
+  THEME_FOOTSTEP, FOOTSTEP_URLS,
+  UI_SELECT_URL, VICTORY_JINGLE_URL,
+} from './audio';
 
 export interface StoryDialoguePayload {
   speakerName: string;
@@ -106,6 +114,9 @@ export default class ChapterScene extends Phaser.Scene {
   // Game state
   private spawnedBoss: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody | null = null;
   private isBossActive: boolean = false;
+  // True while the React QTE modal is open — combat must fully pause (boss AI,
+  // auto-fire, AND damage from in-flight delayed attacks).
+  private qteActive: boolean = false;
   private bossData: BossConfig | null = null;
   private enemiesLeftToSpawn: number = 15;
   private enemiesKilledCount: number = 0;
@@ -130,6 +141,11 @@ export default class ChapterScene extends Phaser.Scene {
   private letterboxBottom: Phaser.GameObjects.Rectangle | null = null;
   private lastFootstepTime: number = 0;
   private portraitDataUrls: Record<string, string> = {};
+
+  // Phase E — audio
+  private stageMusic: Phaser.Sound.BaseSound | null = null;
+  private bossMusic: Phaser.Sound.BaseSound | null = null;
+  private footstepKeys: string[] = [];
 
   // NPC interaction system
   private npcs: Array<{
@@ -232,6 +248,8 @@ export default class ChapterScene extends Phaser.Scene {
     this.safeLoadImage('hero_jacob_raw_jpg', heroJacobImg);
     this.safeLoadImage('hero_nick_f_raw_jpg', heroNickFImg);
     this.safeLoadImage('hero_nick_h_raw_jpg', heroNickHImg);
+    this.safeLoadImage('hero_jordan_raw_jpg', heroJordanImg);
+    this.safeLoadImage('hero_maharko_raw_jpg', heroMaharkoImg);
     this.safeLoadImage('neighborhood_map', neighborhoodMapImg);
     // Boss images
     this.safeLoadImage('boss_eric', bossEricImg);
@@ -247,12 +265,35 @@ export default class ChapterScene extends Phaser.Scene {
     this.safeLoadImage('enemy_dishes_raw', enemyDishesImg);
     this.safeLoadImage('enemy_zombie_raw', enemyZombieImg);
     this.safeLoadImage('enemy_frat_bro_raw', enemyFratBroImg);
+    // Phase E — audio
+    this.loadChapterAudio();
+  }
+
+  private safeLoadAudio(key: string, url: string) {
+    try { this.load.audio(key, url); } catch { /* missing file — skip silently */ }
+  }
+
+  private loadChapterAudio() {
+    const musicKey = CHAPTER_MUSIC_KEY[this.chapter.id];
+    const musicUrl = musicKey ? STAGE_MUSIC_URL[musicKey] : undefined;
+    if (musicKey && musicUrl) this.safeLoadAudio(musicKey, musicUrl);
+    this.safeLoadAudio('boss_music', BOSS_MUSIC_URL);
+
+    const variant = THEME_FOOTSTEP[(this.chapter.map as any).theme ?? 'apartment'] ?? 'carpet';
+    this.footstepKeys = (FOOTSTEP_URLS[variant] ?? []).map((url, i) => {
+      const key = `footstep_${i}`;
+      this.safeLoadAudio(key, url);
+      return key;
+    });
+
+    this.safeLoadAudio('ui_select', UI_SELECT_URL);
+    this.safeLoadAudio('victory_jingle', VICTORY_JINGLE_URL);
   }
 
   public create() {
     if (!this.playerClass) return;
 
-    const heroIds = ['eric', 'jacob', 'nick_f', 'nick_h'];
+    const heroIds = ['eric', 'jacob', 'nick_f', 'nick_h', 'jordan', 'maharko'];
     heroIds.forEach(id => {
       const sheetKey = `hero_${id}_sheet`;
       if (this.textures.exists(sheetKey)) return;
@@ -430,8 +471,19 @@ export default class ChapterScene extends Phaser.Scene {
     // Extract portraits from processed sprite sheets (synchronous canvas read)
     this.extractPortraits();
 
+    // Start stage music (fade in over 1.2 s to not blast the player)
+    this.startStageMusic();
+
     // Kick off the story.
     this.time.delayedCall(300, () => this.startBeat(0));
+
+    // Clean up audio when the scene shuts down
+    this.events.once('shutdown', () => {
+      this.stageMusic?.destroy();
+      this.bossMusic?.destroy();
+      this.stageMusic = null;
+      this.bossMusic = null;
+    });
   }
 
   // ─── Map building (data-driven) ───────────────────────────────────────────────
@@ -950,6 +1002,10 @@ export default class ChapterScene extends Phaser.Scene {
       this.lastMoveAngle = Math.atan2(vy, vx);
     }
 
+    // Face the direction of horizontal travel (sprites are drawn facing right).
+    if (vx < 0) this.player.setFlipX(true);
+    else if (vx > 0) this.player.setFlipX(false);
+
     if (!this.isDashing && !this.isAttackingAnim) {
       this.player.setVelocity(vx, vy);
       if (vx !== 0 || vy !== 0) {
@@ -969,9 +1025,13 @@ export default class ChapterScene extends Phaser.Scene {
       this.executeDash(vx, vy);
     }
 
-    // Footstep dust puff every 250ms while moving
+    // Footstep dust puff + sound every 250ms while moving
     if ((vx !== 0 || vy !== 0) && time - this.lastFootstepTime > 250 && this.textures.exists('particle_dot')) {
       this.lastFootstepTime = time;
+      if (this.footstepKeys.length) {
+        const key = this.footstepKeys[Math.floor(Math.random() * this.footstepKeys.length)];
+        try { this.sound.play(key, { volume: 0.12 }); } catch { /* audio not ready */ }
+      }
       const puff = this.add.image(
         this.player.x + Phaser.Math.Between(-6, 6),
         this.player.y + 14,
@@ -1117,15 +1177,13 @@ export default class ChapterScene extends Phaser.Scene {
     this.showLetterbox();
     const cam = this.cameras.main;
     cam.stopFollow();
-    cam.pan(beat.x, beat.y, beat.durationMs, 'Sine.easeInOut', true, (_c, progress) => {
-      if (progress === 1) {
-        this.time.delayedCall(beat.holdMs ?? 600, () => {
-          this.hideLetterbox();
-          cam.startFollow(this.player, true, 0.1, 0.1);
-          this.unfreeze();
-          this.advanceBeat();
-        });
-      }
+    cam.pan(beat.x, beat.y, beat.durationMs, 'Sine.easeInOut', true);
+    // Use delayedCall for timing guarantee — pan callback p===1 is unreliable at short distances.
+    this.time.delayedCall(beat.durationMs + (beat.holdMs ?? 600), () => {
+      this.hideLetterbox();
+      cam.startFollow(this.player, true, 0.1, 0.1);
+      this.unfreeze();
+      this.advanceBeat();
     });
   }
 
@@ -1137,26 +1195,32 @@ export default class ChapterScene extends Phaser.Scene {
     const intro = beat.introLines ?? [];
 
     const launchFight = () => {
-      // Letterbox in → camera punch to boss spawn → name slam → begin
+      // Letterbox in → camera punch to boss spawn → name slam → begin.
+      // Drive the sequence with delayedCall rather than the pan callback —
+      // cam.pan's p===1 tick is unreliable when target ≈ current position.
+      this.startBossMusic();
       this.freeze();
       this.showLetterbox();
       const cam = this.cameras.main;
       const ax = beat.arena ? beat.arena.x : this.chapter.map.width / 2;
       const ay = beat.arena ? beat.arena.y - (beat.arena.h ?? 0) / 2 + 60 : 120;
       cam.stopFollow();
-      cam.pan(ax, ay, 550, 'Sine.easeInOut', true, (_c, p) => {
-        if (p !== 1) return;
-        // Boss name slam label — scale 3→1 like a title card
-        const nameLabel = this.label(cam.midPoint.x, cam.midPoint.y - 30, bossConfig.name.toUpperCase(), {
+      cam.pan(ax, ay, 550, 'Sine.easeInOut', true);
+      // Wait for pan to finish (550ms) then run the name-slam sequence.
+      this.time.delayedCall(550, () => {
+        // Screen-space coords: setScrollFactor(0) objects must use cam.width/height, not midPoint.
+        const cx = cam.width / 2;
+        const cy = cam.height / 2;
+        const nameLabel = this.label(cx, cy - 30, bossConfig.name.toUpperCase(), {
           fontSize: '28px', color: '#ef4444', fontStyle: 'bold',
           stroke: '#000000', strokeThickness: 6
         }).setOrigin(0.5).setScrollFactor(0).setDepth(12000).setScale(3).setAlpha(0);
-        const titleLabel = this.label(cam.midPoint.x, cam.midPoint.y + 14, bossConfig.title, {
+        const titleLabel = this.label(cx, cy + 14, bossConfig.title, {
           fontSize: '13px', color: '#fca5a5', fontStyle: 'italic',
           stroke: '#000000', strokeThickness: 3
         }).setOrigin(0.5).setScrollFactor(0).setDepth(12000).setAlpha(0);
-        this.cameras.main.flash(80, 239, 68, 68);
-        this.cameras.main.shake(160, 0.018);
+        cam.flash(80, 239, 68, 68);
+        cam.shake(160, 0.018);
         this.tweens.add({
           targets: nameLabel, scale: 1, alpha: 1, duration: 260, ease: 'Back.easeOut',
           onComplete: () => {
@@ -1189,6 +1253,50 @@ export default class ChapterScene extends Phaser.Scene {
     }
   }
 
+  // ─── Audio helpers ────────────────────────────────────────────────────────────
+
+  private startStageMusic() {
+    const musicKey = CHAPTER_MUSIC_KEY[this.chapter.id];
+    if (!musicKey || !this.cache.audio.exists(musicKey)) return;
+    try {
+      this.stageMusic = this.sound.add(musicKey, { loop: true, volume: 0 });
+      this.stageMusic.play();
+      this.tweens.add({ targets: this.stageMusic, volume: 0.48, duration: 1200 });
+    } catch { /* Web Audio not ready — play will resume on first canvas interaction */ }
+  }
+
+  private startBossMusic() {
+    // Fade out stage music
+    if (this.stageMusic?.isPlaying) {
+      this.tweens.add({
+        targets: this.stageMusic, volume: 0, duration: 600,
+        onComplete: () => (this.stageMusic as Phaser.Sound.WebAudioSound | null)?.pause(),
+      });
+    }
+    if (!this.cache.audio.exists('boss_music')) return;
+    try {
+      this.bossMusic = this.sound.add('boss_music', { loop: true, volume: 0 });
+      this.bossMusic.play();
+      this.tweens.add({ targets: this.bossMusic, volume: 0.62, duration: 600 });
+    } catch { /* skip */ }
+  }
+
+  private stopBossMusic() {
+    if (this.bossMusic) {
+      this.tweens.add({
+        targets: this.bossMusic, volume: 0, duration: 700,
+        onComplete: () => { this.bossMusic?.destroy(); this.bossMusic = null; },
+      });
+    }
+    // Resume stage music
+    if (this.stageMusic) {
+      try {
+        if (!(this.stageMusic as any).isPlaying) (this.stageMusic as Phaser.Sound.WebAudioSound).resume();
+        this.tweens.add({ targets: this.stageMusic, volume: 0.48, duration: 900 });
+      } catch { /* skip */ }
+    }
+  }
+
   private applyLedger(delta: number, note: string) {
     this.ledgerTotal += delta;
     this.onLedgerChange(this.ledgerTotal, note);
@@ -1198,6 +1306,11 @@ export default class ChapterScene extends Phaser.Scene {
   private runEndChapter() {
     this.player.play('victory_' + this.playerClass.id, true);
     this.cameras.main.flash(400, 200, 232, 154);
+    // Fade out stage music and play victory jingle
+    if (this.stageMusic?.isPlaying) {
+      this.tweens.add({ targets: this.stageMusic, volume: 0, duration: 800 });
+    }
+    try { this.sound.play('victory_jingle', { volume: 0.6 }); } catch { /* skip */ }
     this.time.delayedCall(1200, () => {
       this.cameras.main.fadeOut(500, 0, 0, 0);
       this.time.delayedCall(520, () => this.onLevelCompleted());
@@ -1545,7 +1658,8 @@ export default class ChapterScene extends Phaser.Scene {
     const targetAngle = Phaser.Math.Angle.Between(this.spawnedBoss.x, this.spawnedBoss.y, this.player.x, this.player.y);
     const bossSpeed = 80 + this.currentLevelIndex * 15;
     this.spawnedBoss.setVelocity(Math.cos(targetAngle) * bossSpeed, Math.sin(targetAngle) * bossSpeed);
-    this.spawnedBoss.setRotation(targetAngle + Math.PI / 2);
+    // Face the player horizontally — sprites are drawn facing right; never rotate humanoids.
+    this.spawnedBoss.setFlipX(Math.cos(targetAngle) < 0);
 
     if (time - this.lastBossAttackTime > 2000) {
       this.lastBossAttackTime = time;
@@ -1829,6 +1943,7 @@ export default class ChapterScene extends Phaser.Scene {
     this.spawnedBoss = null;
     this.isBossActive = false;
     this.isAttackingAnim = false;
+    this.stopBossMusic();
     this.player.play('victory_' + this.playerClass.id, true);
     // Hand control back to the story — the bossFight beat resolves here.
     this.time.delayedCall(1200, () => {

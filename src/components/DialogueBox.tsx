@@ -59,31 +59,33 @@ export default function DialogueBox({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lineIndex, fullText]);
 
+  const skipTypewriter = useCallback(() => {
+    if (!isTypingRef.current) return false;
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    isTypingRef.current = false;
+    setDisplayedText(fullText);
+    return true;
+  }, [fullText]);
+
   const handleAdvance = useCallback(() => {
+    if (skipTypewriter()) return;
     if (showChoices) return;
-    // First press skips typewriter; second press advances line
-    if (isTypingRef.current) {
-      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
-      isTypingRef.current = false;
-      setDisplayedText(fullText);
-      return;
-    }
     onNext();
-  }, [onNext, showChoices, fullText]);
+  }, [onNext, showChoices, skipTypewriter]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (e.code === 'Space' || e.code === 'Enter' || e.code === 'KeyE') {
+        e.preventDefault();
+        handleAdvance();
+        return;
+      }
       if (showChoices) {
         const n = parseInt(e.key, 10);
         if (!Number.isNaN(n) && n >= 1 && n <= (choices?.length ?? 0)) {
           e.preventDefault();
           onChoose?.(n - 1);
         }
-        return;
-      }
-      if (e.code === 'Space' || e.code === 'Enter' || e.code === 'KeyE') {
-        e.preventDefault();
-        handleAdvance();
       }
     };
     window.addEventListener('keydown', handler);

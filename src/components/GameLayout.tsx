@@ -41,12 +41,15 @@ export default function GameLayout() {
   const [activeStory, setActiveStory] = useState<ActiveStory | null>(null);
   const [titleCard, setTitleCard] = useState<TitleCardData | null>(null);
   const [titleCardVisible, setTitleCardVisible] = useState(false);
+  const [muted, setMuted] = useState(() => localStorage.getItem('omega-muted') === 'true');
 
   const phaserGameRef = useRef<Phaser.Game | null>(null);
   const resizeCleanupRef = useRef<(() => void) | null>(null);
   // Phaser captures this once at boot — route through a ref so it always calls
   // the latest handler.
   const storyRef = useRef<(payload: StoryDialoguePayload, done: (i?: number) => void) => void>(() => {});
+  // Mirror of activeStory for reading the latest value outside setState updaters.
+  const activeStoryRef = useRef<ActiveStory | null>(null);
 
   // Load saved progress on mount.
   useEffect(() => {
@@ -97,34 +100,47 @@ export default function GameLayout() {
 
   const handleStoryDialogue = useCallback(
     (payload: StoryDialoguePayload, done: (choiceIndex?: number) => void) => {
-      setActiveStory({ payload, done, lineIndex: 0 });
+      const next = { payload, done, lineIndex: 0 };
+      activeStoryRef.current = next;
+      setActiveStory(next);
     },
     []
   );
   useEffect(() => {
     storyRef.current = handleStoryDialogue;
   }, [handleStoryDialogue]);
+  // Keep the ref in lockstep with state so advance/choose read the live value.
+  useEffect(() => {
+    activeStoryRef.current = activeStory;
+  }, [activeStory]);
 
+  // The scene's `done` callback drives the beat engine — it MUST run exactly once
+  // per dialogue/choice. It is a side effect, so it can never live inside a
+  // setState updater: React StrictMode double-invokes updaters in dev, which would
+  // fire `done()` twice and skip a beat (e.g. walkTo beats vanish, leaving a stale
+  // walkTarget and a soft-locked confrontation). Read the latest story via a ref
+  // and perform the side effect outside the updater.
   const advanceStory = () => {
-    setActiveStory(prev => {
-      if (!prev) return null;
-      const last = prev.lineIndex >= prev.payload.lines.length - 1;
-      if (last) {
-        // On the last line: if there are choices, wait for a pick; otherwise finish.
-        if (prev.payload.choices && prev.payload.choices.length) return prev;
-        prev.done();
-        return null;
-      }
-      return { ...prev, lineIndex: prev.lineIndex + 1 };
-    });
+    const cur = activeStoryRef.current;
+    if (!cur) return;
+    const last = cur.lineIndex >= cur.payload.lines.length - 1;
+    if (!last) {
+      setActiveStory({ ...cur, lineIndex: cur.lineIndex + 1 });
+      return;
+    }
+    // On the last line: if there are choices, wait for a pick; otherwise finish.
+    if (cur.payload.choices && cur.payload.choices.length) return;
+    activeStoryRef.current = null;
+    setActiveStory(null);
+    cur.done();
   };
 
   const chooseStory = (idx: number) => {
-    setActiveStory(prev => {
-      if (!prev) return null;
-      prev.done(idx);
-      return null;
-    });
+    const cur = activeStoryRef.current;
+    if (!cur) return;
+    activeStoryRef.current = null;
+    setActiveStory(null);
+    cur.done(idx);
   };
 
   // ─── Phaser boot ─────────────────────────────────────────────────────────────
@@ -146,6 +162,7 @@ export default function GameLayout() {
           postBoot: (game) => {
             game.canvas.setAttribute('tabindex', '0');
             game.canvas.focus();
+            game.sound.mute = localStorage.getItem('omega-muted') === 'true';
             if (import.meta.env.DEV) (window as unknown as { __OMEGA_GAME__?: Phaser.Game }).__OMEGA_GAME__ = game;
             game.scene.add('ChapterScene', ChapterScene, true, {
               hero: selectedHero,
@@ -263,7 +280,7 @@ export default function GameLayout() {
         <div className="flex items-center gap-3">
           <span className="text-xl">🌿</span>
           <div>
-            <span className="text-sm font-bold tracking-wide" style={{ color: '#c8e89a' }}>Project Omega</span>
+            <span className="text-sm font-bold tracking-wide font-display" style={{ color: '#c8e89a' }}>Project Omega</span>
             <span className="text-xs ml-2 opacity-50" style={{ color: '#8aaa60' }}>The Rockville Syndicate</span>
           </div>
         </div>
@@ -292,6 +309,18 @@ export default function GameLayout() {
             <span className="opacity-70" style={{ color: '#8aaa60' }}>{activeChapter?.title}</span>
           </div>
         )}
+        <button
+          onClick={() => {
+            const next = !muted;
+            setMuted(next);
+            localStorage.setItem('omega-muted', String(next));
+            if (phaserGameRef.current) phaserGameRef.current.sound.mute = next;
+          }}
+          className="text-base opacity-60 hover:opacity-100 transition-opacity"
+          title={muted ? 'Unmute' : 'Mute'}
+        >
+          {muted ? '🔇' : '🔊'}
+        </button>
       </header>
 
       {/* Main */}
@@ -303,7 +332,7 @@ export default function GameLayout() {
             <div className="max-w-3xl w-full omega-fade-up">
               <div className="text-center mb-8">
                 <div className="text-4xl mb-3">🌿</div>
-                <h2 className="text-2xl font-bold mb-1" style={{ color: '#c8e89a' }}>Choose your crew member</h2>
+                <h2 className="text-2xl font-bold mb-1 font-display" style={{ color: '#c8e89a' }}>Choose your crew member</h2>
                 <p className="text-sm opacity-60" style={{ color: '#8aaa60' }}>The Rockville Syndicate, Summer 2026</p>
               </div>
 
@@ -325,7 +354,7 @@ export default function GameLayout() {
                         <span className="text-3xl">{hero.emoji}</span>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2 mb-1">
-                            <h3 className="font-bold text-base" style={{ color: selected ? hero.color : '#c8e89a' }}>{hero.name}</h3>
+                            <h3 className="font-bold text-base font-display" style={{ color: selected ? hero.color : '#c8e89a' }}>{hero.name}</h3>
                             <span className="text-xs font-mono shrink-0" style={{ color: '#8aaa60' }}>BIQ {hero.biq}</span>
                           </div>
                           <p className="text-xs mb-2 opacity-70" style={{ color: '#c8e89a' }}>{hero.title}</p>
@@ -492,7 +521,7 @@ export default function GameLayout() {
           <div className="h-full flex flex-col items-center justify-center text-center p-8 omega-fade-up">
             <div className="text-5xl mb-4">✅</div>
             <p className="text-xs font-mono tracking-widest mb-1" style={{ color: '#8aaa60' }}>CHAPTER CLEARED</p>
-            <h2 className="text-2xl font-bold mb-2" style={{ color: '#c8e89a' }}>{activeChapter.title}</h2>
+            <h2 className="text-2xl font-bold mb-2 font-display" style={{ color: '#c8e89a' }}>{activeChapter.title}</h2>
             <p className="text-sm mb-8 opacity-60" style={{ color: '#8aaa60' }}>
               The Ledger remembers. ${ledger.total.toFixed(2)} on the books.
             </p>
@@ -510,7 +539,7 @@ export default function GameLayout() {
         {gameStatus === 'gameover' && (
           <div className="h-full flex flex-col items-center justify-center text-center p-8">
             <div className="text-5xl mb-4">💀</div>
-            <h2 className="text-2xl font-bold mb-2" style={{ color: '#ef4444' }}>Social Collapse</h2>
+            <h2 className="text-2xl font-bold mb-2 font-display" style={{ color: '#ef4444' }}>Social Collapse</h2>
             <p className="text-sm mb-2 opacity-70" style={{ color: '#c8e89a' }}>
               You failed to verify your liquid reserves.
             </p>

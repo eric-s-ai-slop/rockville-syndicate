@@ -1010,6 +1010,7 @@ export const LORE_BARKS = [
   "Pariah contagion: BIQ permanently lowered",
   "The Rose Incident exists. Deploy carefully.",
   "Jordan: Shadow Admin of the Meat Market",
+  "DRINK THE STEW",
   // From storyboard_8
   "April Fools! (romance tree permanently locked)",
   "THE MIDDLETOWN MOGGER. (crickets)",

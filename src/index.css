@@ -1,9 +1,28 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
 @import "tailwindcss";
 
+/* Jupiteroid — display font for headings */
+@font-face {
+  font-family: 'Jupiteroid';
+  src: url('./assets/fonts/Jupiteroid/Web Open Font Format (.woff)/Jupiteroid-Regular.woff2') format('woff2'),
+       url('./assets/fonts/Jupiteroid/Web Open Font Format (.woff)/Jupiteroid-Regular.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Jupiteroid';
+  src: url('./assets/fonts/Jupiteroid/Web Open Font Format (.woff)/Jupiteroid-Bold.woff2') format('woff2'),
+       url('./assets/fonts/Jupiteroid/Web Open Font Format (.woff)/Jupiteroid-Bold.woff') format('woff');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-display: "Jupiteroid", "JetBrains Mono", ui-monospace, sans-serif;
 
   /* Cozy forest palette */
   --color-omega-bg: #0c1208;
