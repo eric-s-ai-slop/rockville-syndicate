@@ -3,7 +3,7 @@ import { DIALOG_BLIP_URL } from '../game/audio';
 
 const blipPool = [0, 1, 2].map(() => new Audio(DIALOG_BLIP_URL));
 let blipIdx = 0;
-function playBlip(rate = 1, volume = 0.35) {
+function playBlip(rate = 1, volume = 0.55) {
   const a = blipPool[blipIdx = (blipIdx + 1) % blipPool.length];
   try {
     a.currentTime = 0;
@@ -11,6 +11,15 @@ function playBlip(rate = 1, volume = 0.35) {
     a.volume = volume;
     a.play().catch(() => {});
   } catch {}
+}
+
+function stopAllBlips() {
+  for (const a of blipPool) {
+    try {
+      a.pause();
+      a.currentTime = 0;
+    } catch {}
+  }
 }
 
 const isLetter = (c: string) => /[a-zA-Z0-9]/.test(c);
@@ -80,6 +89,7 @@ export default function DialogueBox({
       if (i >= fullText.length) {
         timerRef.current = null;
         isTypingRef.current = false;
+        stopAllBlips();
       } else {
         timerRef.current = setTimeout(step, delayFor(char));
       }
@@ -93,6 +103,7 @@ export default function DialogueBox({
     }
 
     return () => {
+      stopAllBlips();
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -100,6 +111,7 @@ export default function DialogueBox({
 
   const skipTypewriter = useCallback(() => {
     if (!isTypingRef.current) return false;
+    stopAllBlips();
     if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
     isTypingRef.current = false;
     setDisplayedText(fullText);
