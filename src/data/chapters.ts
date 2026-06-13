@@ -199,13 +199,15 @@ const chapter1: ChapterConfig = {
       { x: 16, y: 330, w: 16, h: 640, fill: C.wall, solid: true },
       { x: 904, y: 330, w: 16, h: 640, fill: C.wall, solid: true },
       // living-room rug
-      { x: 460, y: 380, w: 320, h: 200, fill: C.rug, propType: 'rug' },
+      { x: 460, y: 380, w: 320, h: 200, fill: C.rug, propType: 'rug', propKey: 'furn_rug_large' },
       // couch (top of living room)
-      { x: 460, y: 300, w: 180, h: 40, fill: C.couch, stroke: 0xef4444, propType: 'couch', solid: true },
+      { x: 460, y: 300, w: 180, h: 40, fill: C.couch, stroke: 0xef4444, propType: 'couch', solid: true, propKey: 'furn_couch_long' },
       // TV (Heated Rivalry)
       { x: 460, y: 250, w: 120, h: 24, fill: C.tv, stroke: 0x8d6e63, propType: 'tv' },
+      { x: 460, y: 250, w: 120, h: 24, fill: C.tv, stroke: 0x8d6e63, propKey: 'furn_cabinet_tall' },
       // Eric's command desk (top-left)
-      { x: 180, y: 150, w: 140, h: 50, fill: C.desk, stroke: 0x64748b, propType: 'desk', solid: true },
+      { x: 180, y: 150, w: 140, h: 50, fill: C.desk, stroke: 0x64748b, propType: 'desk', solid: true, propKey: 'furn_desk' },
+      { x: 180, y: 190, w: 40, h: 40, fill: C.desk, stroke: 0x64748b, propKey: 'furn_chair' },
       // kitchen counter + sink (top-right)
       { x: 720, y: 150, w: 150, h: 44, fill: C.counter, stroke: 0x94a3b8, propType: 'counter', solid: true },
       { x: 760, y: 150, w: 48, h: 36, fill: C.sink, stroke: 0x38bdf8, propType: 'sink' },
@@ -213,6 +215,10 @@ const chapter1: ChapterConfig = {
       { x: 860, y: 150, w: 40, h: 60, fill: C.fridge, stroke: 0x94a3b8, propType: 'fridge', solid: true },
       // front door (bottom center)
       { x: 460, y: 636, w: 60, h: 18, fill: C.door, stroke: 0x92400e, propType: 'door' },
+      // Extra decor
+      { x: 60, y: 400, w: 40, h: 80, fill: C.rug, propKey: 'furn_bookshelf' },
+      { x: 80, y: 150, w: 40, h: 40, fill: C.rug, propKey: 'furn_plant_tall' },
+      { x: 460, y: 360, w: 60, h: 40, fill: C.rug, propKey: 'furn_coffee_table' },
     ],
     labels: [
       { x: 250, y: 110, name: 'THE COMMAND DESK', detail: "Eric's Spotify throne", color: '#818cf8' },
@@ -477,7 +483,6 @@ const chapter3: ChapterConfig = {
       { x: 844, y: 320, w: 16, h: 640, fill: 0xd1d5db, solid: true },
       // hospital bed
       { x: 430, y: 280, w: 200, h: 100, fill: 0xffffff, stroke: 0x9ca3af, propType: 'bed', solid: true, propKey: 'prop_hospital_bed' },
-      { x: 430, y: 250, w: 80, h: 40, fill: 0xf3f4f6, stroke: 0xd1d5db, propType: 'bed' },
       // IV drip
       { x: 590, y: 230, w: 12, h: 80, fill: 0x9ca3af },
       { x: 590, y: 190, w: 30, h: 40, fill: 0xbfdbfe, stroke: 0x93c5fd, propType: 'sink', propKey: 'prop_iv_drip' },
@@ -486,8 +491,12 @@ const chapter3: ChapterConfig = {
       { x: 700, y: 265, w: 60, h: 20, fill: 0xe2e8f0, stroke: 0x94a3b8 },
       // window
       { x: 160, y: 200, w: 120, h: 80, fill: 0xbfdbfe, stroke: 0x93c5fd, propType: 'window' },
+      // decor
+      { x: 280, y: 280, w: 40, h: 40, fill: 0xffffff, stroke: 0x9ca3af, propKey: 'furn_chair' },
+      { x: 300, y: 220, w: 40, h: 40, fill: 0xffffff, stroke: 0x9ca3af, propKey: 'furn_nightstand' },
+      { x: 100, y: 400, w: 40, h: 40, fill: 0xffffff, stroke: 0x9ca3af, propKey: 'furn_plant_small' },
       // doctor's station
-      { x: 220, y: 400, w: 160, h: 50, fill: 0xf1f5f9, stroke: 0x64748b, solid: true },
+      { x: 220, y: 400, w: 160, h: 50, fill: 0xf1f5f9, stroke: 0x64748b, propType: 'desk', solid: true, propKey: 'furn_desk' },
       // floor tile pattern
       { x: 430, y: 320, w: 820, h: 600, fill: 0xf8fafc },
     ],
@@ -645,6 +654,9 @@ const chapter4: ChapterConfig = {
       { x: 420, y: 290, w: 140, h: 14, fill: 0xb45309, solid: true },
       // bench
       { x: 600, y: 350, w: 100, h: 24, fill: 0x78350f, stroke: 0x92400e, propType: 'bench', solid: true },
+      // extra decor
+      { x: 600, y: 300, w: 40, h: 40, fill: 0x14532d, propKey: 'furn_plant_tall' },
+      { x: 200, y: 350, w: 40, h: 40, fill: 0x14532d, propKey: 'furn_plant_tall' },
       // trees
       { x: 140, y: 200, w: 60, h: 60, fill: 0x14532d },
       { x: 700, y: 180, w: 60, h: 60, fill: 0x14532d },
@@ -934,12 +946,12 @@ const chapter6: ChapterConfig = {
       // house mailbox
       { x: 330, y: 470, w: 20, h: 30, fill: 0x374151, stroke: 0x84cc16, propType: 'car' },
       // getaway car (Tucson, parked on street)
-      { x: 680, y: 595, w: 120, h: 56, fill: 0x1e293b, stroke: 0x4ade80, propType: 'car' },
+      { x: 680, y: 595, w: 120, h: 56, fill: 0x1e293b, stroke: 0x4ade80, propType: 'car', propKey: 'prop_maharko_camero' },
       // C55 AMG (Nick F's)
-      { x: 200, y: 595, w: 120, h: 56, fill: 0x111827, stroke: 0xf59e0b, propType: 'car' },
+      { x: 200, y: 595, w: 120, h: 56, fill: 0x111827, stroke: 0xf59e0b, propType: 'car', propKey: 'prop_nick_f_corolla' },
       // neighboring yard trees
-      { x: 150, y: 280, w: 80, h: 80, fill: 0x0f2a0f },
-      { x: 730, y: 300, w: 80, h: 80, fill: 0x0f2a0f },
+      { x: 150, y: 280, w: 80, h: 80, fill: 0x0f2a0f, propType: 'tree' },
+      { x: 730, y: 300, w: 80, h: 80, fill: 0x0f2a0f, propType: 'tree' },
       // street lamp (dim circle above)
       { x: 150, y: 490, w: 12, h: 80, fill: 0x374151 },
       { x: 730, y: 490, w: 12, h: 80, fill: 0x374151 },
@@ -1068,19 +1080,26 @@ const chapter7: ChapterConfig = {
       { x: 16, y: 320, w: 16, h: 628, fill: C.wall, solid: true },
       { x: 884, y: 320, w: 16, h: 628, fill: C.wall, solid: true },
       // rug
-      { x: 450, y: 380, w: 360, h: 220, fill: C.rug },
+      { x: 450, y: 380, w: 360, h: 220, fill: C.rug, propType: 'rug', propKey: 'furn_rug_large' },
       // couch
-      { x: 450, y: 300, w: 200, h: 40, fill: C.couch, stroke: 0xef4444, propType: 'couch', solid: true },
+      { x: 450, y: 300, w: 200, h: 40, fill: C.couch, stroke: 0xef4444, propType: 'couch', solid: true, propKey: 'furn_couch_long' },
       // Nick F's "Cabin Budget" spreadsheet (desk)
-      { x: 160, y: 160, w: 180, h: 60, fill: C.desk, stroke: 0x64748b, solid: true },
+      { x: 160, y: 160, w: 180, h: 60, fill: C.desk, stroke: 0x64748b, propType: 'desk', solid: true, propKey: 'furn_desk' },
       // TV showing Spain flight
       { x: 450, y: 240, w: 140, h: 26, fill: C.tv, stroke: 0xef4444, propType: 'tv' },
       // Google Doc printout table
-      { x: 710, y: 200, w: 200, h: 120, fill: 0x1e3a5f, stroke: 0x3b82f6, propType: 'desk', solid: true },
+      { x: 710, y: 200, w: 200, h: 120, fill: 0x1e3a5f, stroke: 0x3b82f6, propType: 'desk', solid: true, propKey: 'furn_desk' },
       // Zelle notification (glowing)
       { x: 160, y: 320, w: 180, h: 60, fill: 0x0f2a1e, stroke: 0x22c55e },
       // front door
       { x: 450, y: 614, w: 60, h: 18, fill: C.door, stroke: 0x92400e, propType: 'door' },
+      // extra decor
+      { x: 60, y: 200, w: 40, h: 80, fill: C.rug, propKey: 'furn_bookshelf' },
+      { x: 80, y: 400, w: 40, h: 40, fill: C.rug, propKey: 'furn_plant_tall' },
+      { x: 840, y: 400, w: 40, h: 40, fill: C.rug, propKey: 'furn_plant_tall' },
+      { x: 710, y: 160, w: 40, h: 40, fill: C.rug, propKey: 'furn_chair' },
+      { x: 710, y: 240, w: 40, h: 40, fill: C.rug, propKey: 'furn_chair' },
+      { x: 160, y: 200, w: 40, h: 40, fill: C.rug, propKey: 'furn_chair' },
     ],
     labels: [
       { x: 160, y: 110, name: 'THE EVIDENCE WALL', detail: 'All receipts. All Zelles.', color: '#22c55e' },
@@ -1227,20 +1246,33 @@ const chapter8: ChapterConfig = {
       { x: 480, y: 350, w: 920, h: 660, fill: 0x3a2210 },
       // BEDROOM A (top-left — best bed)
       { x: 170, y: 160, w: 260, h: 200, fill: 0x4a2e14, stroke: 0xd97706 },
-      { x: 170, y: 160, w: 160, h: 80, fill: 0xffffff, stroke: 0x9ca3af, propType: 'bed', solid: true },
+      { x: 170, y: 160, w: 160, h: 80, fill: 0xffffff, stroke: 0x9ca3af, propType: 'bed', solid: true, propKey: 'furn_bed_double' },
+      { x: 70, y: 160, w: 40, h: 40, fill: 0xffffff, stroke: 0x9ca3af, propKey: 'furn_nightstand' },
+      { x: 270, y: 160, w: 40, h: 40, fill: 0xffffff, stroke: 0x9ca3af, propKey: 'furn_nightstand' },
       // BEDROOM B (top-right — second best)
       { x: 790, y: 160, w: 260, h: 200, fill: 0x4a2e14, stroke: 0xb45309 },
-      { x: 790, y: 160, w: 160, h: 80, fill: 0xfafafa, stroke: 0x9ca3af, propType: 'bed', solid: true },
+      { x: 790, y: 160, w: 160, h: 80, fill: 0xfafafa, stroke: 0x9ca3af, propType: 'bed', solid: true, propKey: 'furn_bed_double' },
+      { x: 690, y: 160, w: 40, h: 40, fill: 0xffffff, stroke: 0x9ca3af, propKey: 'furn_nightstand' },
+      { x: 890, y: 160, w: 40, h: 40, fill: 0xffffff, stroke: 0x9ca3af, propKey: 'furn_nightstand' },
       // BEDROOM C (mid-right)
       { x: 790, y: 400, w: 260, h: 160, fill: 0x3d2210, stroke: 0x78350f },
-      { x: 790, y: 400, w: 140, h: 70, fill: 0xe2e8f0, stroke: 0x9ca3af, propType: 'bed' },
+      { x: 790, y: 400, w: 140, h: 70, fill: 0xe2e8f0, stroke: 0x9ca3af, propType: 'bed', propKey: 'furn_bed_single' },
+      { x: 700, y: 400, w: 40, h: 40, fill: 0xffffff, stroke: 0x9ca3af, propKey: 'furn_nightstand' },
       // BEDROOM D — the bad bed (share)
       { x: 170, y: 400, w: 260, h: 160, fill: 0x2d1a08, stroke: 0x78350f },
-      { x: 170, y: 400, w: 220, h: 60, fill: 0xd1d5db, stroke: 0x9ca3af, propType: 'bed', solid: true },
+      { x: 170, y: 400, w: 220, h: 60, fill: 0xd1d5db, stroke: 0x9ca3af, propType: 'bed', solid: true, propKey: 'furn_bed_double' },
+      { x: 40, y: 400, w: 40, h: 40, fill: 0xffffff, stroke: 0x9ca3af, propKey: 'furn_nightstand' },
       // Living room / common area
-      { x: 480, y: 350, w: 300, h: 180, fill: 0x3d2210 },
+      { x: 480, y: 350, w: 300, h: 180, fill: 0x3d2210, propType: 'rug', propKey: 'furn_rug_large' },
       { x: 480, y: 300, w: 160, h: 44, fill: 0x111827, stroke: 0x8d6e63, propType: 'tv' },
-      { x: 480, y: 360, w: 120, h: 36, fill: C.couch, stroke: 0xb45309, propType: 'couch', solid: true },
+      { x: 480, y: 300, w: 160, h: 44, fill: 0x111827, stroke: 0x8d6e63, propKey: 'furn_cabinet_tall' },
+      { x: 480, y: 360, w: 120, h: 36, fill: C.couch, stroke: 0xb45309, propType: 'couch', solid: true, propKey: 'furn_couch' },
+      // Extra decor living room
+      { x: 480, y: 420, w: 40, h: 40, fill: C.couch, propKey: 'furn_plant_tall' },
+      { x: 380, y: 360, w: 40, h: 40, fill: C.couch, propKey: 'furn_plant_tall' },
+      { x: 580, y: 360, w: 40, h: 40, fill: C.couch, propKey: 'furn_plant_tall' },
+      { x: 60, y: 100, w: 40, h: 40, fill: C.couch, propKey: 'furn_wardrobe' },
+      { x: 900, y: 100, w: 40, h: 40, fill: C.couch, propKey: 'furn_wardrobe' },
       // hot tub (bottom center)
       { x: 480, y: 580, w: 160, h: 100, fill: 0x0369a1, stroke: 0x38bdf8, propType: 'hottub' },
       { x: 480, y: 580, w: 144, h: 84, fill: 0x0284c7, stroke: 0x7dd3fc },

@@ -1051,10 +1051,28 @@ export default class ChapterScene extends Phaser.Scene {
   }
 
   private drawPropShape(x: number, y: number, w: number, h: number, fill: number, stroke: number, propType?: string, propKey?: string) {
-    // Sprint 2: explicit catalog request via propKey 'furn_<name>'
-    if (propKey && propKey.startsWith('furn_')) {
-      if (this.tryDrawFurniture(x, y, w, h, propKey.slice(5), propType)) return;
+    let frame: string | null = null;
+    let aspectName: string | null = null;
+
+    // (a) explicit catalog request: propKey === 'furn_<name>'
+    if (propKey?.startsWith('furn_')) {
+      const n = propKey.slice(5);
+      frame = furnitureFrame(n);
+      aspectName = n;
     }
+
+    // (b) propType default → catalog
+    if (!frame && propType && ChapterScene.PROPTYPE_FURNITURE[propType]) {
+      const n = ChapterScene.PROPTYPE_FURNITURE[propType];
+      frame = furnitureFrame(n);
+      aspectName = n;
+    }
+
+    if (frame && this.textures.exists('furniture_atlas')) {
+      this.drawFurnitureSprite(x, y, w, h, frame, aspectName!, propType);
+      return;
+    }
+
     // R1: sprite override — render a real image if the texture is loaded
     if (propKey) {
       const override = ChapterScene.PROP_DISPLAY[propKey];
@@ -1086,66 +1104,7 @@ export default class ChapterScene extends Phaser.Scene {
         return;
       }
     }
-    // Sprint 2: propType → default furniture-catalog sprite (else fall through to procedural)
-    if (propType) {
-      const name = ChapterScene.PROPTYPE_FURNITURE[propType];
-      if (name && this.tryDrawFurniture(x, y, w, h, name, propType)) return;
-    }
-    // RUN-3: pack_atlas propTypes — fallback to procedural below if atlas missing
-    if (propType === 'tollbooth') {
-      // Render front-elevation backdrop at low depth (billboard behind play)
-      const frame = packFrame('tollbooth_front');
-      if (frame && this.textures.exists(PACK_ATLAS_KEY)) {
-        const nat = packSize('tollbooth_front') ?? { w, h };
-        const aspect = nat.w / nat.h;
-        let dw = w * 2.2, dh = dw / aspect; // wide billboard
-        if (dh > h * 3) { dh = h * 3; dw = dh * aspect; }
-        this.add.image(x, y, PACK_ATLAS_KEY, frame)
-          .setOrigin(0.5, 0.6).setDisplaySize(dw, dh).setDepth(-20);
-        return;
-      }
-    }
-    if (propType === 'guardrail') {
-      const isHorizontal = w >= h;
-      const fname = isHorizontal ? 'guardrail_h' : 'guardrail_v';
-      const frame = packFrame(fname);
-      if (frame && this.textures.exists(PACK_ATLAS_KEY)) {
-        const nat = packSize(fname) ?? { w: isHorizontal ? 366 : 53, h: isHorizontal ? 110 : 339 };
-        const aspect = nat.w / nat.h;
-        if (isHorizontal) {
-          const tileH = Math.max(h * 1.8, 22);
-          const tileW = tileH * aspect;
-          const count = Math.max(1, Math.ceil(w / tileW));
-          const startX = x - (count * tileW) / 2 + tileW / 2;
-          for (let i = 0; i < count; i++) {
-            this.add.image(startX + i * tileW, y, PACK_ATLAS_KEY, frame)
-              .setOrigin(0.5, 0.5).setDisplaySize(tileW, tileH).setDepth(y);
-          }
-        } else {
-          const tileW = Math.max(w * 1.8, 18);
-          const tileH = tileW / aspect;
-          const count = Math.max(1, Math.ceil(h / tileH));
-          const startY = y - (count * tileH) / 2 + tileH / 2;
-          for (let i = 0; i < count; i++) {
-            this.add.image(x, startY + i * tileH, PACK_ATLAS_KEY, frame)
-              .setOrigin(0.5, 0.5).setDisplaySize(tileW, tileH).setDepth(y);
-          }
-        }
-        return;
-      }
-    }
-    if (propType === 'hottub') {
-      if (this.drawPackSprite(x, y, w, h, 'hottub')) return;
-    }
-    if (propType === 'arcade') {
-      if (this.drawPackSprite(x, y, w, h, 'arcade_cabinet', 24)) return;
-    }
-    if (propType === 'barrier_arm') {
-      if (this.drawPackSprite(x, y, w, h, 'barrier_arm_down')) return;
-    }
-    if (propType === 'cone') {
-      if (this.drawPackSprite(x, y, w, h, 'pack_cone')) return;
-    }
+
     const g = this.add.graphics().setDepth(y);
     const l = x - w / 2, t = y - h / 2;
     switch (propType) {
