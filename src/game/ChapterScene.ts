@@ -11,6 +11,7 @@ import {
   NPC_CHARACTERS
 } from '../data';
 import plasmaShieldImg from '../assets/images/plasma_shield_1781235159690.jpg';
+import shieldImg from '../assets/images/shield.jpg';
 import heroEricImg from '../assets/images/hero_eric_1781236098529.jpg';
 import heroJacobImg from '../assets/images/hero_jacob_1781236113357.jpg';
 import heroNickFImg from '../assets/images/hero_nick_f_1781236122782.jpg';
@@ -288,6 +289,7 @@ export default class ChapterScene extends Phaser.Scene {
   public preload() {
     this.createProceduralTextures();
     this.safeLoadImage('plasma_shield', plasmaShieldImg);
+    this.safeLoadImage('shield_raw', shieldImg);
     this.safeLoadImage('hero_eric_raw_jpg', heroEricImg);
     this.safeLoadImage('hero_jacob_raw_jpg', heroJacobImg);
     this.safeLoadImage('hero_nick_f_raw_jpg', heroNickFImg);
@@ -478,6 +480,21 @@ export default class ChapterScene extends Phaser.Scene {
         console.error(`[GameScene] ${id} spritesheet error:`, err);
       }
     });
+
+    // Damage shield: shield.jpg is a showcase sheet -> extract frame 0 as a single clean icon.
+    if (this.textures.exists('shield_raw') && !this.textures.exists('shield_fx')) {
+      try {
+        const image = this.textures.get('shield_raw').getSourceImage() as HTMLImageElement;
+        const processed = preprocessShowcaseSheet(image, 'shield');
+        this.textures.addCanvas('shield_fx_canvas', processed.canvas);
+        const src = this.textures.get('shield_fx_canvas').getSourceImage() as HTMLImageElement;
+        this.textures.addSpriteSheet('shield_fx', src, {
+          frameWidth: processed.frameWidth, frameHeight: processed.frameHeight,
+        });
+      } catch (err) {
+        console.error('[ChapterScene] shield_fx processing failed:', err);
+      }
+    }
 
     const map = this.chapter.map;
     this.physics.world.setBounds(0, 0, map.width, map.height);
@@ -2296,9 +2313,18 @@ export default class ChapterScene extends Phaser.Scene {
     // In-flight delayed attacks (e.g. Kidney Punch) must not land mid-QTE.
     if (this.qteActive) return;
     try {
-      const fx = this.add.sprite(this.player.x, this.player.y, 'plasma_shield');
-      fx.setOrigin(0.5).setScale(0.1).setDepth(20).setAlpha(0.95);
-      this.tweens.add({ targets: fx, scale: 0.55, alpha: 0, duration: 380, onComplete: () => fx.destroy() });
+      const isFx = this.textures.exists('shield_fx');
+      const shieldTex = isFx ? 'shield_fx'
+                      : this.textures.exists('shield_raw') ? 'shield_raw'
+                      : 'plasma_shield';
+
+      const fx = this.add.sprite(this.player.x, this.player.y, shieldTex, isFx ? 0 : undefined);
+
+      const startScale = isFx ? 0.45 : 0.1;
+      const endScale = isFx ? 1.0 : 0.55;
+
+      fx.setOrigin(0.5).setScale(startScale).setDepth(20).setAlpha(0.95);
+      this.tweens.add({ targets: fx, scale: endScale, alpha: 0, duration: 380, onComplete: () => fx.destroy() });
     } catch {}
 
     let finalDmg = damage;
