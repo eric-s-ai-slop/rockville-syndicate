@@ -129,3 +129,54 @@ kbd {
 .pixel-btn:hover {
   filter: brightness(1.2);
 }
+
+/* Color-blind mode variables override */
+html.color-blind {
+  --color-omega-accent: #facc15;
+  --color-omega-text: #ffffff;
+  --color-omega-text-dim: #9ca3af;
+  --color-omega-line: #374151;
+  --color-omega-line-2: #4b5563;
+  --color-omega-panel: #111827;
+  --color-omega-panel-2: #1f2937;
+  --color-omega-bg: #030712;
+}
+
+html.color-blind .pixel-panel {
+  border-color: #facc15;
+  box-shadow: inset 0 0 0 3px #030712, inset 0 0 0 6px #ca8a04;
+}
+
+html.color-blind .pixel-panel-dark {
+  border-color: #facc15;
+  box-shadow: inset 0 0 0 3px #030712, inset 0 0 0 6px #ca8a04;
+}
+
+/* Text scale overrides */
+html {
+  --text-scale: 1;
+}
+
+.text-\[9px\] {
+  font-size: calc(9px * var(--text-scale, 1)) !important;
+}
+
+.text-\[10px\] {
+  font-size: calc(10px * var(--text-scale, 1)) !important;
+}
+
+.text-\[11px\] {
+  font-size: calc(11px * var(--text-scale, 1)) !important;
+}
+
+.text-xs {
+  font-size: calc(0.75rem * var(--text-scale, 1)) !important;
+}
+
+.text-sm {
+  font-size: calc(0.875rem * var(--text-scale, 1)) !important;
+}
+
+.text-base {
+  font-size: calc(1rem * var(--text-scale, 1)) !important;
+}

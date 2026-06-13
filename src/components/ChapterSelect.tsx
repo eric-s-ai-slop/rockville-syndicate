@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Lock, Play, Check } from 'lucide-react';
 import { CHAPTERS, ChapterConfig, MapTheme } from '../data/chapters';
 import { isChapterUnlocked, setFreePlay } from '../game/progress';
@@ -39,6 +39,7 @@ const THEME_ICON: Record<MapTheme, string> = {
 
 export default function ChapterSelect({ heroColor, completed, freePlay, onFreePlayChange, onPick }: ChapterSelectProps) {
   const [localFreePlay, setLocalFreePlay] = useState(freePlay);
+  const [selectedIndex, setSelectedIndex] = useState(0);
 
   const toggleFreePlay = () => {
     const next = !localFreePlay;
@@ -46,6 +47,28 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
     setFreePlay(next);
     onFreePlayChange(next);
   };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedIndex(prev => Math.max(0, prev - 1));
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedIndex(prev => Math.min(CHAPTERS.length - 1, prev + 1));
+      } else if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        const ch = CHAPTERS[selectedIndex];
+        if (ch && isChapterUnlocked(ch.id, completed, localFreePlay)) {
+          onPick(ch);
+        }
+      } else if (e.key === 'f' || e.key === 'F') {
+        toggleFreePlay();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedIndex, completed, localFreePlay, onPick]);
 
   return (
     <div
@@ -90,9 +113,10 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
         </div>
 
         <div className="flex flex-col gap-3">
-          {CHAPTERS.map(ch => {
+          {CHAPTERS.map((ch, idx) => {
             const isDone = completed.includes(ch.id);
             const unlocked = isChapterUnlocked(ch.id, completed, localFreePlay);
+            const isSelected = selectedIndex === idx;
             const theme = ch.map?.theme;
             const themeColor = theme ? THEME_COLOR[theme] : '#2a3d18';
             const themeIcon = theme ? THEME_ICON[theme] : '🗺️';
@@ -101,19 +125,21 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
                 key={ch.id}
                 disabled={!unlocked}
                 onClick={() => unlocked && onPick(ch)}
-                className="text-left border p-5 transition-all duration-200 relative overflow-hidden"
+                className={`text-left border p-5 transition-all duration-200 relative overflow-hidden ${isSelected ? 'ring-2' : ''}`}
                 style={{
                   background: unlocked ? '#142012' : '#0e1509',
-                  borderColor: isDone ? heroColor : unlocked ? '#2a3d18' : '#1a2410',
+                  borderColor: isSelected || isDone ? heroColor : unlocked ? '#2a3d18' : '#1a2410',
                   cursor: unlocked ? 'pointer' : 'not-allowed',
                   opacity: unlocked ? 1 : 0.5,
-                  boxShadow: isDone ? `0 0 18px ${heroColor}33` : 'none',
+                  boxShadow: isDone || isSelected ? `0 0 18px ${heroColor}33` : 'none',
+                  outlineColor: isSelected ? heroColor : 'transparent',
                 }}
                 onMouseEnter={e => {
+                  setSelectedIndex(idx);
                   if (unlocked) e.currentTarget.style.borderColor = heroColor;
                 }}
                 onMouseLeave={e => {
-                  e.currentTarget.style.borderColor = isDone ? heroColor : '#2a3d18';
+                  if (!isSelected) e.currentTarget.style.borderColor = isDone ? heroColor : '#2a3d18';
                 }}
               >
                 {/* Theme accent strip */}
