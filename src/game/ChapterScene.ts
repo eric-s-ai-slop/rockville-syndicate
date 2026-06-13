@@ -2374,6 +2374,17 @@ export default class ChapterScene extends Phaser.Scene {
   // ─── Boss Spawn ───────────────────────────────────────────────────────────
 
   private summonBossMatch(bossConfigId?: string, arena?: { x: number; y: number; w: number; h: number }) {
+    if (this.isBossActive && this.spawnedBoss && this.spawnedBoss.active) return;
+
+    if (this.spawnedBoss) {
+      this.spawnedBoss.destroy();
+      this.spawnedBoss = undefined as any;
+    }
+    if (this.bossHpBg) { this.bossHpBg.destroy(); }
+    if (this.bossHpFill) { this.bossHpFill.destroy(); }
+    if (this.bossNameLabel) { this.bossNameLabel.destroy(); }
+    if (this.bossShadow) { this.bossShadow.destroy(); }
+
     this.isBossActive = true;
     const config = BOSSES.find(b => b.id === bossConfigId) ?? BOSSES[this.currentLevelIndex % BOSSES.length];
     this.bossData = config;
