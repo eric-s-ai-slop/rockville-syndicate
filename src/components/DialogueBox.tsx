@@ -1,4 +1,7 @@
 import { useEffect, useCallback, useState, useRef } from 'react';
+import { TYPEWRITER_URL } from '../game/audio';
+
+const typewriterAudio = new Audio(TYPEWRITER_URL);
 
 interface DialogueChoice {
   text: string;
@@ -13,6 +16,7 @@ interface DialogueBoxProps {
   portraitDataUrl?: string;
   /** When present (and on the last line) the box shows choice buttons. */
   choices?: DialogueChoice[];
+  muted?: boolean;
   onNext: () => void;
   onChoose?: (index: number) => void;
 }
@@ -27,6 +31,7 @@ export default function DialogueBox({
   lineIndex,
   portraitDataUrl,
   choices,
+  muted,
   onNext,
   onChoose,
 }: DialogueBoxProps) {
@@ -46,7 +51,14 @@ export default function DialogueBox({
     let i = 0;
     timerRef.current = setInterval(() => {
       i++;
+      const char = fullText[i - 1];
       setDisplayedText(fullText.slice(0, i));
+
+      if (!muted && char && char !== ' ') {
+        typewriterAudio.currentTime = 0;
+        typewriterAudio.play().catch(() => {});
+      }
+
       if (i >= fullText.length) {
         clearInterval(timerRef.current!);
         timerRef.current = null;
@@ -108,14 +120,16 @@ export default function DialogueBox({
         >
           {portraitDataUrl ? (
             <img
+              key={speakerName}
               src={portraitDataUrl}
               alt={speakerName}
               width={20}
               height={20}
+              className="portrait-pop"
               style={{ imageRendering: 'pixelated' }}
             />
           ) : (
-            <span style={{ fontSize: 14 }}>{speakerEmoji}</span>
+            <span key={speakerName} className="portrait-pop" style={{ fontSize: 14, display: 'inline-block' }}>{speakerEmoji}</span>
           )}
           <span className="font-pixel text-[10px] font-bold" style={{ color: '#0a1006' }}>
             {speakerName}

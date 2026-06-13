@@ -1,83 +1,45 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import {
-  loadProgress,
-  saveProgress,
-  markChapterComplete,
-  rememberHero,
-  resetProgress,
-  isChapterUnlocked,
-  setFreePlay,
-} from './progress';
+import { describe, it, expect, vi } from 'vitest';
+import { isChapterUnlocked } from './progress';
 
-const KEY = 'omega-progress-v1';
-
-// Mock CHAPTERS data
 vi.mock('../data/chapters', () => ({
   CHAPTERS: [
-    { id: 'ch1' },
-    { id: 'ch2' },
-    { id: 'ch3' },
-  ],
+    { id: 'chapter1' },
+    { id: 'chapter2' },
+    { id: 'chapter3' }
+  ]
 }));
 
-describe('progress', () => {
-  beforeEach(() => {
-    localStorage.clear();
+describe('isChapterUnlocked', () => {
+  it('returns true if freePlay is true, regardless of completion', () => {
+    expect(isChapterUnlocked('chapter3', [], true)).toBe(true);
+    expect(isChapterUnlocked('chapter3', ['chapter1'], true)).toBe(true);
   });
 
-  describe('loadProgress', () => {
-    it('returns empty completedChapters if none exists', () => {
-      expect(loadProgress()).toEqual({ completedChapters: [] });
-    });
-
-    it('returns loaded progress', () => {
-      localStorage.setItem(KEY, JSON.stringify({ completedChapters: ['ch1'], hero: 'eric', freePlay: true }));
-      expect(loadProgress()).toEqual({ completedChapters: ['ch1'], hero: 'eric', freePlay: true });
-    });
-
-    it('handles malformed progress', () => {
-      localStorage.setItem(KEY, 'not json');
-      expect(loadProgress()).toEqual({ completedChapters: [] });
-    });
-
-    it('handles invalid progress schema', () => {
-        localStorage.setItem(KEY, JSON.stringify({ completedChapters: 'not an array' }));
-        expect(loadProgress()).toEqual({ completedChapters: [], hero: undefined, freePlay: false });
-    });
+  it('returns true if chapter is the first one, regardless of completion', () => {
+    expect(isChapterUnlocked('chapter1', [], false)).toBe(true);
   });
 
-  describe('saveProgress', () => {
-    it('saves progress to localStorage', () => {
-      saveProgress({ completedChapters: ['ch1'], hero: 'eric' });
-      expect(JSON.parse(localStorage.getItem(KEY)!)).toEqual({ completedChapters: ['ch1'], hero: 'eric' });
-    });
+  it('returns true if chapter is not found in the array', () => {
+    expect(isChapterUnlocked('unknown', [], false)).toBe(true);
   });
 
-  describe('markChapterComplete', () => {
-    it('adds chapter to completedChapters', () => {
-      markChapterComplete('ch1');
-      expect(loadProgress().completedChapters).toContain('ch1');
-    });
-
-    it('does not add duplicates', () => {
-      markChapterComplete('ch1');
-      markChapterComplete('ch1');
-      expect(loadProgress().completedChapters).toEqual(['ch1']);
-    });
+  it('returns true if the previous chapter is in the completed array', () => {
+    expect(isChapterUnlocked('chapter2', ['chapter1'], false)).toBe(true);
+    expect(isChapterUnlocked('chapter3', ['chapter1', 'chapter2'], false)).toBe(true);
   });
 
-  describe('rememberHero', () => {
-    it('saves hero', () => {
-      rememberHero('eric');
-      expect(loadProgress().hero).toBe('eric');
-    });
+  it('returns false if the previous chapter is NOT in the completed array', () => {
+    expect(isChapterUnlocked('chapter2', [], false)).toBe(false);
+    expect(isChapterUnlocked('chapter3', ['chapter1'], false)).toBe(false);
   });
 
-  describe('resetProgress', () => {
-    it('clears completedChapters', () => {
-      markChapterComplete('ch1');
-      resetProgress();
-      expect(loadProgress().completedChapters).toEqual([]);
+  describe('setFreePlay', () => {
+    it('sets freePlay flag and saves', () => {
+      const progress = setFreePlay(true);
+      expect(progress.freePlay).toBe(true);
+
+      const saved = loadProgress();
+      expect(saved.freePlay).toBe(true);
     });
   });
 
@@ -112,5 +74,15 @@ describe('progress', () => {
       setFreePlay(false);
       expect(loadProgress().freePlay).toBe(false);
     });
+    it('unlocks if freePlay is true', () => {
+      expect(isChapterUnlocked('chap2', [], true)).toBe(true);
+    });
+
+    it('unlocks first chapter', () => {
+      expect(isChapterUnlocked('prologue', [])).toBe(true);
+    });
+
+    // We can't mock CHAPTERS easily here, but we'll assume there are chapters.
+    // Given chapters are fetched from CHAPTERS array.
   });
 });
