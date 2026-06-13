@@ -64,6 +64,7 @@ export interface MapRect {
   propType?: 'couch' | 'tv' | 'desk' | 'counter' | 'sink' | 'fridge' | 'bed'
            | 'rug' | 'door' | 'window' | 'wall' | 'car' | 'tree' | 'road'
            | 'guardrail' | 'tollbooth' | 'firepit' | 'hottub' | 'arcade'
+           | 'barrier_arm' | 'cone'
            | 'bench' | 'junglebox';
   /**
    * When a prop sprite sheet is loaded under this key, render the sprite
@@ -341,9 +342,13 @@ const chapter2: ChapterConfig = {
       { x: 200, y: 380, w: 40, h: 40, fill: 0x166534 },
       { x: 760, y: 180, w: 40, h: 40, fill: 0x14532d },
       { x: 820, y: 400, w: 40, h: 40, fill: 0x166534 },
+      // barrier arm + cones at the toll line (non-solid decor)
+      { x: 440, y: 225, w: 150, h: 20, fill: 0xdc2626, propType: 'barrier_arm' },
+      { x: 370, y: 225, w: 20, h: 30, fill: 0xf97316, propType: 'cone' },
+      { x: 510, y: 225, w: 20, h: 30, fill: 0xf97316, propType: 'cone' },
       // guardrails
-      { x: 360, y: 310, w: 8, h: 560, fill: 0x4b5563, solid: true },
-      { x: 520, y: 310, w: 8, h: 560, fill: 0x4b5563, solid: true },
+      { x: 360, y: 310, w: 8, h: 560, fill: 0x4b5563, stroke: 0x9ca3af, propType: 'guardrail', solid: true },
+      { x: 520, y: 310, w: 8, h: 560, fill: 0x4b5563, stroke: 0x9ca3af, propType: 'guardrail', solid: true },
     ],
     labels: [
       { x: 440, y: 80, name: 'NYC: 225 MILES', detail: '1:14 AM — full tank, zero plan', color: '#f59e0b' },
@@ -793,8 +798,8 @@ const chapter5: ChapterConfig = {
       { x: 750, y: 200, w: 80, h: 160, fill: 0x1e3a5f, stroke: 0x3b82f6 },
       { x: 850, y: 180, w: 60, h: 180, fill: 0x1e3a5f, stroke: 0x3b82f6 },
       // guardrails
-      { x: 480, y: 230, w: 960, h: 8, fill: 0x4b5563, solid: true },
-      { x: 480, y: 410, w: 960, h: 8, fill: 0x4b5563, solid: true },
+      { x: 480, y: 230, w: 960, h: 8, fill: 0x4b5563, stroke: 0x9ca3af, propType: 'guardrail', solid: true },
+      { x: 480, y: 410, w: 960, h: 8, fill: 0x4b5563, stroke: 0x9ca3af, propType: 'guardrail', solid: true },
     ],
     labels: [
       { x: 480, y: 80, name: 'BOCA RATON, FL', detail: 'Jordan\'s dominion', color: '#22d3ee' },

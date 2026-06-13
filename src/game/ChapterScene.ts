@@ -34,6 +34,7 @@ import shardImg from '../assets/images/shard.jpg';
 import { preprocessShowcaseSheet } from './SpritePreprocessor';
 import { extractPropSubject } from './PropExtractor';
 import { buildFurnitureAtlas, furnitureFrame, furnitureAspect, FURNITURE_ATLAS_KEY } from './furnitureCatalog';
+import { buildPackAtlas, packFrame, packSize, PACK_ATLAS_KEY } from './packSpriteAtlas';
 import { ChapterConfig, Beat, ActorPlacement, resolveSpeaker, MapConfig, CHAPTERS } from '../data/chapters';
 import {
   CHAPTER_MUSIC_KEY, STAGE_MUSIC_URL, BOSS_MUSIC_URL, BOSS_LOOP_URL,
@@ -60,6 +61,12 @@ import natureBush2Url from '../assets/images/game_decor/nature/Bush 1/Bush 1 - W
 
 // Sprint 2: LimeZu furniture tilesheet — sliced into the furniture_atlas at runtime.
 import interiors48Url from '../assets/images/game_decor/Interiors_free/48x48/Interiors_free_48x48.png?url';
+
+// RUN-3: owner-added asset-pack JPGs (gray bg, extracted at runtime via packSpriteAtlas)
+import packTollboothUrl from '../assets/images/game_decor/special/toolbooth.jpg?url';
+import packRailUrl from '../assets/images/game_decor/special/rail.jpg?url';
+import packPoolUrl from '../assets/images/game_decor/special/pool.jpg?url';
+import packArcadeUrl from '../assets/images/game_decor/special/arcade cab.jpg?url';
 
 export interface StoryDialoguePayload {
   speakerName: string;
@@ -344,6 +351,12 @@ export default class ChapterScene extends Phaser.Scene {
     // Sprint 2: LimeZu furniture sheet (sliced into furniture_atlas in create())
     this.safeLoadImage('interiors48', interiors48Url);
 
+    // RUN-3: asset-pack JPGs — color-keyed + sliced into pack_atlas in create()
+    this.safeLoadImage('pack_tollbooth', packTollboothUrl);
+    this.safeLoadImage('pack_rail', packRailUrl);
+    this.safeLoadImage('pack_pool', packPoolUrl);
+    this.safeLoadImage('pack_arcade', packArcadeUrl);
+
     // Phase E — audio
     this.loadChapterAudio();
   }
@@ -392,6 +405,8 @@ export default class ChapterScene extends Phaser.Scene {
     this.generatePropsAtlas();
     // Sprint 2: slice the LimeZu furniture sheet into the furniture_atlas (furn_* frames)
     buildFurnitureAtlas(this, 'interiors48');
+    // RUN-3: extract + color-key owner asset packs into the pack_atlas
+    buildPackAtlas(this);
     this.preloadNextChapterAudio();
 
     // Process prop textures to remove backgrounds and cache aspect ratios
@@ -1016,6 +1031,25 @@ export default class ChapterScene extends Phaser.Scene {
     this.propSprites.set(frame, img);
   }
 
+  /**
+   * RUN-3: contain-fit a pack_atlas sprite within (w×h), Y-sorted.
+   * `tallBias` adds to depth so the player can walk behind the base.
+   */
+  private drawPackSprite(x: number, y: number, w: number, h: number, frameName: string, tallBias = 0): boolean {
+    const frame = packFrame(frameName);
+    if (!frame || !this.textures.exists(PACK_ATLAS_KEY)) return false;
+    const nat = packSize(frameName) ?? { w, h };
+    const aspect = nat.w / nat.h;
+    let dw = w, dh = w / aspect;
+    if (dh > h) { dh = h; dw = h * aspect; }
+    const img = this.add.image(x, y, PACK_ATLAS_KEY, frame)
+      .setOrigin(0.5, 0.6)
+      .setDisplaySize(dw, dh)
+      .setDepth(y + tallBias);
+    this.propSprites.set(frame, img);
+    return true;
+  }
+
   private drawPropShape(x: number, y: number, w: number, h: number, fill: number, stroke: number, propType?: string, propKey?: string) {
     // Sprint 2: explicit catalog request via propKey 'furn_<name>'
     if (propKey && propKey.startsWith('furn_')) {
@@ -1056,6 +1090,61 @@ export default class ChapterScene extends Phaser.Scene {
     if (propType) {
       const name = ChapterScene.PROPTYPE_FURNITURE[propType];
       if (name && this.tryDrawFurniture(x, y, w, h, name, propType)) return;
+    }
+    // RUN-3: pack_atlas propTypes — fallback to procedural below if atlas missing
+    if (propType === 'tollbooth') {
+      // Render front-elevation backdrop at low depth (billboard behind play)
+      const frame = packFrame('tollbooth_front');
+      if (frame && this.textures.exists(PACK_ATLAS_KEY)) {
+        const nat = packSize('tollbooth_front') ?? { w, h };
+        const aspect = nat.w / nat.h;
+        let dw = w * 2.2, dh = dw / aspect; // wide billboard
+        if (dh > h * 3) { dh = h * 3; dw = dh * aspect; }
+        this.add.image(x, y, PACK_ATLAS_KEY, frame)
+          .setOrigin(0.5, 0.6).setDisplaySize(dw, dh).setDepth(-20);
+        return;
+      }
+    }
+    if (propType === 'guardrail') {
+      const isHorizontal = w >= h;
+      const fname = isHorizontal ? 'guardrail_h' : 'guardrail_v';
+      const frame = packFrame(fname);
+      if (frame && this.textures.exists(PACK_ATLAS_KEY)) {
+        const nat = packSize(fname) ?? { w: isHorizontal ? 366 : 53, h: isHorizontal ? 110 : 339 };
+        const aspect = nat.w / nat.h;
+        if (isHorizontal) {
+          const tileH = Math.max(h * 1.8, 22);
+          const tileW = tileH * aspect;
+          const count = Math.max(1, Math.ceil(w / tileW));
+          const startX = x - (count * tileW) / 2 + tileW / 2;
+          for (let i = 0; i < count; i++) {
+            this.add.image(startX + i * tileW, y, PACK_ATLAS_KEY, frame)
+              .setOrigin(0.5, 0.5).setDisplaySize(tileW, tileH).setDepth(y);
+          }
+        } else {
+          const tileW = Math.max(w * 1.8, 18);
+          const tileH = tileW / aspect;
+          const count = Math.max(1, Math.ceil(h / tileH));
+          const startY = y - (count * tileH) / 2 + tileH / 2;
+          for (let i = 0; i < count; i++) {
+            this.add.image(x, startY + i * tileH, PACK_ATLAS_KEY, frame)
+              .setOrigin(0.5, 0.5).setDisplaySize(tileW, tileH).setDepth(y);
+          }
+        }
+        return;
+      }
+    }
+    if (propType === 'hottub') {
+      if (this.drawPackSprite(x, y, w, h, 'hottub')) return;
+    }
+    if (propType === 'arcade') {
+      if (this.drawPackSprite(x, y, w, h, 'arcade_cabinet', 24)) return;
+    }
+    if (propType === 'barrier_arm') {
+      if (this.drawPackSprite(x, y, w, h, 'barrier_arm_down')) return;
+    }
+    if (propType === 'cone') {
+      if (this.drawPackSprite(x, y, w, h, 'pack_cone')) return;
     }
     const g = this.add.graphics().setDepth(y);
     const l = x - w / 2, t = y - h / 2;
@@ -1176,6 +1265,36 @@ export default class ChapterScene extends Phaser.Scene {
         g.lineStyle(1, stroke, 0.35);
         for (let sx = l + w / 4; sx < l + w; sx += w / 4) {
           g.lineBetween(sx, t + 3, sx, t + h - 3);
+        }
+        break;
+      }
+      case 'firepit': {
+        // Stone ring
+        const fr = Math.min(w, h) * 0.45;
+        g.fillStyle(0x57534e, 1);
+        g.fillCircle(x, y, fr);
+        g.fillStyle(0x292524, 1);
+        g.fillCircle(x, y, fr * 0.65);
+        // Embers glow in the center
+        g.fillStyle(0xff4500, 0.7);
+        g.fillCircle(x, y, fr * 0.3);
+        g.fillStyle(0xffd700, 0.5);
+        g.fillCircle(x, y, fr * 0.12);
+        // Flame particles (capped at 6 particles)
+        if (this.textures.exists('particle_dot')) {
+          const em = this.add.particles(x, y - fr * 0.3, 'particle_dot', {
+            lifespan: 700,
+            speed: { min: 18, max: 36 },
+            angle: { min: 255, max: 285 },
+            scale: { start: 0.35, end: 0 },
+            tint: [0xff4500, 0xff8c00, 0xffd700],
+            quantity: 1,
+            frequency: 130,
+            maxParticles: 0,
+            blendMode: Phaser.BlendModes.ADD,
+          });
+          em.setDepth(y + 2);
+          this.particleEmitters.push(em);
         }
         break;
       }
