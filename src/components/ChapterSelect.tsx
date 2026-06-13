@@ -141,14 +141,18 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
                     onPick(ch);
                   }
                 }}
-                className={`text-left border p-5 transition-all duration-200 relative overflow-hidden ${isSelected ? 'ring-2' : ''}`}
+                className="text-left border p-5 transition-all duration-200 relative overflow-hidden"
                 style={{
                   background: unlocked ? '#142012' : '#0e1509',
                   borderColor: isSelected || isDone ? heroColor : unlocked ? '#2a3d18' : '#1a2410',
+                  borderLeft: isSelected ? `4px solid ${heroColor}` : undefined,
                   cursor: unlocked ? 'pointer' : 'not-allowed',
                   opacity: unlocked ? 1 : 0.5,
-                  boxShadow: isDone || isSelected ? `0 0 18px ${heroColor}33` : 'none',
+                  boxShadow: isSelected
+                    ? `0 0 0 2px ${heroColor}, 0 0 22px ${heroColor}66`
+                    : isDone ? `0 0 12px ${heroColor}33` : 'none',
                   outlineColor: isSelected ? heroColor : 'transparent',
+                  transform: isSelected ? 'translateX(4px) scale(1.015)' : 'none',
                 }}
                 onMouseEnter={e => {
                   setSelectedIndex(idx);
