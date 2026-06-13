@@ -76,3 +76,7 @@ import typewriterUrl from '../assets/audio/kenney_interface-sounds/Audio/tick_00
 export const UI_SELECT_URL   = uiSelectUrl;
 export const VICTORY_JINGLE_URL = victoryUrl;
 export const TYPEWRITER_URL  = typewriterUrl;
+
+// ── DIALOGUE TEXT (TASK-08) ──
+import dialogBlipUrl from '../assets/audio/dialog_sound.mp3?url';
+export const DIALOG_BLIP_URL = dialogBlipUrl;
