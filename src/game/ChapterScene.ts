@@ -1017,10 +1017,28 @@ export default class ChapterScene extends Phaser.Scene {
   }
 
   private drawPropShape(x: number, y: number, w: number, h: number, fill: number, stroke: number, propType?: string, propKey?: string) {
-    // Sprint 2: explicit catalog request via propKey 'furn_<name>'
-    if (propKey && propKey.startsWith('furn_')) {
-      if (this.tryDrawFurniture(x, y, w, h, propKey.slice(5), propType)) return;
+    let frame: string | null = null;
+    let aspectName: string | null = null;
+
+    // (a) explicit catalog request: propKey === 'furn_<name>'
+    if (propKey?.startsWith('furn_')) {
+      const n = propKey.slice(5);
+      frame = furnitureFrame(n);
+      aspectName = n;
     }
+
+    // (b) propType default → catalog
+    if (!frame && propType && ChapterScene.PROPTYPE_FURNITURE[propType]) {
+      const n = ChapterScene.PROPTYPE_FURNITURE[propType];
+      frame = furnitureFrame(n);
+      aspectName = n;
+    }
+
+    if (frame && this.textures.exists('furniture_atlas')) {
+      this.drawFurnitureSprite(x, y, w, h, frame, aspectName!, propType);
+      return;
+    }
+
     // R1: sprite override — render a real image if the texture is loaded
     if (propKey) {
       const override = ChapterScene.PROP_DISPLAY[propKey];
@@ -1052,11 +1070,7 @@ export default class ChapterScene extends Phaser.Scene {
         return;
       }
     }
-    // Sprint 2: propType → default furniture-catalog sprite (else fall through to procedural)
-    if (propType) {
-      const name = ChapterScene.PROPTYPE_FURNITURE[propType];
-      if (name && this.tryDrawFurniture(x, y, w, h, name, propType)) return;
-    }
+
     const g = this.add.graphics().setDepth(y);
     const l = x - w / 2, t = y - h / 2;
     switch (propType) {
