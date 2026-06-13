@@ -71,5 +71,8 @@ export const FOOTSTEP_URLS: Record<string, string[]> = {
   grass:    [fg0, fg1, fg2],
 };
 
+import typewriterUrl from '../assets/audio/kenney_interface-sounds/Audio/tick_002.ogg?url';
+
 export const UI_SELECT_URL   = uiSelectUrl;
 export const VICTORY_JINGLE_URL = victoryUrl;
+export const TYPEWRITER_URL  = typewriterUrl;

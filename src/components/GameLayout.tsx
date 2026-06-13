@@ -480,6 +480,7 @@ export default function GameLayout() {
                     ? activeStory.payload.choices
                     : undefined
                 }
+                muted={muted}
                 onNext={advanceStory}
                 onChoose={chooseStory}
               />
