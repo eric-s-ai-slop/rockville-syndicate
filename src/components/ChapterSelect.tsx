@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Lock, Play, Check } from 'lucide-react';
 import { CHAPTERS, ChapterConfig, MapTheme } from '../data/chapters';
 import { isChapterUnlocked, setFreePlay } from '../game/progress';
+import { playUi } from '../game/uiSound';
 
 interface ChapterSelectProps {
   heroColor: string;
@@ -87,7 +88,12 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
           {/* R7: Linear / Free Play toggle */}
           <div className="inline-flex items-center gap-0 border-2" style={{ background: '#0e1509', borderColor: '#2a3d18' }}>
             <button
-              onClick={() => localFreePlay && toggleFreePlay()}
+              onClick={() => {
+                if (localFreePlay) {
+                  playUi('toggle');
+                  toggleFreePlay();
+                }
+              }}
               className="px-4 py-1.5 text-xs font-mono cursor-pointer"
               style={{
                 background: !localFreePlay ? heroColor : 'transparent',
@@ -99,7 +105,12 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
               LINEAR
             </button>
             <button
-              onClick={() => !localFreePlay && toggleFreePlay()}
+              onClick={() => {
+                if (!localFreePlay) {
+                  playUi('toggle');
+                  toggleFreePlay();
+                }
+              }}
               className="px-4 py-1.5 text-xs font-mono cursor-pointer"
               style={{
                 background: localFreePlay ? heroColor : 'transparent',
@@ -124,7 +135,12 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
               <button
                 key={ch.id}
                 disabled={!unlocked}
-                onClick={() => unlocked && onPick(ch)}
+                onClick={() => {
+                  if (unlocked) {
+                    playUi('pick');
+                    onPick(ch);
+                  }
+                }}
                 className={`text-left border p-5 transition-all duration-200 relative overflow-hidden ${isSelected ? 'ring-2' : ''}`}
                 style={{
                   background: unlocked ? '#142012' : '#0e1509',
@@ -136,7 +152,10 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
                 }}
                 onMouseEnter={e => {
                   setSelectedIndex(idx);
-                  if (unlocked) e.currentTarget.style.borderColor = heroColor;
+                  if (unlocked) {
+                    playUi('hover', 0.2);
+                    e.currentTarget.style.borderColor = heroColor;
+                  }
                 }}
                 onMouseLeave={e => {
                   if (!isSelected) e.currentTarget.style.borderColor = isDone ? heroColor : '#2a3d18';

@@ -8,6 +8,7 @@ import shieldImg from '../assets/images/shield.jpg';
 import { Play } from 'lucide-react';
 import DialogueBox from './DialogueBox';
 import ChapterSelect from './ChapterSelect';
+import { playUi } from '../game/uiSound';
 
 type GameStatus = 'hero' | 'chapters' | 'playing' | 'chapterComplete' | 'gameover';
 
@@ -359,6 +360,7 @@ export default function GameLayout() {
           </button>
           <button
             onClick={() => {
+              playUi('toggle');
               const next = !muted;
               setMuted(next);
               localStorage.setItem('omega-muted', String(next));
@@ -391,7 +393,7 @@ export default function GameLayout() {
                   return (
                     <button
                       key={hero.id}
-                      onClick={() => handleSelectHero(hero)}
+                      onClick={() => { playUi('pick'); handleSelectHero(hero); }}
                       className="text-left p-5 border-2 transition-all duration-200 cursor-pointer relative overflow-hidden"
                       style={{
                         background: selected ? `${hero.color}18` : '#142012',
@@ -428,7 +430,7 @@ export default function GameLayout() {
                     follow the <span style={{ color: '#fbbf24' }}>✦ markers</span> · the story does the rest
                   </p>
                   <button
-                    onClick={handleStartStory}
+                    onClick={() => { playUi('click'); handleStartStory(); }}
                     className="flex items-center gap-2 px-8 py-3 font-bold text-sm tracking-wide cursor-pointer"
                     style={{ background: selectedHero.color, color: '#0c1208' }}
                     onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
@@ -481,10 +483,11 @@ export default function GameLayout() {
                     {activeQte.boss.weaknessQTE.options.map((option, idx) => (
                       <button
                         key={idx}
-                        onClick={() => handleQteResponse(option)}
+                        onClick={() => { playUi('pick'); handleQteResponse(option); }}
                         className="w-full text-left px-3 py-2 cursor-pointer transition-colors duration-100 font-pixel text-[10px]"
                         style={{ background: '#0f1c09', border: '2px solid #3a5520', color: '#c8e89a' }}
                         onMouseEnter={e => {
+                          playUi('hover', 0.2);
                           e.currentTarget.style.borderColor = '#facc15';
                           e.currentTarget.style.color = '#facc15';
                           e.currentTarget.style.background = '#1a2e10';
@@ -583,7 +586,7 @@ export default function GameLayout() {
               </p>
             </div>
             <button
-              onClick={returnToChapters}
+              onClick={() => { playUi('back'); returnToChapters(); }}
               className="px-8 py-3 font-pixel text-[10px] cursor-pointer transition-all"
               style={{ background: selectedHero?.color ?? '#c8e89a', color: '#0c1208', border: '2px solid #0c1208', imageRendering: 'pixelated' }}
             >
@@ -606,7 +609,7 @@ export default function GameLayout() {
               </p>
             </div>
             <button
-              onClick={returnToChapters}
+              onClick={() => { playUi('back'); returnToChapters(); }}
               className="px-8 py-3 font-pixel text-[10px] cursor-pointer transition-all"
               style={{ background: '#0f1c09', border: '2px solid #ef4444', color: '#ef4444', imageRendering: 'pixelated' }}
             >

@@ -1,5 +1,6 @@
 import { useEffect, useCallback, useState, useRef } from 'react';
 import { TYPEWRITER_URL } from '../game/audio';
+import { playUi } from '../game/uiSound';
 
 const typewriterAudio = new Audio(TYPEWRITER_URL);
 
@@ -150,7 +151,7 @@ export default function DialogueBox({
               {choices!.map((choice, idx) => (
                 <button
                   key={idx}
-                  onClick={() => onChoose?.(idx)}
+                  onClick={() => { playUi('pick'); onChoose?.(idx); }}
                   className="w-full text-left px-3 py-2 cursor-pointer flex items-start gap-2 transition-colors duration-100"
                   style={{ background: '#11200a', border: '2px solid #3a5520', color: '#e8f5d0' }}
                   onMouseEnter={e => {
