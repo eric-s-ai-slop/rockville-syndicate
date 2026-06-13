@@ -77,14 +77,6 @@ export const UI_SELECT_URL   = uiSelectUrl;
 export const VICTORY_JINGLE_URL = victoryUrl;
 export const TYPEWRITER_URL  = typewriterUrl;
 
-// ── UI SOUNDS (TASK-07) ──
-import uiClickUrl    from '../assets/audio/kenney_interface-sounds/Audio/confirmation_001.ogg?url';
-import uiHoverUrl    from '../assets/audio/kenney_ui-audio/Audio/rollover1.ogg?url';
-import uiSelectUiUrl from '../assets/audio/kenney_interface-sounds/Audio/select_004.ogg?url';
-import uiBackUrl     from '../assets/audio/kenney_interface-sounds/Audio/back_001.ogg?url';
-import uiToggleUrl   from '../assets/audio/kenney_interface-sounds/Audio/toggle_001.ogg?url';
-export const UI_CLICK_URL  = uiClickUrl;
-export const UI_HOVER_URL  = uiHoverUrl;
-export const UI_PICK_URL   = uiSelectUiUrl;
-export const UI_BACK_URL   = uiBackUrl;
-export const UI_TOGGLE_URL = uiToggleUrl;
+// ── DIALOGUE TEXT (TASK-08) ──
+import dialogBlipUrl from '../assets/audio/dialog_sound.mp3?url';
+export const DIALOG_BLIP_URL = dialogBlipUrl;

@@ -1,8 +1,27 @@
 import { useEffect, useCallback, useState, useRef } from 'react';
-import { TYPEWRITER_URL } from '../game/audio';
-import { playUi } from '../game/uiSound';
+import { DIALOG_BLIP_URL } from '../game/audio';
 
-const typewriterAudio = new Audio(TYPEWRITER_URL);
+const blipPool = [0, 1, 2].map(() => new Audio(DIALOG_BLIP_URL));
+let blipIdx = 0;
+function playBlip(rate = 1, volume = 0.35) {
+  const a = blipPool[blipIdx = (blipIdx + 1) % blipPool.length];
+  try {
+    a.currentTime = 0;
+    a.playbackRate = rate;
+    a.volume = volume;
+    a.play().catch(() => {});
+  } catch {}
+}
+
+const isLetter = (c: string) => /[a-zA-Z0-9]/.test(c);
+
+const delayFor = (c: string) => {
+  if (c === '.' || c === '!' || c === '?') return 260;
+  if (c === ',' || c === ';' || c === ':') return 150;
+  if (c === '…' || c === '—') return 220;
+  if (c === ' ') return 34;
+  return 22; // base per-letter speed
+};
 
 interface DialogueChoice {
   text: string;
@@ -22,8 +41,6 @@ interface DialogueBoxProps {
   onChoose?: (index: number) => void;
 }
 
-const TYPEWRITER_MS = 22;
-
 export default function DialogueBox({
   speakerName,
   speakerEmoji,
@@ -42,39 +59,48 @@ export default function DialogueBox({
 
   const [displayedText, setDisplayedText] = useState('');
   const isTypingRef = useRef(false);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Reset and start typewriter on each new line
   useEffect(() => {
-    if (timerRef.current) clearInterval(timerRef.current);
+    if (timerRef.current) clearTimeout(timerRef.current);
     setDisplayedText('');
     isTypingRef.current = true;
     let i = 0;
-    timerRef.current = setInterval(() => {
+
+    const step = () => {
       i++;
       const char = fullText[i - 1];
       setDisplayedText(fullText.slice(0, i));
 
-      if (!muted && char && char !== ' ') {
-        typewriterAudio.currentTime = 0;
-        typewriterAudio.play().catch(() => {});
+      if (!muted && char && isLetter(char) && (i % 2 === 0)) {
+        playBlip(0.95 + Math.random() * 0.2);
       }
 
       if (i >= fullText.length) {
-        clearInterval(timerRef.current!);
         timerRef.current = null;
         isTypingRef.current = false;
+      } else {
+        timerRef.current = setTimeout(step, delayFor(char));
       }
-    }, TYPEWRITER_MS);
+    };
+
+    // Only start if there is text
+    if (fullText.length > 0) {
+      timerRef.current = setTimeout(step, delayFor(fullText[0]));
+    } else {
+      isTypingRef.current = false;
+    }
+
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+      if (timerRef.current) clearTimeout(timerRef.current);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lineIndex, fullText]);
 
   const skipTypewriter = useCallback(() => {
     if (!isTypingRef.current) return false;
-    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
     isTypingRef.current = false;
     setDisplayedText(fullText);
     return true;
