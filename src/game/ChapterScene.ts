@@ -1166,6 +1166,7 @@ export default class ChapterScene extends Phaser.Scene {
     // While a story beat owns the screen (dialogue/choice/cutscene), freeze play.
     if (this.dialogueOpen) {
       this.player.setVelocity(0, 0);
+      this.wasdKeys.SPACE.reset();
       return;
     }
 
