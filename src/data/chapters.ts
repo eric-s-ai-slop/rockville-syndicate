@@ -170,8 +170,7 @@ const C = {
   tv: 0x111827,
   door: 0x78350f,
   fridge: 0xe2e8f0,
-  grass: 0x16331a,
-};
+  grass: 0x16331a };
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CHAPTER 1 — The Spotify Family Insurgency (Commons Apartment 1522)
@@ -219,8 +218,7 @@ const chapter1: ChapterConfig = {
       { x: 795, y: 110, name: 'THE KITCHEN', detail: '25 forks, 0 clean', color: '#38bdf8' },
       { x: 620, y: 600, name: 'LIVING ROOM', detail: 'Apartment 1522', color: '#c8e89a' },
     ],
-    playerSpawn: { x: 460, y: 560 },
-  },
+    playerSpawn: { x: 460, y: 560 } },
   actors: [
     { id: 'eric', x: 250, y: 215, understudyId: 'nick_f' },
     { id: 'jordan', x: 600, y: 430, understudyId: 'maharko' },
@@ -234,8 +232,7 @@ const chapter1: ChapterConfig = {
         'Apartment 1522. The dishes are a public-health emergency. The Spotify situation is worse.',
         'Eric charges everyone $4.50 a month for the Family plan. Jordan has been doing math.',
         'Walk over to Jordan. He has something to show you.',
-      ],
-    },
+      ] },
     { type: 'walkTo', x: 600, y: 460, radius: 70, markerLabel: 'Talk to Jordan' },
     {
       type: 'dialogue',
@@ -244,14 +241,12 @@ const chapter1: ChapterConfig = {
         'I ran the numbers. The plan is $20 a month, split six ways. That is $3.33 per person.',
         "Eric charges $4.50. That's a 35% markup on a streaming service he didn't build.",
         'I posted the forensic ledger in the GC. Everyone saw it. He went offline for two hours.',
-      ],
-    },
+      ] },
     { type: 'ledger', delta: 4.5, note: 'Spotify overcharge (per month)' },
     {
       type: 'dialogue',
       speaker: 'narrator',
-      lines: ['Eric is at the Command Desk. Time to confront the Admin himself.'],
-    },
+      lines: ['Eric is at the Command Desk. Time to confront the Admin himself.'] },
     { type: 'walkTo', x: 250, y: 270, radius: 70, markerLabel: 'Confront Eric' },
     {
       type: 'dialogue',
@@ -260,8 +255,7 @@ const chapter1: ChapterConfig = {
         'So yes — I charge $4.50 for Spotify. The plan costs $3.33. I am aware of the discrepancy.',
         "I don't debate spreadsheets. You cannot gaslight a calculator.",
         'I simply blamed Joe Biden for inflation and moved on. The $4.50 era continues.',
-      ],
-    },
+      ] },
     {
       type: 'choice',
       speaker: 'narrator',
@@ -270,48 +264,39 @@ const chapter1: ChapterConfig = {
         {
           text: 'Present the forensic ledger: $20 ÷ 6 = $3.33.',
           reactionSpeaker: 'eric',
-          reactionLines: ['That number means nothing to me. THE MATH IS EMOTIONAL.'],
-        },
+          reactionLines: ['That number means nothing to me. THE MATH IS EMOTIONAL.'] },
         {
           text: 'Just Zelle him the $4.50 and keep the peace.',
           ledgerDelta: 4.5,
           reactionSpeaker: 'eric',
-          reactionLines: ['Smart. A subscriber who understands their place. Pleasure doing business.'],
-        },
+          reactionLines: ['Smart. A subscriber who understands their place. Pleasure doing business.'] },
         {
           text: 'Threaten to switch everyone to Apple Music Lossless.',
           reactionSpeaker: 'eric',
-          reactionLines: ['You wouldn\'t. The Dolby Atmos is a bluff. ...Is it a bluff?'],
-        },
-      ],
-    },
+          reactionLines: ['You wouldn\'t. The Dolby Atmos is a bluff. ...Is it a bluff?'] },
+      ] },
     {
       type: 'dialogue',
       speaker: 'eric',
-      lines: ['Fine. You want to audit me? Then audit me. I AM THE AUDIT.'],
-    },
+      lines: ['Fine. You want to audit me? Then audit me. I AM THE AUDIT.'] },
     {
       type: 'bossFight',
       bossId: 'boss_eric',
       arena: { x: 460, y: 360, w: 760, h: 520 },
-      introLines: ['Eric Huang — The Spotify Insurgent', 'Land the audit. Deplete his BIQ.'],
-    },
+      introLines: ['Eric Huang — The Spotify Insurgent', 'Land the audit. Deplete his BIQ.'] },
     {
       type: 'dialogue',
       speaker: 'eric',
       lines: [
         'FINE. FINE. You get nothing. I\'m migrating everyone to Apple Music out of spite.',
         '...The refund will process in 3-5 business decades.',
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'narrator',
-      lines: ['The $4.50 era is over. The ledger remembers. One down.'],
-    },
+      lines: ['The $4.50 era is over. The ledger remembers. One down.'] },
     { type: 'endChapter' },
-  ],
-};
+  ] };
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CHAPTER 2 — NYC 1AM Drive (Operation Inertia)
@@ -344,9 +329,9 @@ const chapter2: ChapterConfig = {
       { x: 500, y: 250, w: 4, h: 60, fill: 0xffffff },
       { x: 500, y: 400, w: 4, h: 60, fill: 0xffffff },
       // tollbooth — Baltimore checkpoint
-      { x: 440, y: 200, w: 200, h: 50, fill: 0x374151, stroke: 0xf59e0b, tag: '🚧 BALTIMORE TOLL', solid: true },
+      { x: 440, y: 200, w: 200, h: 50, fill: 0x374151, stroke: 0xf59e0b, propType: 'tollbooth', solid: true },
       // Nick F's C55 AMG (top of road)
-      { x: 440, y: 320, w: 60, h: 90, fill: 0x111827, stroke: 0xf59e0b, tag: 'C55 AMG', propType: 'car', propKey: 'prop_nick_f_corolla' },
+      { x: 440, y: 320, w: 60, h: 90, fill: 0x111827, stroke: 0xf59e0b, propType: 'car', propKey: 'prop_nick_f_corolla' },
       { x: 440, y: 320, w: 50, h: 30, fill: 0x1e3a5f },
       // shoulder grass
       { x: 160, y: 310, w: 260, h: 620, fill: 0x0d2010 },
@@ -365,8 +350,7 @@ const chapter2: ChapterConfig = {
       { x: 440, y: 540, name: 'ROCKVILLE, MD', detail: 'Where we started', color: '#6b7280' },
       { x: 160, y: 310, name: 'SHOULDER OF DEFEAT', detail: 'Nick H territory', color: '#4ade80' },
     ],
-    playerSpawn: { x: 440, y: 480 },
-  },
+    playerSpawn: { x: 440, y: 480 } },
   actors: [
     { id: 'nick_f', x: 380, y: 340, understudyId: 'jordan' },
     { id: 'nick_h', x: 500, y: 340, understudyId: 'maharko' },
@@ -381,16 +365,14 @@ const chapter2: ChapterConfig = {
         'August, 2024. Nick F drops "WTM" at 12:47 AM. The move: drive to New York City.',
         'Jacob Lebby invests $100 into the venture without asking any questions.',
         'Nick H is in the car. This is already a mistake.',
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'nick_f',
       lines: [
         "I'm on my way! C55 is fueled. NYC by 4AM, back by 8. This is completely reasonable.",
         "Dolby Atmos on the speakers. Mancera Red Tobacco on the neck. We're going.",
-      ],
-    },
+      ] },
     { type: 'ledger', delta: 100, note: 'Jacob — NYC investment (non-refundable)' },
     {
       type: 'dialogue',
@@ -398,8 +380,7 @@ const chapter2: ChapterConfig = {
       lines: [
         "I'm 13x liquid. This $100 is nothing. Let's get it.",
         'Do they have Long John Silvers in New York?',
-      ],
-    },
+      ] },
     { type: 'cameraPan', x: 440, y: 200, durationMs: 1600, holdMs: 800 },
     {
       type: 'dialogue',
@@ -408,8 +389,7 @@ const chapter2: ChapterConfig = {
         'Wait.',
         "...We're at the Baltimore toll. It's 1:52 AM.",
         'I need to sleep.',
-      ],
-    },
+      ] },
     {
       type: 'choice',
       speaker: 'narrator',
@@ -422,34 +402,29 @@ const chapter2: ChapterConfig = {
           reactionLines: [
             "I JUST PUT IN A HUNDRED DOLLARS. WE'RE TWO HOURS FROM NYC.",
             "I'm getting hot now. I'm actually getting hot.",
-          ],
-        },
+          ] },
         {
           text: 'Override Nick H. Push to NYC.',
           reactionSpeaker: 'nick_h',
           reactionLines: [
             "Absolutely not. I'm not doing this. The Tucson is going home.",
             'The Bedtime Veto is absolute. This conversation is over.',
-          ],
-        },
+          ] },
         {
           text: 'Let Eric decide with cold math.',
           reactionSpeaker: 'eric',
           reactionLines: [
             'We have burned 90 minutes. Gas: $22. Jacob\'s "investment": $100. We are at Baltimore.',
             'The expected value of continuing is negative. The Bedtime Veto wins on forensic grounds.',
-          ],
-        },
-      ],
-    },
+          ] },
+      ] },
     {
       type: 'dialogue',
       speaker: 'nick_h',
       lines: [
         "I'll give everyone $40 and we call it a night.",
         'This was never going to happen. You knew that.',
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'jacob',
@@ -457,8 +432,7 @@ const chapter2: ChapterConfig = {
         "You guys don't understand. $100. GONE. Systemic melt. I'm actually in a melt right now.",
         "Sub-zero moment incoming. I'm blocking everyone.",
         "...Goodnight.",
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'narrator',
@@ -466,11 +440,9 @@ const chapter2: ChapterConfig = {
         'The C55 AMG turns around at Exit 49, Baltimore.',
         'Jacob rejoins the group chat six hours later and says "good morning" as if nothing happened.',
         "The $100 was never recovered. It lives in the Ledger now.",
-      ],
-    },
+      ] },
     { type: 'endChapter' },
-  ],
-};
+  ] };
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CHAPTER 3 — The Red Pee Bladder Strike (Shepherd University)
@@ -499,18 +471,18 @@ const chapter3: ChapterConfig = {
       { x: 16, y: 320, w: 16, h: 640, fill: 0xd1d5db, solid: true },
       { x: 844, y: 320, w: 16, h: 640, fill: 0xd1d5db, solid: true },
       // hospital bed
-      { x: 430, y: 280, w: 200, h: 100, fill: 0xffffff, stroke: 0x9ca3af, tag: '🛏️ HOSPITAL BED', solid: true, propKey: 'prop_hospital_bed' },
-      { x: 430, y: 250, w: 80, h: 40, fill: 0xf3f4f6, stroke: 0xd1d5db, tag: 'PILLOW' },
+      { x: 430, y: 280, w: 200, h: 100, fill: 0xffffff, stroke: 0x9ca3af, propType: 'bed', solid: true, propKey: 'prop_hospital_bed' },
+      { x: 430, y: 250, w: 80, h: 40, fill: 0xf3f4f6, stroke: 0xd1d5db, propType: 'bed' },
       // IV drip
       { x: 590, y: 230, w: 12, h: 80, fill: 0x9ca3af },
-      { x: 590, y: 190, w: 30, h: 40, fill: 0xbfdbfe, stroke: 0x93c5fd, tag: '💧 IV', propKey: 'prop_iv_drip' },
+      { x: 590, y: 190, w: 30, h: 40, fill: 0xbfdbfe, stroke: 0x93c5fd, propType: 'sink', propKey: 'prop_iv_drip' },
       // toilet (evidence room)
-      { x: 700, y: 300, w: 60, h: 70, fill: 0xf8fafc, stroke: 0x94a3b8, tag: '🚽 EVIDENCE', propKey: 'prop_red_toilet' },
+      { x: 700, y: 300, w: 60, h: 70, fill: 0xf8fafc, stroke: 0x94a3b8, propType: 'tv', propKey: 'prop_red_toilet' },
       { x: 700, y: 265, w: 60, h: 20, fill: 0xe2e8f0, stroke: 0x94a3b8 },
       // window
-      { x: 160, y: 200, w: 120, h: 80, fill: 0xbfdbfe, stroke: 0x93c5fd, tag: '🌞 WINDOW' },
+      { x: 160, y: 200, w: 120, h: 80, fill: 0xbfdbfe, stroke: 0x93c5fd, propType: 'window' },
       // doctor's station
-      { x: 220, y: 400, w: 160, h: 50, fill: 0xf1f5f9, stroke: 0x64748b, tag: "DR. STATION", solid: true },
+      { x: 220, y: 400, w: 160, h: 50, fill: 0xf1f5f9, stroke: 0x64748b, solid: true },
       // floor tile pattern
       { x: 430, y: 320, w: 820, h: 600, fill: 0xf8fafc },
     ],
@@ -519,8 +491,7 @@ const chapter3: ChapterConfig = {
       { x: 700, y: 180, name: 'EXHIBIT A', detail: '"my pee is red"', color: '#ef4444' },
       { x: 220, y: 360, name: 'INTERROGATION ZONE', detail: '20 yes/no questions remaining', color: '#818cf8' },
     ],
-    playerSpawn: { x: 430, y: 500 },
-  },
+    playerSpawn: { x: 430, y: 500 } },
   actors: [
     { id: 'nick_f', x: 300, y: 450 },
     { id: 'nick_h', x: 200, y: 450 },
@@ -534,24 +505,21 @@ const chapter3: ChapterConfig = {
         'August 16, 2025. Jacob drops the following status update in the group chat:',
         '"My pee is red 😐" — with photographic evidence.',
         'The group does not offer sympathy. They open an investigation.',
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'eric',
       lines: [
         'Okay. 20 questions. Yes or No only.',
         'Did you get hit in the lower back or abdomen?',
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'jacob',
       lines: [
         "I got in a fight. My bladder got hit. That's all I'm saying.",
         "No I'm not telling you who it was. Ask your questions.",
-      ],
-    },
+      ] },
     {
       type: 'choice',
       speaker: 'eric',
@@ -563,42 +531,36 @@ const chapter3: ChapterConfig = {
           reactionLines: [
             '...You might have met him.',
             "It's not Bryce. That's all I'll say.",
-          ],
-        },
+          ] },
         {
           text: 'Does this person have any relation to Audrey?',
           reactionSpeaker: 'jacob',
           reactionLines: [
             'ZERO relation to Audrey.',
             "Why would you even — stop.",
-          ],
-        },
+          ] },
         {
           text: 'Was this at Shepherd University?',
           reactionSpeaker: 'jacob',
           reactionLines: [
             "...You're getting warm.",
             "I'm done answering questions. I need my phone back.",
-          ],
-        },
-      ],
-    },
+          ] },
+      ] },
     {
       type: 'dialogue',
       speaker: 'nick_f',
       lines: [
         "Bro this is actually insane. Your pee is LITERALLY RED.",
         "Did you take a photo? Send it to the GC right now.",
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'nick_h',
       lines: [
         "Jacob… are you okay? Actually genuinely.",
         "...Is this about Audrey?",
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'jacob',
@@ -606,8 +568,7 @@ const chapter3: ChapterConfig = {
         "IT HAS NOTHING TO DO WITH AUDREY.",
         "She just… may have been in the vicinity. Of the fight. Coincidentally.",
         'Sub-Zero mode: activated.',
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'narrator',
@@ -615,8 +576,7 @@ const chapter3: ChapterConfig = {
         'The investigation concludes. The assailant: Audrey.',
         'The 10-Year Phantom has materialized. And she threw hands.',
         'Jacob is hospitalized. Day 4.5. Diagnosis: internal bleeding + delusion.',
-      ],
-    },
+      ] },
     {
       type: 'bossFight',
       bossId: 'boss_audrey',
@@ -624,8 +584,7 @@ const chapter3: ChapterConfig = {
       introLines: [
         'AUDREY — The 10-Year Phantom',
         'Bladder Strike confirmed. Controls will be reversed.',
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'jacob',
@@ -633,16 +592,14 @@ const chapter3: ChapterConfig = {
         "I'm fine. The doctors said I'm fine.",
         'She just... hit me in the bladder. It happens.',
         "I'm still going to marry her in 10 years. The $1,500 bet stands.",
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'eric',
       lines: [
         'Jacob. The math: $1,500 bet. 10 years. She hospitalized you.',
         "You cannot gaslight a urologist.",
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'narrator',
@@ -650,11 +607,9 @@ const chapter3: ChapterConfig = {
         'Jacob was awarded the "Lebby Redemption Arc" buff upon discharge.',
         'He lost 20 lbs. His confidence increased.',
         "He texted Audrey the same night. She left him on delivered for 3 months.",
-      ],
-    },
+      ] },
     { type: 'endChapter' },
-  ],
-};
+  ] };
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CHAPTER 4 — The Jungle Gym Gambit (Interlude)
@@ -679,12 +634,12 @@ const chapter4: ChapterConfig = {
       // park ground / clearing
       { x: 420, y: 310, w: 600, h: 400, fill: 0x1a3d1a },
       // jungle gym structure
-      { x: 420, y: 220, w: 140, h: 60, fill: 0x92400e, stroke: 0xd97706, tag: '🏗️ JUNGLE GYM', solid: true, propKey: 'prop_jungle_gym' },
+      { x: 420, y: 220, w: 140, h: 60, fill: 0x92400e, stroke: 0xd97706, propType: 'junglebox', solid: true, propKey: 'prop_jungle_gym' },
       { x: 340, y: 250, w: 16, h: 80, fill: 0x92400e, solid: true },
       { x: 500, y: 250, w: 16, h: 80, fill: 0x92400e, solid: true },
       { x: 420, y: 290, w: 140, h: 14, fill: 0xb45309, solid: true },
       // bench
-      { x: 600, y: 350, w: 100, h: 24, fill: 0x78350f, stroke: 0x92400e, tag: 'BENCH', solid: true },
+      { x: 600, y: 350, w: 100, h: 24, fill: 0x78350f, stroke: 0x92400e, propType: 'bench', solid: true },
       // trees
       { x: 140, y: 200, w: 60, h: 60, fill: 0x14532d },
       { x: 700, y: 180, w: 60, h: 60, fill: 0x14532d },
@@ -694,14 +649,13 @@ const chapter4: ChapterConfig = {
       { x: 420, y: 580, w: 840, h: 80, fill: 0x374151 },
       { x: 420, y: 580, w: 840, h: 4, fill: 0xfbbf24 },
       // nick h's tucson (parked)
-      { x: 180, y: 560, w: 80, h: 44, fill: 0x1e293b, stroke: 0x4ade80, tag: "TUCSON" },
+      { x: 180, y: 560, w: 80, h: 44, fill: 0x1e293b, stroke: 0x4ade80 },
     ],
     labels: [
       { x: 420, y: 80, name: '1202 PRINCETON PLACE', detail: 'The mystery destination', color: '#f59e0b' },
       { x: 420, y: 480, name: 'THE CLEARING', detail: 'Jacob arrived. He has questions.', color: '#c8e89a' },
     ],
-    playerSpawn: { x: 420, y: 480 },
-  },
+    playerSpawn: { x: 420, y: 480 } },
   actors: [
     { id: 'nick_h', x: 420, y: 340, understudyId: 'eric' },
     { id: 'jacob', x: 420, y: 420, understudyId: 'maharko' },
@@ -714,8 +668,7 @@ const chapter4: ChapterConfig = {
         'Nick H has a location. He will not say what it is.',
         'He issues three rules to Jacob Lebby before revealing it.',
         'Rule one: I sit in my seat.',
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'nick_h',
@@ -723,8 +676,7 @@ const chapter4: ChapterConfig = {
         'Three rules. First: I sit in my seat. No argument.',
         'Second: ??',
         'Third: I smoke whatever you give me.',
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'jacob',
@@ -732,8 +684,7 @@ const chapter4: ChapterConfig = {
         "What's rule two?",
         'What is this location? Why are there monkey bars?',
         "I'm 13x liquid and I don't FOMO. I'm not desperate for this.",
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'nick_h',
@@ -741,8 +692,7 @@ const chapter4: ChapterConfig = {
         '🐔',
         '🐔🐔',
         '🐔🐔🐔🐔🐔',
-      ],
-    },
+      ] },
     {
       type: 'choice',
       speaker: 'narrator',
@@ -754,8 +704,7 @@ const chapter4: ChapterConfig = {
           reactionLines: [
             "Welcome to 1202 Princeton Place. The Jungle Gym.",
             "Rule two was: don't ask what rule two is. You failed.",
-          ],
-        },
+          ] },
         {
           text: '"I told you. I am $3,900 liquid. I don\'t need this."',
           ledgerDelta: 0,
@@ -763,18 +712,15 @@ const chapter4: ChapterConfig = {
           reactionLines: [
             '🐔🐔🐔🐔🐔🐔🐔🐔',
             "You drove here, Jacob. You're standing on the jungle gym.",
-          ],
-        },
+          ] },
         {
           text: '"Is Audrey going to be here?"',
           reactionSpeaker: 'nick_h',
           reactionLines: [
             "She lives in Canada, Jacob.",
             "She has a boyfriend. 🐔",
-          ],
-        },
-      ],
-    },
+          ] },
+      ] },
     {
       type: 'dialogue',
       speaker: 'jacob',
@@ -782,8 +728,7 @@ const chapter4: ChapterConfig = {
         'I drove an hour for a JUNGLE GYM.',
         "Why didn't you just TELL me what this was.",
         "...Fine. I'm sitting. What are we smoking.",
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'nick_h',
@@ -791,8 +736,7 @@ const chapter4: ChapterConfig = {
         "Loooove it here. Loooooove UMD.",
         "The Chicken Barrage wins every time.",
         "By the way — we're not giving you rule two.",
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'narrator',
@@ -800,11 +744,9 @@ const chapter4: ChapterConfig = {
         'The jungle gym session lasted two hours.',
         "Jacob's $3,900 in liquid reserves remained undeployed.",
         "The chicken emoji has a 100% conversion rate on Jacob. It has never failed.",
-      ],
-    },
+      ] },
     { type: 'endChapter' },
-  ],
-};
+  ] };
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CHAPTER 5 — The Florida Highway Duel
@@ -833,15 +775,15 @@ const chapter5: ChapterConfig = {
       { x: 480, y: 270, w: 960, h: 4, fill: 0xffffff },
       { x: 480, y: 370, w: 960, h: 4, fill: 0xffffff },
       // Meat Market building (left side)
-      { x: 140, y: 170, w: 220, h: 180, fill: 0x1e293b, stroke: 0xf59e0b, tag: '🥩 MEAT MARKET', solid: true },
+      { x: 140, y: 170, w: 220, h: 180, fill: 0x1e293b, stroke: 0xf59e0b, solid: true },
       { x: 140, y: 120, w: 220, h: 40, fill: 0xb45309 },
       // parking lot
       { x: 140, y: 490, w: 260, h: 120, fill: 0x374151 },
       { x: 140, y: 490, w: 260, h: 4, fill: 0x6b7280 },
       // Jordan's 5.0 Mustang (red)
-      { x: 140, y: 510, w: 90, h: 50, fill: 0x991b1b, stroke: 0xef4444, tag: '🔴 5.0 MUSTANG', propType: 'car', propKey: 'prop_jordan_mustang' },
+      { x: 140, y: 510, w: 90, h: 50, fill: 0x991b1b, stroke: 0xef4444, propType: 'car', propKey: 'prop_jordan_mustang' },
       // Maharko's Camaro (black)
-      { x: 280, y: 510, w: 90, h: 50, fill: 0x111827, stroke: 0x22d3ee, tag: '🏎️ CAMARO', propType: 'car', propKey: 'prop_maharko_camero' },
+      { x: 280, y: 510, w: 90, h: 50, fill: 0x111827, stroke: 0x22d3ee, propType: 'car', propKey: 'prop_maharko_camero' },
       // palm trees
       { x: 700, y: 170, w: 24, h: 100, fill: 0x92400e },
       { x: 700, y: 120, w: 50, h: 50, fill: 0x14532d },
@@ -859,8 +801,7 @@ const chapter5: ChapterConfig = {
       { x: 480, y: 560, name: 'THE HIGHWAY', detail: 'Mustang always wins first turn', color: '#ef4444' },
       { x: 140, y: 80, name: 'MEAT MARKET', detail: 'Jordan absorbs 15% of your Aura here', color: '#f59e0b' },
     ],
-    playerSpawn: { x: 480, y: 490 },
-  },
+    playerSpawn: { x: 480, y: 490 } },
   actors: [
     { id: 'jordan', x: 250, y: 440, understudyId: 'nick_f' },
     { id: 'maharko', x: 380, y: 440, understudyId: 'jacob' },
@@ -873,8 +814,7 @@ const chapter5: ChapterConfig = {
         'Boca Raton, Florida. Maharko moved here specifically because of Jordan.',
         "He broke up with his girlfriend Nelly and Jordan's gravity did the rest.",
         "He drops his Meat Market paycheck into $SOL. Market crashes 40% in 6 hours.",
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'maharko',
@@ -882,8 +822,7 @@ const chapter5: ChapterConfig = {
         "JORDAN I'M DOWN BAD. SOL JUST CRASHED. I PUT IN MY WHOLE CHECK.",
         "Let's take the Camaro to Miami. I need to clear my head.",
         "I have headers coming. Once I get headers this car will—",
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'jordan',
@@ -891,8 +830,7 @@ const chapter5: ChapterConfig = {
         "No. We're not going to Miami.",
         "We're going to the 5.0 spot. Get in.",
         "And I'm not paying for your gas.",
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'maharko',
@@ -900,8 +838,7 @@ const chapter5: ChapterConfig = {
         "But I literally just — you know what, you're right. The 5.0 spot.",
         "Wait... was going to the 5.0 spot MY idea? Did I suggest this?",
         "I feel like I suggested this.",
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'narrator',
@@ -909,8 +846,7 @@ const chapter5: ChapterConfig = {
         'Jordan did not suggest the 5.0 spot. Maharko did not suggest the 5.0 spot.',
         "Jordan used an Inception dialogue tree. Maharko now believes the plan was his.",
         "The Mustang pulls out of the Meat Market parking lot. The Camaro follows.",
-      ],
-    },
+      ] },
     { type: 'cameraPan', x: 480, y: 320, durationMs: 2000, holdMs: 1000 },
     {
       type: 'dialogue',
@@ -919,8 +855,7 @@ const chapter5: ChapterConfig = {
         'On the highway: Jordan revs the 5.0.',
         "Crowd control. The parking lot disperses. Absolute dominance.",
         "Maharko decides to race. The Camaro does not win.",
-      ],
-    },
+      ] },
     {
       type: 'bossFight',
       bossId: 'boss_florida',
@@ -928,8 +863,7 @@ const chapter5: ChapterConfig = {
       introLines: [
         'JORDAN DIVBAND — The Puppetmaster',
         "5.0 Mustang. First-turn win guaranteed. Prove the storyboard wrong.",
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'maharko',
@@ -937,8 +871,7 @@ const chapter5: ChapterConfig = {
         "Bro you GAPPED me.",
         "That was not fair. You had a run on me.",
         "Just wait until I get headers. JUST WAIT UNTIL I GET HEADERS.",
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'jordan',
@@ -946,8 +879,7 @@ const chapter5: ChapterConfig = {
         "Maharko. You don't need headers.",
         "You need to stop putting your paycheck in crypto.",
         "Also you owe me $40 for dinner.",
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'narrator',
@@ -955,11 +887,9 @@ const chapter5: ChapterConfig = {
         'The headers never arrived.',
         "Jordan siphoned 15% of Maharko's Aura across the evening.",
         "Maharko believes every decision he made tonight was his own.",
-      ],
-    },
+      ] },
     { type: 'endChapter' },
-  ],
-};
+  ] };
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CHAPTER 6 — Operation Ding Dong Ditch Ben
@@ -990,18 +920,18 @@ const chapter6: ChapterConfig = {
       { x: 440, y: 300, w: 280, h: 280, fill: 0x1a2e1a, stroke: 0x84cc16, solid: true, propKey: 'prop_watchwater' },
       { x: 440, y: 170, w: 280, h: 50, fill: 0x166534 },
       // front door
-      { x: 440, y: 435, w: 50, h: 60, fill: 0x78350f, stroke: 0xef4444, tag: '🚪 FRONT DOOR' },
+      { x: 440, y: 435, w: 50, h: 60, fill: 0x78350f, stroke: 0xef4444, propType: 'door' },
       // windows (glowing faintly)
       { x: 340, y: 280, w: 50, h: 50, fill: 0xfef3c7, stroke: 0xfcd34d },
       { x: 540, y: 280, w: 50, h: 50, fill: 0xfef3c7, stroke: 0xfcd34d },
       { x: 340, y: 360, w: 50, h: 50, fill: 0x0f1a0f },
       { x: 540, y: 360, w: 50, h: 50, fill: 0x0f1a0f },
       // house mailbox
-      { x: 330, y: 470, w: 20, h: 30, fill: 0x374151, stroke: 0x84cc16, tag: '12 WW' },
+      { x: 330, y: 470, w: 20, h: 30, fill: 0x374151, stroke: 0x84cc16, propType: 'car' },
       // getaway car (Tucson, parked on street)
-      { x: 680, y: 595, w: 120, h: 56, fill: 0x1e293b, stroke: 0x4ade80, tag: '🚗 GETAWAY' },
+      { x: 680, y: 595, w: 120, h: 56, fill: 0x1e293b, stroke: 0x4ade80, propType: 'car' },
       // C55 AMG (Nick F's)
-      { x: 200, y: 595, w: 120, h: 56, fill: 0x111827, stroke: 0xf59e0b, tag: 'C55 AMG' },
+      { x: 200, y: 595, w: 120, h: 56, fill: 0x111827, stroke: 0xf59e0b, propType: 'car' },
       // neighboring yard trees
       { x: 150, y: 280, w: 80, h: 80, fill: 0x0f2a0f },
       { x: 730, y: 300, w: 80, h: 80, fill: 0x0f2a0f },
@@ -1013,8 +943,7 @@ const chapter6: ChapterConfig = {
       { x: 440, y: 100, name: '12 WATCHWATER WAY', detail: 'The Pariah Zone — Enter at own risk', color: '#ef4444' },
       { x: 680, y: 560, name: 'EXTRACT POINT', detail: 'Sprint here after the shout', color: '#4ade80' },
     ],
-    playerSpawn: { x: 440, y: 570 },
-  },
+    playerSpawn: { x: 440, y: 570 } },
   actors: [
     { id: 'maharko', x: 340, y: 500, understudyId: 'jacob' },
     { id: 'jordan', x: 540, y: 500, understudyId: 'nick_h' },
@@ -1029,8 +958,7 @@ const chapter6: ChapterConfig = {
         "12 Watchwater Way. The Pariah Zone.",
         "Ben Bersofsky: blacklisted. UMBC Pariah Event. Omega clearance required to discuss.",
         "The party has pulled up at 12:01 AM. Maharko is the designated finisher.",
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'maharko',
@@ -1038,8 +966,7 @@ const chapter6: ChapterConfig = {
         "His light is ON. He's awake.",
         "I can see him through the window. He's on his phone.",
         "Bro is he racing a go-kart? Wait—",
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'nick_f',
@@ -1047,8 +974,7 @@ const chapter6: ChapterConfig = {
         "Okay. One shot. Maharko, you're up.",
         "Go to the door. Say the words. Sprint back.",
         "Jordan — get the video.",
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'jordan',
@@ -1056,8 +982,7 @@ const chapter6: ChapterConfig = {
         "I got it. Recording.",
         "...Wait my phone is buffering.",
         "Okay. I'm good. Go.",
-      ],
-    },
+      ] },
     { type: 'walkTo', x: 440, y: 440, radius: 50, markerLabel: 'Approach the front door' },
     {
       type: 'dialogue',
@@ -1066,16 +991,14 @@ const chapter6: ChapterConfig = {
         "WE KNOW WHAT YOU DID.",
         "BEN BERSOFSKY. WE KNOW WHAT YOU DID AT UMBC.",
         "THE SYNDICATE SENDS ITS REGARDS.",
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'narrator',
       lines: [
         'The door opens.',
         'It is not Ben.',
-      ],
-    },
+      ] },
     { type: 'chase', pursuerId: 'boss_ben', durationMs: 7000 },
     {
       type: 'bossFight',
@@ -1084,8 +1007,7 @@ const chapter6: ChapterConfig = {
       introLines: [
         'MICHAEL BERSOFSKY — The Pariah Father',
         '"HEY!" — AoE Fear Spell incoming. Run.',
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'jordan',
@@ -1093,8 +1015,7 @@ const chapter6: ChapterConfig = {
         "OKAY I GOT THE VID— wait.",
         "I... I fat-fingered it.",
         "I sent the video to Ben.",
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'nick_f',
@@ -1102,8 +1023,7 @@ const chapter6: ChapterConfig = {
         "JORDAN. JORDAN WHAT DID YOU DO.",
         "GET IN THE CAR. GET IN THE CAR RIGHT NOW.",
         "GO GO GO —",
-      ],
-    },
+      ] },
     { type: 'ledger', delta: 0, note: 'Heat Level: MAXIMUM (Ben has the footage)' },
     { type: 'walkTo', x: 680, y: 595, radius: 60, markerLabel: 'Sprint to getaway car' },
     {
@@ -1113,11 +1033,9 @@ const chapter6: ChapterConfig = {
         'Ben received the video.',
         'Ben cast: Police Threat.',
         "The party laid low for a week. Jordan never lived it down.",
-      ],
-    },
+      ] },
     { type: 'endChapter' },
-  ],
-};
+  ] };
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CHAPTER 7 — The Cabin Betrayal / Spain Flight
@@ -1147,25 +1065,24 @@ const chapter7: ChapterConfig = {
       // rug
       { x: 450, y: 380, w: 360, h: 220, fill: C.rug },
       // couch
-      { x: 450, y: 300, w: 200, h: 40, fill: C.couch, stroke: 0xef4444, tag: 'COUCH', solid: true },
+      { x: 450, y: 300, w: 200, h: 40, fill: C.couch, stroke: 0xef4444, propType: 'couch', solid: true },
       // Nick F's "Cabin Budget" spreadsheet (desk)
-      { x: 160, y: 160, w: 180, h: 60, fill: C.desk, stroke: 0x64748b, tag: '📊 $273.28 x 8', solid: true },
+      { x: 160, y: 160, w: 180, h: 60, fill: C.desk, stroke: 0x64748b, solid: true },
       // TV showing Spain flight
-      { x: 450, y: 240, w: 140, h: 26, fill: C.tv, stroke: 0xef4444, tag: '✈️ IBERIA AIRLINES' },
+      { x: 450, y: 240, w: 140, h: 26, fill: C.tv, stroke: 0xef4444, propType: 'tv' },
       // Google Doc printout table
-      { x: 710, y: 200, w: 200, h: 120, fill: 0x1e3a5f, stroke: 0x3b82f6, tag: '📋 9-OPTION CABIN DOC', solid: true },
+      { x: 710, y: 200, w: 200, h: 120, fill: 0x1e3a5f, stroke: 0x3b82f6, propType: 'desk', solid: true },
       // Zelle notification (glowing)
-      { x: 160, y: 320, w: 180, h: 60, fill: 0x0f2a1e, stroke: 0x22c55e, tag: '💸 ZELLE: -$273.28' },
+      { x: 160, y: 320, w: 180, h: 60, fill: 0x0f2a1e, stroke: 0x22c55e },
       // front door
-      { x: 450, y: 614, w: 60, h: 18, fill: C.door, stroke: 0x92400e, tag: 'DOOR' },
+      { x: 450, y: 614, w: 60, h: 18, fill: C.door, stroke: 0x92400e, propType: 'door' },
     ],
     labels: [
       { x: 160, y: 110, name: 'THE EVIDENCE WALL', detail: 'All receipts. All Zelles.', color: '#22c55e' },
       { x: 710, y: 140, name: "NICK F'S GOOGLE DOC", detail: 'Option H: Basye, VA — chosen', color: '#3b82f6' },
       { x: 450, y: 550, name: 'THE GREAT BETRAYAL', detail: 'Apartment 1522', color: '#ef4444' },
     ],
-    playerSpawn: { x: 450, y: 500 },
-  },
+    playerSpawn: { x: 450, y: 500 } },
   actors: [
     { id: 'nick_f', x: 300, y: 400, understudyId: 'nick_h' },
     { id: 'maharko', x: 550, y: 420, understudyId: 'jacob' },
@@ -1180,8 +1097,7 @@ const chapter7: ChapterConfig = {
         "The cabin was real. Nick F built a 9-option Google Doc.",
         "Option H: Basye, VA. Four bedrooms, hot tub, firepit, arcade. $273.28 per person.",
         "He collected the money. All eight shares. Via Zelle.",
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'nick_f',
@@ -1189,8 +1105,7 @@ const chapter7: ChapterConfig = {
         "So... I have a situation.",
         "Emily is in Spain. I should go visit. It's actually an International Business trip.",
         "The cabin... is going to have to wait.",
-      ],
-    },
+      ] },
     { type: 'ledger', delta: 273.28, note: "Nick F's Cabin Fund — now stranded in Spain" },
     {
       type: 'dialogue',
@@ -1199,8 +1114,7 @@ const chapter7: ChapterConfig = {
         'You collected $273.28 from eight people.',
         '$2,186.24 total. You have a flight to Ibiza booked.',
         'The refund will arrive when, exactly?',
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'nick_f',
@@ -1208,8 +1122,7 @@ const chapter7: ChapterConfig = {
         "I'll process it when I land. It's just a quick trip.",
         "Besides, I already found a new date for the cabin. August.",
         "Trust the process.",
-      ],
-    },
+      ] },
     {
       type: 'choice',
       speaker: 'narrator',
@@ -1221,16 +1134,14 @@ const chapter7: ChapterConfig = {
           reactionLines: [
             "I'll get to it. I'm in the boarding lounge.",
             "The money is not lost. It's invested in morale.",
-          ],
-        },
+          ] },
         {
           text: 'Threaten a Japan trip with the Boca Syndicate.',
           reactionSpeaker: 'nick_f',
           reactionLines: [
             "You're going to Japan? Really.",
             "...Okay I'll process the refunds.",
-          ],
-        },
+          ] },
         {
           text: 'Cast Infinite Deferral. Accept August. Move on.',
           ledgerDelta: -273.28,
@@ -1238,18 +1149,15 @@ const chapter7: ChapterConfig = {
           reactionLines: [
             "We are NOT accepting August.",
             "We paid. We want the cabin. RIGHT NOW.",
-          ],
-        },
-      ],
-    },
+          ] },
+      ] },
     {
       type: 'dialogue',
       speaker: 'jordan',
       lines: [
         'Nick. The math is irrefutable. Eight payments. Eight refunds owed.',
         'The Japan threat is a bluff and you know it.',
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'nick_f',
@@ -1257,8 +1165,7 @@ const chapter7: ChapterConfig = {
         "You know what? Fine. FINE.",
         "You want the cabin? We're doing the cabin. NEW DATE. LOCKED IN.",
         "Now somebody needs to stop me before I spend this on phonk speakers.",
-      ],
-    },
+      ] },
     {
       type: 'bossFight',
       bossId: 'boss_nick_f',
@@ -1266,8 +1173,7 @@ const chapter7: ChapterConfig = {
       introLines: [
         'NICK FARRAR — The Kinetic Warlord',
         'Defeat him before he books a second flight.',
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'nick_f',
@@ -1275,8 +1181,7 @@ const chapter7: ChapterConfig = {
         "Okay. Refunds processing. 3-5 business decades.",
         "The cabin is August. Basye, VA. Hot tub. Arcade. Firepit.",
         "This was always the plan. I never left.",
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'narrator',
@@ -1284,11 +1189,9 @@ const chapter7: ChapterConfig = {
         "The Infinite Deferral spell was cast anyway.",
         "The $273.28 remained in Nick F's inventory until May 15, 2026.",
         "On that day: 'WE IN THERE. THE CABIN IS SAVED.'",
-      ],
-    },
+      ] },
     { type: 'endChapter' },
-  ],
-};
+  ] };
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CHAPTER 8 — The Cabin Trip (Basye, Virginia) — EPILOGUE
@@ -1319,31 +1222,31 @@ const chapter8: ChapterConfig = {
       { x: 480, y: 350, w: 920, h: 660, fill: 0x3a2210 },
       // BEDROOM A (top-left — best bed)
       { x: 170, y: 160, w: 260, h: 200, fill: 0x4a2e14, stroke: 0xd97706 },
-      { x: 170, y: 160, w: 160, h: 80, fill: 0xffffff, stroke: 0x9ca3af, tag: '🛏️ BED A (KING)', solid: true },
+      { x: 170, y: 160, w: 160, h: 80, fill: 0xffffff, stroke: 0x9ca3af, propType: 'bed', solid: true },
       // BEDROOM B (top-right — second best)
       { x: 790, y: 160, w: 260, h: 200, fill: 0x4a2e14, stroke: 0xb45309 },
-      { x: 790, y: 160, w: 160, h: 80, fill: 0xfafafa, stroke: 0x9ca3af, tag: '🛏️ BED B (QUEEN)', solid: true },
+      { x: 790, y: 160, w: 160, h: 80, fill: 0xfafafa, stroke: 0x9ca3af, propType: 'bed', solid: true },
       // BEDROOM C (mid-right)
       { x: 790, y: 400, w: 260, h: 160, fill: 0x3d2210, stroke: 0x78350f },
-      { x: 790, y: 400, w: 140, h: 70, fill: 0xe2e8f0, stroke: 0x9ca3af, tag: '🛏️ BED C (TWIN)' },
+      { x: 790, y: 400, w: 140, h: 70, fill: 0xe2e8f0, stroke: 0x9ca3af, propType: 'bed' },
       // BEDROOM D — the bad bed (share)
       { x: 170, y: 400, w: 260, h: 160, fill: 0x2d1a08, stroke: 0x78350f },
-      { x: 170, y: 400, w: 220, h: 60, fill: 0xd1d5db, stroke: 0x9ca3af, tag: '🛏️ BED D (SHARE 💀)', solid: true },
+      { x: 170, y: 400, w: 220, h: 60, fill: 0xd1d5db, stroke: 0x9ca3af, propType: 'bed', solid: true },
       // Living room / common area
       { x: 480, y: 350, w: 300, h: 180, fill: 0x3d2210 },
-      { x: 480, y: 300, w: 160, h: 44, fill: 0x111827, stroke: 0x8d6e63, tag: '📺 ULTRAPHONK TV' },
-      { x: 480, y: 360, w: 120, h: 36, fill: C.couch, stroke: 0xb45309, tag: 'COUCH', solid: true },
+      { x: 480, y: 300, w: 160, h: 44, fill: 0x111827, stroke: 0x8d6e63, propType: 'tv' },
+      { x: 480, y: 360, w: 120, h: 36, fill: C.couch, stroke: 0xb45309, propType: 'couch', solid: true },
       // hot tub (bottom center)
-      { x: 480, y: 580, w: 160, h: 100, fill: 0x0369a1, stroke: 0x38bdf8, tag: '♨️ HOT TUB' },
+      { x: 480, y: 580, w: 160, h: 100, fill: 0x0369a1, stroke: 0x38bdf8, propType: 'hottub' },
       { x: 480, y: 580, w: 144, h: 84, fill: 0x0284c7, stroke: 0x7dd3fc },
       // firepit (outside, bottom)
-      { x: 480, y: 660, w: 80, h: 80, fill: 0x7c2d12, stroke: 0xef4444, tag: '🔥 FIREPIT' },
+      { x: 480, y: 660, w: 80, h: 80, fill: 0x7c2d12, stroke: 0xef4444, propType: 'firepit' },
       // arcade machine
-      { x: 750, y: 560, w: 60, h: 80, fill: 0x1e1b4b, stroke: 0x818cf8, tag: '🕹️ ARCADE' },
+      { x: 750, y: 560, w: 60, h: 80, fill: 0x1e1b4b, stroke: 0x818cf8, propType: 'arcade' },
       // kitchen / food area
-      { x: 210, y: 580, w: 160, h: 80, fill: C.counter, stroke: 0x94a3b8, tag: '🥞 NICK F PANCAKES', solid: true },
+      { x: 210, y: 580, w: 160, h: 80, fill: C.counter, stroke: 0x94a3b8, propType: 'counter', solid: true },
       // front door (entry)
-      { x: 480, y: 676, w: 70, h: 18, fill: C.door, stroke: 0x92400e, tag: 'CABIN DOOR' },
+      { x: 480, y: 676, w: 70, h: 18, fill: C.door, stroke: 0x92400e, propType: 'door' },
     ],
     labels: [
       { x: 170, y: 80, name: 'BEDROOM A', detail: 'First one in gets it', color: '#d97706' },
@@ -1351,8 +1254,7 @@ const chapter8: ChapterConfig = {
       { x: 170, y: 350, name: 'BEDROOM D', detail: 'Worst smelling person sleeps here', color: '#6b7280' },
       { x: 480, y: 200, name: 'BASYE, VA — THE CABIN', detail: 'Option H. $273.28 per head.', color: '#c8e89a' },
     ],
-    playerSpawn: { x: 480, y: 620 },
-  },
+    playerSpawn: { x: 480, y: 620 } },
   actors: [
     { id: 'nick_f', x: 340, y: 380 },
     { id: 'nick_h', x: 560, y: 380 },
@@ -1369,8 +1271,7 @@ const chapter8: ChapterConfig = {
         "May 15, 2026. Nick F drops a message.",
         '"WE IN THERE. THE CABIN IS SAVED." — Nick Farrar, 11:43 PM.',
         "Basye, Virginia. Four bedrooms. Arcade. Hot tub. Firepit. The Syndicate is whole.",
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'nick_f',
@@ -1378,15 +1279,13 @@ const chapter8: ChapterConfig = {
         "WELCOME TO THE CABIN. Option H. The dream.",
         "Rules: No solo grocery shopping. (Jordan, I'm looking at you.)",
         "And before ANYONE picks a bed —",
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'nick_f',
       lines: [
         "ARE YOU 291 LIQUID?",
-      ],
-    },
+      ] },
     {
       type: 'choice',
       speaker: 'narrator',
@@ -1398,26 +1297,22 @@ const chapter8: ChapterConfig = {
           reactionLines: [
             'Jacob. 291 liquid means willing to spend, not capacity to spend.',
             'You have $3,900 and have not deployed a dollar of it since 2023.',
-          ],
-        },
+          ] },
         {
           text: '"I check my brokerage..." — Eric',
           reactionSpeaker: 'eric',
           reactionLines: [
             "I have $250. Someone front me $40.",
             "I will repay it in 3-5 business decades.",
-          ],
-        },
+          ] },
         {
           text: '"Dolby Atmos. Lossless Audio. Let\'s go." — Nick F',
           reactionSpeaker: 'nick_h',
           reactionLines: [
             "Nobody asked about Apple Music.",
             "Put on the Ultraphonk and let's do the Bed Draft.",
-          ],
-        },
-      ],
-    },
+          ] },
+      ] },
     { type: 'ledger', delta: 273.28, note: 'Cabin entry fee — Basye, VA' },
     {
       type: 'dialogue',
@@ -1426,8 +1321,7 @@ const chapter8: ChapterConfig = {
         "The Bed Draft. Free-for-all. First to reach a bed claims it.",
         "The loser shares a bed with the worst-smelling party member.",
         "On your mark.",
-      ],
-    },
+      ] },
     { type: 'walkTo', x: 170, y: 160, radius: 80, markerLabel: '🏆 CLAIM BED A' },
     {
       type: 'dialogue',
@@ -1436,8 +1330,7 @@ const chapter8: ChapterConfig = {
         "BED A. KING SIZE. CLAIMED.",
         "Wait, I got here first. This is mine. MINE.",
         "The Bed Draft protocol is clear. First in, first served.",
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'jacob',
@@ -1445,8 +1338,7 @@ const chapter8: ChapterConfig = {
         "I was HERE first. I had my hand on the post.",
         "Sub-Zero does not share a bed. I have standards.",
         "I WILL pay the Jacob Tax if that's what it takes.",
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'nick_h',
@@ -1454,8 +1346,7 @@ const chapter8: ChapterConfig = {
         "I love it here. Loooove Basye, VA.",
         "I claimed Bed C. I'm going to sleep at 10 PM and nobody can stop me.",
         "The Sleep Goblin has found his lair.",
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'narrator',
@@ -1463,8 +1354,7 @@ const chapter8: ChapterConfig = {
         "It is 3:00 AM. The Ultraphonk playlist is active.",
         '"Y\'all already weren\'t gonna be allowed to sleep. Now NO one is sleeping. ALL 4 days."',
         "Eric and Alex have locked in Hyperphonk.",
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'eric',
@@ -1472,8 +1362,7 @@ const chapter8: ChapterConfig = {
         "Nobody is sleeping. That's the new rule.",
         "The Hyperphonk doesn't stop until we figure out who took the last of the blueberry pancakes.",
         "Nick F. It was Nick F. He bought $300 in S'mores and nothing else.",
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'nick_f',
@@ -1481,8 +1370,7 @@ const chapter8: ChapterConfig = {
         "The S'mores were a COMMUNAL investment.",
         "And for the record, the salmon was for everyone.",
         "The Grocery Raid Ban is discriminatory and I'm appealing it.",
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'maharko',
@@ -1490,8 +1378,7 @@ const chapter8: ChapterConfig = {
         "I haven't eaten since we got here.",
         "Jordan ate my food. I know he did. I just can't prove it.",
         "Also the hot tub hits different at 3AM.",
-      ],
-    },
+      ] },
     {
       type: 'choice',
       speaker: 'narrator',
@@ -1505,8 +1392,7 @@ const chapter8: ChapterConfig = {
             "Nobody talked about girls. Nobody talked about money.",
             "They just existed. The Physics of Friendship — in equilibrium.",
           ],
-          goto: 'ending_good',
-        },
+          goto: 'ending_good' },
         {
           text: 'Jacob calls his $1,500 bet on Audrey. Audrey does not pick up.',
           reactionSpeaker: 'jacob',
@@ -1515,8 +1401,7 @@ const chapter8: ChapterConfig = {
             "Sub-Zero doesn't chase. Sub-Zero WAITS.",
             "...I'm going to text her again.",
           ],
-          goto: 'ending_subzero',
-        },
+          goto: 'ending_subzero' },
         {
           text: 'Deploy the Decades Schism. Where does the Syndicate go from here?',
           ledgerDelta: 0,
@@ -1525,10 +1410,8 @@ const chapter8: ChapterConfig = {
             "I can't. And I'm not going to decades. ts is buns.",
             "...I'm leaving the chat.",
           ],
-          goto: 'ending_decades',
-        },
-      ],
-    },
+          goto: 'ending_decades' },
+      ] },
     {
       id: 'ending_good',
       type: 'dialogue',
@@ -1537,8 +1420,7 @@ const chapter8: ChapterConfig = {
         "Rockville. UMD. Shepherd. Boca. Spain. The highway at 2AM.",
         "The Spotify overcharge. The red pee. The $100 at Baltimore. The video Jordan sent to Ben.",
         "All of it. All of them. Here. At the firepit. 4:17 AM. Basye, Virginia.",
-      ],
-    },
+      ] },
     {
       id: 'ending_subzero',
       type: 'dialogue',
@@ -1547,8 +1429,7 @@ const chapter8: ChapterConfig = {
         "Jacob texted Audrey at 4:19 AM from the cabin hot tub.",
         "She responded three months later with 'lol'.",
         "The $1,500 contract remains active. 8 years, 3 months remain.",
-      ],
-    },
+      ] },
     {
       id: 'ending_decades',
       type: 'dialogue',
@@ -1557,8 +1438,7 @@ const chapter8: ChapterConfig = {
         "Eric left the chat at 4:22 AM.",
         "He rejoined at 4:23 AM and said 'goodnight.'",
         "The Syndicate endures.",
-      ],
-    },
+      ] },
     {
       type: 'dialogue',
       speaker: 'narrator',
@@ -1566,11 +1446,9 @@ const chapter8: ChapterConfig = {
         "The true villain was never Ben.",
         "It was never Ticketmaster, or Eric's Spotify margin, or Audrey's boyfriend.",
         "The villain was Inertia. And tonight, Inertia lost.",
-      ],
-    },
+      ] },
     { type: 'endChapter' },
-  ],
-};
+  ] };
 
 // ─── Registry ────────────────────────────────────────────────────────────────────
 
