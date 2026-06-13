@@ -44,6 +44,36 @@ describe('isChapterUnlocked', () => {
   });
 
   describe('isChapterUnlocked', () => {
+    it('first chapter is always unlocked', () => {
+      expect(isChapterUnlocked('ch1', [])).toBe(true);
+    });
+
+    it('unlocks if freePlay is true', () => {
+        expect(isChapterUnlocked('ch3', [], true)).toBe(true);
+    });
+
+    it('unlocks if previous chapter is complete', () => {
+      expect(isChapterUnlocked('ch2', ['ch1'])).toBe(true);
+    });
+
+    it('does not unlock if previous chapter is not complete', () => {
+      expect(isChapterUnlocked('ch2', [])).toBe(false);
+      expect(isChapterUnlocked('ch3', ['ch1'])).toBe(false);
+    });
+
+    it('returns true if chapter is not found', () => {
+      // index -1 will trigger the idx <= 0 condition
+      expect(isChapterUnlocked('unknown', [])).toBe(true);
+    });
+  });
+
+  describe('setFreePlay', () => {
+    it('updates freePlay', () => {
+      setFreePlay(true);
+      expect(loadProgress().freePlay).toBe(true);
+      setFreePlay(false);
+      expect(loadProgress().freePlay).toBe(false);
+    });
     it('unlocks if freePlay is true', () => {
       expect(isChapterUnlocked('chap2', [], true)).toBe(true);
     });
