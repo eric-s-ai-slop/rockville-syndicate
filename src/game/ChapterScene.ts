@@ -94,6 +94,7 @@ export default class ChapterScene extends Phaser.Scene {
 
   private player!: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
+  private controlsInverted: boolean = false;
   private wasdKeys!: {
     W: Phaser.Input.Keyboard.Key;
     A: Phaser.Input.Keyboard.Key;
@@ -607,6 +608,7 @@ export default class ChapterScene extends Phaser.Scene {
       this.chaseSprite?.destroy(); this.chaseSprite = null;
       this.chaseShadow?.destroy(); this.chaseShadow = null;
       this.chaseActive = false;
+      this.setControlsInverted(false);
     });
   }
 
@@ -1478,6 +1480,10 @@ export default class ChapterScene extends Phaser.Scene {
             cam.startFollow(this.player, true, 0.1, 0.1);
             this.unfreeze();
             this.summonBossMatch(beat.bossId, beat.arena);
+            if (beat.bossId === 'boss_audrey') {
+              this.setControlsInverted(true);
+              this.onMessageLog('🩸 Red Pee Bladder Syndrome: controls are REVERSED for this entire fight.');
+            }
           });
         });
       });
@@ -2120,23 +2126,18 @@ export default class ChapterScene extends Phaser.Scene {
       this.spawnedBoss.x = targetX;
       this.spawnedBoss.y = targetY;
       if (Phaser.Math.Distance.Between(this.player.x, this.player.y, targetX, targetY) < 60) {
-        this.damagePlayer(25, 'Kidney Punch [controls reversed]');
-        this.triggerRedPeeBladderInversion();
+      this.damagePlayer(25, 'Kidney Punch');
+      this.cameras.main.flash(400, 239, 68, 68);
       }
     });
   }
 
-  private triggerRedPeeBladderInversion() {
-    this.onMessageLog('⚠️ Red Pee Bladder Strike! Controls reversed for 4.5s!');
-    this.cameras.main.flash(400, 239, 68, 68);
+  private setControlsInverted(on: boolean) {
+    if (on === this.controlsInverted) return;          // idempotent
     const { W, S, A, D } = this.wasdKeys;
     this.wasdKeys.W = S; this.wasdKeys.S = W;
-    this.wasdKeys.A = D; this.wasdKeys.D = A;
-    this.time.delayedCall(4500, () => {
-      this.wasdKeys.W = W; this.wasdKeys.S = S;
-      this.wasdKeys.A = A; this.wasdKeys.D = D;
-      this.onMessageLog('⚙️ Controls normalized.');
-    });
+    this.wasdKeys.A = D; this.wasdKeys.D = A;           // swap is its own inverse
+    this.controlsInverted = on;
   }
 
   private deployTireTreadTether() {
@@ -2361,6 +2362,7 @@ export default class ChapterScene extends Phaser.Scene {
     this.spawnedBoss.destroy();
     this.spawnedBoss = null;
     this.isBossActive = false;
+    this.setControlsInverted(false);
     this.isAttackingAnim = false;
     this.stopBossMusic();
     this.player.play('victory_' + this.playerClass.id, true);
@@ -2447,6 +2449,7 @@ export default class ChapterScene extends Phaser.Scene {
     if (this.activeHp <= 0) {
       this.onMessageLog('💀 SOCIAL COLLAPSE: The Rockville Core abandoned you to go to sleep!');
       this.physics.pause();
+      this.setControlsInverted(false);
       this.onGameOver();
     }
   }
