@@ -33,6 +33,7 @@ import coinImg from '../assets/images/coin.jpg';
 import shardImg from '../assets/images/shard.jpg';
 import { preprocessShowcaseSheet } from './SpritePreprocessor';
 import { extractPropSubject } from './PropExtractor';
+import { buildFurnitureAtlas, furnitureFrame, furnitureAspect, FURNITURE_ATLAS_KEY } from './furnitureCatalog';
 import { ChapterConfig, Beat, ActorPlacement, resolveSpeaker, MapConfig, CHAPTERS } from '../data/chapters';
 import {
   CHAPTER_MUSIC_KEY, STAGE_MUSIC_URL, BOSS_MUSIC_URL, BOSS_LOOP_URL,
@@ -56,6 +57,9 @@ import natureFlower1Url from '../assets/images/game_decor/nature/Flower 1/Flower
 import natureFlower2Url from '../assets/images/game_decor/nature/Flower 2/Flower 2 - MAGENTA.png?url';
 import natureBush1Url from '../assets/images/game_decor/nature/Bush 1/Bush 1 - GREEN.png?url';
 import natureBush2Url from '../assets/images/game_decor/nature/Bush 1/Bush 1 - WARM GREEN.png?url';
+
+// Sprint 2: LimeZu furniture tilesheet — sliced into the furniture_atlas at runtime.
+import interiors48Url from '../assets/images/game_decor/Interiors_free/48x48/Interiors_free_48x48.png?url';
 
 export interface StoryDialoguePayload {
   speakerName: string;
@@ -337,6 +341,9 @@ export default class ChapterScene extends Phaser.Scene {
     this.safeLoadImage('nature_bush_1', natureBush1Url);
     this.safeLoadImage('nature_bush_2', natureBush2Url);
 
+    // Sprint 2: LimeZu furniture sheet (sliced into furniture_atlas in create())
+    this.safeLoadImage('interiors48', interiors48Url);
+
     // Phase E — audio
     this.loadChapterAudio();
   }
@@ -383,6 +390,8 @@ export default class ChapterScene extends Phaser.Scene {
     if (!this.playerClass) return;
 
     this.generatePropsAtlas();
+    // Sprint 2: slice the LimeZu furniture sheet into the furniture_atlas (furn_* frames)
+    buildFurnitureAtlas(this, 'interiors48');
     this.preloadNextChapterAudio();
 
     // Process prop textures to remove backgrounds and cache aspect ratios
@@ -925,6 +934,17 @@ export default class ChapterScene extends Phaser.Scene {
         return;
       }
     }
+    // Sprint 2: real rug sprite (kept at floor depth, not Y-sorted up)
+    if (propType === 'rug' && this.textures.exists(FURNITURE_ATLAS_KEY)) {
+      const frame = furnitureFrame('rug_large');
+      if (frame) {
+        const aspect = furnitureAspect('rug_large') ?? (w / h);
+        let dw = w, dh = w / aspect;
+        if (dh > h) { dh = h; dw = h * aspect; }
+        this.add.image(x, y, FURNITURE_ATLAS_KEY, frame).setDisplaySize(dw, dh).setDepth(-10);
+        return;
+      }
+    }
     if (propType === 'rug') {
       const g = this.add.graphics().setDepth(-10);
       g.fillStyle(fill, 0.7);
@@ -946,7 +966,61 @@ export default class ChapterScene extends Phaser.Scene {
     prop_watchwater_open: { w: 360, h: 156 },
   };
 
+  // Sprint 2: propType → default furniture-catalog sprite name (furn_<name>).
+  // 'sink'/'fridge'/'door' are intentionally absent — no free-pack sprite, so they fall
+  // through to the procedural shapes below. tollbooth/guardrail/firepit/hottub/arcade → RUN 3.
+  private static readonly PROPTYPE_FURNITURE: Record<string, string> = {
+    couch: 'couch', tv: 'tv', desk: 'desk', counter: 'counter',
+    bed: 'bed_double', bench: 'bench', window: 'window',
+  };
+
+  /** Sprint 2: draw a catalog furniture sprite if the atlas + frame exist. Returns true if drawn. */
+  private tryDrawFurniture(x: number, y: number, w: number, h: number, name: string, propType?: string): boolean {
+    if (!this.textures.exists(FURNITURE_ATLAS_KEY)) return false;
+    const frame = furnitureFrame(name);
+    if (!frame) return false;
+    this.drawFurnitureSprite(x, y, w, h, frame, name, propType);
+    return true;
+  }
+
+  /** Sprint 2: contain-fit (never stretch), Y-sorted furniture sprite. Wide counters tile. */
+  private drawFurnitureSprite(x: number, y: number, w: number, h: number, frame: string, name: string, propType?: string) {
+    const aspect = furnitureAspect(name) ?? (w / h);
+
+    // Counters are drawn edge-to-edge on the sheet — tile horizontally instead of stretching one.
+    if (propType === 'counter') {
+      const tileH = h * 1.4;
+      const tileW = tileH * aspect;
+      const count = Math.max(1, Math.round(w / tileW));
+      const startX = x - (count * tileW) / 2 + tileW / 2;
+      for (let i = 0; i < count; i++) {
+        const seg = this.add.image(startX + i * tileW, y, FURNITURE_ATLAS_KEY, frame)
+          .setOrigin(0.5, 0.6).setDisplaySize(tileW, tileH).setDepth(y);
+        if (i === 0) this.propSprites.set(frame, seg);
+      }
+      return;
+    }
+
+    // Contain-fit within the rect footprint, preserving aspect ratio.
+    let dw = w, dh = w / aspect;
+    if (dh > h) { dh = h; dw = h * aspect; }
+    const scale = 1.15; // furniture reads a touch larger than its (often small) collision body
+    const img = this.add.image(x, y, FURNITURE_ATLAS_KEY, frame)
+      .setOrigin(0.5, 0.6)
+      .setDisplaySize(dw * scale, dh * scale);
+
+    // Tall props: bias depth so the player can walk behind the base.
+    const tall = propType === 'fridge' || name.includes('wardrobe') || name.includes('bookshelf')
+      || name.includes('plant_tall') || name.includes('cabinet_tall') || name === 'tv';
+    img.setDepth(tall ? y + 24 : y);
+    this.propSprites.set(frame, img);
+  }
+
   private drawPropShape(x: number, y: number, w: number, h: number, fill: number, stroke: number, propType?: string, propKey?: string) {
+    // Sprint 2: explicit catalog request via propKey 'furn_<name>'
+    if (propKey && propKey.startsWith('furn_')) {
+      if (this.tryDrawFurniture(x, y, w, h, propKey.slice(5), propType)) return;
+    }
     // R1: sprite override — render a real image if the texture is loaded
     if (propKey) {
       const override = ChapterScene.PROP_DISPLAY[propKey];
@@ -977,6 +1051,11 @@ export default class ChapterScene extends Phaser.Scene {
         this.propSprites.set(propKey, img);
         return;
       }
+    }
+    // Sprint 2: propType → default furniture-catalog sprite (else fall through to procedural)
+    if (propType) {
+      const name = ChapterScene.PROPTYPE_FURNITURE[propType];
+      if (name && this.tryDrawFurniture(x, y, w, h, name, propType)) return;
     }
     const g = this.add.graphics().setDepth(y);
     const l = x - w / 2, t = y - h / 2;
