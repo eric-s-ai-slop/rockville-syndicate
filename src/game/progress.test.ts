@@ -32,4 +32,27 @@ describe('isChapterUnlocked', () => {
     expect(isChapterUnlocked('chapter2', [], false)).toBe(false);
     expect(isChapterUnlocked('chapter3', ['chapter1'], false)).toBe(false);
   });
+
+  describe('setFreePlay', () => {
+    it('sets freePlay flag and saves', () => {
+      const progress = setFreePlay(true);
+      expect(progress.freePlay).toBe(true);
+
+      const saved = loadProgress();
+      expect(saved.freePlay).toBe(true);
+    });
+  });
+
+  describe('isChapterUnlocked', () => {
+    it('unlocks if freePlay is true', () => {
+      expect(isChapterUnlocked('chap2', [], true)).toBe(true);
+    });
+
+    it('unlocks first chapter', () => {
+      expect(isChapterUnlocked('prologue', [])).toBe(true);
+    });
+
+    // We can't mock CHAPTERS easily here, but we'll assume there are chapters.
+    // Given chapters are fetched from CHAPTERS array.
+  });
 });
