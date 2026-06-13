@@ -73,10 +73,27 @@ export const FOOTSTEP_URLS: Record<string, string[]> = {
 
 import typewriterUrl from '../assets/audio/kenney_interface-sounds/Audio/tick_002.ogg?url';
 
+import uiClickUrl from '../assets/audio/kenney_interface-sounds/Audio/click_002.ogg?url';
+import uiHoverUrl from '../assets/audio/kenney_interface-sounds/Audio/switch_004.ogg?url';
+import uiPickUrl  from '../assets/audio/kenney_interface-sounds/Audio/drop_003.ogg?url';
+import uiBackUrl  from '../assets/audio/kenney_interface-sounds/Audio/back_001.ogg?url';
+import uiToggleUrl from '../assets/audio/kenney_interface-sounds/Audio/toggle_001.ogg?url';
+
 export const UI_SELECT_URL   = uiSelectUrl;
 export const VICTORY_JINGLE_URL = victoryUrl;
 export const TYPEWRITER_URL  = typewriterUrl;
 
+export const UI_CLICK_URL = uiClickUrl;
+export const UI_HOVER_URL = uiHoverUrl;
+export const UI_PICK_URL = uiPickUrl;
+export const UI_BACK_URL = uiBackUrl;
+export const UI_TOGGLE_URL = uiToggleUrl;
+
 // ── DIALOGUE TEXT (TASK-08) ──
 import dialogBlipUrl from '../assets/audio/dialog_sound.mp3?url';
 export const DIALOG_BLIP_URL = dialogBlipUrl;
+
+// ── KNOCK (TASK-03) ──
+// Light wood rap for the Ch6 door approach, played 3x in quick succession = knocking.
+import knockUrl from '../assets/audio/kenney_impact-sounds/Audio/impactWood_light_001.ogg?url';
+export const KNOCK_URL = knockUrl;

@@ -36,7 +36,7 @@ import { ChapterConfig, Beat, ActorPlacement, resolveSpeaker, MapConfig, CHAPTER
 import {
   CHAPTER_MUSIC_KEY, STAGE_MUSIC_URL, BOSS_MUSIC_URL, BOSS_LOOP_URL,
   THEME_FOOTSTEP, FOOTSTEP_URLS,
-  UI_SELECT_URL, VICTORY_JINGLE_URL,
+  UI_SELECT_URL, VICTORY_JINGLE_URL, KNOCK_URL,
 } from './audio';
 
 // ─── R1/R2: Stage & car prop images (Vite ?url for special-char filenames) ──────
@@ -86,7 +86,7 @@ export default class ChapterScene extends Phaser.Scene {
   private beatIndex: number = 0;
   private beatActive: boolean = false;
   // Active walkTo target the player must reach to advance.
-  private walkTarget: { x: number; y: number; radius: number; marker?: Phaser.GameObjects.Container } | null = null;
+  private walkTarget: { x: number; y: number; radius: number; markerLabel?: string; marker?: Phaser.GameObjects.Container } | null = null;
   private bossBeatResolve: (() => void) | null = null;
   private actorSprites: Record<string, Phaser.GameObjects.GameObject[]> = {};
 
@@ -134,6 +134,8 @@ export default class ChapterScene extends Phaser.Scene {
   private chaseShadow: Phaser.GameObjects.Image | null = null;
   private chaseActive: boolean = false;
   private chaseCooldown: number = 0;
+  private chaseTimer: Phaser.Time.TimerEvent | null = null;
+  private chasePursuerId: string | null = null;
 
   // Game state
   private spawnedBoss: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody | null = null;
@@ -356,6 +358,7 @@ export default class ChapterScene extends Phaser.Scene {
 
     this.safeLoadAudio('ui_select', UI_SELECT_URL);
     this.safeLoadAudio('victory_jingle', VICTORY_JINGLE_URL);
+    this.safeLoadAudio('sfx_knock', KNOCK_URL);
   }
 
   private preloadNextChapterAudio() {
@@ -1242,7 +1245,11 @@ export default class ChapterScene extends Phaser.Scene {
     if (this.walkTarget) {
       const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.walkTarget.x, this.walkTarget.y);
       if (d <= this.walkTarget.radius) {
+        const wasDoor = this.walkTarget.markerLabel?.includes('front door');
         this.clearWalkTarget();
+        if (wasDoor && this.chapter.id === 'ding_dong_ditch_ben' && this.cache.audio.exists('sfx_knock')) {
+          [0, 150, 300].forEach(ms => this.time.delayedCall(ms, () => { try { this.sound.play('sfx_knock', { volume: 0.6 }); } catch {} }));
+        }
         this.advanceBeat();
       }
     }
@@ -1351,7 +1358,7 @@ export default class ChapterScene extends Phaser.Scene {
 
   private runWalkToBeat(beat: Extract<Beat, { type: 'walkTo' }>) {
     const radius = beat.radius ?? 60;
-    this.walkTarget = { x: beat.x, y: beat.y, radius, marker: this.makeWalkMarker(beat.x, beat.y, beat.markerLabel) };
+    this.walkTarget = { x: beat.x, y: beat.y, radius, markerLabel: beat.markerLabel, marker: this.makeWalkMarker(beat.x, beat.y, beat.markerLabel) };
   }
 
   private makeWalkMarker(x: number, y: number, labelText?: string): Phaser.GameObjects.Container {
@@ -1399,13 +1406,6 @@ export default class ChapterScene extends Phaser.Scene {
     const intro = beat.introLines ?? [];
 
     const launchFight = () => {
-      // R1: swap watchwater house to "door opened" texture when Michael appears
-      if (this.chapter.id === 'ding_dong_ditch_ben') {
-        const houseSprite = this.propSprites.get('prop_watchwater');
-        if (houseSprite && this.textures.exists('prop_watchwater_open')) {
-          houseSprite.setTexture('prop_watchwater_open');
-        }
-      }
       // Letterbox in → camera punch to boss spawn → name slam → begin.
       // Drive the sequence with delayedCall rather than the pan callback —
       // cam.pan's p===1 tick is unreliable when target ≈ current position.
@@ -1469,6 +1469,7 @@ export default class ChapterScene extends Phaser.Scene {
   private runChaseBeat(beat: Extract<Beat, { type: 'chase' }>) {
     const config = BOSSES.find(b => b.id === beat.pursuerId) ?? BOSSES[0];
     const cam = this.cameras.main;
+    this.chasePursuerId = config.id.replace('boss_', '');
 
     // Brief cinematic flash + "RUN!!" label
     this.freeze();
@@ -1480,6 +1481,19 @@ export default class ChapterScene extends Phaser.Scene {
       fontSize: '44px', color: '#ef4444', fontStyle: 'bold',
       stroke: '#000000', strokeThickness: 10,
     }).setOrigin(0.5).setScrollFactor(0).setDepth(12000).setAlpha(0).setScale(0.4);
+
+    // R1: swap watchwater house to "door opened" texture when RUN flashes
+    if (this.chapter.id === 'ding_dong_ditch_ben') {
+      const houseSprite = this.propSprites.get('prop_watchwater');
+      if (houseSprite) {
+        if (this.textures.exists('prop_watchwater_open_clean')) {
+          houseSprite.setTexture('prop_watchwater_open_clean');
+        } else if (this.textures.exists('prop_watchwater_open')) {
+          houseSprite.setTexture('prop_watchwater_open');
+        }
+      }
+    }
+
     this.tweens.add({
       targets: runLabel, alpha: 1, scale: 1, duration: 220, ease: 'Back.easeOut',
       onComplete: () => {
@@ -1509,16 +1523,12 @@ export default class ChapterScene extends Phaser.Scene {
 
     this.showBubbleText(this.chaseSprite, '"HEY!!!"', '#ef4444');
 
-    // Contact = knockback only, never lethal
+    // Catch = instant fight
     this.physics.add.overlap(this.player, this.chaseSprite, () => {
-      if (this.chaseCooldown > this.time.now) return;
-      this.chaseCooldown = this.time.now + 1100;
-      const angle = Phaser.Math.Angle.Between(
-        this.chaseSprite!.x, this.chaseSprite!.y, this.player.x, this.player.y
-      );
-      this.player.setVelocity(Math.cos(angle) * 340, Math.sin(angle) * 340);
-      cam.shake(100, 0.011);
-      cam.flash(60, 239, 68, 68);
+      if (!this.chaseActive) return;
+      cam.shake(120, 0.014);
+      cam.flash(80, 239, 68, 68);
+      this.endChase();
     });
 
     this.chaseActive = true;
@@ -1526,7 +1536,7 @@ export default class ChapterScene extends Phaser.Scene {
     this.time.delayedCall(850, () => this.unfreeze());
 
     // End chase after durationMs — feeds straight into the bossFight beat
-    this.time.delayedCall(beat.durationMs, () => this.endChase());
+    this.chaseTimer = this.time.delayedCall(beat.durationMs, () => this.endChase());
   }
 
   private handleChaseAI() {
@@ -1538,6 +1548,12 @@ export default class ChapterScene extends Phaser.Scene {
     this.chaseSprite.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
     this.chaseSprite.setFlipX(Math.cos(angle) < 0);
     this.chaseSprite.setDepth(this.chaseSprite.y);
+
+    const walkKey = `walk_boss_${this.chasePursuerId}`;
+    if (this.anims.exists(walkKey) && this.chaseSprite.anims.currentAnim?.key !== walkKey) {
+      this.chaseSprite.play(walkKey, true);
+    }
+
     if (this.chaseShadow) {
       this.chaseShadow.setPosition(this.chaseSprite.x, this.chaseSprite.y + 28);
       this.chaseShadow.setDepth(this.chaseSprite.y - 1);
@@ -1545,7 +1561,12 @@ export default class ChapterScene extends Phaser.Scene {
   }
 
   private endChase() {
+    if (!this.chaseActive) return;
     this.chaseActive = false;
+    if (this.chaseTimer) {
+      this.chaseTimer.remove();
+      this.chaseTimer = null;
+    }
     if (this.chaseSprite) { this.chaseSprite.destroy(); this.chaseSprite = null; }
     if (this.chaseShadow) { this.chaseShadow.destroy(); this.chaseShadow = null; }
     this.advanceBeat();
@@ -2006,8 +2027,26 @@ export default class ChapterScene extends Phaser.Scene {
     // Face the player horizontally — sprites are drawn facing right; never rotate humanoids.
     this.spawnedBoss.setFlipX(Math.cos(targetAngle) < 0);
 
+    const bossIdForAnim = this.bossData.id.replace('boss_', '');
+    const moving = Math.abs(this.spawnedBoss.body.velocity.x) > 5 || Math.abs(this.spawnedBoss.body.velocity.y) > 5;
+    const walkKey = `walk_boss_${bossIdForAnim}`;
+    const idleKey = `idle_boss_${bossIdForAnim}`;
+    const atkKey = `attack_boss_${bossIdForAnim}`;
+
+    const isAttacking = this.spawnedBoss.anims.currentAnim?.key === atkKey && this.spawnedBoss.anims.isPlaying;
+
+    if (!isAttacking) {
+      if (moving && this.anims.exists(walkKey)) {
+        if (this.spawnedBoss.anims.currentAnim?.key !== walkKey) this.spawnedBoss.play(walkKey, true);
+      } else if (this.anims.exists(idleKey)) {
+        if (this.spawnedBoss.anims.currentAnim?.key !== idleKey) this.spawnedBoss.play(idleKey, true);
+      }
+    }
+
     if (time - this.lastBossAttackTime > 2000) {
       this.lastBossAttackTime = time;
+      if (this.anims.exists(atkKey)) this.spawnedBoss.play(atkKey, true);
+
       switch (this.bossData.id) {
         case 'boss_eric': this.fireBossCoinAttack(); break;
         case 'boss_audrey': this.teleportKidneyStrike(); break;
