@@ -113,6 +113,59 @@ press (while choices are visible) correctly does nothing — user must press 1/2
 | 4 | Phase F — UI skin (pixel font, portraits, title polish) | ✅ Done — font-display everywhere, theme accent strips, GameScene.ts deleted |
 | 5 | Bug: Eric "freezes character" = StrictMode double-advance | ✅ Fixed + verified live |
 | 6 | Bug: player sprite not facing movement direction | ✅ Fixed + verified live |
+| 7 | Bug: boss sprites rotate around center | ✅ Fixed — setFlipX in handleBossAI |
+| 8 | Bug: boss keeps attacking during QTE (Audrey kills you) | ✅ Fixed — qteActive gate + damagePlayer guard |
+| 9 | Jordan & Maharko map sprites + portraits | ✅ Wired into heroIds pipeline |
+| 10 | Michael using Ben's sprite | ✅ boss_ben texture → micheal_bersofsky.jpg |
+
+---
+
+## ROADMAP IMPLEMENTATION (2026-06-12, 2nd session)
+
+| ID | Item | Status | Notes |
+|----|------|--------|-------|
+| R1 | Furniture & per-stage prop sprites | ✅ Done | propKey on MapRect; `drawPropShape`/`drawDecorativeRect` check propKey first; hospital bed/IV/toilet/jungle gym/watchwater wired; door-open swap on bossFight in Ch6 |
+| R2 | Crew cars | ✅ Done | jordan's mustang (Ch5), maharko's camero (Ch5), nick f's corolla (Ch2) — propKey on map rects |
+| R3 | Boss music: Prowler one-shot → Techno-Tetris loop | ✅ Done | `startBossMusic` plays boss_sting once (on:complete → `startBossLoop`); `stopBossMusic` kills both; `BOSS_LOOP_URL` in audio.ts |
+| R4 | Idle NPCs cycling frames | ✅ Done | `placeActors()` now calls `s.setFrame(0)` instead of `.play('idle_...')` for all NPCs |
+| R5 | Roster presence: keep pick, fill gap | ✅ Done | `understudyId?` on `ActorPlacement`; `placeActors()` swaps renderAs when player matches; Eric added to Ch2 & Ch6; all main actor slots have understudyIds across Ch1–Ch7 |
+| R6 | Full 8-bit/Pokémon UI overhaul + shield icon | ✅ Done | Public Pixel font added to index.css; `pixel-panel` / `font-pixel` CSS classes; DialogueBox rebuilt (solid bg, double border, nameplate chip, blinking ▼); QTE modal 8-bit; chapter-complete & game-over overhauled; shield.jpg replaces ShieldAlert |
+| R7 | Linear Story vs Free Play mode | ✅ Done | `Progress.freePlay` in progress.ts; `isChapterUnlocked` accepts freePlay param; `setFreePlay()` helper; ChapterSelect toggle (pill switch) + localStorage persist; GameLayout passes state down |
+| R8 | Michael chase phase before Ch6 fight | ⏭️ SKIPPED | Complex: requires new beat type, chase AI, transition to bossFight, timing logic — high breakage risk. Document for next agent: add `{ type:'chase', pursuerId, durationMs }` to Beat union, handle in startBeat(), boss spawns invulnerable, contact = soft knockback, resolves via timer → existing bossFight intro. |
+
+## NEXT ROADMAP (R8–R19) — see HANDOFF.md §3 (handed off, NOT implemented)
+
+User asked for a roadmap-only handoff. Three new **P0** items captured with verified findings:
+- **R9** kill all rounded corners (`rounded-*` in components, `RoundedRect` in ChapterScene) → square bit aesthetic.
+- **R10** Yoster Island as the ONE global font. Asset: `src/assets/fonts/yoster-island/yoster.ttf` (**TTF only**, no
+  woff). Must also load it for the Phaser canvas (`document.fonts.load`) or in-world text falls back to system font.
+- **R11** Ben's house renders the whole 1492×704 contact sheet. Extract the **FULL SCENE (FRONT VIEW)** panel:
+  crop box **(22, 22, 690, 312)** → 668×290, verified clean (no labels/grid), door-open light spill visible. Two
+  approaches in HANDOFF: (A) Phaser texture frame `tex.add('scene',0,22,22,668,290)` — preferred, no asset change;
+  (B) pre-crop with Pillow (now installed locally) into new files. Crop is landscape ~2.3:1 — don't stretch into the
+  280×280 square rect; render larger/landscape, keep the physics body unchanged.
+Plus R8 chase phase (P1) and R12–R19 (quick cleanups + polish) all specced in HANDOFF §3.
+
+## Implementation details (R1–R7, this session)
+- **audio.ts**: Added `BOSS_LOOP_URL` (Techno-Tetris); `BOSS_MUSIC_URL` retained as Prowler sting alias
+- **ChapterScene.ts**: 
+  - New imports: 10 prop/car images via `?url`
+  - New fields: `bossMusicSting`, `propSprites: Map<string, Image>`
+  - `init()` resets both new fields
+  - `preload()` loads all 10 prop images + boss_sting + boss_loop
+  - `buildMapFromConfig` passes `r.propKey` to add/draw functions
+  - `addMapObject`, `drawPropShape`, `drawDecorativeRect` accept + use propKey
+  - `placeActors()` handles understudy + static frame
+  - `startBossMusic()` → sting (once) → `startBossLoop()` (loop)
+  - `stopBossMusic()` kills sting + loop separately
+  - `runBossFightBeat()`: swaps prop_watchwater → prop_watchwater_open for Ch6
+  - Shutdown handler also destroys `bossMusicSting`
+- **chapters.ts**: `ActorPlacement.understudyId?`; propKeys on 9 rects across Ch2–Ch6; Eric added to Ch2/Ch6 actors; understudyIds on Ch1–Ch7 actors
+- **progress.ts**: `Progress.freePlay?`; `isChapterUnlocked(id, completed, freePlay?)` updated; `setFreePlay(bool)` exported
+- **ChapterSelect.tsx**: Free Play toggle (pill switch with useState); `isChapterUnlocked` receives localFreePlay
+- **GameLayout.tsx**: `freePlay` state derived from localStorage; passed to ChapterSelect; shield.jpg import replaces ShieldAlert
+- **DialogueBox.tsx**: Full Pokémon-style rebuild — pixel-panel, font-pixel, nameplate chip, blinking ▼ cursor
+- **index.css**: Public Pixel font-face; `--font-pixel` CSS var; `pixel-panel`, `pixel-panel-dark`, `pixel-blink`, `font-pixel` utility classes
 
 ---
 

@@ -33,10 +33,22 @@ import shardImg from '../assets/images/shard.jpg';
 import { preprocessShowcaseSheet } from './SpritePreprocessor';
 import { ChapterConfig, Beat, ActorPlacement, resolveSpeaker, MapConfig } from '../data/chapters';
 import {
-  CHAPTER_MUSIC_KEY, STAGE_MUSIC_URL, BOSS_MUSIC_URL,
+  CHAPTER_MUSIC_KEY, STAGE_MUSIC_URL, BOSS_MUSIC_URL, BOSS_LOOP_URL,
   THEME_FOOTSTEP, FOOTSTEP_URLS,
   UI_SELECT_URL, VICTORY_JINGLE_URL,
 } from './audio';
+
+// ─── R1/R2: Stage & car prop images (Vite ?url for special-char filenames) ──────
+import propHospitalBedUrl from '../assets/images/game_decor/stages/audrey_hopsital/hospital_bed.jpg?url';
+import propIvDripUrl from '../assets/images/game_decor/stages/audrey_hopsital/iv-drip.jpg?url';
+import propCabinetUrl from '../assets/images/game_decor/stages/audrey_hopsital/cabinant.jpg?url';
+import propRedToiletUrl from '../assets/images/game_decor/stages/audrey_hopsital/red_toliet(evidence).jpg?url';
+import propJungleGymUrl from '../assets/images/game_decor/stages/beall/jungle gym.jpg?url';
+import propWatchwaterUrl from '../assets/images/game_decor/stages/dingdongditchben/watchwater_scene.jpg?url';
+import propWatchwaterOpenUrl from '../assets/images/game_decor/stages/dingdongditchben/watchwater_scene_open.jpg?url';
+import propJordanMustangUrl from "../assets/images/game_decor/special/cars/jordan's mustang.jpg?url";
+import propMaharkoCameroUrl from "../assets/images/game_decor/special/cars/maharko's camero.jpg?url";
+import propNickFCorollaUrl from "../assets/images/game_decor/special/cars/nick f's corolla.jpg?url";
 
 export interface StoryDialoguePayload {
   speakerName: string;
@@ -111,6 +123,12 @@ export default class ChapterScene extends Phaser.Scene {
   private bossHpFill: Phaser.GameObjects.Rectangle | null = null;
   private bossNameLabel: Phaser.GameObjects.Text | null = null;
 
+  // R8: pre-boss chase phase — pursuer separate from spawnedBoss
+  private chaseSprite: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody | null = null;
+  private chaseShadow: Phaser.GameObjects.Image | null = null;
+  private chaseActive: boolean = false;
+  private chaseCooldown: number = 0;
+
   // Game state
   private spawnedBoss: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody | null = null;
   private isBossActive: boolean = false;
@@ -144,8 +162,12 @@ export default class ChapterScene extends Phaser.Scene {
 
   // Phase E — audio
   private stageMusic: Phaser.Sound.BaseSound | null = null;
-  private bossMusic: Phaser.Sound.BaseSound | null = null;
+  private bossMusic: Phaser.Sound.BaseSound | null = null;     // Techno-Tetris loop
+  private bossMusicSting: Phaser.Sound.BaseSound | null = null; // Prowler one-shot sting
   private footstepKeys: string[] = [];
+
+  // R1: map of propKey → image sprite for runtime texture swaps (e.g. door open)
+  private propSprites: Map<string, Phaser.GameObjects.Image> = new Map();
 
   // NPC interaction system
   private npcs: Array<{
@@ -197,6 +219,10 @@ export default class ChapterScene extends Phaser.Scene {
     this.lastBossAttackTime = 0;
     this.spawnedBoss = null;
     this.isBossActive = false;
+    this.chaseSprite = null;
+    this.chaseShadow = null;
+    this.chaseActive = false;
+    this.chaseCooldown = 0;
     this.levelStarted = false;
     this.enemyHitCooldowns.clear();
     this.mapCollidables = [];
@@ -218,6 +244,8 @@ export default class ChapterScene extends Phaser.Scene {
     this.letterboxBottom = null;
     this.lastFootstepTime = 0;
     this.portraitDataUrls = {};
+    this.bossMusicSting = null;
+    this.propSprites = new Map();
   }
 
   private resolveHero(id: string): CharacterClass | undefined {
@@ -265,6 +293,20 @@ export default class ChapterScene extends Phaser.Scene {
     this.safeLoadImage('enemy_dishes_raw', enemyDishesImg);
     this.safeLoadImage('enemy_zombie_raw', enemyZombieImg);
     this.safeLoadImage('enemy_frat_bro_raw', enemyFratBroImg);
+    // R1: hospital props (Ch3)
+    this.safeLoadImage('prop_hospital_bed', propHospitalBedUrl);
+    this.safeLoadImage('prop_iv_drip', propIvDripUrl);
+    this.safeLoadImage('prop_cabinet', propCabinetUrl);
+    this.safeLoadImage('prop_red_toilet', propRedToiletUrl);
+    // R1: jungle gym (Ch4)
+    this.safeLoadImage('prop_jungle_gym', propJungleGymUrl);
+    // R1: watchwater house (Ch6)
+    this.safeLoadImage('prop_watchwater', propWatchwaterUrl);
+    this.safeLoadImage('prop_watchwater_open', propWatchwaterOpenUrl);
+    // R2: crew cars
+    this.safeLoadImage('prop_jordan_mustang', propJordanMustangUrl);
+    this.safeLoadImage('prop_maharko_camero', propMaharkoCameroUrl);
+    this.safeLoadImage('prop_nick_f_corolla', propNickFCorollaUrl);
     // Phase E — audio
     this.loadChapterAudio();
   }
@@ -277,7 +319,8 @@ export default class ChapterScene extends Phaser.Scene {
     const musicKey = CHAPTER_MUSIC_KEY[this.chapter.id];
     const musicUrl = musicKey ? STAGE_MUSIC_URL[musicKey] : undefined;
     if (musicKey && musicUrl) this.safeLoadAudio(musicKey, musicUrl);
-    this.safeLoadAudio('boss_music', BOSS_MUSIC_URL);
+    this.safeLoadAudio('boss_sting', BOSS_MUSIC_URL);
+    this.safeLoadAudio('boss_loop', BOSS_LOOP_URL);
 
     const variant = THEME_FOOTSTEP[(this.chapter.map as any).theme ?? 'apartment'] ?? 'carpet';
     this.footstepKeys = (FOOTSTEP_URLS[variant] ?? []).map((url, i) => {
@@ -481,8 +524,13 @@ export default class ChapterScene extends Phaser.Scene {
     this.events.once('shutdown', () => {
       this.stageMusic?.destroy();
       this.bossMusic?.destroy();
+      this.bossMusicSting?.destroy();
       this.stageMusic = null;
       this.bossMusic = null;
+      this.bossMusicSting = null;
+      this.chaseSprite?.destroy(); this.chaseSprite = null;
+      this.chaseShadow?.destroy(); this.chaseShadow = null;
+      this.chaseActive = false;
     });
   }
 
@@ -506,10 +554,10 @@ export default class ChapterScene extends Phaser.Scene {
     this.mapCollidables = [];
     map.rects.forEach(r => {
       if (r.solid) {
-        const obj = this.addMapObject(r.x, r.y, r.w, r.h, r.fill, r.stroke ?? r.fill, r.propType);
+        const obj = this.addMapObject(r.x, r.y, r.w, r.h, r.fill, r.stroke ?? r.fill, r.propType, r.propKey);
         this.mapCollidables.push(obj);
       } else {
-        this.drawDecorativeRect(r.x, r.y, r.w, r.h, r.fill, r.stroke ?? r.fill, r.propType);
+        this.drawDecorativeRect(r.x, r.y, r.w, r.h, r.fill, r.stroke ?? r.fill, r.propType, r.propKey);
       }
     });
 
@@ -711,15 +759,21 @@ export default class ChapterScene extends Phaser.Scene {
     }
   }
 
-  private drawDecorativeRect(x: number, y: number, w: number, h: number, fill: number, stroke: number, propType?: string) {
+  private drawDecorativeRect(x: number, y: number, w: number, h: number, fill: number, stroke: number, propType?: string, propKey?: string) {
+    // R1: sprite override — render a real image if the texture is loaded
+    if (propKey && this.textures.exists(propKey)) {
+      const img = this.add.image(x, y, propKey).setDisplaySize(w, h).setDepth(y);
+      this.propSprites.set(propKey, img);
+      return;
+    }
     if (propType === 'rug') {
       const g = this.add.graphics().setDepth(-10);
       g.fillStyle(fill, 0.7);
-      g.fillRoundedRect(x - w / 2, y - h / 2, w, h, 8);
+      g.fillRect(x - w / 2, y - h / 2, w, h);
       g.lineStyle(2, stroke, 0.45);
-      g.strokeRoundedRect(x - w / 2, y - h / 2, w, h, 8);
+      g.strokeRect(x - w / 2, y - h / 2, w, h);
       g.lineStyle(1.5, stroke, 0.25);
-      g.strokeRoundedRect(x - w / 2 + 8, y - h / 2 + 8, w - 16, h - 16, 5);
+      g.strokeRect(x - w / 2 + 8, y - h / 2 + 8, w - 16, h - 16);
       return;
     }
     // Default non-solid decal (road stripe, floor tile variant, etc.)
@@ -727,15 +781,30 @@ export default class ChapterScene extends Phaser.Scene {
       .setStrokeStyle(1.5, stroke, 0.5).setDepth(-50);
   }
 
-  private drawPropShape(x: number, y: number, w: number, h: number, fill: number, stroke: number, propType?: string) {
+  // R11: watchwater crop is 668×290 (landscape) — render at natural ratio, not stretched to physics rect.
+  private static readonly PROP_DISPLAY: Record<string, { w: number; h: number }> = {
+    prop_watchwater:      { w: 360, h: 156 },
+    prop_watchwater_open: { w: 360, h: 156 },
+  };
+
+  private drawPropShape(x: number, y: number, w: number, h: number, fill: number, stroke: number, propType?: string, propKey?: string) {
+    // R1: sprite override — render a real image if the texture is loaded
+    if (propKey && this.textures.exists(propKey)) {
+      const override = ChapterScene.PROP_DISPLAY[propKey];
+      const dw = override ? override.w : w;
+      const dh = override ? override.h : h;
+      const img = this.add.image(x, y, propKey).setDisplaySize(dw, dh).setDepth(y);
+      this.propSprites.set(propKey, img);
+      return;
+    }
     const g = this.add.graphics().setDepth(y);
     const l = x - w / 2, t = y - h / 2;
     switch (propType) {
       case 'couch': {
         g.fillStyle(fill, 1);
-        g.fillRoundedRect(l, t, w, h, 6);
+        g.fillRect(l, t, w, h);
         g.lineStyle(2, stroke, 0.9);
-        g.strokeRoundedRect(l, t, w, h, 6);
+        g.strokeRect(l, t, w, h);
         // Cushion dividers
         g.lineStyle(1.5, stroke, 0.45);
         const cw = w / 3;
@@ -745,7 +814,7 @@ export default class ChapterScene extends Phaser.Scene {
       }
       case 'tv': {
         g.fillStyle(0x374151, 1);
-        g.fillRoundedRect(l, t, w, h, 3);
+        g.fillRect(l, t, w, h);
         g.fillStyle(0x050a14, 1);
         g.fillRect(l + 3, t + 3, w - 6, h - 6);
         // Screen glow edge
@@ -755,9 +824,9 @@ export default class ChapterScene extends Phaser.Scene {
       }
       case 'desk': {
         g.fillStyle(fill, 1);
-        g.fillRoundedRect(l, t, w, h, 3);
+        g.fillRect(l, t, w, h);
         g.lineStyle(2, stroke, 0.8);
-        g.strokeRoundedRect(l, t, w, h, 3);
+        g.strokeRect(l, t, w, h);
         // Monitor
         const mx = l + w - 30, my = t + 4;
         g.fillStyle(0x1e293b, 1);
@@ -768,9 +837,9 @@ export default class ChapterScene extends Phaser.Scene {
       }
       case 'counter': {
         g.fillStyle(fill, 1);
-        g.fillRoundedRect(l, t, w, h, 3);
+        g.fillRect(l, t, w, h);
         g.lineStyle(2, stroke, 0.8);
-        g.strokeRoundedRect(l, t, w, h, 3);
+        g.strokeRect(l, t, w, h);
         g.lineStyle(1.5, 0xffffff, 0.12);
         g.lineBetween(l + 3, t + 3, l + w - 3, t + 3);
         break;
@@ -787,9 +856,9 @@ export default class ChapterScene extends Phaser.Scene {
       }
       case 'fridge': {
         g.fillStyle(fill, 1);
-        g.fillRoundedRect(l, t, w, h, 4);
+        g.fillRect(l, t, w, h);
         g.lineStyle(2, stroke, 0.8);
-        g.strokeRoundedRect(l, t, w, h, 4);
+        g.strokeRect(l, t, w, h);
         g.lineStyle(1.5, stroke, 0.4);
         g.lineBetween(l + 3, y, l + w - 3, y);
         // Handle
@@ -799,21 +868,21 @@ export default class ChapterScene extends Phaser.Scene {
       }
       case 'door': {
         g.fillStyle(fill, 1);
-        g.fillRoundedRect(l, t, w, h, 2);
+        g.fillRect(l, t, w, h);
         g.lineStyle(2, stroke, 0.9);
-        g.strokeRoundedRect(l, t, w, h, 2);
+        g.strokeRect(l, t, w, h);
         g.fillStyle(0xd97706, 1);
         g.fillCircle(l + w - 7, y, 3);
         break;
       }
       case 'car': {
         g.fillStyle(fill, 1);
-        g.fillRoundedRect(l, t, w, h, 5);
+        g.fillRect(l, t, w, h);
         g.lineStyle(2, stroke, 0.9);
-        g.strokeRoundedRect(l, t, w, h, 5);
+        g.strokeRect(l, t, w, h);
         g.fillStyle(0x1e3a5f, 0.65);
-        g.fillRoundedRect(l + 4, t + 4, w - 8, h * 0.22, 2);
-        g.fillRoundedRect(l + 4, t + h - 4 - h * 0.22, w - 8, h * 0.22, 2);
+        g.fillRect(l + 4, t + 4, w - 8, h * 0.22);
+        g.fillRect(l + 4, t + h - 4 - h * 0.22, w - 8, h * 0.22);
         break;
       }
       case 'tree': {
@@ -829,20 +898,20 @@ export default class ChapterScene extends Phaser.Scene {
       }
       case 'bed': {
         g.fillStyle(fill, 1);
-        g.fillRoundedRect(l, t, w, h, 4);
+        g.fillRect(l, t, w, h);
         g.lineStyle(2, stroke, 0.8);
-        g.strokeRoundedRect(l, t, w, h, 4);
+        g.strokeRect(l, t, w, h);
         // Pillow(s)
         g.fillStyle(0xf1f5f9, 0.8);
-        g.fillRoundedRect(l + 5, t + 5, w * 0.4, h * 0.3, 3);
-        if (w > 70) g.fillRoundedRect(l + w - 5 - w * 0.4, t + 5, w * 0.4, h * 0.3, 3);
+        g.fillRect(l + 5, t + 5, w * 0.4, h * 0.3);
+        if (w > 70) g.fillRect(l + w - 5 - w * 0.4, t + 5, w * 0.4, h * 0.3);
         break;
       }
       case 'bench': {
         g.fillStyle(fill, 1);
-        g.fillRoundedRect(l, t, w, h, 3);
+        g.fillRect(l, t, w, h);
         g.lineStyle(2, stroke, 0.8);
-        g.strokeRoundedRect(l, t, w, h, 3);
+        g.strokeRect(l, t, w, h);
         // Slat lines
         g.lineStyle(1, stroke, 0.35);
         for (let sx = l + w / 4; sx < l + w; sx += w / 4) {
@@ -852,9 +921,9 @@ export default class ChapterScene extends Phaser.Scene {
       }
       default: {
         g.fillStyle(fill, 1);
-        g.fillRoundedRect(l, t, w, h, 4);
+        g.fillRect(l, t, w, h);
         g.lineStyle(2, stroke, 0.8);
-        g.strokeRoundedRect(l, t, w, h, 4);
+        g.strokeRect(l, t, w, h);
         break;
       }
     }
@@ -875,17 +944,17 @@ export default class ChapterScene extends Phaser.Scene {
     style: Phaser.Types.GameObjects.Text.TextStyle = {}
   ): Phaser.GameObjects.Text {
     return this.add.text(x, y, text, {
-      fontFamily: 'JetBrains Mono, monospace',
+      fontFamily: 'Yoster, monospace',
       resolution: this.textRes,
       ...style
     });
   }
 
-  private addMapObject(x: number, y: number, w: number, h: number, fillColor: number, strokeColor: number, propType?: string): Phaser.GameObjects.Rectangle {
+  private addMapObject(x: number, y: number, w: number, h: number, fillColor: number, strokeColor: number, propType?: string, propKey?: string): Phaser.GameObjects.Rectangle {
     // Invisible static physics body — visual is provided by drawPropShape
     const rect = this.add.rectangle(x, y, w, h, fillColor, 0);
     this.physics.add.existing(rect, true);
-    this.drawPropShape(x, y, w, h, fillColor, strokeColor, propType);
+    this.drawPropShape(x, y, w, h, fillColor, strokeColor, propType, propKey);
     return rect;
   }
 
@@ -1049,8 +1118,13 @@ export default class ChapterScene extends Phaser.Scene {
       }
     }
 
-    // Combat only exists inside a bossFight beat.
-    if (this.isBossActive && this.spawnedBoss && this.bossData) {
+    // R8: chase pursuer AI — runs independently of the boss combat system.
+    if (this.chaseActive && !this.dialogueOpen && this.chaseSprite) {
+      this.handleChaseAI();
+    }
+
+    // Combat only exists inside a bossFight beat — and pauses while a QTE modal is up.
+    if (this.isBossActive && !this.qteActive && this.spawnedBoss && this.bossData) {
       const nearest = this.findNearestEnemy();
       if (nearest) this.fireWeapon(time, nearest.x, nearest.y);
       this.handleBossAI(time);
@@ -1071,6 +1145,7 @@ export default class ChapterScene extends Phaser.Scene {
       case 'walkTo': return this.runWalkToBeat(beat);
       case 'cameraPan': return this.runCameraPanBeat(beat);
       case 'bossFight': return this.runBossFightBeat(beat);
+      case 'chase': return this.runChaseBeat(beat);
       case 'wait': return this.time.delayedCall(beat.ms, () => this.advanceBeat());
       case 'ledger': this.applyLedger(beat.delta, beat.note); return this.advanceBeat();
       case 'endChapter': return this.runEndChapter();
@@ -1195,6 +1270,13 @@ export default class ChapterScene extends Phaser.Scene {
     const intro = beat.introLines ?? [];
 
     const launchFight = () => {
+      // R1: swap watchwater house to "door opened" texture when Michael appears
+      if (this.chapter.id === 'ding_dong_ditch_ben') {
+        const houseSprite = this.propSprites.get('prop_watchwater');
+        if (houseSprite && this.textures.exists('prop_watchwater_open')) {
+          houseSprite.setTexture('prop_watchwater_open');
+        }
+      }
       // Letterbox in → camera punch to boss spawn → name slam → begin.
       // Drive the sequence with delayedCall rather than the pan callback —
       // cam.pan's p===1 tick is unreliable when target ≈ current position.
@@ -1253,6 +1335,93 @@ export default class ChapterScene extends Phaser.Scene {
     }
   }
 
+  // ─── R8: Chase phase ──────────────────────────────────────────────────────────
+
+  private runChaseBeat(beat: Extract<Beat, { type: 'chase' }>) {
+    const config = BOSSES.find(b => b.id === beat.pursuerId) ?? BOSSES[0];
+    const cam = this.cameras.main;
+
+    // Brief cinematic flash + "RUN!!" label
+    this.freeze();
+    cam.flash(180, 239, 68, 68);
+    cam.shake(280, 0.022);
+
+    const cx = cam.width / 2, cy = cam.height / 2;
+    const runLabel = this.label(cx, cy - 40, 'RUN!!', {
+      fontSize: '44px', color: '#ef4444', fontStyle: 'bold',
+      stroke: '#000000', strokeThickness: 10,
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(12000).setAlpha(0).setScale(0.4);
+    this.tweens.add({
+      targets: runLabel, alpha: 1, scale: 1, duration: 220, ease: 'Back.easeOut',
+      onComplete: () => {
+        this.time.delayedCall(700, () => {
+          this.tweens.add({ targets: runLabel, alpha: 0, y: '-=24', duration: 280,
+            onComplete: () => runLabel.destroy() });
+        });
+      },
+    });
+
+    // Resolve texture — same logic as summonBossMatch
+    const bossId = config.id.replace('boss_', '');
+    const sheetKey = `boss_${bossId}_sheet`;
+    const rawKey = config.id;
+    let bossTex: string, bossScale: number;
+    if (this.textures.exists(sheetKey))      { bossTex = sheetKey;  bossScale = 0.85; }
+    else if (this.textures.exists(rawKey))   { bossTex = rawKey;    bossScale = 0.55; }
+    else                                     { bossTex = 'enemy_grunter'; bossScale = 1.6; }
+
+    // Spawn pursuer at the house door
+    this.chaseSprite = this.physics.add.sprite(440, 310, bossTex, 0);
+    if (this.textures.exists(sheetKey)) this.chaseSprite.play(`idle_boss_${bossId}`, true);
+    this.chaseSprite.setScale(bossScale).setCollideWorldBounds(true).setDrag(200, 200);
+
+    this.chaseShadow = this.add.image(440, 338, 'shadow_ellipse')
+      .setAlpha(0.4).setScale(1.1);
+
+    this.showBubbleText(this.chaseSprite, '"HEY!!!"', '#ef4444');
+
+    // Contact = knockback only, never lethal
+    this.physics.add.overlap(this.player, this.chaseSprite, () => {
+      if (this.chaseCooldown > this.time.now) return;
+      this.chaseCooldown = this.time.now + 1100;
+      const angle = Phaser.Math.Angle.Between(
+        this.chaseSprite!.x, this.chaseSprite!.y, this.player.x, this.player.y
+      );
+      this.player.setVelocity(Math.cos(angle) * 340, Math.sin(angle) * 340);
+      cam.shake(100, 0.011);
+      cam.flash(60, 239, 68, 68);
+    });
+
+    this.chaseActive = true;
+    // Give player a beat to orient before unfreeze
+    this.time.delayedCall(850, () => this.unfreeze());
+
+    // End chase after durationMs — feeds straight into the bossFight beat
+    this.time.delayedCall(beat.durationMs, () => this.endChase());
+  }
+
+  private handleChaseAI() {
+    if (!this.chaseSprite) return;
+    const angle = Phaser.Math.Angle.Between(
+      this.chaseSprite.x, this.chaseSprite.y, this.player.x, this.player.y
+    );
+    const speed = 235; // faster than any hero (max player speed is 250; stays threatening)
+    this.chaseSprite.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
+    this.chaseSprite.setFlipX(Math.cos(angle) < 0);
+    this.chaseSprite.setDepth(this.chaseSprite.y);
+    if (this.chaseShadow) {
+      this.chaseShadow.setPosition(this.chaseSprite.x, this.chaseSprite.y + 28);
+      this.chaseShadow.setDepth(this.chaseSprite.y - 1);
+    }
+  }
+
+  private endChase() {
+    this.chaseActive = false;
+    if (this.chaseSprite) { this.chaseSprite.destroy(); this.chaseSprite = null; }
+    if (this.chaseShadow) { this.chaseShadow.destroy(); this.chaseShadow = null; }
+    this.advanceBeat();
+  }
+
   // ─── Audio helpers ────────────────────────────────────────────────────────────
 
   private startStageMusic() {
@@ -1273,15 +1442,41 @@ export default class ChapterScene extends Phaser.Scene {
         onComplete: () => (this.stageMusic as Phaser.Sound.WebAudioSound | null)?.pause(),
       });
     }
-    if (!this.cache.audio.exists('boss_music')) return;
+    // R3: play Prowler sting once, then transition to Techno-Tetris loop
+    if (this.cache.audio.exists('boss_sting')) {
+      try {
+        this.bossMusicSting = this.sound.add('boss_sting', { loop: false, volume: 0.72 });
+        this.bossMusicSting.play();
+        this.bossMusicSting.once('complete', () => {
+          this.bossMusicSting?.destroy();
+          this.bossMusicSting = null;
+          this.startBossLoop();
+        });
+      } catch {
+        this.startBossLoop(); // sting failed — jump straight to loop
+      }
+    } else {
+      this.startBossLoop();
+    }
+  }
+
+  private startBossLoop() {
+    if (!this.cache.audio.exists('boss_loop')) return;
     try {
-      this.bossMusic = this.sound.add('boss_music', { loop: true, volume: 0 });
+      this.bossMusic = this.sound.add('boss_loop', { loop: true, volume: 0 });
       this.bossMusic.play();
       this.tweens.add({ targets: this.bossMusic, volume: 0.62, duration: 600 });
     } catch { /* skip */ }
   }
 
   private stopBossMusic() {
+    // Stop and destroy the sting if it is still playing
+    if (this.bossMusicSting) {
+      try { this.bossMusicSting.stop(); } catch { /* skip */ }
+      this.bossMusicSting.destroy();
+      this.bossMusicSting = null;
+    }
+    // Fade out and destroy the loop
     if (this.bossMusic) {
       this.tweens.add({
         targets: this.bossMusic, volume: 0, duration: 700,
@@ -1321,22 +1516,32 @@ export default class ChapterScene extends Phaser.Scene {
 
   private placeActors() {
     this.chapter.actors.forEach((actor: ActorPlacement) => {
-      if (actor.id === this.playerClass.id) return;
-      const speaker = resolveSpeaker(actor.id);
-      const sheetKey = `hero_${actor.id}_sheet`;
+      // R5: if this slot is the player's hero, use the understudy if one is defined
+      let renderAs = actor.id;
+      if (actor.id === this.playerClass.id) {
+        if (actor.understudyId) {
+          renderAs = actor.understudyId;
+        } else {
+          return; // skip — no understudy, slot stays empty (player is here)
+        }
+      }
+
+      const speaker = resolveSpeaker(renderAs);
+      const sheetKey = `hero_${renderAs}_sheet`;
       let sprite: Phaser.GameObjects.Image | Phaser.GameObjects.Sprite;
       if (this.textures.exists(sheetKey)) {
         const s = this.add.sprite(actor.x, actor.y, sheetKey, 0);
-        if (this.anims.exists(`idle_${actor.id}`)) s.play(`idle_${actor.id}`, true);
+        // R4: NPCs use a single static frame — no idle animation cycling
+        s.setFrame(0);
         s.setScale(0.5).setDepth(actor.y);
         sprite = s;
       } else {
         const g = this.make.graphics({ x: 0, y: 0 });
         g.fillStyle(parseInt(speaker.color.replace('#', ''), 16), 1);
         g.fillCircle(20, 20, 20);
-        g.generateTexture(`actor_${actor.id}`, 40, 40);
+        g.generateTexture(`actor_${renderAs}`, 40, 40);
         g.destroy();
-        sprite = this.add.image(actor.x, actor.y, `actor_${actor.id}`).setScale(1).setDepth(actor.y);
+        sprite = this.add.image(actor.x, actor.y, `actor_${renderAs}`).setScale(1).setDepth(actor.y);
       }
       // Nameplate floats above, well above Y-sorted range
       const nameplate = this.label(actor.x, actor.y - 38, actor.nameOverride ?? speaker.name, {
@@ -1346,6 +1551,7 @@ export default class ChapterScene extends Phaser.Scene {
       // Shadow at feet
       const shadow = this.add.image(actor.x, actor.y + 18, 'shadow_ellipse')
         .setAlpha(0.28).setScale(0.7).setDepth(actor.y - 1);
+      // Store under original id so hideActor() still works correctly
       this.actorSprites[actor.id] = [sprite, nameplate, shadow];
     });
   }
@@ -1893,11 +2099,16 @@ export default class ChapterScene extends Phaser.Scene {
   }
 
   private triggerBossQTEQuest() {
-    if (!this.isBossActive || !this.bossData || !this.spawnedBoss) return;
+    if (!this.isBossActive || !this.bossData || !this.spawnedBoss || this.qteActive) return;
+    this.qteActive = true;
     this.physics.pause();
+    this.spawnedBoss.setVelocity(0, 0);
     this.onMessageLog(`⚡ [QTE]: Audit ${this.bossData.name} — choose your counter!`);
     this.onTriggerQTE(this.bossData, (success: boolean) => {
+      this.qteActive = false;
       this.physics.resume();
+      // Don't let a boss attack fire the instant the modal closes.
+      this.lastBossAttackTime = this.time.now;
       if (success && this.spawnedBoss && this.bossData) {
         const dmg = this.bossData.weaknessQTE.damage;
         this.onMessageLog(`🔥 AUDIT SUCCESS! ${this.bossData.name} -${dmg} BIQ!`);
@@ -1960,6 +2171,8 @@ export default class ChapterScene extends Phaser.Scene {
   // ─── Damage & Status Effects ───────────────────────────────────────────────
 
   private damagePlayer(damage: number, source: string) {
+    // In-flight delayed attacks (e.g. Kidney Punch) must not land mid-QTE.
+    if (this.qteActive) return;
     try {
       const fx = this.add.sprite(this.player.x, this.player.y, 'plasma_shield');
       fx.setOrigin(0.5).setScale(0.1).setDepth(20).setAlpha(0.95);
@@ -2493,8 +2706,8 @@ export default class ChapterScene extends Phaser.Scene {
     // Enemy textures — 48px, high-contrast so they read clearly over the map
     // Ticketmaster: blue bot silhouette with barcode stripes
     const gTm = this.make.graphics({});
-    gTm.fillStyle(0x1e40af, 1).fillRoundedRect(8, 4, 32, 38, 6);
-    gTm.lineStyle(2.5, 0x60a5fa, 1).strokeRoundedRect(8, 4, 32, 38, 6);
+    gTm.fillStyle(0x1e40af, 1).fillRect(8, 4, 32, 38);
+    gTm.lineStyle(2.5, 0x60a5fa, 1).strokeRect(8, 4, 32, 38);
     gTm.fillStyle(0x000000, 1).fillCircle(8, 24, 6).fillCircle(40, 24, 6);
     gTm.fillStyle(0x60a5fa, 1);
     [14, 19, 23, 27, 32, 36].forEach(x => gTm.fillRect(x, 10, 2, 26));
@@ -2525,8 +2738,8 @@ export default class ChapterScene extends Phaser.Scene {
     // Frat bro: beefy amber figure with red UMBC hat
     const gFrat = this.make.graphics({});
     // Body
-    gFrat.fillStyle(0x92400e, 1).fillRoundedRect(10, 20, 28, 24, 4);
-    gFrat.lineStyle(2, 0xfbbf24, 1).strokeRoundedRect(10, 20, 28, 24, 4);
+    gFrat.fillStyle(0x92400e, 1).fillRect(10, 20, 28, 24);
+    gFrat.lineStyle(2, 0xfbbf24, 1).strokeRect(10, 20, 28, 24);
     // Head
     gFrat.fillStyle(0xd97706, 1).fillCircle(24, 14, 10);
     gFrat.lineStyle(2, 0xfef08a, 1).strokeCircle(24, 14, 10);

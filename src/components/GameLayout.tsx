@@ -4,7 +4,8 @@ import ChapterScene, { StoryDialoguePayload } from '../game/ChapterScene';
 import { CHARACTER_CLASSES, CharacterClass, BossConfig } from '../data';
 import { ChapterConfig } from '../data/chapters';
 import { loadProgress, markChapterComplete, rememberHero } from '../game/progress';
-import { ShieldAlert, Play } from 'lucide-react';
+import shieldImg from '../assets/images/shield.jpg';
+import { Play } from 'lucide-react';
 import DialogueBox from './DialogueBox';
 import ChapterSelect from './ChapterSelect';
 
@@ -42,6 +43,9 @@ export default function GameLayout() {
   const [titleCard, setTitleCard] = useState<TitleCardData | null>(null);
   const [titleCardVisible, setTitleCardVisible] = useState(false);
   const [muted, setMuted] = useState(() => localStorage.getItem('omega-muted') === 'true');
+  const [freePlay, setFreePlay] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('omega-progress-v1') || '{}')?.freePlay === true; } catch { return false; }
+  });
 
   const phaserGameRef = useRef<Phaser.Game | null>(null);
   const resizeCleanupRef = useRef<(() => void) | null>(null);
@@ -146,83 +150,91 @@ export default function GameLayout() {
   // ─── Phaser boot ─────────────────────────────────────────────────────────────
 
   useEffect(() => {
+    let cancelled = false;
     if (gameStatus === 'playing' && selectedHero && activeChapter) {
       const container = document.getElementById('phaser-canvas-container');
       const w = container?.offsetWidth || window.innerWidth;
       const h = container?.offsetHeight || (window.innerHeight - 48);
       const chapter = activeChapter;
-      const config: Phaser.Types.Core.GameConfig = {
-        type: Phaser.AUTO,
-        parent: 'phaser-canvas-container',
-        scale: { mode: Phaser.Scale.RESIZE, width: w, height: h },
-        render: { antialias: true, roundPixels: false },
-        physics: { default: 'arcade', arcade: { gravity: { x: 0, y: 0 }, debug: false } },
-        scene: [],
-        callbacks: {
-          postBoot: (game) => {
-            game.canvas.setAttribute('tabindex', '0');
-            game.canvas.focus();
-            game.sound.mute = localStorage.getItem('omega-muted') === 'true';
-            if (import.meta.env.DEV) (window as unknown as { __OMEGA_GAME__?: Phaser.Game }).__OMEGA_GAME__ = game;
-            game.scene.add('ChapterScene', ChapterScene, true, {
-              hero: selectedHero,
-              chapter,
-              playerHp: selectedHero.maxHp,
-              onHpChange: (hp: number) => setPlayerHp(hp),
-              onTriggerQTE: (boss: BossConfig, callback: (success: boolean) => void) => {
-                setQteTimer(8);
-                setActiveQte({ boss, callback });
-              },
-              onStoryDialogue: (payload: StoryDialoguePayload, done: (i?: number) => void) =>
-                storyRef.current(payload, done),
-              onLedgerChange: (total: number, note: string) => setLedger({ total, note }),
-              onChapterCompleted: () => {
-                const p = markChapterComplete(chapter.id);
-                setCompletedChapters(p.completedChapters);
-                setGameStatus('chapterComplete');
-              },
-              onGameOver: () => setGameStatus('gameover'),
-            });
+      (async () => {
+        // Ensure Yoster Island is loaded before Phaser renders any canvas text.
+        await document.fonts.load("16px 'Yoster'").catch(() => {});
+        if (cancelled) return;
+
+        const config: Phaser.Types.Core.GameConfig = {
+          type: Phaser.AUTO,
+          parent: 'phaser-canvas-container',
+          scale: { mode: Phaser.Scale.RESIZE, width: w, height: h },
+          render: { antialias: true, roundPixels: false },
+          physics: { default: 'arcade', arcade: { gravity: { x: 0, y: 0 }, debug: false } },
+          scene: [],
+          callbacks: {
+            postBoot: (game) => {
+              game.canvas.setAttribute('tabindex', '0');
+              game.canvas.focus();
+              game.sound.mute = localStorage.getItem('omega-muted') === 'true';
+              if (import.meta.env.DEV) (window as unknown as { __OMEGA_GAME__?: Phaser.Game }).__OMEGA_GAME__ = game;
+              game.scene.add('ChapterScene', ChapterScene, true, {
+                hero: selectedHero,
+                chapter,
+                playerHp: selectedHero.maxHp,
+                onHpChange: (hp: number) => setPlayerHp(hp),
+                onTriggerQTE: (boss: BossConfig, callback: (success: boolean) => void) => {
+                  setQteTimer(8);
+                  setActiveQte({ boss, callback });
+                },
+                onStoryDialogue: (payload: StoryDialoguePayload, done: (i?: number) => void) =>
+                  storyRef.current(payload, done),
+                onLedgerChange: (total: number, note: string) => setLedger({ total, note }),
+                onChapterCompleted: () => {
+                  const p = markChapterComplete(chapter.id);
+                  setCompletedChapters(p.completedChapters);
+                  setGameStatus('chapterComplete');
+                },
+                onGameOver: () => setGameStatus('gameover'),
+              });
+            },
           },
-        },
-      };
-      const game = new Phaser.Game(config);
-      phaserGameRef.current = game;
+        };
+        const game = new Phaser.Game(config);
+        phaserGameRef.current = game;
 
-      // Keep the canvas glued to its container across all environments (Phaser's
-      // own RESIZE tracking is unreliable; some headless contexts never fire
-      // ResizeObserver). Drive size from observer + resize event + rAF polls.
-      let lastW = 0, lastH = 0;
-      const syncSize = () => {
-        const el = document.getElementById('phaser-canvas-container');
-        if (!el || !game.scale) return;
-        const cw = el.offsetWidth, ch = el.offsetHeight;
-        if (cw < 1 || ch < 1) return;
-        if (cw === lastW && ch === lastH) return;
-        lastW = cw; lastH = ch;
-        game.scale.resize(cw, ch);
-      };
-      let ro: ResizeObserver | null = null;
-      if (container && typeof ResizeObserver !== 'undefined') {
-        ro = new ResizeObserver(syncSize);
-        ro.observe(container);
-      }
-      window.addEventListener('resize', syncSize);
-      let fastPolls = 0;
-      const fastPollId = window.setInterval(() => {
-        syncSize();
-        if (++fastPolls > 20) window.clearInterval(fastPollId);
-      }, 50);
-      const slowPollId = window.setInterval(syncSize, 250);
+        // Keep the canvas glued to its container across all environments (Phaser's
+        // own RESIZE tracking is unreliable; some headless contexts never fire
+        // ResizeObserver). Drive size from observer + resize event + rAF polls.
+        let lastW = 0, lastH = 0;
+        const syncSize = () => {
+          const el = document.getElementById('phaser-canvas-container');
+          if (!el || !game.scale) return;
+          const cw = el.offsetWidth, ch = el.offsetHeight;
+          if (cw < 1 || ch < 1) return;
+          if (cw === lastW && ch === lastH) return;
+          lastW = cw; lastH = ch;
+          game.scale.resize(cw, ch);
+        };
+        let ro: ResizeObserver | null = null;
+        if (container && typeof ResizeObserver !== 'undefined') {
+          ro = new ResizeObserver(syncSize);
+          ro.observe(container);
+        }
+        window.addEventListener('resize', syncSize);
+        let fastPolls = 0;
+        const fastPollId = window.setInterval(() => {
+          syncSize();
+          if (++fastPolls > 20) window.clearInterval(fastPollId);
+        }, 50);
+        const slowPollId = window.setInterval(syncSize, 250);
 
-      resizeCleanupRef.current = () => {
-        ro?.disconnect();
-        window.removeEventListener('resize', syncSize);
-        window.clearInterval(fastPollId);
-        window.clearInterval(slowPollId);
-      };
+        resizeCleanupRef.current = () => {
+          ro?.disconnect();
+          window.removeEventListener('resize', syncSize);
+          window.clearInterval(fastPollId);
+          window.clearInterval(slowPollId);
+        };
+      })();
     }
     return () => {
+      cancelled = true;
       resizeCleanupRef.current?.();
       resizeCleanupRef.current = null;
       if (phaserGameRef.current) {
@@ -273,7 +285,7 @@ export default function GameLayout() {
     : selectedHero;
 
   return (
-    <div className="w-full h-screen flex flex-col overflow-hidden" style={{ background: '#0c1208', fontFamily: 'Inter, sans-serif', color: '#e8f5d0' }}>
+    <div className="w-full h-screen flex flex-col overflow-hidden" style={{ background: '#0c1208', fontFamily: 'Yoster, monospace', color: '#e8f5d0' }}>
 
       {/* Header */}
       <header className="h-12 px-6 flex items-center justify-between shrink-0 border-b" style={{ background: '#111c0a', borderColor: '#2a3d18' }}>
@@ -288,9 +300,9 @@ export default function GameLayout() {
           <div className="flex items-center gap-4 text-xs font-mono">
             <div className="flex items-center gap-2">
               <span style={{ color: '#8aaa60' }}>HP</span>
-              <div className="w-28 h-2 rounded-full overflow-hidden" style={{ background: '#1a2e10' }}>
+              <div className="w-28 h-2 overflow-hidden" style={{ background: '#1a2e10', border: '1px solid #2a3d18' }}>
                 <div
-                  className="h-full rounded-full transition-all duration-300"
+                  className="h-full transition-all duration-300"
                   style={{
                     width: `${Math.max(0, (playerHp / protagonist.maxHp) * 100)}%`,
                     background: playerHp / protagonist.maxHp > 0.5 ? '#4ade80' : playerHp / protagonist.maxHp > 0.25 ? '#facc15' : '#ef4444',
@@ -343,7 +355,7 @@ export default function GameLayout() {
                     <button
                       key={hero.id}
                       onClick={() => handleSelectHero(hero)}
-                      className="text-left p-5 rounded-2xl border-2 transition-all duration-200 cursor-pointer relative overflow-hidden"
+                      className="text-left p-5 border-2 transition-all duration-200 cursor-pointer relative overflow-hidden"
                       style={{
                         background: selected ? `${hero.color}18` : '#142012',
                         borderColor: selected ? hero.color : '#2a3d18',
@@ -365,7 +377,7 @@ export default function GameLayout() {
                         <span className="text-[10px] font-mono" style={{ color: hero.color }}>RELIC: {hero.relicName}</span>
                       </div>
                       {selected && (
-                        <div className="absolute top-2 right-2 w-2 h-2 rounded-full" style={{ background: hero.color }} />
+                        <div className="absolute top-2 right-2 w-2 h-2" style={{ background: hero.color }} />
                       )}
                     </button>
                   );
@@ -375,12 +387,12 @@ export default function GameLayout() {
               {selectedHero && (
                 <div className="flex flex-col items-center gap-3">
                   <p className="text-xs opacity-60" style={{ color: '#8aaa60' }}>
-                    <kbd className="px-1 py-0.5 rounded text-xs font-mono" style={{ background: '#1a2e10', border: '1px solid #3a5520' }}>WASD</kbd> to walk ·
+                    <kbd className="px-1 py-0.5 text-xs font-mono" style={{ background: '#1a2e10', border: '1px solid #3a5520' }}>WASD</kbd> to walk ·
                     follow the <span style={{ color: '#fbbf24' }}>✦ markers</span> · the story does the rest
                   </p>
                   <button
                     onClick={handleStartStory}
-                    className="flex items-center gap-2 px-8 py-3 rounded-xl font-bold text-sm tracking-wide transition-all duration-150 cursor-pointer"
+                    className="flex items-center gap-2 px-8 py-3 font-bold text-sm tracking-wide cursor-pointer"
                     style={{ background: selectedHero.color, color: '#0c1208' }}
                     onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
                     onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
@@ -399,6 +411,8 @@ export default function GameLayout() {
           <ChapterSelect
             heroColor={selectedHero.color}
             completed={completedChapters}
+            freePlay={freePlay}
+            onFreePlayChange={setFreePlay}
             onPick={handlePickChapter}
           />
         )}
@@ -408,21 +422,22 @@ export default function GameLayout() {
           <div className="absolute inset-0">
             <div id="phaser-canvas-container" className="w-full h-full" />
 
-            {/* QTE modal */}
+            {/* QTE modal — 8-bit style */}
             {activeQte && (
-              <div className="absolute inset-0 flex items-center justify-center p-4 z-50" style={{ background: 'rgba(12,18,8,0.85)', backdropFilter: 'blur(4px)' }}>
-                <div className="w-full max-w-lg rounded-2xl p-6 shadow-2xl border-2" style={{ background: '#111c0a', borderColor: '#facc15' }}>
-                  <div className="w-full h-1 rounded-full mb-5 overflow-hidden" style={{ background: '#1a2e10' }}>
+              <div className="absolute inset-0 flex items-center justify-center p-4 z-50" style={{ background: 'rgba(8,12,6,0.92)', backdropFilter: 'blur(2px)' }}>
+                <div className="w-full max-w-lg pixel-panel p-5 shadow-2xl" style={{ borderColor: '#facc15', boxShadow: 'inset 0 0 0 3px #0a1006, inset 0 0 0 6px #facc1566' }}>
+                  {/* Timer bar */}
+                  <div className="w-full h-3 mb-4 overflow-hidden" style={{ background: '#1a2e10', border: '2px solid #3a5520' }}>
                     <div
-                      className="h-full rounded-full transition-all duration-1000"
-                      style={{ width: `${(qteTimer / 8) * 100}%`, background: '#facc15' }}
+                      className="h-full transition-all duration-1000"
+                      style={{ width: `${(qteTimer / 8) * 100}%`, background: '#facc15', imageRendering: 'pixelated' }}
                     />
                   </div>
-                  <div className="flex items-center gap-2 mb-3 text-xs font-mono" style={{ color: '#facc15' }}>
-                    <ShieldAlert size={14} />
-                    <span className="uppercase tracking-widest font-bold">Syndicate Challenge! {qteTimer}s</span>
+                  <div className="flex items-center gap-2 mb-3" style={{ color: '#facc15' }}>
+                    <img src={shieldImg} alt="⚔" width={20} height={20} style={{ imageRendering: 'pixelated' }} />
+                    <span className="font-pixel text-[10px] uppercase">Syndicate Challenge! {qteTimer}s</span>
                   </div>
-                  <p className="text-sm font-medium mb-5 leading-relaxed" style={{ color: '#e8f5d0' }}>
+                  <p className="font-pixel text-[10px] mb-4 leading-loose" style={{ color: '#e8f5d0' }}>
                     {activeQte.boss.weaknessQTE.question}
                   </p>
                   <div className="space-y-2">
@@ -430,18 +445,20 @@ export default function GameLayout() {
                       <button
                         key={idx}
                         onClick={() => handleQteResponse(option)}
-                        className="w-full text-left p-3 rounded-xl text-sm transition-all duration-150 cursor-pointer border"
-                        style={{ background: '#1a2e10', borderColor: '#3a5520', color: '#c8e89a' }}
+                        className="w-full text-left px-3 py-2 cursor-pointer transition-colors duration-100 font-pixel text-[10px]"
+                        style={{ background: '#0f1c09', border: '2px solid #3a5520', color: '#c8e89a' }}
                         onMouseEnter={e => {
                           e.currentTarget.style.borderColor = '#facc15';
                           e.currentTarget.style.color = '#facc15';
+                          e.currentTarget.style.background = '#1a2e10';
                         }}
                         onMouseLeave={e => {
                           e.currentTarget.style.borderColor = '#3a5520';
                           e.currentTarget.style.color = '#c8e89a';
+                          e.currentTarget.style.background = '#0f1c09';
                         }}
                       >
-                        {option}
+                        {idx + 1}. {option}
                       </button>
                     ))}
                   </div>
@@ -504,8 +521,8 @@ export default function GameLayout() {
                     </p>
                   )}
                   <div
-                    className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-mono"
-                    style={{ background: `${selectedHero?.color ?? '#8aaa60'}22`, border: `1px solid ${selectedHero?.color ?? '#8aaa60'}55`, color: selectedHero?.color ?? '#8aaa60' }}
+                    className="inline-flex items-center gap-2 px-4 py-1.5 text-xs font-mono"
+                    style={{ background: `${selectedHero?.color ?? '#8aaa60'}22`, border: `2px solid ${selectedHero?.color ?? '#8aaa60'}88`, color: selectedHero?.color ?? '#8aaa60' }}
                   >
                     <span>📍</span>
                     <span>{titleCard.location}</span>
@@ -516,42 +533,46 @@ export default function GameLayout() {
           </div>
         )}
 
-        {/* Chapter complete interstitial */}
+        {/* Chapter complete interstitial — 8-bit style */}
         {gameStatus === 'chapterComplete' && activeChapter && (
-          <div className="h-full flex flex-col items-center justify-center text-center p-8 omega-fade-up">
-            <div className="text-5xl mb-4">✅</div>
-            <p className="text-xs font-mono tracking-widest mb-1" style={{ color: '#8aaa60' }}>CHAPTER CLEARED</p>
-            <h2 className="text-2xl font-bold mb-2 font-display" style={{ color: '#c8e89a' }}>{activeChapter.title}</h2>
-            <p className="text-sm mb-8 opacity-60" style={{ color: '#8aaa60' }}>
-              The Ledger remembers. ${ledger.total.toFixed(2)} on the books.
-            </p>
+          <div className="h-full flex flex-col items-center justify-center text-center p-8 omega-fade-up" style={{ background: '#0a1006' }}>
+            <div className="text-5xl mb-4" style={{ imageRendering: 'pixelated' }}>✅</div>
+            <div className="pixel-panel p-6 max-w-sm w-full mb-6" style={{ borderColor: selectedHero?.color ?? '#c8e89a' }}>
+              <p className="font-pixel text-[9px] tracking-widest mb-2" style={{ color: '#8aaa60' }}>CHAPTER CLEARED</p>
+              <h2 className="font-display text-xl font-bold mb-3" style={{ color: '#c8e89a' }}>{activeChapter.title}</h2>
+              <p className="font-pixel text-[9px] leading-loose" style={{ color: '#8aaa60' }}>
+                The Ledger remembers.<br />${ledger.total.toFixed(2)} on the books.
+              </p>
+            </div>
             <button
               onClick={returnToChapters}
-              className="px-8 py-3 rounded-xl font-bold text-sm cursor-pointer transition-all"
-              style={{ background: selectedHero?.color ?? '#c8e89a', color: '#0c1208' }}
+              className="px-8 py-3 font-pixel text-[10px] cursor-pointer transition-all"
+              style={{ background: selectedHero?.color ?? '#c8e89a', color: '#0c1208', border: '2px solid #0c1208', imageRendering: 'pixelated' }}
             >
-              Continue
+              ▶ CONTINUE
             </button>
           </div>
         )}
 
-        {/* Game Over */}
+        {/* Game Over — 8-bit style */}
         {gameStatus === 'gameover' && (
-          <div className="h-full flex flex-col items-center justify-center text-center p-8">
+          <div className="h-full flex flex-col items-center justify-center text-center p-8" style={{ background: '#0a0606' }}>
             <div className="text-5xl mb-4">💀</div>
-            <h2 className="text-2xl font-bold mb-2 font-display" style={{ color: '#ef4444' }}>Social Collapse</h2>
-            <p className="text-sm mb-2 opacity-70" style={{ color: '#c8e89a' }}>
-              You failed to verify your liquid reserves.
-            </p>
-            <p className="text-sm mb-8 opacity-50" style={{ color: '#8aaa60' }}>
-              Jacob has blocked you. Nick F cancelled the cabin to fly to Spain.
-            </p>
+            <div className="pixel-panel-dark p-6 max-w-sm w-full mb-6" style={{ borderColor: '#ef4444', boxShadow: 'inset 0 0 0 3px #0a0606, inset 0 0 0 6px #ef444466' }}>
+              <h2 className="font-display text-xl font-bold mb-3" style={{ color: '#ef4444' }}>Social Collapse</h2>
+              <p className="font-pixel text-[9px] leading-loose mb-2" style={{ color: '#c8e89a' }}>
+                You failed to verify your liquid reserves.
+              </p>
+              <p className="font-pixel text-[9px] leading-loose" style={{ color: '#6b7280' }}>
+                Jacob has blocked you.<br />Nick F cancelled the cabin to fly to Spain.
+              </p>
+            </div>
             <button
               onClick={returnToChapters}
-              className="px-8 py-3 rounded-xl font-bold text-sm cursor-pointer border transition-all"
-              style={{ background: '#1a2e10', borderColor: '#3a5520', color: '#c8e89a' }}
+              className="px-8 py-3 font-pixel text-[10px] cursor-pointer transition-all"
+              style={{ background: '#0f1c09', border: '2px solid #ef4444', color: '#ef4444', imageRendering: 'pixelated' }}
             >
-              Return to Chapter Select
+              ▶ RETRY
             </button>
           </div>
         )}

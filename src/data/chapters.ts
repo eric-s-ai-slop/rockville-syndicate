@@ -107,6 +107,11 @@ export interface ActorPlacement {
   y: number;
   /** Override the displayed nameplate (defaults to the resolved speaker name). */
   nameOverride?: string;
+  /**
+   * If the player's chosen hero matches `id`, place this character's sprite at
+   * the same position instead of leaving the slot empty (R5 roster presence).
+   */
+  understudyId?: string;
 }
 
 // ─── Beats ─────────────────────────────────────────────────────────────────────
@@ -128,6 +133,7 @@ export type Beat = { id?: string } & (
   | { type: 'walkTo'; x: number; y: number; radius?: number; markerLabel?: string }
   | { type: 'cameraPan'; x: number; y: number; durationMs: number; holdMs?: number }
   | { type: 'bossFight'; bossId: string; arena: { x: number; y: number; w: number; h: number }; introLines?: string[] }
+  | { type: 'chase'; pursuerId: string; durationMs: number }
   | { type: 'wait'; ms: number }
   | { type: 'ledger'; delta: number; note: string }
   | { type: 'endChapter' }
@@ -216,9 +222,9 @@ const chapter1: ChapterConfig = {
     playerSpawn: { x: 460, y: 560 },
   },
   actors: [
-    { id: 'eric', x: 250, y: 215 },
-    { id: 'jordan', x: 600, y: 430 },
-    { id: 'nick_h', x: 520, y: 330, nameOverride: 'Nick H (asleep)' },
+    { id: 'eric', x: 250, y: 215, understudyId: 'nick_f' },
+    { id: 'jordan', x: 600, y: 430, understudyId: 'maharko' },
+    { id: 'nick_h', x: 520, y: 330, nameOverride: 'Nick H (asleep)', understudyId: 'jacob' },
   ],
   beats: [
     {
@@ -340,7 +346,7 @@ const chapter2: ChapterConfig = {
       // tollbooth — Baltimore checkpoint
       { x: 440, y: 200, w: 200, h: 50, fill: 0x374151, stroke: 0xf59e0b, tag: '🚧 BALTIMORE TOLL', solid: true },
       // Nick F's C55 AMG (top of road)
-      { x: 440, y: 320, w: 60, h: 90, fill: 0x111827, stroke: 0xf59e0b, tag: 'C55 AMG' },
+      { x: 440, y: 320, w: 60, h: 90, fill: 0x111827, stroke: 0xf59e0b, tag: 'C55 AMG', propType: 'car', propKey: 'prop_nick_f_corolla' },
       { x: 440, y: 320, w: 50, h: 30, fill: 0x1e3a5f },
       // shoulder grass
       { x: 160, y: 310, w: 260, h: 620, fill: 0x0d2010 },
@@ -362,9 +368,10 @@ const chapter2: ChapterConfig = {
     playerSpawn: { x: 440, y: 480 },
   },
   actors: [
-    { id: 'nick_f', x: 380, y: 340 },
-    { id: 'nick_h', x: 500, y: 340 },
-    { id: 'jacob', x: 440, y: 390 },
+    { id: 'nick_f', x: 380, y: 340, understudyId: 'jordan' },
+    { id: 'nick_h', x: 500, y: 340, understudyId: 'maharko' },
+    { id: 'jacob', x: 440, y: 390, understudyId: 'jordan' },
+    { id: 'eric', x: 440, y: 460, understudyId: 'maharko' },
   ],
   beats: [
     {
@@ -492,13 +499,13 @@ const chapter3: ChapterConfig = {
       { x: 16, y: 320, w: 16, h: 640, fill: 0xd1d5db, solid: true },
       { x: 844, y: 320, w: 16, h: 640, fill: 0xd1d5db, solid: true },
       // hospital bed
-      { x: 430, y: 280, w: 200, h: 100, fill: 0xffffff, stroke: 0x9ca3af, tag: '🛏️ HOSPITAL BED', solid: true },
+      { x: 430, y: 280, w: 200, h: 100, fill: 0xffffff, stroke: 0x9ca3af, tag: '🛏️ HOSPITAL BED', solid: true, propKey: 'prop_hospital_bed' },
       { x: 430, y: 250, w: 80, h: 40, fill: 0xf3f4f6, stroke: 0xd1d5db, tag: 'PILLOW' },
       // IV drip
       { x: 590, y: 230, w: 12, h: 80, fill: 0x9ca3af },
-      { x: 590, y: 190, w: 30, h: 40, fill: 0xbfdbfe, stroke: 0x93c5fd, tag: '💧 IV' },
+      { x: 590, y: 190, w: 30, h: 40, fill: 0xbfdbfe, stroke: 0x93c5fd, tag: '💧 IV', propKey: 'prop_iv_drip' },
       // toilet (evidence room)
-      { x: 700, y: 300, w: 60, h: 70, fill: 0xf8fafc, stroke: 0x94a3b8, tag: '🚽 EVIDENCE' },
+      { x: 700, y: 300, w: 60, h: 70, fill: 0xf8fafc, stroke: 0x94a3b8, tag: '🚽 EVIDENCE', propKey: 'prop_red_toilet' },
       { x: 700, y: 265, w: 60, h: 20, fill: 0xe2e8f0, stroke: 0x94a3b8 },
       // window
       { x: 160, y: 200, w: 120, h: 80, fill: 0xbfdbfe, stroke: 0x93c5fd, tag: '🌞 WINDOW' },
@@ -658,7 +665,7 @@ const chapter4: ChapterConfig = {
   index: 4,
   title: 'The Jungle Gym Gambit',
   subtitle: 'Interlude II — The Three Rules',
-  location: '1202 Princeton Place, Rockville',
+  location: 'Beall Elementary School, Rockville',
   description:
     'Nick H has a location. He has three rules. He has a 🐔. Jacob claims $3,900 in liquid reserves and absolute immunity to FOMO.',
   kind: 'interlude',
@@ -667,12 +674,12 @@ const chapter4: ChapterConfig = {
     height: 620,
     backdrop: C.grass,
     theme: 'park',
-    areaTitle: '1202 Princeton Place',
+    areaTitle: 'Beall',
     rects: [
       // park ground / clearing
       { x: 420, y: 310, w: 600, h: 400, fill: 0x1a3d1a },
       // jungle gym structure
-      { x: 420, y: 220, w: 140, h: 60, fill: 0x92400e, stroke: 0xd97706, tag: '🏗️ JUNGLE GYM', solid: true },
+      { x: 420, y: 220, w: 140, h: 60, fill: 0x92400e, stroke: 0xd97706, tag: '🏗️ JUNGLE GYM', solid: true, propKey: 'prop_jungle_gym' },
       { x: 340, y: 250, w: 16, h: 80, fill: 0x92400e, solid: true },
       { x: 500, y: 250, w: 16, h: 80, fill: 0x92400e, solid: true },
       { x: 420, y: 290, w: 140, h: 14, fill: 0xb45309, solid: true },
@@ -696,8 +703,8 @@ const chapter4: ChapterConfig = {
     playerSpawn: { x: 420, y: 480 },
   },
   actors: [
-    { id: 'nick_h', x: 420, y: 340 },
-    { id: 'jacob', x: 420, y: 420 },
+    { id: 'nick_h', x: 420, y: 340, understudyId: 'eric' },
+    { id: 'jacob', x: 420, y: 420, understudyId: 'maharko' },
   ],
   beats: [
     {
@@ -832,9 +839,9 @@ const chapter5: ChapterConfig = {
       { x: 140, y: 490, w: 260, h: 120, fill: 0x374151 },
       { x: 140, y: 490, w: 260, h: 4, fill: 0x6b7280 },
       // Jordan's 5.0 Mustang (red)
-      { x: 140, y: 510, w: 90, h: 50, fill: 0x991b1b, stroke: 0xef4444, tag: '🔴 5.0 MUSTANG' },
+      { x: 140, y: 510, w: 90, h: 50, fill: 0x991b1b, stroke: 0xef4444, tag: '🔴 5.0 MUSTANG', propType: 'car', propKey: 'prop_jordan_mustang' },
       // Maharko's Camaro (black)
-      { x: 280, y: 510, w: 90, h: 50, fill: 0x111827, stroke: 0x22d3ee, tag: '🏎️ CAMARO' },
+      { x: 280, y: 510, w: 90, h: 50, fill: 0x111827, stroke: 0x22d3ee, tag: '🏎️ CAMARO', propType: 'car', propKey: 'prop_maharko_camero' },
       // palm trees
       { x: 700, y: 170, w: 24, h: 100, fill: 0x92400e },
       { x: 700, y: 120, w: 50, h: 50, fill: 0x14532d },
@@ -855,8 +862,8 @@ const chapter5: ChapterConfig = {
     playerSpawn: { x: 480, y: 490 },
   },
   actors: [
-    { id: 'jordan', x: 250, y: 440 },
-    { id: 'maharko', x: 380, y: 440 },
+    { id: 'jordan', x: 250, y: 440, understudyId: 'nick_f' },
+    { id: 'maharko', x: 380, y: 440, understudyId: 'jacob' },
   ],
   beats: [
     {
@@ -980,7 +987,7 @@ const chapter6: ChapterConfig = {
       // sidewalk
       { x: 440, y: 530, w: 880, h: 30, fill: 0x374151 },
       // Ben's house (12 Watchwater Way)
-      { x: 440, y: 300, w: 280, h: 280, fill: 0x1a2e1a, stroke: 0x84cc16, solid: true },
+      { x: 440, y: 300, w: 280, h: 280, fill: 0x1a2e1a, stroke: 0x84cc16, solid: true, propKey: 'prop_watchwater' },
       { x: 440, y: 170, w: 280, h: 50, fill: 0x166534 },
       // front door
       { x: 440, y: 435, w: 50, h: 60, fill: 0x78350f, stroke: 0xef4444, tag: '🚪 FRONT DOOR' },
@@ -1009,9 +1016,10 @@ const chapter6: ChapterConfig = {
     playerSpawn: { x: 440, y: 570 },
   },
   actors: [
-    { id: 'maharko', x: 340, y: 500 },
-    { id: 'jordan', x: 540, y: 500 },
-    { id: 'nick_f', x: 680, y: 570 },
+    { id: 'maharko', x: 340, y: 500, understudyId: 'jacob' },
+    { id: 'jordan', x: 540, y: 500, understudyId: 'nick_h' },
+    { id: 'nick_f', x: 680, y: 570, understudyId: 'nick_h' },
+    { id: 'eric', x: 200, y: 570, understudyId: 'jacob' },
   ],
   beats: [
     {
@@ -1068,6 +1076,7 @@ const chapter6: ChapterConfig = {
         'It is not Ben.',
       ],
     },
+    { type: 'chase', pursuerId: 'boss_ben', durationMs: 7000 },
     {
       type: 'bossFight',
       bossId: 'boss_ben',
@@ -1158,10 +1167,10 @@ const chapter7: ChapterConfig = {
     playerSpawn: { x: 450, y: 500 },
   },
   actors: [
-    { id: 'nick_f', x: 300, y: 400 },
-    { id: 'maharko', x: 550, y: 420 },
-    { id: 'jordan', x: 650, y: 380 },
-    { id: 'eric', x: 160, y: 240 },
+    { id: 'nick_f', x: 300, y: 400, understudyId: 'nick_h' },
+    { id: 'maharko', x: 550, y: 420, understudyId: 'jacob' },
+    { id: 'jordan', x: 650, y: 380, understudyId: 'nick_h' },
+    { id: 'eric', x: 160, y: 240, understudyId: 'jacob' },
   ],
   beats: [
     {

@@ -9,6 +9,7 @@ import ch5Url   from '../assets/audio/stage_music/Jordan_and_maharko_music_for_m
 import ch6Url   from '../assets/audio/stage_music/ben_music(in the hall of the mountian king).mp3?url';
 import ch7Url   from '../assets/audio/stage_music/chapter7PASTEL GHOST  DARK BEACH.mp3?url';
 import bossUrl  from '../assets/audio/boss_music/Prowler Sound Effect.mp3?url';
+import bossTetrisUrl from '../assets/audio/boss_music/Techno - Tetris (Remix).mp3?url';
 
 import fc0 from '../assets/audio/kenney_impact-sounds/Audio/footstep_carpet_000.ogg?url';
 import fc1 from '../assets/audio/kenney_impact-sounds/Audio/footstep_carpet_001.ogg?url';
@@ -49,7 +50,8 @@ export const STAGE_MUSIC_URL: Record<string, string> = {
   music_ch7: ch7Url,
 };
 
-export const BOSS_MUSIC_URL = bossUrl;
+export const BOSS_MUSIC_URL = bossUrl;   // Prowler sting (plays once on boss intro)
+export const BOSS_LOOP_URL = bossTetrisUrl; // Techno-Tetris loop (plays after sting)
 
 // theme → footstep surface variant
 export const THEME_FOOTSTEP: Record<string, string> = {

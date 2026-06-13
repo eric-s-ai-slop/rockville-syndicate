@@ -96,86 +96,73 @@ export default function DialogueBox({
 
   return (
     <div
-      className="absolute bottom-0 left-0 right-0 z-50 p-4 select-none"
+      className="absolute bottom-0 left-0 right-0 z-50 p-3 select-none"
       style={{ cursor: showChoices ? 'default' : 'pointer' }}
       onClick={handleAdvance}
     >
-      <div
-        className="max-w-3xl mx-auto rounded-2xl border-2 p-5 shadow-2xl"
-        style={{
-          background: 'linear-gradient(135deg, #1a2e10 0%, #0f1c09 100%)',
-          borderColor: speakerColor,
-          boxShadow: `0 0 32px ${speakerColor}44, 0 8px 32px rgba(0,0,0,0.7)`,
-        }}
-      >
-        {/* Speaker header */}
-        <div className="flex items-center gap-3 mb-3">
+      <div className="max-w-3xl mx-auto pixel-panel p-0 shadow-2xl" style={{ borderColor: speakerColor, boxShadow: `inset 0 0 0 3px #0f1c09, inset 0 0 0 6px ${speakerColor}66` }}>
+        {/* Speaker nameplate — sits flush on the top border, Pokémon-style */}
+        <div
+          className="inline-flex items-center gap-2 px-3 py-1 -mt-px ml-4"
+          style={{ background: speakerColor, imageRendering: 'pixelated' }}
+        >
           {portraitDataUrl ? (
             <img
               src={portraitDataUrl}
               alt={speakerName}
-              width={48}
-              height={48}
-              className="rounded-lg shrink-0 border-2"
-              style={{
-                imageRendering: 'pixelated',
-                borderColor: speakerColor,
-                background: `${speakerColor}22`,
-              }}
+              width={20}
+              height={20}
+              style={{ imageRendering: 'pixelated' }}
             />
           ) : (
-            <div
-              className="w-10 h-10 rounded-full flex items-center justify-center text-xl font-bold shrink-0 border-2"
-              style={{ background: `${speakerColor}22`, borderColor: speakerColor }}
-            >
-              {speakerEmoji}
-            </div>
+            <span style={{ fontSize: 14 }}>{speakerEmoji}</span>
           )}
-          <span className="font-bold text-sm tracking-wide" style={{ color: speakerColor }}>
+          <span className="font-pixel text-[10px] font-bold" style={{ color: '#0a1006' }}>
             {speakerName}
           </span>
-          <div className="flex-1 h-px opacity-30" style={{ background: speakerColor }} />
         </div>
 
-        {/* Dialogue text */}
-        <p className="text-[#e8f5d0] text-sm leading-relaxed font-medium min-h-[2.5rem]">
-          {displayedText}
-          {!typingDone && (
-            <span className="inline-block w-[2px] h-[0.9em] ml-[1px] align-middle animate-pulse" style={{ background: speakerColor }} />
-          )}
-        </p>
+        {/* Dialogue body */}
+        <div className="px-5 pt-2 pb-4">
+          <p className="font-pixel text-[11px] leading-relaxed min-h-[3rem]" style={{ color: '#e8f5d0', imageRendering: 'pixelated' }}>
+            {displayedText}
+            {!typingDone && (
+              <span className="inline-block w-[2px] h-[0.85em] ml-[2px] align-middle" style={{ background: speakerColor, animation: 'omega-pulse 0.7s ease-in-out infinite' }} />
+            )}
+          </p>
 
-        {showChoices && typingDone ? (
-          <div className="mt-4 space-y-2" onClick={e => e.stopPropagation()}>
-            {choices!.map((choice, idx) => (
-              <button
-                key={idx}
-                onClick={() => onChoose?.(idx)}
-                className="w-full text-left p-3 rounded-xl text-sm transition-all duration-150 cursor-pointer border flex items-start gap-2"
-                style={{ background: '#11200a', borderColor: '#3a5520', color: '#e8f5d0' }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.borderColor = speakerColor;
-                  e.currentTarget.style.background = `${speakerColor}1a`;
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.borderColor = '#3a5520';
-                  e.currentTarget.style.background = '#11200a';
-                }}
-              >
-                <span className="font-mono text-xs opacity-60 shrink-0 mt-0.5" style={{ color: speakerColor }}>
-                  {idx + 1}
-                </span>
-                <span>{choice.text}</span>
-              </button>
-            ))}
-          </div>
-        ) : (
-          <div className="flex justify-end mt-3">
-            <span className="text-[11px] font-mono opacity-60" style={{ color: speakerColor }}>
-              {typingDone ? 'SPACE to continue ▶' : 'SPACE to skip ▶'}
-            </span>
-          </div>
-        )}
+          {showChoices && typingDone ? (
+            <div className="mt-3 space-y-1.5" onClick={e => e.stopPropagation()}>
+              {choices!.map((choice, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => onChoose?.(idx)}
+                  className="w-full text-left px-3 py-2 cursor-pointer flex items-start gap-2 transition-colors duration-100"
+                  style={{ background: '#11200a', border: '2px solid #3a5520', color: '#e8f5d0' }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.borderColor = speakerColor;
+                    e.currentTarget.style.background = `${speakerColor}22`;
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.borderColor = '#3a5520';
+                    e.currentTarget.style.background = '#11200a';
+                  }}
+                >
+                  <span className="font-pixel text-[10px] shrink-0 mt-0.5" style={{ color: speakerColor }}>
+                    {idx + 1}.
+                  </span>
+                  <span className="font-pixel text-[10px]">{choice.text}</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="flex justify-end mt-2">
+              {typingDone && (
+                <span className="pixel-blink font-pixel text-[11px]" style={{ color: speakerColor }}>▼</span>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

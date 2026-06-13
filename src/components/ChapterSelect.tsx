@@ -1,10 +1,13 @@
+import { useState } from 'react';
 import { Lock, Play, Check } from 'lucide-react';
 import { CHAPTERS, ChapterConfig, MapTheme } from '../data/chapters';
-import { isChapterUnlocked } from '../game/progress';
+import { isChapterUnlocked, setFreePlay } from '../game/progress';
 
 interface ChapterSelectProps {
   heroColor: string;
   completed: string[];
+  freePlay: boolean;
+  onFreePlayChange: (enabled: boolean) => void;
   onPick: (chapter: ChapterConfig) => void;
 }
 
@@ -34,27 +37,62 @@ const THEME_ICON: Record<MapTheme, string> = {
   cabin:         '🪵',
 };
 
-export default function ChapterSelect({ heroColor, completed, onPick }: ChapterSelectProps) {
+export default function ChapterSelect({ heroColor, completed, freePlay, onFreePlayChange, onPick }: ChapterSelectProps) {
+  const [localFreePlay, setLocalFreePlay] = useState(freePlay);
+
+  const toggleFreePlay = () => {
+    const next = !localFreePlay;
+    setLocalFreePlay(next);
+    setFreePlay(next);
+    onFreePlayChange(next);
+  };
+
   return (
     <div
       className="h-full overflow-y-auto flex flex-col items-center p-8"
       style={{ background: 'linear-gradient(180deg, #0a1006 0%, #0c1208 60%, #0f1c09 100%)' }}
     >
       <div className="max-w-2xl w-full omega-fade-up">
-        <div className="text-center mb-8 mt-2">
+        <div className="text-center mb-6 mt-2">
           <div className="text-3xl mb-2">📖</div>
           <h2 className="text-2xl font-bold mb-1 font-display" style={{ color: '#c8e89a' }}>
             The Rockville Syndicate
           </h2>
-          <p className="text-sm opacity-60" style={{ color: '#8aaa60' }}>
+          <p className="text-sm opacity-60 mb-4" style={{ color: '#8aaa60' }}>
             A playable recollection. Pick where to begin.
           </p>
+          {/* R7: Linear / Free Play toggle */}
+          <div className="inline-flex items-center gap-0 border-2" style={{ background: '#0e1509', borderColor: '#2a3d18' }}>
+            <button
+              onClick={() => localFreePlay && toggleFreePlay()}
+              className="px-4 py-1.5 text-xs font-mono cursor-pointer"
+              style={{
+                background: !localFreePlay ? heroColor : 'transparent',
+                color: !localFreePlay ? '#0c1208' : '#8aaa60',
+                borderRight: '2px solid #2a3d18',
+              }}
+              title="Linear — chapters unlock in order"
+            >
+              LINEAR
+            </button>
+            <button
+              onClick={() => !localFreePlay && toggleFreePlay()}
+              className="px-4 py-1.5 text-xs font-mono cursor-pointer"
+              style={{
+                background: localFreePlay ? heroColor : 'transparent',
+                color: localFreePlay ? '#0c1208' : '#8aaa60',
+              }}
+              title="Free Play — all chapters unlocked"
+            >
+              FREE PLAY
+            </button>
+          </div>
         </div>
 
         <div className="flex flex-col gap-3">
           {CHAPTERS.map(ch => {
             const isDone = completed.includes(ch.id);
-            const unlocked = isChapterUnlocked(ch.id, completed);
+            const unlocked = isChapterUnlocked(ch.id, completed, localFreePlay);
             const theme = ch.map?.theme;
             const themeColor = theme ? THEME_COLOR[theme] : '#2a3d18';
             const themeIcon = theme ? THEME_ICON[theme] : '🗺️';
@@ -63,7 +101,7 @@ export default function ChapterSelect({ heroColor, completed, onPick }: ChapterS
                 key={ch.id}
                 disabled={!unlocked}
                 onClick={() => unlocked && onPick(ch)}
-                className="text-left rounded-2xl border p-5 transition-all duration-200 relative overflow-hidden"
+                className="text-left border p-5 transition-all duration-200 relative overflow-hidden"
                 style={{
                   background: unlocked ? '#142012' : '#0e1509',
                   borderColor: isDone ? heroColor : unlocked ? '#2a3d18' : '#1a2410',
@@ -80,13 +118,13 @@ export default function ChapterSelect({ heroColor, completed, onPick }: ChapterS
               >
                 {/* Theme accent strip */}
                 <div
-                  className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl"
+                  className="absolute left-0 top-0 bottom-0 w-1"
                   style={{ background: unlocked ? themeColor : '#1a2410', opacity: unlocked ? 0.7 : 0.3 }}
                 />
 
                 <div className="flex items-center gap-4">
                   <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 font-mono text-sm font-bold"
+                    className="w-10 h-10 flex items-center justify-center shrink-0 font-mono text-sm font-bold"
                     style={{
                       background: unlocked ? `${heroColor}1a` : '#1a2410',
                       color: unlocked ? heroColor : '#4a5a30',
