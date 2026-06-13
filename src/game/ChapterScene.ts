@@ -402,7 +402,6 @@ export default class ChapterScene extends Phaser.Scene {
   public create() {
     if (!this.playerClass) return;
 
-    this.generatePropsAtlas();
     // Sprint 2: slice the LimeZu furniture sheet into the furniture_atlas (furn_* frames)
     buildFurnitureAtlas(this, 'interiors48');
     // RUN-3: extract + color-key owner asset packs into the pack_atlas
@@ -413,14 +412,21 @@ export default class ChapterScene extends Phaser.Scene {
     const PROP_SHEET_KEYS = [
         'bg_hospital_room',
         'bg_jungle_gym',
-        'bg_cars_01'
+        'bg_cars_01',
+        'prop_nick_f_corolla',
+        'prop_jordan_mustang',
+        'prop_maharko_camero'
     ];
     for (const key of PROP_SHEET_KEYS) {
         if (this.textures.exists(key)) {
+            const isCarProp = key.startsWith('prop_') && (key.includes('corolla') || key.includes('mustang') || key.includes('camero'));
+            const tolerance = isCarProp ? 40 : 30;
             // Apply extraction and cache the aspect ratio of the main subject
-            this.propAspects[key] = extractPropSubject(this, key);
+            this.propAspects[key] = extractPropSubject(this, key, tolerance);
         }
     }
+
+    this.generatePropsAtlas();
 
     const heroIds = ['eric', 'jacob', 'nick_f', 'nick_h', 'jordan', 'maharko'];
     heroIds.forEach(id => {
