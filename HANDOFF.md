@@ -74,6 +74,7 @@ No new heavy deps (no Phaser 4 APIs). `npx tsc --noEmit` + `vite build` must be 
 | R15 — Boss-music polish (crossfade, per-boss loop) | ⚪ P3 | ◻️ TODO |
 | R16 — Nature-pack flora on outdoor maps | ⚪ P3 | ◻️ TODO |
 | R17 — Dialogue polish (typewriter SFX, portrait pop) | ⚪ P3 | ◻️ TODO |
+| R18 — Interactive QA play-through (all 8 chapters) | ⚪ P3 | ◻️ TODO |
 | R19 — Perf / accessibility pass | ⚪ P4 | ◻️ TODO |
 
 ---
@@ -217,6 +218,12 @@ or a dedicated deterministic scatter (see `drawFloorLines` park case for the see
 `DialogueBox.tsx`: optional per-char typewriter "blip" SFX (fits the 8-bit look; reuse a Kenney interface sound via
 the audio layer), and a small portrait pop/scale-in on speaker change. Keep the 22ms/char default; make SFX
 respectful of the mute toggle.
+
+### R18 — Interactive QA play-through ⚪ P3
+Play all 8 chapters end-to-end in a real browser (preview `canvasH=0` blocks full interactive testing — open
+`http://localhost:3000` directly). Verify: R1 props at correct scale, R2 cars, R3 sting→loop timing, R4 NPCs not
+cycling (Ch5 worst case Jordan/Maharko), R5 understudy fills for every hero pick, R6/R9 UI, R10 fonts, R11 house,
+letterbox cleanup after `cameraPan` (Ch2/Ch5), damage numbers, victory jingle. Log results in SCRATCHPAD.
 
 ### R19 — Perf / accessibility ⚪ P4
 Texture atlasing for small props; audio preload strategy; color-blind-safe accent option; text-scale setting for the
