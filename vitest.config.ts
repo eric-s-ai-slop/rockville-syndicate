@@ -1,12 +1,11 @@
-import { defineConfig } from 'vitest/config'
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./vitest.setup.ts'],
-    setupFiles: ['./src/setupTests.ts'],
     globals: true,
+    exclude: ['e2e_tests/**', 'node_modules/**']
   },
   resolve: {
     alias: {
@@ -15,10 +14,3 @@ export default defineConfig({
     }
   }
 });
-import { defineConfig } from 'vitest/config'
-
-export default defineConfig({
-  test: {
-    environment: 'happy-dom',
-  },
-})
