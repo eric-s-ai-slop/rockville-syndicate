@@ -9,6 +9,9 @@ export interface SlicedSpriteSheet {
   idleSideFrames: number[];
   idleBackFrames: number[];
   walkFrames: number[];
+  walkFrontFrames: number[];
+  walkSideFrames: number[];
+  walkBackFrames: number[];
   runFrames: number[];
   attackFrames: number[];
   hurtFrames: number[];
@@ -243,6 +246,9 @@ export function preprocessShowcaseSheet(
   const idleSideFrames: number[] = [];
   const idleBackFrames: number[] = [];
   const walkFrames: number[] = [];
+  const walkFrontFrames: number[] = [];
+  const walkSideFrames: number[] = [];
+  const walkBackFrames: number[] = [];
   const runFrames: number[] = [];
   const attackFrames: number[] = [];
   const hurtFrames: number[] = [];
@@ -339,53 +345,114 @@ export function preprocessShowcaseSheet(
   };
 
   // Map arbitrary rows configurations to finalized rows categories!
-  // Row 0 of sheet -> Idle Front (Final Row 0)
-  rowsData[0]?.forEach((c, idx) => {
-    if (idx < gridColumns) idleFrontFrames.push(drawFrameToGrid(c, 0, idx));
-  });
-  // Reuse Front animations as fallbacks for side/back
-  idleSideFrames.push(...idleFrontFrames);
-  idleBackFrames.push(...idleFrontFrames);
 
-  // Row 1 of sheet -> Walk Cycle (Final Row 3)
-  rowsData[1]?.forEach((c, idx) => {
-    if (idx < gridColumns) walkFrames.push(drawFrameToGrid(c, 3, idx));
-  });
-  runFrames.push(...walkFrames);
+  if (rows.length >= 7) {
+    // Advanced sheet with directional frames
+    // 0: idle front
+    // 1: idle side
+    // 2: idle back
+    // 3: walk front
+    // 4: walk side
+    // 5: walk back
+    // 6: attack
+    // 7: victory/defeat (optional)
 
-  // Row 2 of sheet -> Combat / Attack Cycle (Final Row 5)
-  rowsData[2]?.forEach((c, idx) => {
-    if (idx < gridColumns) {
-      const idxOnGrid = drawFrameToGrid(c, 5, idx);
-      attackFrames.push(idxOnGrid);
-      // Hurt is the first frame of combat stance/attack as standard flinch pose
-      if (idx === 0) {
-        hurtFrames.push(idxOnGrid);
+    rowsData[0]?.forEach((c, idx) => { if (idx < gridColumns) idleFrontFrames.push(drawFrameToGrid(c, 0, idx)); });
+    rowsData[1]?.forEach((c, idx) => { if (idx < gridColumns) idleSideFrames.push(drawFrameToGrid(c, 1, idx)); });
+    rowsData[2]?.forEach((c, idx) => { if (idx < gridColumns) idleBackFrames.push(drawFrameToGrid(c, 2, idx)); });
+
+    rowsData[3]?.forEach((c, idx) => { if (idx < gridColumns) walkFrontFrames.push(drawFrameToGrid(c, 3, idx)); });
+    rowsData[4]?.forEach((c, idx) => { if (idx < gridColumns) walkSideFrames.push(drawFrameToGrid(c, 4, idx)); });
+    rowsData[5]?.forEach((c, idx) => { if (idx < gridColumns) walkBackFrames.push(drawFrameToGrid(c, 5, idx)); });
+
+    walkFrames.push(...walkFrontFrames);
+    runFrames.push(...walkFrames);
+
+    rowsData[6]?.forEach((c, idx) => {
+      if (idx < gridColumns) {
+        const idxOnGrid = drawFrameToGrid(c, 6, idx);
+        attackFrames.push(idxOnGrid);
+        if (idx === 0) hurtFrames.push(idxOnGrid);
       }
+    });
+
+    if (rows.length >= 8 && rowsData[7]) {
+      const half = Math.floor(rowsData[7].length / 2);
+      rowsData[7].forEach((c, idx) => {
+        if (idx < half) {
+          if (idx < gridColumns) victoryFrames.push(drawFrameToGrid(c, 7, idx));
+        } else {
+          const dIdx = idx - half;
+          if (dIdx + 6 < gridColumns) defeatFrames.push(drawFrameToGrid(c, 7, dIdx + 6));
+        }
+      });
+    } else {
+      rowsData[6]?.forEach((c, idx) => {
+        if (idx < gridColumns) {
+          const idxOnGrid = 6 * gridColumns + idx;
+          if (idx < Math.ceil(rowsData[6].length / 2)) {
+            victoryFrames.push(idxOnGrid);
+          } else {
+            defeatFrames.push(idxOnGrid);
+          }
+        }
+      });
     }
-  });
-
-  // If a 4th row exists (Jacob, Nick F) -> Victory / Defeated (Final Row 7)
-  if (rows.length >= 4 && rowsData[3]) {
-    const half = Math.floor(rowsData[3].length / 2);
-    rowsData[3].forEach((c, idx) => {
-      if (idx < half) {
-        if (idx < gridColumns) victoryFrames.push(drawFrameToGrid(c, 7, idx));
-      } else {
-        const dIdx = idx - half;
-        if (dIdx < gridColumns) defeatFrames.push(drawFrameToGrid(c, 7, dIdx + 6));
-      }
-    });
   } else {
-    // 3-row sheets (Eric, Nick H) -> split attack row frames for victory / defeat fallbacks
+    // Standard 3-4 row sheet
+    // Row 0 of sheet -> Idle Front (Final Row 0)
+    rowsData[0]?.forEach((c, idx) => {
+      if (idx < gridColumns) idleFrontFrames.push(drawFrameToGrid(c, 0, idx));
+    });
+    // Reuse Front animations as fallbacks for side/back
+    idleSideFrames.push(...idleFrontFrames);
+    idleBackFrames.push(...idleFrontFrames);
+
+    // Row 1 of sheet -> Walk Cycle (Final Row 3)
+    rowsData[1]?.forEach((c, idx) => {
+      if (idx < gridColumns) walkFrames.push(drawFrameToGrid(c, 3, idx));
+    });
+    walkFrontFrames.push(...walkFrames);
+    walkSideFrames.push(...walkFrames);
+    walkBackFrames.push(...walkFrames);
+    runFrames.push(...walkFrames);
+
+    // Row 2 of sheet -> Combat / Attack Cycle (Final Row 5)
     rowsData[2]?.forEach((c, idx) => {
-      const idxOnGrid = 5 * gridColumns + idx;
-      if (idx < Math.ceil(rowsData[2].length / 2)) {
-        victoryFrames.push(idxOnGrid);
-      } else {
-        defeatFrames.push(idxOnGrid);
+      if (idx < gridColumns) {
+        const idxOnGrid = drawFrameToGrid(c, 5, idx);
+        attackFrames.push(idxOnGrid);
+        // Hurt is the first frame of combat stance/attack as standard flinch pose
+        if (idx === 0) {
+          hurtFrames.push(idxOnGrid);
+        }
       }
     });
+
+    // If a 4th row exists (Jacob, Nick F) -> Victory / Defeated (Final Row 7)
+    if (rows.length >= 4 && rowsData[3]) {
+      const half = Math.floor(rowsData[3].length / 2);
+      rowsData[3].forEach((c, idx) => {
+        if (idx < half) {
+          if (idx < gridColumns) victoryFrames.push(drawFrameToGrid(c, 7, idx));
+        } else {
+          const dIdx = idx - half;
+          if (dIdx + 6 < gridColumns) defeatFrames.push(drawFrameToGrid(c, 7, dIdx + 6));
+        }
+      });
+    } else {
+      // 3-row sheets (Eric, Nick H) -> split attack row frames for victory / defeat fallbacks
+      rowsData[2]?.forEach((c, idx) => {
+        if (idx < gridColumns) {
+          const idxOnGrid = 5 * gridColumns + idx;
+          if (idx < Math.ceil(rowsData[2].length / 2)) {
+            victoryFrames.push(idxOnGrid);
+          } else {
+            defeatFrames.push(idxOnGrid);
+          }
+        }
+      });
+    }
   }
 
   // Double check fallbacks to avoid blank animation arrays crash
@@ -393,6 +460,9 @@ export function preprocessShowcaseSheet(
   if (idleSideFrames.length === 0) idleSideFrames.push(idleFrontFrames[0]);
   if (idleBackFrames.length === 0) idleBackFrames.push(idleFrontFrames[0]);
   if (walkFrames.length === 0) walkFrames.push(idleFrontFrames[0]);
+  if (walkFrontFrames.length === 0) walkFrontFrames.push(walkFrames[0]);
+  if (walkSideFrames.length === 0) walkSideFrames.push(walkFrames[0]);
+  if (walkBackFrames.length === 0) walkBackFrames.push(walkFrames[0]);
   if (runFrames.length === 0) runFrames.push(walkFrames[0]);
   if (attackFrames.length === 0) attackFrames.push(idleFrontFrames[0]);
   if (hurtFrames.length === 0) hurtFrames.push(idleFrontFrames[0]);
@@ -407,6 +477,9 @@ export function preprocessShowcaseSheet(
     idleSideFrames,
     idleBackFrames,
     walkFrames,
+    walkFrontFrames,
+    walkSideFrames,
+    walkBackFrames,
     runFrames,
     attackFrames,
     hurtFrames,

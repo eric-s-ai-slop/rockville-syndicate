@@ -417,8 +417,14 @@ export default class ChapterScene extends Phaser.Scene {
           frameHeight: processed.frameHeight
         });
 
-        this.registerAnim(id, sheetKey, 'idle', processed.idleFrontFrames, 4, -1);
-        this.registerAnim(id, sheetKey, 'walk', processed.walkFrames, 8, -1);
+        this.registerAnim(id, sheetKey, 'idle_front', processed.idleFrontFrames, 4, -1);
+        this.registerAnim(id, sheetKey, 'idle_side', processed.idleSideFrames, 4, -1);
+        this.registerAnim(id, sheetKey, 'idle_back', processed.idleBackFrames, 4, -1);
+        this.registerAnim(id, sheetKey, 'walk_front', processed.walkFrontFrames, 8, -1);
+        this.registerAnim(id, sheetKey, 'walk_side', processed.walkSideFrames, 8, -1);
+        this.registerAnim(id, sheetKey, 'walk_back', processed.walkBackFrames, 8, -1);
+        this.registerAnim(id, sheetKey, 'idle', processed.idleFrontFrames, 4, -1); // Fallback
+        this.registerAnim(id, sheetKey, 'walk', processed.walkFrames, 8, -1); // Fallback
         this.registerAnim(id, sheetKey, 'attack', processed.attackFrames, 12, 0);
         this.registerAnim(id, sheetKey, 'hurt', processed.hurtFrames, 8, 0);
         this.registerAnim(id, sheetKey, 'victory', processed.victoryFrames, 6, -1);
@@ -427,6 +433,12 @@ export default class ChapterScene extends Phaser.Scene {
         console.error(`[GameScene] Spritesheet error for ${id}:`, err);
         const fallbackSource = this.textures.get(rawKey).getSourceImage() as HTMLImageElement;
         this.textures.addSpriteSheet(sheetKey, fallbackSource, { frameWidth: 128, frameHeight: 128 });
+        this.registerAnim(id, sheetKey, 'idle_front', [0], 4, -1);
+        this.registerAnim(id, sheetKey, 'idle_side', [0], 4, -1);
+        this.registerAnim(id, sheetKey, 'idle_back', [0], 4, -1);
+        this.registerAnim(id, sheetKey, 'walk_front', [0], 8, -1);
+        this.registerAnim(id, sheetKey, 'walk_side', [0], 8, -1);
+        this.registerAnim(id, sheetKey, 'walk_back', [0], 8, -1);
         this.registerAnim(id, sheetKey, 'idle', [0], 4, -1);
         this.registerAnim(id, sheetKey, 'walk', [0], 8, -1);
         this.registerAnim(id, sheetKey, 'attack', [0], 12, 0);
@@ -473,8 +485,14 @@ export default class ChapterScene extends Phaser.Scene {
         this.textures.addCanvas(cleanKey, processed.canvas);
         const src = this.textures.get(cleanKey).getSourceImage() as HTMLImageElement;
         this.textures.addSpriteSheet(sheetKey, src, { frameWidth: processed.frameWidth, frameHeight: processed.frameHeight });
-        this.registerAnim(`boss_${bossId}`, sheetKey, 'idle', processed.idleFrontFrames, 4, -1);
-        this.registerAnim(`boss_${bossId}`, sheetKey, 'walk', processed.walkFrames, 6, -1);
+        this.registerAnim(`boss_${bossId}`, sheetKey, 'idle_front', processed.idleFrontFrames, 4, -1);
+        this.registerAnim(`boss_${bossId}`, sheetKey, 'idle_side', processed.idleSideFrames, 4, -1);
+        this.registerAnim(`boss_${bossId}`, sheetKey, 'idle_back', processed.idleBackFrames, 4, -1);
+        this.registerAnim(`boss_${bossId}`, sheetKey, 'walk_front', processed.walkFrontFrames, 6, -1);
+        this.registerAnim(`boss_${bossId}`, sheetKey, 'walk_side', processed.walkSideFrames, 6, -1);
+        this.registerAnim(`boss_${bossId}`, sheetKey, 'walk_back', processed.walkBackFrames, 6, -1);
+        this.registerAnim(`boss_${bossId}`, sheetKey, 'idle', processed.idleFrontFrames, 4, -1); // Fallback
+        this.registerAnim(`boss_${bossId}`, sheetKey, 'walk', processed.walkFrames, 6, -1); // Fallback
         this.registerAnim(`boss_${bossId}`, sheetKey, 'attack', processed.attackFrames, 10, 0);
         this.registerAnim(`boss_${bossId}`, sheetKey, 'hurt', processed.hurtFrames, 8, 0);
         this.registerAnim(`boss_${bossId}`, sheetKey, 'defeat', processed.defeatFrames, 4, 0);
@@ -1197,6 +1215,34 @@ export default class ChapterScene extends Phaser.Scene {
     this.brainrotBar.setAlpha(alpha > 0.3 ? 1 : 0.3);
   }
 
+  private applyDirectionalAnim(sprite: Phaser.GameObjects.Sprite, id: string, vx: number, vy: number, facesLeftByDefault = false) {
+    const moving = vx !== 0 || vy !== 0;
+    let dir: 'front' | 'side' | 'back' = 'front';
+
+    if (moving) {
+      if (Math.abs(vx) >= Math.abs(vy) && vx !== 0) {
+        dir = 'side';
+        // sprites are drawn facing right; flip when moving left (account for per-char default)
+        const movingLeft = vx < 0;
+        sprite.setFlipX(facesLeftByDefault ? !movingLeft : movingLeft);
+      } else {
+        dir = vy > 0 ? 'front' : 'back';   // down = toward camera (front), up = away (back)
+        sprite.setFlipX(false);
+      }
+      // Save last direction in sprite data
+      sprite.setData('lastDir', dir);
+    } else {
+      // Retain last direction if available
+      dir = sprite.getData('lastDir') || 'front';
+    }
+
+    const base = moving ? 'walk_' : 'idle_';
+    const key = `${base}${dir === 'side' ? 'side' : dir}_${id}`;
+    const fallback = `${moving ? 'walk_' : 'idle_'}${id}`;
+    const finalKey = this.anims.exists(key) ? key : fallback;   // graceful fallback to single walk/idle
+    if (sprite.anims.currentAnim?.key !== finalKey) sprite.play(finalKey, true);
+  }
+
   // ─── Update Loop ─────────────────────────────────────────────────────────────
 
   public update(time: number, _delta: number) {
@@ -1235,21 +1281,10 @@ export default class ChapterScene extends Phaser.Scene {
       this.lastMoveAngle = Math.atan2(vy, vx);
     }
 
-    // Face the direction of horizontal travel (sprites are drawn facing right).
-    if (vx < 0) this.player.setFlipX(true);
-    else if (vx > 0) this.player.setFlipX(false);
-
     if (!this.isDashing && !this.isAttackingAnim) {
       this.player.setVelocity(vx, vy);
-      if (vx !== 0 || vy !== 0) {
-        if (this.player.anims.currentAnim?.key !== 'walk_' + this.playerClass.id) {
-          this.player.play('walk_' + this.playerClass.id);
-        }
-      } else {
-        if (this.player.anims.currentAnim?.key !== 'idle_' + this.playerClass.id) {
-          this.player.play('idle_' + this.playerClass.id);
-        }
-      }
+      const facesLeftByDefault = this.playerClass.id === 'nick_f';
+      this.applyDirectionalAnim(this.player, this.playerClass.id, vx, vy, facesLeftByDefault);
     } else if (this.isAttackingAnim) {
       this.player.setVelocity(vx, vy);
     }
@@ -1581,14 +1616,13 @@ export default class ChapterScene extends Phaser.Scene {
       this.chaseSprite.x, this.chaseSprite.y, this.player.x, this.player.y
     );
     const speed = 235; // faster than any hero (max player speed is 250; stays threatening)
-    this.chaseSprite.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
-    this.chaseSprite.setFlipX(Math.cos(angle) < 0);
+    const vx = Math.cos(angle) * speed;
+    const vy = Math.sin(angle) * speed;
+    this.chaseSprite.setVelocity(vx, vy);
     this.chaseSprite.setDepth(this.chaseSprite.y);
 
-    const walkKey = `walk_boss_${this.chasePursuerId}`;
-    if (this.anims.exists(walkKey) && this.chaseSprite.anims.currentAnim?.key !== walkKey) {
-      this.chaseSprite.play(walkKey, true);
-    }
+    const facesLeftByDefault = this.chasePursuerId === 'nick_f';
+    this.applyDirectionalAnim(this.chaseSprite, `boss_${this.chasePursuerId}`, vx, vy, facesLeftByDefault);
 
     if (this.chaseShadow) {
       this.chaseShadow.setPosition(this.chaseSprite.x, this.chaseSprite.y + 28);
@@ -2059,24 +2093,18 @@ export default class ChapterScene extends Phaser.Scene {
 
     const targetAngle = Phaser.Math.Angle.Between(this.spawnedBoss.x, this.spawnedBoss.y, this.player.x, this.player.y);
     const bossSpeed = 80 + this.currentLevelIndex * 15;
-    this.spawnedBoss.setVelocity(Math.cos(targetAngle) * bossSpeed, Math.sin(targetAngle) * bossSpeed);
-    // Face the player horizontally — sprites are drawn facing right; never rotate humanoids.
-    this.spawnedBoss.setFlipX(Math.cos(targetAngle) < 0);
+    const vx = Math.cos(targetAngle) * bossSpeed;
+    const vy = Math.sin(targetAngle) * bossSpeed;
+    this.spawnedBoss.setVelocity(vx, vy);
 
     const bossIdForAnim = this.bossData.id.replace('boss_', '');
-    const moving = Math.abs(this.spawnedBoss.body.velocity.x) > 5 || Math.abs(this.spawnedBoss.body.velocity.y) > 5;
-    const walkKey = `walk_boss_${bossIdForAnim}`;
-    const idleKey = `idle_boss_${bossIdForAnim}`;
     const atkKey = `attack_boss_${bossIdForAnim}`;
 
     const isAttacking = this.spawnedBoss.anims.currentAnim?.key === atkKey && this.spawnedBoss.anims.isPlaying;
 
     if (!isAttacking) {
-      if (moving && this.anims.exists(walkKey)) {
-        if (this.spawnedBoss.anims.currentAnim?.key !== walkKey) this.spawnedBoss.play(walkKey, true);
-      } else if (this.anims.exists(idleKey)) {
-        if (this.spawnedBoss.anims.currentAnim?.key !== idleKey) this.spawnedBoss.play(idleKey, true);
-      }
+      const facesLeftByDefault = bossIdForAnim === 'nick_f';
+      this.applyDirectionalAnim(this.spawnedBoss, `boss_${bossIdForAnim}`, vx, vy, facesLeftByDefault);
     }
 
     if (time - this.lastBossAttackTime > 2000) {
