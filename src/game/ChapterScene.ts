@@ -1555,14 +1555,24 @@ export default class ChapterScene extends Phaser.Scene {
       });
     }
     // R3: play Prowler sting once, then transition to Techno-Tetris loop
+    // Crossfade: sting is 4.127s long. Start crossfade at 3.127s.
     if (this.cache.audio.exists('boss_sting')) {
       try {
         this.bossMusicSting = this.sound.add('boss_sting', { loop: false, volume: 0.72 });
         this.bossMusicSting.play();
-        this.bossMusicSting.once('complete', () => {
-          this.bossMusicSting?.destroy();
-          this.bossMusicSting = null;
-          this.startBossLoop();
+        this.time.delayedCall(3127, () => {
+          if (this.bossMusicSting && this.bossMusicSting.isPlaying) {
+            this.tweens.add({
+              targets: this.bossMusicSting,
+              volume: 0,
+              duration: 1000,
+              onComplete: () => {
+                this.bossMusicSting?.destroy();
+                this.bossMusicSting = null;
+              }
+            });
+          }
+          this.startBossLoop(1000);
         });
       } catch {
         this.startBossLoop(); // sting failed — jump straight to loop
@@ -1572,12 +1582,12 @@ export default class ChapterScene extends Phaser.Scene {
     }
   }
 
-  private startBossLoop() {
+  private startBossLoop(fadeDuration: number = 600) {
     if (!this.cache.audio.exists('boss_loop')) return;
     try {
       this.bossMusic = this.sound.add('boss_loop', { loop: true, volume: 0 });
       this.bossMusic.play();
-      this.tweens.add({ targets: this.bossMusic, volume: 0.62, duration: 600 });
+      this.tweens.add({ targets: this.bossMusic, volume: 0.62, duration: fadeDuration });
     } catch { /* skip */ }
   }
 
