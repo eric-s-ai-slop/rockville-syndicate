@@ -50,6 +50,11 @@ import propJordanMustangUrl from "../assets/images/game_decor/special/cars/jorda
 import propMaharkoCameroUrl from "../assets/images/game_decor/special/cars/maharko's camero.jpg?url";
 import propNickFCorollaUrl from "../assets/images/game_decor/special/cars/nick f's corolla.jpg?url";
 
+import natureFlower1Url from '../assets/images/game_decor/nature/Flower 1/Flower 1 - RED.png?url';
+import natureFlower2Url from '../assets/images/game_decor/nature/Flower 2/Flower 2 - MAGENTA.png?url';
+import natureBush1Url from '../assets/images/game_decor/nature/Bush 1/Bush 1 - GREEN.png?url';
+import natureBush2Url from '../assets/images/game_decor/nature/Bush 1/Bush 1 - WARM GREEN.png?url';
+
 export interface StoryDialoguePayload {
   speakerName: string;
   speakerEmoji: string;
@@ -307,6 +312,13 @@ export default class ChapterScene extends Phaser.Scene {
     this.safeLoadImage('prop_jordan_mustang', propJordanMustangUrl);
     this.safeLoadImage('prop_maharko_camero', propMaharkoCameroUrl);
     this.safeLoadImage('prop_nick_f_corolla', propNickFCorollaUrl);
+
+    // R16: Nature flora
+    this.safeLoadImage('nature_flower_1', natureFlower1Url);
+    this.safeLoadImage('nature_flower_2', natureFlower2Url);
+    this.safeLoadImage('nature_bush_1', natureBush1Url);
+    this.safeLoadImage('nature_bush_2', natureBush2Url);
+
     // Phase E — audio
     this.loadChapterAudio();
   }
@@ -544,6 +556,9 @@ export default class ChapterScene extends Phaser.Scene {
     // Per-theme floor pattern
     this.drawFloorLines(map);
 
+    // R16: Decorate with nature flora
+    this.scatterNature(map);
+
     // Outer boundary walls
     const t = 14;
     this.createWall(map.width / 2, t / 2, map.width, t);
@@ -687,6 +702,60 @@ export default class ChapterScene extends Phaser.Scene {
   }
 
   // ─── Floor / Prop Visuals (Phase B) ──────────────────────────────────────────
+
+  private scatterNature(map: MapConfig) {
+    const theme = (map as any).theme as string | undefined;
+    if (!theme) return;
+
+    const outdoorThemes = ['highway_night', 'park', 'florida', 'cabin', 'suburb_night'];
+    if (!outdoorThemes.includes(theme)) return;
+
+    const W = map.width;
+    const H = map.height;
+
+    let seed = 1337;
+    const rng = () => { seed = (seed * 1664525 + 1013904223) & 0xffffffff; return Math.abs(seed) / 0x7fffffff; };
+
+    const natureKeys = ['nature_flower_1', 'nature_flower_2', 'nature_bush_1', 'nature_bush_2'];
+    // Filter loaded keys just in case
+    const availableKeys = natureKeys.filter(key => this.textures.exists(key));
+    if (availableKeys.length === 0) return;
+
+    const count = theme === 'park' || theme === 'cabin' ? 40 : 15;
+
+    for (let i = 0; i < count; i++) {
+      let x = rng() * W;
+      let y = rng() * H;
+
+      // Theme-specific boundary logic
+      if (theme === 'highway_night' || theme === 'florida') {
+        // Keep to the top and bottom shoulders, avoid the middle road
+        if (y > H * 0.25 && y < H * 0.75) {
+          y = rng() > 0.5 ? y * 0.25 : H - (y * 0.25);
+        }
+      } else if (theme === 'park') {
+        // Avoid the central path (W * 0.3 to W * 0.7)
+        if (x > W * 0.3 && x < W * 0.7) {
+          x = rng() > 0.5 ? x * 0.3 : W - (x * 0.3);
+        }
+      } else if (theme === 'cabin') {
+        // Scatter mostly around the edges
+        if (x > W * 0.2 && x < W * 0.8 && y > H * 0.2 && y < H * 0.8) {
+          if (rng() > 0.5) x = rng() * W * 0.2;
+          else x = W - (rng() * W * 0.2);
+        }
+      } else if (theme === 'suburb_night') {
+        // Similar to highway, avoid middle
+        if (y > H * 0.3 && y < H * 0.7) {
+          y = rng() > 0.5 ? y * 0.3 : H - (y * 0.3);
+        }
+      }
+
+      const key = availableKeys[Math.floor(rng() * availableKeys.length)];
+      // Scatter as decorative non-solid sprites, set depth to Y for correct sorting
+      this.add.image(x, y, key).setDepth(y).setScale(0.8 + rng() * 0.4);
+    }
+  }
 
   private drawFloorLines(map: MapConfig) {
     const W = map.width;
