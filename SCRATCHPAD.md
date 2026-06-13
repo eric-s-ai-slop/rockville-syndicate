@@ -231,3 +231,21 @@ that's intentional.)
 - Teleport shortcut for testing:
   `s = window.__OMEGA_GAME__.scene.getScene('ChapterScene'); s.player.setPosition(s.walkTarget.x, s.walkTarget.y)`
 - Audio assets have spaces/parens in filenames — import via Vite `?url` imports
+
+---
+
+## R18 — INTERACTIVE QA PLAY-THROUGH LOG
+
+| ID | Verification Item | Status | Notes |
+|----|-------------------|--------|-------|
+| 1  | R1 Props | ✅ Verified | Props load at correct scale across levels (Ch3 hospital, Ch4 jungle gym, Ch6 watchwater house). |
+| 2  | R2 Cars | ✅ Verified | Corolla present in Ch2, Mustang & Camaro in Ch5. |
+| 3  | R3 Sting→Loop Timing | ⚠️ Not fully tested via headless script | Script did not test audio playback timing. Needs manual audio QA. |
+| 4  | R4 NPCs Not Cycling | ✅ Verified | Jordan/Maharko in Ch5 are static on idle frame 0. |
+| 5  | R5 Understudy Fills | ✅ Verified | Understudies are present in the map for skipped slots. |
+| 6  | R6/R9 UI | ✅ Verified | Pixel panels are consistently applied across the start screen, chapter select, and dialogue. |
+| 7  | R10 Fonts | ✅ Verified | Yoster Island font applied globally as seen in HTML and screenshots. |
+| 8  | R11 House | ✅ Verified | Ch6 house loads in place of the procedural box. |
+| 9  | Letterbox Cleanup | ✅ Verified | Top and bottom letterboxes correctly fade/destroy after intro sequence. |
+| 10 | Damage Numbers | ⚠️ Not fully tested via headless script | Did not advance far enough into combat to verify damage numbers. |
+| 11 | Victory Jingle | ⚠️ Not fully tested via headless script | Did not complete a boss fight. |
