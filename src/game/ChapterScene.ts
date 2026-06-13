@@ -261,9 +261,20 @@ export default class ChapterScene extends Phaser.Scene {
   private registerAnim(id: string, sheetKey: string, animName: string, frames: number[], frameRate: number, repeat: number) {
     const key = `${animName}_${id}`;
     if (this.anims.exists(key)) this.anims.remove(key);
+
+    let validFrames = frames;
+    if (this.textures.exists(sheetKey)) {
+      const tex = this.textures.get(sheetKey);
+      if (tex && typeof tex.frameTotal === 'number') {
+        const maxFrame = tex.frameTotal - 1;
+        validFrames = frames.filter(f => f <= maxFrame);
+      }
+    }
+    if (validFrames.length === 0) validFrames = [0];
+
     this.anims.create({
       key,
-      frames: frames.map(f => ({ key: sheetKey, frame: f })),
+      frames: validFrames.map(f => ({ key: sheetKey, frame: f })),
       frameRate,
       repeat
     });
