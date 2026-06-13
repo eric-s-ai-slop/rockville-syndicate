@@ -31,30 +31,32 @@ async function startServer() {
     fs.writeFileSync(DB_FILE, JSON.stringify(defaultLeaderboard, null, 2));
   }
 
-  const getLeaderboardData = () => {
+  const getLeaderboardData = async () => {
     try {
-      const content = fs.readFileSync(DB_FILE, "utf-8");
+      const content = await fs.promises.readFile(DB_FILE, "utf-8");
       return JSON.parse(content);
     } catch (e) {
       return defaultLeaderboard;
     }
   };
 
-  const saveLeaderboardData = (data: any[]) => {
-    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
+  const saveLeaderboardData = async (data: any[]) => {
+    await fs.promises.writeFile(DB_FILE, JSON.stringify(data, null, 2));
   };
 
   // REST API Endpoints
 
   // Get Leaderboard (sorted by score descending)
-  app.get("/api/leaderboard", (req, res) => {
-    const data = getLeaderboardData();
+  app.get("/api/leaderboard", async (req, res) => {
+    const data = await getLeaderboardData();
     const sorted = [...data].sort((a, b) => b.score - a.score);
     res.json(sorted);
   });
 
+  let leaderboardUpdatePromise = Promise.resolve();
+
   // Post entry to Leaderboard
-  app.post("/api/leaderboard", (req, res) => {
+  app.post("/api/leaderboard", async (req, res) => {
     const { initials, score, hero } = req.body;
     
     if (!initials || typeof score !== "number" || !hero) {
@@ -62,7 +64,6 @@ async function startServer() {
     }
 
     const cleanInitials = String(initials).toUpperCase().slice(0, 3);
-    const data = getLeaderboardData();
     
     const newEntry = {
       id: Date.now(),
@@ -72,8 +73,20 @@ async function startServer() {
       date: new Date().toISOString().split("T")[0]
     };
 
-    data.push(newEntry);
-    saveLeaderboardData(data);
+    // Serialize updates
+    const updateTask = async () => {
+      const data = await getLeaderboardData();
+      data.push(newEntry);
+      await saveLeaderboardData(data);
+    };
+
+    leaderboardUpdatePromise = leaderboardUpdatePromise
+      .then(updateTask)
+      .catch((err) => {
+        console.error("Failed to update leaderboard:", err);
+      });
+
+    await leaderboardUpdatePromise;
 
     res.json({ success: true, entry: newEntry });
   });
