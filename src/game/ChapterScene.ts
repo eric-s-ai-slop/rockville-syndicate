@@ -1813,7 +1813,7 @@ export default class ChapterScene extends Phaser.Scene {
     try {
       this.stageMusic = this.sound.add(musicKey, { loop: true, volume: 0 });
       this.stageMusic.play();
-      this.tweens.add({ targets: this.stageMusic, volume: 0.48, duration: 1200 });
+      this.tweens.add({ targets: this.stageMusic, volume: 0.30, duration: 1200 });
     } catch { /* Web Audio not ready — play will resume on first canvas interaction */ }
   }
 
@@ -1829,7 +1829,7 @@ export default class ChapterScene extends Phaser.Scene {
     // Crossfade: sting is 4.127s long. Start crossfade at 3.127s.
     if (this.cache.audio.exists('boss_sting')) {
       try {
-        this.bossMusicSting = this.sound.add('boss_sting', { loop: false, volume: 0.72 });
+        this.bossMusicSting = this.sound.add('boss_sting', { loop: false, volume: 0.55 });
         this.bossMusicSting.play();
         this.time.delayedCall(3127, () => {
           if (this.bossMusicSting && this.bossMusicSting.isPlaying) {
@@ -1858,7 +1858,7 @@ export default class ChapterScene extends Phaser.Scene {
     try {
       this.bossMusic = this.sound.add('boss_loop', { loop: true, volume: 0 });
       this.bossMusic.play();
-      this.tweens.add({ targets: this.bossMusic, volume: 0.62, duration: fadeDuration });
+      this.tweens.add({ targets: this.bossMusic, volume: 0.42, duration: fadeDuration });
     } catch { /* skip */ }
   }
 
@@ -1880,7 +1880,7 @@ export default class ChapterScene extends Phaser.Scene {
     if (this.stageMusic) {
       try {
         if (!(this.stageMusic as any).isPlaying) (this.stageMusic as Phaser.Sound.WebAudioSound).resume();
-        this.tweens.add({ targets: this.stageMusic, volume: 0.48, duration: 900 });
+        this.tweens.add({ targets: this.stageMusic, volume: 0.30, duration: 900 });
       } catch { /* skip */ }
     }
   }
