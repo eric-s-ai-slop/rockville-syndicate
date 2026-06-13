@@ -34,6 +34,7 @@ import shardImg from '../assets/images/shard.jpg';
 import { preprocessShowcaseSheet } from './SpritePreprocessor';
 import { extractPropSubject } from './PropExtractor';
 import { buildFurnitureAtlas, furnitureFrame, furnitureAspect, FURNITURE_ATLAS_KEY } from './furnitureCatalog';
+import { buildPackAtlas, packFrame, packSize, PACK_ATLAS_KEY } from './packSpriteAtlas';
 import { ChapterConfig, Beat, ActorPlacement, resolveSpeaker, MapConfig, CHAPTERS } from '../data/chapters';
 import {
   CHAPTER_MUSIC_KEY, STAGE_MUSIC_URL, BOSS_MUSIC_URL, BOSS_LOOP_URL,
@@ -60,6 +61,12 @@ import natureBush2Url from '../assets/images/game_decor/nature/Bush 1/Bush 1 - W
 
 // Sprint 2: LimeZu furniture tilesheet — sliced into the furniture_atlas at runtime.
 import interiors48Url from '../assets/images/game_decor/Interiors_free/48x48/Interiors_free_48x48.png?url';
+
+// RUN-3: owner-added asset-pack JPGs (gray bg, extracted at runtime via packSpriteAtlas)
+import packTollboothUrl from '../assets/images/game_decor/special/toolbooth.jpg?url';
+import packRailUrl from '../assets/images/game_decor/special/rail.jpg?url';
+import packPoolUrl from '../assets/images/game_decor/special/pool.jpg?url';
+import packArcadeUrl from '../assets/images/game_decor/special/arcade cab.jpg?url';
 
 export interface StoryDialoguePayload {
   speakerName: string;
@@ -344,6 +351,12 @@ export default class ChapterScene extends Phaser.Scene {
     // Sprint 2: LimeZu furniture sheet (sliced into furniture_atlas in create())
     this.safeLoadImage('interiors48', interiors48Url);
 
+    // RUN-3: asset-pack JPGs — color-keyed + sliced into pack_atlas in create()
+    this.safeLoadImage('pack_tollbooth', packTollboothUrl);
+    this.safeLoadImage('pack_rail', packRailUrl);
+    this.safeLoadImage('pack_pool', packPoolUrl);
+    this.safeLoadImage('pack_arcade', packArcadeUrl);
+
     // Phase E — audio
     this.loadChapterAudio();
   }
@@ -392,6 +405,8 @@ export default class ChapterScene extends Phaser.Scene {
     this.generatePropsAtlas();
     // Sprint 2: slice the LimeZu furniture sheet into the furniture_atlas (furn_* frames)
     buildFurnitureAtlas(this, 'interiors48');
+    // RUN-3: extract + color-key owner asset packs into the pack_atlas
+    buildPackAtlas(this);
     this.preloadNextChapterAudio();
 
     // Process prop textures to remove backgrounds and cache aspect ratios
@@ -1016,6 +1031,25 @@ export default class ChapterScene extends Phaser.Scene {
     this.propSprites.set(frame, img);
   }
 
+  /**
+   * RUN-3: contain-fit a pack_atlas sprite within (w×h), Y-sorted.
+   * `tallBias` adds to depth so the player can walk behind the base.
+   */
+  private drawPackSprite(x: number, y: number, w: number, h: number, frameName: string, tallBias = 0): boolean {
+    const frame = packFrame(frameName);
+    if (!frame || !this.textures.exists(PACK_ATLAS_KEY)) return false;
+    const nat = packSize(frameName) ?? { w, h };
+    const aspect = nat.w / nat.h;
+    let dw = w, dh = w / aspect;
+    if (dh > h) { dh = h; dw = h * aspect; }
+    const img = this.add.image(x, y, PACK_ATLAS_KEY, frame)
+      .setOrigin(0.5, 0.6)
+      .setDisplaySize(dw, dh)
+      .setDepth(y + tallBias);
+    this.propSprites.set(frame, img);
+    return true;
+  }
+
   private drawPropShape(x: number, y: number, w: number, h: number, fill: number, stroke: number, propType?: string, propKey?: string) {
     let frame: string | null = null;
     let aspectName: string | null = null;
@@ -1190,6 +1224,36 @@ export default class ChapterScene extends Phaser.Scene {
         g.lineStyle(1, stroke, 0.35);
         for (let sx = l + w / 4; sx < l + w; sx += w / 4) {
           g.lineBetween(sx, t + 3, sx, t + h - 3);
+        }
+        break;
+      }
+      case 'firepit': {
+        // Stone ring
+        const fr = Math.min(w, h) * 0.45;
+        g.fillStyle(0x57534e, 1);
+        g.fillCircle(x, y, fr);
+        g.fillStyle(0x292524, 1);
+        g.fillCircle(x, y, fr * 0.65);
+        // Embers glow in the center
+        g.fillStyle(0xff4500, 0.7);
+        g.fillCircle(x, y, fr * 0.3);
+        g.fillStyle(0xffd700, 0.5);
+        g.fillCircle(x, y, fr * 0.12);
+        // Flame particles (capped at 6 particles)
+        if (this.textures.exists('particle_dot')) {
+          const em = this.add.particles(x, y - fr * 0.3, 'particle_dot', {
+            lifespan: 700,
+            speed: { min: 18, max: 36 },
+            angle: { min: 255, max: 285 },
+            scale: { start: 0.35, end: 0 },
+            tint: [0xff4500, 0xff8c00, 0xffd700],
+            quantity: 1,
+            frequency: 130,
+            maxParticles: 0,
+            blendMode: Phaser.BlendModes.ADD,
+          });
+          em.setDepth(y + 2);
+          this.particleEmitters.push(em);
         }
         break;
       }
