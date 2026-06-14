@@ -52,6 +52,12 @@ export default function GameLayout() {
   const [freePlay, setFreePlay] = useState(() => {
     try { return JSON.parse(localStorage.getItem('omega-progress-v1') || '{}')?.freePlay === true; } catch { return false; }
   });
+  const [showControls, setShowControls] = useState(false);
+  const [soundAlert, setSoundAlert] = useState(false);
+  const isMobile = typeof window !== 'undefined' && (
+    /Android|iPhone|iPad|iPod|Mobi/i.test(navigator.userAgent) ||
+    ('ontouchstart' in window && navigator.maxTouchPoints > 1)
+  );
 
   useEffect(() => {
     document.documentElement.classList.toggle('color-blind', colorBlind);
@@ -109,6 +115,7 @@ export default function GameLayout() {
     });
     setTitleCardVisible(true);
     setGameStatus('playing');
+    if (muted) { setSoundAlert(true); setTimeout(() => setSoundAlert(false), 5000); }
     // Fade out card after 2.8s total (0.6 in + 1.6 hold + 0.6 out via CSS)
     setTimeout(() => setTitleCardVisible(false), 2200);
     setTimeout(() => setTitleCard(null), 2900);
@@ -298,6 +305,22 @@ export default function GameLayout() {
     ? (CHARACTER_CLASSES.find(c => c.id === activeChapter.protagonistOverride) ?? selectedHero)
     : selectedHero;
 
+  if (isMobile) {
+    return (
+      <div className="w-full h-screen flex flex-col items-center justify-center p-8 text-center" style={{ background: '#0c1208', fontFamily: 'Yoster, monospace', color: '#e8f5d0' }}>
+        <div className="text-5xl mb-6">⌨️</div>
+        <h1 className="text-2xl font-bold mb-3 font-display" style={{ color: '#c8e89a' }}>Mobile play isn't available yet</h1>
+        <p className="text-sm opacity-70 max-w-xs leading-relaxed" style={{ color: '#8aaa60' }}>
+          Project Omega requires a keyboard to play.<br />
+          Open it on a laptop or desktop to jump in.
+        </p>
+        <div className="mt-8 px-4 py-2 text-xs font-mono opacity-40" style={{ border: '1px solid #2a3d18', color: '#8aaa60' }}>
+          WASD · SPACE · 1–9
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full h-screen flex flex-col overflow-hidden" style={{ background: '#0c1208', fontFamily: 'Yoster, monospace', color: '#e8f5d0' }}>
 
@@ -357,6 +380,13 @@ export default function GameLayout() {
             title={colorBlind ? 'Disable Color-Blind Mode' : 'Enable Color-Blind Mode'}
           >
             {colorBlind ? '👁️' : '🕶️'}
+          </button>
+          <button
+            onClick={() => setShowControls(true)}
+            className="text-base opacity-60 hover:opacity-100 transition-opacity"
+            title="Controls"
+          >
+            ⌨️
           </button>
           <button
             onClick={() => {
@@ -619,6 +649,53 @@ export default function GameLayout() {
         )}
 
       </div>
+
+      {/* Controls modal */}
+      {showControls && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.75)' }}
+          onClick={() => setShowControls(false)}
+        >
+          <div
+            className="p-8 max-w-sm w-full mx-4"
+            style={{ background: '#111c0a', border: '1px solid #2a3d18', color: '#e8f5d0' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">⌨️</span>
+                <span className="font-bold text-sm font-display" style={{ color: '#c8e89a' }}>Controls</span>
+              </div>
+              <button onClick={() => setShowControls(false)} className="opacity-50 hover:opacity-100 transition-opacity text-sm">✕</button>
+            </div>
+            <div className="space-y-3 text-xs font-mono">
+              {[
+                ['WASD / ↑↓←→', 'Move'],
+                ['SPACE / E / ENTER', 'Talk · Advance dialogue'],
+                ['1 – 9', 'Select dialogue choice'],
+                ['ESC', 'Back to chapter select'],
+              ].map(([keys, action]) => (
+                <div key={keys} className="flex items-center justify-between gap-4">
+                  <span className="px-2 py-1 text-[10px] font-mono" style={{ background: '#0c1208', border: '1px solid #2a3d18', color: '#8aaa60', whiteSpace: 'nowrap' }}>{keys}</span>
+                  <span className="opacity-70 text-right" style={{ color: '#8aaa60' }}>{action}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sound-on toast */}
+      {soundAlert && (
+        <div
+          className="omega-fade-up fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2 text-xs font-mono pointer-events-none"
+          style={{ background: '#111c0a', border: '1px solid #2a3d18', color: '#8aaa60' }}
+        >
+          <span>🔇</span>
+          <span>Sound is off — click <strong style={{ color: '#c8e89a' }}>🔊</strong> in the header to unmute</span>
+        </div>
+      )}
     </div>
   );
 }

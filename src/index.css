@@ -84,6 +84,15 @@ body {
   animation: omega-fade-up 0.35s ease-out both;
 }
 
+@keyframes omega-fade-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(6px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.omega-toast {
+  animation: omega-fade-in 0.35s ease-out both;
+}
+
 @keyframes omega-pulse {
   0%, 100% { opacity: 1; }
   50%      { opacity: 0.55; }
