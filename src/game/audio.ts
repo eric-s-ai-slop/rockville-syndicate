@@ -8,6 +8,7 @@ import ch4Url   from '../assets/audio/stage_music/jungle_gym(BorderlineTameImpal
 import ch5Url   from '../assets/audio/stage_music/Jordan_and_maharko_music_for_map (6).mp3?url';
 import ch6Url   from '../assets/audio/stage_music/ben_music(in the hall of the mountian king).mp3?url';
 import ch7Url   from '../assets/audio/stage_music/chapter7PASTEL GHOST  DARK BEACH.mp3?url';
+import ch9Url   from '../assets/audio/stage_music/SUMMER2026_FIRSTPOOLPARTY(Glass Animals - Heat Waves).mp3?url';
 import bossUrl  from '../assets/audio/boss_music/Prowler Sound Effect.mp3?url';
 import bossTetrisUrl from '../assets/audio/boss_music/Techno - Tetris (Remix).mp3?url';
 
@@ -37,6 +38,7 @@ export const CHAPTER_MUSIC_KEY: Record<string, string> = {
   ding_dong_ditch_ben:  'music_ch6',
   spain_betrayal:       'music_ch7',
   cabin_basye:          'music_ch1',  // no ch8 track yet — reuse commons1522
+  suds_and_soles_pool_party: 'music_ch9',
 };
 
 // Phaser audio key → URL, for preloading only this chapter's track
@@ -48,6 +50,7 @@ export const STAGE_MUSIC_URL: Record<string, string> = {
   music_ch5: ch5Url,
   music_ch6: ch6Url,
   music_ch7: ch7Url,
+  music_ch9: ch9Url,
 };
 
 export const BOSS_MUSIC_URL = bossUrl;   // Prowler sting (plays once on boss intro)

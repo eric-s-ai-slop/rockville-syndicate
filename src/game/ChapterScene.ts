@@ -62,6 +62,16 @@ import natureBush2Url from '../assets/images/game_decor/nature/Bush 1/Bush 1 - W
 // Sprint 2: LimeZu furniture tilesheet — sliced into the furniture_atlas at runtime.
 import interiors48Url from '../assets/images/game_decor/Interiors_free/48x48/Interiors_free_48x48.png?url';
 
+// Ch9: Suds & Soles Pool Party character portraits + map
+import ericPoolUrl       from '../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/Eric(pool).jpg?url';
+import nickHPoolUrl      from '../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/Nick_H(Pool).jpg?url';
+import jacobPoolUrl      from '../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/jacob(pool).jpg?url';
+import nickFPoolUrl      from '../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/nick_f(pool).jpg?url';
+import anastasiaPoolUrl  from '../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/anastasia(pool).jpg?url';
+import sophiaPoolUrl     from '../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/sophia(pool).jpg?url';
+import poolMapDayUrl     from '../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/pool_map(day).jpg?url';
+import poolMapNightUrl   from '../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/pool_map(night).jpg?url';
+
 // RUN-3: owner-added asset-pack JPGs (gray bg, extracted at runtime via packSpriteAtlas)
 import packTollboothUrl from '../assets/images/game_decor/special/toolbooth.jpg?url';
 import packRailUrl from '../assets/images/game_decor/special/rail.jpg?url';
@@ -339,6 +349,15 @@ export default class ChapterScene extends Phaser.Scene {
     // R1: watchwater house (Ch6)
     this.safeLoadImage('prop_watchwater', propWatchwaterUrl);
     this.safeLoadImage('prop_watchwater_open', propWatchwaterOpenUrl);
+    // Ch9: Suds & Soles Pool Party (character portraits + map images)
+    this.safeLoadImage('npc_eric_pool',      ericPoolUrl);
+    this.safeLoadImage('npc_nick_h_pool',    nickHPoolUrl);
+    this.safeLoadImage('npc_jacob_pool',     jacobPoolUrl);
+    this.safeLoadImage('npc_nick_f_pool',    nickFPoolUrl);
+    this.safeLoadImage('npc_anastasia_pool', anastasiaPoolUrl);
+    this.safeLoadImage('npc_sophia_pool',    sophiaPoolUrl);
+    this.safeLoadImage('prop_pool_map_day',  poolMapDayUrl);
+    this.safeLoadImage('prop_pool_map_night', poolMapNightUrl);
     // R2: crew cars
     this.safeLoadImage('prop_jordan_mustang', propJordanMustangUrl);
     this.safeLoadImage('prop_maharko_camero', propMaharkoCameroUrl);
