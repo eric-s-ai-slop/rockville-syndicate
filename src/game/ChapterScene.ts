@@ -31,7 +31,7 @@ import bossBenImg from '../assets/images/micheal_bersofsky.jpg';
 import bossNickFImg from '../assets/images/boss_nick_f.jpg';
 import coinImg from '../assets/images/coin.jpg';
 import shardImg from '../assets/images/shard.jpg';
-import { preprocessShowcaseSheet } from './SpritePreprocessor';
+import { preprocessShowcaseSheet, preprocessColumnFirstSheet } from './SpritePreprocessor';
 import { extractPropSubject } from './PropExtractor';
 import { buildFurnitureAtlas, furnitureFrame, furnitureAspect, FURNITURE_ATLAS_KEY } from './furnitureCatalog';
 import { buildPackAtlas, packFrame, packSize, PACK_ATLAS_KEY } from './packSpriteAtlas';
@@ -122,6 +122,7 @@ export default class ChapterScene extends Phaser.Scene {
   private activeHp: number = 100;
   private isAttackingAnim: boolean = false;
   private enemyHitCooldowns = new Map<any, number>();
+  private enemyFlashCooldowns = new Map<any, number>();
 
   // Status effects
   private brainrotLevel: number = 0;
@@ -154,6 +155,7 @@ export default class ChapterScene extends Phaser.Scene {
   // Game state
   private spawnedBoss: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody | null = null;
   private isBossActive: boolean = false;
+  private bossHitFlashing: boolean = false; // throttle — still used to prevent double-shake
   // True while the React QTE modal is open — combat must fully pause (boss AI,
   // auto-fire, AND damage from in-flight delayed attacks).
   private qteActive: boolean = false;
@@ -409,20 +411,24 @@ export default class ChapterScene extends Phaser.Scene {
     this.preloadNextChapterAudio();
 
     // Process prop textures to remove backgrounds and cache aspect ratios
+    // Car props are excluded — they are showcase JPEGs with grid layouts, rendered procedurally
     const PROP_SHEET_KEYS = [
         'bg_hospital_room',
-        'bg_jungle_gym',
         'bg_cars_01',
-        'prop_nick_f_corolla',
-        'prop_jordan_mustang',
-        'prop_maharko_camero'
     ];
     for (const key of PROP_SHEET_KEYS) {
         if (this.textures.exists(key)) {
-            const isCarProp = key.startsWith('prop_') && (key.includes('corolla') || key.includes('mustang') || key.includes('camero'));
-            const tolerance = isCarProp ? 40 : 30;
-            // Apply extraction and cache the aspect ratio of the main subject
-            this.propAspects[key] = extractPropSubject(this, key, tolerance);
+            this.propAspects[key] = extractPropSubject(this, key, 30);
+        }
+    }
+
+    // Car showcase JPEGs: extract the connected sprite near the center and crop to its
+    // bounding box so the full 1408×768 showcase grid isn't shown at map-prop scale.
+    // prop_jungle_gym is also a showcase sheet — crop to the main dome view.
+    const CAR_PROP_KEYS = ['prop_jordan_mustang', 'prop_maharko_camero', 'prop_nick_f_corolla'];
+    for (const key of CAR_PROP_KEYS) {
+        if (this.textures.exists(key)) {
+            this.propAspects[key] = this.extractCropSubject(key);
         }
     }
 
@@ -503,26 +509,26 @@ export default class ChapterScene extends Phaser.Scene {
       }
     });
 
-    // Process boss showcase sheets — same format as heroes
+    // Process boss showcase sheets — column-first format (columns = categories, rows = frames)
     ['eric', 'audrey', 'florida', 'ben', 'nick_f'].forEach(bossId => {
       const rawKey = `boss_${bossId}`;
       const sheetKey = `boss_${bossId}_sheet`;
       if (!this.textures.exists(rawKey) || this.textures.exists(sheetKey)) return;
       try {
         const image = this.textures.get(rawKey).getSourceImage() as HTMLImageElement;
-        const processed = preprocessShowcaseSheet(image, bossId);
+        const processed = preprocessColumnFirstSheet(image, bossId);
         const cleanKey = `boss_${bossId}_clean_canvas`;
         this.textures.addCanvas(cleanKey, processed.canvas);
         const src = this.textures.get(cleanKey).getSourceImage() as HTMLImageElement;
         this.textures.addSpriteSheet(sheetKey, src, { frameWidth: processed.frameWidth, frameHeight: processed.frameHeight });
-        this.registerAnim(`boss_${bossId}`, sheetKey, 'idle_front', processed.idleFrontFrames, 4, -1);
-        this.registerAnim(`boss_${bossId}`, sheetKey, 'idle_side', processed.idleSideFrames, 4, -1);
-        this.registerAnim(`boss_${bossId}`, sheetKey, 'idle_back', processed.idleBackFrames, 4, -1);
-        this.registerAnim(`boss_${bossId}`, sheetKey, 'walk_front', processed.walkFrontFrames, 6, -1);
-        this.registerAnim(`boss_${bossId}`, sheetKey, 'walk_side', processed.walkSideFrames, 6, -1);
-        this.registerAnim(`boss_${bossId}`, sheetKey, 'walk_back', processed.walkBackFrames, 6, -1);
-        this.registerAnim(`boss_${bossId}`, sheetKey, 'idle', processed.idleFrontFrames, 4, -1); // Fallback
-        this.registerAnim(`boss_${bossId}`, sheetKey, 'walk', processed.walkFrames, 6, -1); // Fallback
+        this.registerAnim(`boss_${bossId}`, sheetKey, 'idle_front', processed.idleFrontFrames, 3, -1);
+        this.registerAnim(`boss_${bossId}`, sheetKey, 'idle_side', processed.idleSideFrames, 3, -1);
+        this.registerAnim(`boss_${bossId}`, sheetKey, 'idle_back', processed.idleBackFrames, 3, -1);
+        this.registerAnim(`boss_${bossId}`, sheetKey, 'walk_front', processed.walkFrontFrames, 8, -1);
+        this.registerAnim(`boss_${bossId}`, sheetKey, 'walk_side', processed.walkSideFrames, 8, -1);
+        this.registerAnim(`boss_${bossId}`, sheetKey, 'walk_back', processed.walkBackFrames, 8, -1);
+        this.registerAnim(`boss_${bossId}`, sheetKey, 'idle', processed.idleFrontFrames, 3, -1);
+        this.registerAnim(`boss_${bossId}`, sheetKey, 'walk', processed.walkFrames, 8, -1);
         this.registerAnim(`boss_${bossId}`, sheetKey, 'attack', processed.attackFrames, 10, 0);
         this.registerAnim(`boss_${bossId}`, sheetKey, 'hurt', processed.hurtFrames, 8, 0);
         this.registerAnim(`boss_${bossId}`, sheetKey, 'defeat', processed.defeatFrames, 4, 0);
@@ -950,7 +956,12 @@ export default class ChapterScene extends Phaser.Scene {
         this.propSprites.set(propKey, img);
         return;
       } else if (this.textures.exists(propKey)) {
-        const img = this.add.image(x, y, propKey).setDisplaySize(w, h).setDepth(y);
+        const renderKey = this.textures.exists(propKey + '_crop') ? propKey + '_crop' : propKey;
+        let aspect = this.propAspects[propKey];
+        if (!aspect) aspect = w / h;
+        let dw = w, dh = w / aspect;
+        if (dh > h) { dh = h; dw = h * aspect; }
+        const img = this.add.image(x, y, renderKey).setDisplaySize(dw, dh).setDepth(y);
         this.propSprites.set(propKey, img);
         return;
       }
@@ -1085,6 +1096,11 @@ export default class ChapterScene extends Phaser.Scene {
       return;
     }
 
+    // RUN-3: pack-atlas sprites checked first so propType takes precedence over propKey
+    if (propType === 'junglebox' && this.drawPackSprite(x, y, w, h, 'jungle_gym', 20)) return;
+    if (propType === 'hottub'    && this.drawPackSprite(x, y, w, h, 'hottub', 30)) return;
+    if (propType === 'arcade'    && this.drawPackSprite(x, y, w, h, 'arcade_cabinet', 50)) return;
+
     // R1: sprite override — render a real image if the texture is loaded
     if (propKey) {
       const override = ChapterScene.PROP_DISPLAY[propKey];
@@ -1096,7 +1112,8 @@ export default class ChapterScene extends Phaser.Scene {
         this.propSprites.set(propKey, img);
         return;
       } else if (this.textures.exists(propKey)) {
-        const img = this.add.image(x, y, propKey);
+        const renderKey = this.textures.exists(propKey + '_crop') ? propKey + '_crop' : propKey;
+        const img = this.add.image(x, y, renderKey);
 
         let aspect = this.propAspects[propKey];
         if (!aspect) {
@@ -2420,7 +2437,7 @@ export default class ChapterScene extends Phaser.Scene {
   // ─── Boss Spawn ───────────────────────────────────────────────────────────
 
   private summonBossMatch(bossConfigId?: string, arena?: { x: number; y: number; w: number; h: number }) {
-    if (this.isBossActive && this.spawnedBoss && this.spawnedBoss.active) return;
+    if (this.isBossActive) return;
 
     if (this.spawnedBoss) {
       this.spawnedBoss.destroy();
@@ -2512,8 +2529,6 @@ export default class ChapterScene extends Phaser.Scene {
     if (!this.isBossActive || !this.bossData || !this.spawnedBoss) return;
     this.currentBossHp = Math.max(0, this.currentBossHp - amount);
     this.updateBossHpBar();
-    this.spawnedBoss.setTintFill(0xffffff);
-    this.time.delayedCall(60, () => this.spawnedBoss?.clearTint());
     const dmgVal = Math.round(amount);
     this.showDamageNumber(
       this.spawnedBoss.x + Phaser.Math.Between(-20, 20),
@@ -2521,6 +2536,11 @@ export default class ChapterScene extends Phaser.Scene {
       dmgVal,
       amount >= 30 ? '#facc15' : '#f87171'
     );
+    if (!this.bossHitFlashing && this.spawnedBoss) {
+      this.bossHitFlashing = true;
+      this.spawnedBoss.setTintFill(0xffffff);
+      this.time.delayedCall(80, () => { this.spawnedBoss?.clearTint(); this.bossHitFlashing = false; });
+    }
     if (this.currentBossHp <= 0) this.defeatBossSuccess();
   }
 
@@ -2610,6 +2630,7 @@ export default class ChapterScene extends Phaser.Scene {
     this.spawnedBoss.destroy();
     this.spawnedBoss = null;
     this.isBossActive = false;
+    this.bossHitFlashing = false;
     this.setControlsInverted(false);
     this.isAttackingAnim = false;
     this.stopBossMusic();
@@ -2728,10 +2749,14 @@ export default class ChapterScene extends Phaser.Scene {
     const atkBonus = (this.playerClass.id === 'jacob' && this.subZeroActive) ? 1.5 : 1.0;
     const currHp = (enemy.getData('hp') as number) - Math.floor(this.playerClass.attack * atkBonus);
     enemy.setData('hp', currHp);
-    enemy.setTint(0xffffff);
-    this.time.delayedCall(100, () => {
-      if (enemy.active) enemy.setTint(parseInt((enemy.getData('config') as EnemyConfig).color));
-    });
+    const lastFlash = this.enemyFlashCooldowns.get(enemy) ?? 0;
+    if (this.time.now - lastFlash > 120) {
+      this.enemyFlashCooldowns.set(enemy, this.time.now);
+      enemy.setTint(0xffffff);
+      this.time.delayedCall(100, () => {
+        if (enemy.active) enemy.setTint(parseInt((enemy.getData('config') as EnemyConfig).color));
+      });
+    }
 
     if (currHp <= 0) {
       const config: EnemyConfig = enemy.getData('config');
@@ -2905,7 +2930,7 @@ export default class ChapterScene extends Phaser.Scene {
       hospital:      [0xe8ffff, 0.05],
       park:          [0xffcc60, 0.07],
       florida:       [0xff5000, 0.15],
-      suburb_night:  [0x010408, 0.68],
+      suburb_night:  [0x010408, 0.42],
       cabin:         [0x5a1e00, 0.12],
     };
 
@@ -2916,7 +2941,7 @@ export default class ChapterScene extends Phaser.Scene {
       hospital:      0.22,
       park:          0.22,
       florida:       0.32,
-      suburb_night:  0.80,
+      suburb_night:  0.62,
       cabin:         0.45,
     };
 
@@ -3121,13 +3146,117 @@ export default class ChapterScene extends Phaser.Scene {
 
   // ─── Procedural Textures ──────────────────────────────────────────────────
 
+  /**
+   * BFS-extracts the connected non-background region closest to the image centre,
+   * makes everything else transparent, then crops the canvas to that bounding box.
+   * The texture source is replaced in-place so subsequent add.image() calls show
+   * only the extracted subject at its natural size. Returns subject aspect ratio.
+   */
+  private extractCropSubject(textureKey: string, tolerance = 30): number {
+    if (!this.textures.exists(textureKey)) return 1;
+    const texture = this.textures.get(textureKey);
+    const src = texture.getSourceImage();
+
+    // Draw source onto a canvas we can read pixels from.
+    let canvas: HTMLCanvasElement;
+    if (src instanceof HTMLCanvasElement) {
+      canvas = src;
+    } else if (src instanceof HTMLImageElement) {
+      canvas = document.createElement('canvas');
+      canvas.width = src.naturalWidth || src.width;
+      canvas.height = src.naturalHeight || src.height;
+      canvas.getContext('2d', { willReadFrequently: true })!.drawImage(src, 0, 0);
+    } else {
+      return 1;
+    }
+
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return 1;
+    const W = canvas.width, H = canvas.height;
+    const imgData = ctx.getImageData(0, 0, W, H);
+    const d = imgData.data;
+    const bgR = d[0], bgG = d[1], bgB = d[2];
+
+    const isBg = (x: number, y: number) => {
+      const i = (y * W + x) * 4;
+      if (d[i + 3] === 0) return true;
+      const dr = d[i] - bgR, dg = d[i + 1] - bgG, db = d[i + 2] - bgB;
+      return Math.sqrt(dr * dr + dg * dg + db * db) <= tolerance;
+    };
+
+    // Find seed near centre.
+    const cx = W >> 1, cy = H >> 1;
+    let sx = -1, sy = -1;
+    outer: for (let r = 0; r < Math.min(cx, cy); r += 2) {
+      for (let ddx = -r; ddx <= r; ddx++) {
+        for (let ddy = -r; ddy <= r; ddy++) {
+          if (Math.abs(ddx) === r || Math.abs(ddy) === r) {
+            const px = cx + ddx, py = cy + ddy;
+            if (px >= 0 && px < W && py >= 0 && py < H && !isBg(px, py)) {
+              sx = px; sy = py; break outer;
+            }
+          }
+        }
+      }
+    }
+    if (sx === -1) return W / H;
+
+    // BFS to collect subject pixels and track bounding box.
+    const visited = new Uint8Array(W * H);
+    const queue: [number, number][] = [[sx, sy]];
+    visited[sy * W + sx] = 1;
+    let minX = sx, maxX = sx, minY = sy, maxY = sy;
+    const subject = new Set<number>();
+    subject.add(sy * W + sx);
+    const DX = [-1, 1, 0, 0], DY = [0, 0, -1, 1];
+    while (queue.length) {
+      const [x, y] = queue.shift()!;
+      minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+      minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+      for (let i = 0; i < 4; i++) {
+        const nx = x + DX[i], ny = y + DY[i];
+        if (nx >= 0 && nx < W && ny >= 0 && ny < H) {
+          const idx = ny * W + nx;
+          if (!visited[idx]) {
+            visited[idx] = 1;
+            if (!isBg(nx, ny)) { subject.add(idx); queue.push([nx, ny]); }
+          }
+        }
+      }
+    }
+
+    // Make non-subject pixels transparent.
+    for (let i = 0; i < W * H; i++) {
+      if (!subject.has(i)) d[i * 4 + 3] = 0;
+    }
+    ctx.putImageData(imgData, 0, 0);
+
+    // Crop to bounding box.
+    const cW = maxX - minX + 1, cH = maxY - minY + 1;
+    const crop = document.createElement('canvas');
+    crop.width = cW; crop.height = cH;
+    crop.getContext('2d')!.drawImage(canvas, minX, minY, cW, cH, 0, 0, cW, cH);
+
+    // Register the cropped canvas as a separate Phaser texture. Mutating the
+    // original texture's glTexture in-place nulls Phaser 3.90's GLTexture wrapper
+    // object, causing MultiPipeline.flush to crash with "Cannot read properties of
+    // null (reading 'webGLTexture')". A new key avoids touching the GL state at all.
+    try {
+      const cropKey = textureKey + '_crop';
+      if (this.textures.exists(cropKey)) this.textures.remove(cropKey);
+      this.textures.addCanvas(cropKey, crop);
+    } catch { /* ignore */ }
+    return cW / cH;
+  }
+
   private generatePropsAtlas() {
     if (this.textures.exists('small_props_atlas')) return;
     const propKeys = [
-      'coin_img', 'shard_img', 'prop_hospital_bed', 'prop_iv_drip',
-      'prop_cabinet', 'prop_red_toilet', 'prop_jungle_gym',
-      'prop_watchwater', 'prop_watchwater_open', 'prop_jordan_mustang',
-      'prop_maharko_camero', 'prop_nick_f_corolla'
+      // Only small images that fit in the 1024×1024 atlas.
+      // The 1408×768 showcase sheets (prop_hospital_bed, iv_drip, cabinet, red_toilet, jungle_gym)
+      // are wider than 1024px and corrupt all frame coordinates when packed — excluded.
+      // Cars are also excluded: extracted+cropped in create() and rendered via direct texture.
+      'prop_watchwater', 'prop_watchwater_open'
     ];
     let loadedProps = propKeys.filter(k => this.textures.exists(k));
     if (loadedProps.length === 0) return;

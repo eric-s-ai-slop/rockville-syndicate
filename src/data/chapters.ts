@@ -648,7 +648,7 @@ const chapter4: ChapterConfig = {
       // park ground / clearing
       { x: 420, y: 310, w: 600, h: 400, fill: 0x1a3d1a },
       // jungle gym structure
-      { x: 420, y: 220, w: 140, h: 60, fill: 0x92400e, stroke: 0xd97706, propType: 'junglebox', solid: true, propKey: 'prop_jungle_gym' },
+      { x: 420, y: 220, w: 140, h: 60, fill: 0x92400e, stroke: 0xd97706, propType: 'junglebox', solid: true },
       { x: 340, y: 250, w: 16, h: 80, fill: 0x92400e, solid: true },
       { x: 500, y: 250, w: 16, h: 80, fill: 0x92400e, solid: true },
       { x: 420, y: 290, w: 140, h: 14, fill: 0xb45309, solid: true },
@@ -810,8 +810,8 @@ const chapter5: ChapterConfig = {
       { x: 750, y: 200, w: 80, h: 160, fill: 0x1e3a5f, stroke: 0x3b82f6 },
       { x: 850, y: 180, w: 60, h: 180, fill: 0x1e3a5f, stroke: 0x3b82f6 },
       // guardrails
-      { x: 480, y: 230, w: 960, h: 8, fill: 0x4b5563, stroke: 0x9ca3af, propType: 'guardrail', solid: true },
-      { x: 480, y: 410, w: 960, h: 8, fill: 0x4b5563, stroke: 0x9ca3af, propType: 'guardrail', solid: true },
+      { x: 480, y: 230, w: 960, h: 8, fill: 0x4b5563, stroke: 0x9ca3af, propType: 'guardrail' },
+      { x: 480, y: 410, w: 960, h: 8, fill: 0x4b5563, stroke: 0x9ca3af, propType: 'guardrail' },
     ],
     labels: [
       { x: 480, y: 80, name: 'BOCA RATON, FL', detail: 'Jordan\'s dominion', color: '#22d3ee' },

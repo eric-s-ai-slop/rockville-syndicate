@@ -32,6 +32,8 @@ const PACK_ENTRIES: PackEntry[] = [
   { sheetKey: 'pack_pool', name: 'hottub', sx: 1055, sy: 395, sw: 322, sh: 346, bgR: 195, bgG: 195, bgB: 195 },
   // arcade-cab sheet  (_bg [196,195,193])
   { sheetKey: 'pack_arcade', name: 'arcade_cabinet', sx: 64, sy: 344, sw: 122, sh: 196, bgR: 196, bgG: 195, bgB: 193 },
+  // jungle-gym showcase 1024×1024  (_bg [192,196,199]) — main dome cluster
+  { sheetKey: 'prop_jungle_gym', name: 'jungle_gym', sx: 78, sy: 88, sw: 583, sh: 433, bgR: 192, bgG: 196, bgB: 199 },
 ];
 
 function cropAndKey(
