@@ -976,9 +976,15 @@ export default class ChapterScene extends Phaser.Scene {
       g.strokeRect(x - w / 2 + 8, y - h / 2 + 8, w - 16, h - 16);
       return;
     }
-    // Default non-solid decal (road stripe, floor tile variant, etc.)
-    this.add.rectangle(x, y, w, h, fill, 0.65)
-      .setStrokeStyle(1.5, stroke, 0.5).setDepth(-50);
+    // Prop rects with a propType or propKey get the same rendering pipeline as solid
+    // rects — furniture atlas, PROPTYPE_FURNITURE mapping, or procedural shapes.
+    // Pure structural/fill rects (no propType/propKey) stay as cheap flat decals.
+    if (propType || propKey) {
+      this.drawPropShape(x, y, w, h, fill, stroke, propType, propKey);
+    } else {
+      this.add.rectangle(x, y, w, h, fill, 0.65)
+        .setStrokeStyle(1.5, stroke, 0.5).setDepth(-50);
+    }
   }
 
   // R11: watchwater crop is 668×290 (landscape) — render at natural ratio, not stretched to physics rect.
@@ -1261,6 +1267,46 @@ export default class ChapterScene extends Phaser.Scene {
           em.setDepth(y + 2);
           this.particleEmitters.push(em);
         }
+        break;
+      }
+      case 'hottub': {
+        // Tub shell (outer rect, rounded-feel via two fills)
+        g.fillStyle(0x0369a1, 1);
+        g.fillRect(l, t, w, h);
+        // Water surface (inner, lighter blue)
+        const htPad = Math.min(w, h) * 0.1;
+        g.fillStyle(0x38bdf8, 0.85);
+        g.fillRect(l + htPad, t + htPad, w - htPad * 2, h - htPad * 2);
+        // Bubbles (4 circles)
+        g.fillStyle(0x7dd3fc, 0.6);
+        const htR = Math.min(w, h) * 0.07;
+        [[0.3, 0.35], [0.6, 0.55], [0.45, 0.7], [0.7, 0.3]].forEach(([fx, fy]) => {
+          g.fillCircle(l + w * fx, t + h * fy, htR);
+        });
+        g.lineStyle(2, 0x0284c7, 1);
+        g.strokeRect(l, t, w, h);
+        break;
+      }
+      case 'arcade': {
+        // Cabinet body
+        g.fillStyle(0x1e1b4b, 1);
+        g.fillRect(l, t, w, h);
+        // Screen (top third, green CRT glow)
+        const scrH = h * 0.38, scrPad = w * 0.12;
+        g.fillStyle(0x052e16, 1);
+        g.fillRect(l + scrPad, t + h * 0.08, w - scrPad * 2, scrH);
+        g.fillStyle(0x4ade80, 0.6);
+        g.fillRect(l + scrPad + 2, t + h * 0.08 + 2, w - scrPad * 2 - 4, scrH - 4);
+        // Joystick ball
+        g.fillStyle(0xf43f5e, 1);
+        g.fillCircle(l + w * 0.35, t + h * 0.68, w * 0.1);
+        // Buttons (2)
+        g.fillStyle(0xfbbf24, 1);
+        g.fillCircle(l + w * 0.62, t + h * 0.66, w * 0.07);
+        g.fillStyle(0x60a5fa, 1);
+        g.fillCircle(l + w * 0.78, t + h * 0.72, w * 0.07);
+        g.lineStyle(2, 0x818cf8, 1);
+        g.strokeRect(l, t, w, h);
         break;
       }
       default: {

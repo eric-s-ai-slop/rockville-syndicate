@@ -145,7 +145,7 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
                 style={{
                   background: unlocked ? '#142012' : '#0e1509',
                   borderColor: isSelected || isDone ? heroColor : unlocked ? '#2a3d18' : '#1a2410',
-                  borderLeft: isSelected ? `4px solid ${heroColor}` : undefined,
+                  borderLeftWidth: isSelected ? '4px' : undefined,
                   cursor: unlocked ? 'pointer' : 'not-allowed',
                   opacity: unlocked ? 1 : 0.5,
                   boxShadow: isSelected

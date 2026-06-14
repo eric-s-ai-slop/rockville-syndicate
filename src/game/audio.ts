@@ -95,5 +95,5 @@ export const DIALOG_BLIP_URL = dialogBlipUrl;
 
 // ── KNOCK (TASK-03) ──
 // Light wood rap for the Ch6 door approach, played 3x in quick succession = knocking.
-import knockUrl from '../assets/audio/kenney_impact-sounds/Audio/impactPlank_medium_001.ogg';
+import knockUrl from '../assets/audio/kenney_impact-sounds/Audio/impactPlank_medium_001.ogg?url';
 export const KNOCK_URL = knockUrl;
