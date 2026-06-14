@@ -1,0 +1,16 @@
+node_modules
+dist
+.git
+.gitignore
+*.log
+.env
+.env.*
+!.env.example
+tmp
+test-results
+e2e_tests
+plans
+storyboard
+SCRATCHPAD.md
+HANDOFF.md
+VISUAL_OVERHAUL_PLAN.md

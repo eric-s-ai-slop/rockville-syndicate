@@ -6,9 +6,10 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "${APP_PORT:-3000}:3000"
     environment:
       - NODE_ENV=production
-      - GEMINI_API_KEY=${GEMINI_API_KEY:-MY_GEMINI_API_KEY}
       - APP_URL=${APP_URL:-http://localhost:3000}
+    volumes:
+      - ./db_data:/app/db_data
     restart: always

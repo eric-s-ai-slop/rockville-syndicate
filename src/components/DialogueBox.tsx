@@ -170,14 +170,14 @@ export default function DialogueBox({
           ) : (
             <span key={speakerName} className="portrait-pop" style={{ fontSize: 14, display: 'inline-block' }}>{speakerEmoji}</span>
           )}
-          <span className="font-pixel text-[10px] font-bold" style={{ color: '#0a1006' }}>
+          <span className="font-pixel text-[14px] font-bold" style={{ color: '#0a1006' }}>
             {speakerName}
           </span>
         </div>
 
         {/* Dialogue body */}
         <div className="px-5 pt-2 pb-4">
-          <p className="font-pixel text-[11px] leading-relaxed min-h-[3rem]" style={{ color: '#e8f5d0', imageRendering: 'pixelated' }}>
+          <p className="font-pixel text-[14px] leading-relaxed min-h-[4rem]" style={{ color: '#e8f5d0', imageRendering: 'pixelated' }}>
             {displayedText}
             {!typingDone && (
               <span className="inline-block w-[2px] h-[0.85em] ml-[2px] align-middle" style={{ background: speakerColor, animation: 'omega-pulse 0.7s ease-in-out infinite' }} />
@@ -201,17 +201,17 @@ export default function DialogueBox({
                     e.currentTarget.style.background = '#11200a';
                   }}
                 >
-                  <span className="font-pixel text-[10px] shrink-0 mt-0.5" style={{ color: speakerColor }}>
+                  <span className="font-pixel text-[13px] shrink-0 mt-0.5" style={{ color: speakerColor }}>
                     {idx + 1}.
                   </span>
-                  <span className="font-pixel text-[10px]">{choice.text}</span>
+                  <span className="font-pixel text-[13px]">{choice.text}</span>
                 </button>
               ))}
             </div>
           ) : (
             <div className="flex justify-end mt-2">
               {typingDone && (
-                <span className="pixel-blink font-pixel text-[11px]" style={{ color: speakerColor }}>▼</span>
+                <span className="pixel-blink font-pixel text-[14px]" style={{ color: speakerColor }}>▼</span>
               )}
             </div>
           )}

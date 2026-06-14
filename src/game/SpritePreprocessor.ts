@@ -487,3 +487,243 @@ export function preprocessShowcaseSheet(
     defeatFrames
   };
 }
+
+/**
+ * Preprocesses boss showcase sheets where COLUMNS = animation categories
+ * and ROWS = frames within each category (opposite of hero row-first sheets).
+ *
+ * Column order: Idle Front, Idle Side, Idle Back, Walk, Run, Battle Stance, Attack, Hurt
+ * Bottom region (y > 55%): Victory Pose + Defeated/KO
+ */
+export function preprocessColumnFirstSheet(
+  img: HTMLImageElement,
+  _characterId: string
+): SlicedSpriteSheet {
+  const width = img.naturalWidth || img.width;
+  const height = img.naturalHeight || img.height;
+
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = width;
+  tempCanvas.height = height;
+  const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true })!;
+  tempCtx.drawImage(img, 0, 0);
+
+  const imgData = tempCtx.getImageData(0, 0, width, height);
+  const pixels = imgData.data;
+
+  const bgR = pixels[(10 * width + 10) * 4];
+  const bgG = pixels[(10 * width + 10) * 4 + 1];
+  const bgB = pixels[(10 * width + 10) * 4 + 2];
+
+  const isBackground = (r: number, g: number, b: number, a: number): boolean => {
+    if (a < 50) return true;
+    const dist = Math.sqrt((r - bgR) ** 2 + (g - bgG) ** 2 + (b - bgB) ** 2);
+    return dist < 45;
+  };
+
+  // BFS island detection (same approach as preprocessShowcaseSheet)
+  const visited = new Uint8Array(width * height);
+  const components: SpriteComponent[] = [];
+  const topBuffer = Math.floor(height * 0.04);
+
+  for (let y = topBuffer; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = y * width + x;
+      if (visited[idx]) continue;
+
+      const pIdx = idx * 4;
+      const r = pixels[pIdx], g = pixels[pIdx + 1], b = pixels[pIdx + 2], a = pixels[pIdx + 3];
+
+      if (a < 50 || isBackground(r, g, b, a)) { visited[idx] = 1; continue; }
+
+      let minX = x, maxX = x, minY = y, maxY = y;
+      const queue: [number, number][] = [[x, y]];
+      visited[idx] = 1;
+
+      while (queue.length > 0) {
+        const item = queue.shift();
+        if (!item) continue;
+        const [cx, cy] = item;
+
+        if (cx < minX) minX = cx; if (cx > maxX) maxX = cx;
+        if (cy < minY) minY = cy; if (cy > maxY) maxY = cy;
+
+        for (const [nx, ny] of [[cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]] as [number, number][]) {
+          if (nx >= 0 && nx < width && ny >= topBuffer && ny < height) {
+            const nidx = ny * width + nx;
+            if (!visited[nidx]) {
+              const npIdx = nidx * 4;
+              const na = pixels[npIdx + 3];
+              visited[nidx] = 1;
+              if (na >= 50 && !isBackground(pixels[npIdx], pixels[npIdx + 1], pixels[npIdx + 2], na)) {
+                queue.push([nx, ny]);
+              }
+            }
+          }
+        }
+      }
+
+      const w = maxX - minX + 1;
+      const h = maxY - minY + 1;
+      // Skip text labels near top, very small noise, and excessively wide text bubbles
+      if (minY < height * 0.10 && h < 28) continue;
+      if (w < 12 || h < 18) continue;
+      // Skip the large bottom-left portrait illustration
+      if (w > 120 && minX < width * 0.20 && maxY > height * 0.40) continue;
+      // Skip text-bubble components (wider than tall)
+      if (w > h * 1.8) continue;
+      // Skip bottom caption text (filename labels at very bottom)
+      if (minY > height * 0.82 && h < 22) continue;
+
+      components.push({ minX, minY, maxX, maxY, w, h,
+        cx: Math.floor((minX + maxX) / 2), cy: Math.floor((minY + maxY) / 2) });
+    }
+  }
+
+  // Group components into columns by X-center proximity
+  const colTolerance = 52;
+  components.sort((a, b) => a.minX - b.minX);
+  const columns: SpriteComponent[][] = [];
+  for (const c of components) {
+    let found = false;
+    for (const col of columns) {
+      const colCx = col.reduce((s, m) => s + m.cx, 0) / col.length;
+      if (Math.abs(colCx - c.cx) < colTolerance) {
+        col.push(c);
+        found = true;
+        break;
+      }
+    }
+    if (!found) columns.push([c]);
+  }
+
+  // Sort columns left-to-right; frames within each column top-to-bottom
+  columns.sort((a, b) => {
+    const ax = a.reduce((s, m) => s + m.minX, 0) / a.length;
+    const bx = b.reduce((s, m) => s + m.minX, 0) / b.length;
+    return ax - bx;
+  });
+  columns.forEach(col => col.sort((a, b) => a.minY - b.minY));
+
+  // Separate main-grid columns (sprites in upper 55% of image) from
+  // bottom-section columns (Victory / Defeated which sit lower down)
+  const mainCols: SpriteComponent[][] = [];
+  const bottomCols: SpriteComponent[][] = [];
+  for (const col of columns) {
+    const mainFrames = col.filter(c => c.cy < height * 0.60);
+    const bottomFrames = col.filter(c => c.cy >= height * 0.60);
+    if (mainFrames.length > 0) mainCols.push(mainFrames);
+    if (bottomFrames.length > 0) bottomCols.push(bottomFrames);
+  }
+
+  // Build the standardized 128×128 output grid (same format as preprocessShowcaseSheet)
+  const targetFrameW = 128, targetFrameH = 128, gridColumns = 12;
+  const finalCanvas = document.createElement('canvas');
+  finalCanvas.width = targetFrameW * gridColumns;
+  finalCanvas.height = targetFrameH * 8;
+  const finalCtx = finalCanvas.getContext('2d')!;
+  finalCtx.clearRect(0, 0, finalCanvas.width, finalCanvas.height);
+  finalCtx.imageSmoothingEnabled = false;
+
+  const drawComp = (comp: SpriteComponent, rowIndex: number, colIndex: number): number => {
+    const frameData = tempCtx.getImageData(comp.minX, comp.minY, comp.w, comp.h);
+    const fd = frameData.data;
+
+    // Strip background pixels
+    for (let i = 0; i < fd.length; i += 4) {
+      if (isBackground(fd[i], fd[i + 1], fd[i + 2], fd[i + 3])) fd[i + 3] = 0;
+    }
+
+    const maxBound = 100;
+    let drawW = comp.w, drawH = comp.h;
+    if (drawW > maxBound || drawH > maxBound) {
+      const sc = maxBound / Math.max(drawW, drawH);
+      drawW = Math.floor(drawW * sc);
+      drawH = Math.floor(drawH * sc);
+    }
+
+    const cell = document.createElement('canvas');
+    cell.width = comp.w; cell.height = comp.h;
+    cell.getContext('2d')!.putImageData(frameData, 0, 0);
+
+    const dx = colIndex * targetFrameW + Math.floor((targetFrameW - drawW) / 2);
+    const dy = rowIndex * targetFrameH + (targetFrameH - drawH) - 16;
+    finalCtx.drawImage(cell, 0, 0, comp.w, comp.h, dx, dy, drawW, drawH);
+    return rowIndex * gridColumns + colIndex;
+  };
+
+  const idleFrontFrames: number[] = [];
+  const idleSideFrames: number[] = [];
+  const idleBackFrames: number[] = [];
+  const walkFrames: number[] = [];
+  const walkFrontFrames: number[] = [];
+  const walkSideFrames: number[] = [];
+  const walkBackFrames: number[] = [];
+  const runFrames: number[] = [];
+  const attackFrames: number[] = [];
+  const hurtFrames: number[] = [];
+  const victoryFrames: number[] = [];
+  const defeatFrames: number[] = [];
+
+  // Map main columns to animation categories
+  // Expected column order: Idle Front(0), Idle Side(1), Idle Back(2),
+  //   Walk(3), Run(4), Battle Stance(5), Attack(6), Hurt(7)
+  const colAnimMap: { frames: number[], row: number }[] = [
+    { frames: idleFrontFrames, row: 0 },
+    { frames: idleSideFrames,  row: 1 },
+    { frames: idleBackFrames,  row: 2 },
+    { frames: walkFrontFrames, row: 3 },
+    { frames: walkSideFrames,  row: 4 },
+    { frames: walkBackFrames,  row: 5 },  // battle stance → walk back fallback
+    { frames: attackFrames,    row: 6 },
+    { frames: hurtFrames,      row: 7 },
+  ];
+
+  mainCols.forEach((col, colIdx) => {
+    if (colIdx >= colAnimMap.length) return;
+    const { frames, row } = colAnimMap[colIdx];
+    col.forEach((comp, frameIdx) => {
+      if (frameIdx < gridColumns) frames.push(drawComp(comp, row, frameIdx));
+    });
+  });
+
+  walkFrames.push(...walkFrontFrames);
+  if (walkSideFrames.length === 0) walkSideFrames.push(...walkFrontFrames);
+  if (walkBackFrames.length === 0) walkBackFrames.push(...walkFrontFrames);
+  runFrames.push(...walkFrontFrames);
+
+  // Bottom section: alternate victory / defeat
+  const bottomAll = bottomCols.flatMap(c => c).sort((a, b) => a.minX - b.minX);
+  const half = Math.ceil(bottomAll.length / 2);
+  bottomAll.forEach((comp, idx) => {
+    if (idx < half) {
+      if (idx < gridColumns) victoryFrames.push(drawComp(comp, 7, idx));
+    } else {
+      const di = idx - half;
+      if (di + 6 < gridColumns) defeatFrames.push(drawComp(comp, 7, di + 6));
+    }
+  });
+
+  // Fallbacks
+  if (idleFrontFrames.length === 0) idleFrontFrames.push(0);
+  if (idleSideFrames.length === 0) idleSideFrames.push(idleFrontFrames[0]);
+  if (idleBackFrames.length === 0) idleBackFrames.push(idleFrontFrames[0]);
+  if (walkFrames.length === 0) walkFrames.push(idleFrontFrames[0]);
+  if (walkFrontFrames.length === 0) walkFrontFrames.push(walkFrames[0]);
+  if (walkSideFrames.length === 0) walkSideFrames.push(walkFrames[0]);
+  if (walkBackFrames.length === 0) walkBackFrames.push(walkFrames[0]);
+  if (runFrames.length === 0) runFrames.push(walkFrames[0]);
+  if (attackFrames.length === 0) attackFrames.push(idleFrontFrames[0]);
+  if (hurtFrames.length === 0) hurtFrames.push(idleFrontFrames[0]);
+  if (victoryFrames.length === 0) victoryFrames.push(idleFrontFrames[0]);
+  if (defeatFrames.length === 0) defeatFrames.push(idleFrontFrames[0]);
+
+  return {
+    canvas: finalCanvas,
+    frameWidth: targetFrameW,
+    frameHeight: targetFrameH,
+    idleFrontFrames, idleSideFrames, idleBackFrames,
+    walkFrames, walkFrontFrames, walkSideFrames, walkBackFrames, runFrames,
+    attackFrames, hurtFrames, victoryFrames, defeatFrames,
+  };
+}
