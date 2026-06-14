@@ -373,7 +373,7 @@ const chapter2: ChapterConfig = {
       type: 'dialogue',
       speaker: 'narrator',
       lines: [
-        'August, 2024. Nick F drops "WTM" at 12:47 AM. The move: drive to New York City.',
+        'August, 2025. Nick F drops "WTM" at 12:47 AM. The move: drive to New York City.',
         'Jacob Lebby invests $100 into the venture without asking any questions.',
         'Nick H is in the car. This is already a mistake.',
       ] },
