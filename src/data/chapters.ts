@@ -25,9 +25,6 @@ const EXTRA_SPEAKERS: Speaker[] = [
   { id: 'emily', name: 'Emily (Spain GF)', emoji: '✈️', color: '#f9a8d4' },
   { id: 'caleb', name: 'Caleb Allentuck', emoji: '🫧', color: '#a78bfa' },
   { id: 'vs', name: 'VS', emoji: '⚔️', color: '#ef4444' },
-  { id: 'anastasia', name: 'Anastasia', emoji: '👸', color: '#fbbf24' },
-  { id: 'sophia', name: 'Sophia', emoji: '👩', color: '#f87171' },
-  { id: 'sam_ferretti', name: 'Sam Ferretti', emoji: '🤢', color: '#34d399' },
 ];
 
 export function resolveSpeaker(id: string): Speaker {
@@ -1492,67 +1489,6 @@ const chapter8: ChapterConfig = {
 
 // ─── Registry ────────────────────────────────────────────────────────────────────
 
-
-const chapter9: ChapterConfig = {
-  id: 'suds_and_soles_pool_party',
-  index: 9,
-  title: 'The Suds & Soles Pool Party',
-  subtitle: 'Act VIII — The True Story',
-  location: "Nick F's Pool",
-  description: 'The blockade, the missing Red Bulls, and the 10% scale.',
-  kind: 'chapter',
-  map: {
-    width: 960, height: 640,
-    backdrop: 0x1a2a1a,
-    theme: 'park',
-    areaTitle: 'Pool Party',
-    rects: [
-      { x: 480, y: 320, w: 960, h: 640, fill: C.floorWood, propKey: 'prop_pool_map' }
-    ],
-    labels: [],
-    playerSpawn: { x: 480, y: 500 },
-  },
-  actors: [
-    { id: 'nick_h', x: 300, y: 300 },
-    { id: 'jacob', x: 400, y: 300 },
-    { id: 'nick_f', x: 500, y: 300 },
-    { id: 'anastasia', x: 600, y: 300 },
-    { id: 'sophia', x: 700, y: 300 },
-    { id: 'eric', x: 800, y: 300 }
-  ],
-  beats: [
-    { type: 'dialogue', speaker: 'narrator', lines: ['Saturday, June 13, 2026. The water is a dangerously warm 87 degrees.'] },
-    { type: 'dialogue', speaker: 'nick_f', lines: ['Who has chips? Red Bulls? Ice? Franks? The supply list is severely lacking!'] },
-    { type: 'dialogue', speaker: 'eric', lines: ['I bought 20 lbs of ice to cool this down. And no, I did not bring anyone. I am hoarding my motion.'] },
-    { type: 'dialogue', speaker: 'anastasia', lines: ['I took the initiative. Sophia is here.'] },
-    { type: 'dialogue', speaker: 'jacob', lines: ['The annual Rockville "Suds & Soles" 5K marathon is blocking my street. I cannot leave. I am eating dinner with my grandma instead.'] },
-    { type: 'dialogue', speaker: 'nick_h', lines: ['The boys and girls are here.'] },
-    { type: 'dialogue', speaker: 'jacob', lines: ['Girls? Are they single?'] },
-    { type: 'dialogue', speaker: 'eric', lines: ['Yes.'] },
-    { type: 'dialogue', speaker: 'jacob', lines: ['The streets magically opened up! I am on my way.'] },
-    { type: 'wait', ms: 1000 },
-    { type: 'dialogue', speaker: 'narrator', lines: ['9:00 PM. Jacob arrives.'] },
-    { type: 'dialogue', speaker: 'nick_f', lines: ['Jacob, did you bring the four Peach Red Bulls?'] },
-    { type: 'dialogue', speaker: 'jacob', lines: ['No. I brought my own personal supply of beer. Only for me. And no swim trunks.'] },
-    { type: 'dialogue', speaker: 'nick_f', lines: ['...'] },
-    { type: 'dialogue', speaker: 'narrator', lines: ['Nick F absorbs the psychological damage via [Silent Disappointment].'] },
-    { type: 'wait', ms: 1000 },
-    { type: 'dialogue', speaker: 'narrator', lines: ['The party migrates to the Hot Tub Arena.'] },
-    { type: 'dialogue', speaker: 'sam_ferretti', lines: ['I am not feeling well. I will tactically sit out on the patio.'] },
-    { type: 'dialogue', speaker: 'jacob', lines: ['(Watching Heated Rivalry) I am currently calculating my alignment...'] },
-    { type: 'dialogue', speaker: 'jacob', lines: ['I started at 1%. But right now? I am at 4% gay. But my hard-coded mathematical upper bound is 10%!'] },
-    { type: 'wait', ms: 1000 },
-    { type: 'dialogue', speaker: 'narrator', lines: ['Jacob decides to jump into the main pool.'] },
-    { type: 'dialogue', speaker: 'jacob', lines: ['I will keep my normal shorts and my baseball cap on. It gives me a +50 "Urban" Aura boost.'] },
-    { type: 'dialogue', speaker: 'narrator', lines: ['Jacob plunges into the water. He looks at Anastasia and Sophia for validation.'] },
-    { type: 'dialogue', speaker: 'anastasia', lines: ['...'] },
-    { type: 'dialogue', speaker: 'sophia', lines: ['...'] },
-    { type: 'dialogue', speaker: 'narrator', lines: ['Total Non-Acknowledgment. Jacob takes continuous Phantom Aura damage as his Jestermaxxing yields a flat zero.'] },
-    { type: 'dialogue', speaker: 'eric', lines: ['that party was so tuff.'] },
-    { type: 'endChapter' }
-  ]
-};
-
 export const CHAPTERS: ChapterConfig[] = [
   chapter1,
   chapter2,
@@ -1562,7 +1498,6 @@ export const CHAPTERS: ChapterConfig[] = [
   chapter6,
   chapter7,
   chapter8,
-  chapter9,
 ];
 
 export function getChapter(id: string): ChapterConfig | undefined {

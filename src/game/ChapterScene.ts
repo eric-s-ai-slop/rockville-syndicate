@@ -28,15 +28,6 @@ import bossAudreyImg from '../assets/images/boss_audrey.jpg';
 import bossFloridaImg from '../assets/images/boss_florida.jpg';
 // The boss_ben fight is actually Michael Bersofsky (Ben's dad) — use his sheet.
 import bossBenImg from '../assets/images/micheal_bersofsky.jpg';
-
-import ch9EricImg from '../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/Eric(pool).jpg?url';
-import ch9NickHImg from '../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/Nick_H(Pool).jpg?url';
-import ch9JacobImg from '../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/jacob(pool).jpg?url';
-import ch9NickFImg from '../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/nick_f(pool).jpg?url';
-import ch9AnastasiaImg from '../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/anastasia(pool).jpg?url';
-import ch9SophiaImg from '../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/sophia(pool).jpg?url';
-import poolMapImg from '../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/pool_map.jpg?url';
-
 import bossNickFImg from '../assets/images/boss_nick_f.jpg';
 import coinImg from '../assets/images/coin.jpg';
 import shardImg from '../assets/images/shard.jpg';
@@ -348,15 +339,6 @@ export default class ChapterScene extends Phaser.Scene {
     // R1: watchwater house (Ch6)
     this.safeLoadImage('prop_watchwater', propWatchwaterUrl);
     this.safeLoadImage('prop_watchwater_open', propWatchwaterOpenUrl);
-
-    this.safeLoadImage('hero_eric_pool_jpg', ch9EricImg);
-    this.safeLoadImage('hero_nick_h_pool_jpg', ch9NickHImg);
-    this.safeLoadImage('hero_jacob_pool_jpg', ch9JacobImg);
-    this.safeLoadImage('hero_nick_f_pool_jpg', ch9NickFImg);
-    this.safeLoadImage('hero_anastasia_pool_jpg', ch9AnastasiaImg);
-    this.safeLoadImage('hero_sophia_pool_jpg', ch9SophiaImg);
-    this.safeLoadImage('prop_pool_map', poolMapImg);
-
     // R2: crew cars
     this.safeLoadImage('prop_jordan_mustang', propJordanMustangUrl);
     this.safeLoadImage('prop_maharko_camero', propMaharkoCameroUrl);
@@ -452,17 +434,12 @@ export default class ChapterScene extends Phaser.Scene {
 
     this.generatePropsAtlas();
 
-    const heroIds = ['eric', 'jacob', 'nick_f', 'nick_h', 'jordan', 'maharko', 'anastasia', 'sophia'];
-    const chapterData = this.registry.get('omega_data');
-    const chapterId = chapterData ? chapterData.chapter?.id : null;
+    const heroIds = ['eric', 'jacob', 'nick_f', 'nick_h', 'jordan', 'maharko'];
     heroIds.forEach(id => {
       const sheetKey = `hero_${id}_sheet`;
       if (this.textures.exists(sheetKey)) return;
 
-      let rawKey = this.textures.exists(`hero_${id}_raw_png`) ? `hero_${id}_raw_png` : `hero_${id}_raw_jpg`;
-      if (chapterId === 'suds_and_soles_pool_party' && this.textures.exists(`hero_${id}_pool_jpg`)) {
-        rawKey = `hero_${id}_pool_jpg`;
-      }
+      const rawKey = this.textures.exists(`hero_${id}_raw_png`) ? `hero_${id}_raw_png` : `hero_${id}_raw_jpg`;
 
       try {
         const image = this.textures.get(rawKey).getSourceImage() as HTMLImageElement;
