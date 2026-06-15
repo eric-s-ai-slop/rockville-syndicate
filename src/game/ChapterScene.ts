@@ -9,7 +9,7 @@ import {
   WEAPONS,
   ENEMIES,
   NPC_CHARACTERS
-} from '../data';
+} from '../data/entities';
 import plasmaShieldImg from '../assets/images/plasma_shield_1781235159690.jpg';
 import shieldImg from '../assets/images/shield.jpg';
 import heroEricImg from '../assets/images/hero_eric_1781236098529.jpg';
