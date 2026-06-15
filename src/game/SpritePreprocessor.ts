@@ -198,27 +198,62 @@ export function preprocessShowcaseSheet(
   // Group coordinates into unique horizontal rows
   components.sort((a, b) => a.cy - b.cy);
   const rows: number[] = [];
-  components.forEach(c => {
-    let matchedRow = rows.findIndex(cyValue => Math.abs(cyValue - c.cy) < 55 * sheetScale);
-    if (matchedRow === -1) {
-      rows.push(c.cy);
-      rows.sort((x, y) => x - y);
-    }
-  });
+  const rowsData: SpriteComponent[][] = [];
 
-  // Organize frames by sorted rows
-  const rowsData: SpriteComponent[][] = Array.from({ length: rows.length }, () => []);
-  components.forEach(c => {
-    const rowIdx = rows.findIndex(cyValue => Math.abs(cyValue - c.cy) < 55 * sheetScale);
-    if (rowIdx !== -1) {
-      rowsData[rowIdx].push(c);
+  const tolerance = 55 * sheetScale;
+  let lastMatchedIdx = -1;
+
+  for (let i = 0; i < components.length; i++) {
+    const c = components[i];
+    let matchedIdx = -1;
+
+    if (lastMatchedIdx !== -1 && Math.abs(rows[lastMatchedIdx] - c.cy) < tolerance) {
+      matchedIdx = lastMatchedIdx;
+    } else {
+      let left = 0;
+      let right = rows.length - 1;
+      let searchStart = 0;
+
+      // Find first j where rows[j] > c.cy - tolerance
+      while (left <= right) {
+        const mid = (left + right) >> 1;
+        if (rows[mid] > c.cy - tolerance) {
+          searchStart = mid;
+          right = mid - 1;
+        } else {
+          left = mid + 1;
+        }
+      }
+
+      if (searchStart >= rows.length || rows[searchStart] <= c.cy - tolerance) {
+        searchStart = rows.length;
+      }
+
+      for (let j = searchStart; j < rows.length; j++) {
+        if (Math.abs(rows[j] - c.cy) < tolerance) {
+          matchedIdx = j;
+          break;
+        }
+        if (rows[j] - c.cy >= tolerance) {
+          break;
+        }
+      }
     }
-  });
+
+    if (matchedIdx !== -1) {
+      rowsData[matchedIdx].push(c);
+      lastMatchedIdx = matchedIdx;
+    } else {
+      rows.push(c.cy);
+      rowsData.push([c]);
+      lastMatchedIdx = rows.length - 1;
+    }
+  }
 
   // Sort each row's elements from left to right (X coordinate ascending)
-  rowsData.forEach(row => {
-    row.sort((a, b) => a.minX - b.minX);
-  });
+  for (let i = 0; i < rowsData.length; i++) {
+    rowsData[i].sort((a, b) => a.minX - b.minX);
+  }
 
   // Setup standardized gridsheet
   // Row structure:
