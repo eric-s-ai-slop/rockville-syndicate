@@ -76,6 +76,8 @@ export interface MapRect {
   propKey?: string;
   /** Solid rects become collidable walls/objects. */
   solid?: boolean;
+  /** Solid rects with invisible:true get physics but no visual (background image handles the look). */
+  invisible?: boolean;
   /** @deprecated Legacy label field — ignored by renderer since Phase B. Use propType instead. */
   tag?: string;
 }
@@ -1507,105 +1509,51 @@ const chapter9: ChapterConfig = {
   map: {
     width: 1080,
     height: 760,
-    backdrop: C.grass,
-    theme: 'park',
+    backdrop: 0x0a1a0a,
+    theme: 'pool_party' as any,
     areaTitle: "Nick F's Backyard — June 13, 2026",
 
     rects: [
-      // ── Grass floor ──────────────────────────────────────────────────────────
-      { x: 540, y: 380, w: 1080, h: 760, fill: C.grass },
+      // ── Background: pool map overhead render (night version) ─────────────────
+      { x: 540, y: 380, w: 1080, h: 760, fill: 0x0a1a0a, propKey: 'prop_pool_map_night' },
 
-      // ── Boundary walls ────────────────────────────────────────────────────────
-      { x: 540, y: 16,   w: 1080, h: 32,  fill: 0x3d2210, solid: true },
-      { x: 16,  y: 380,  w: 32,   h: 760, fill: 0x2d1a0e, solid: true },
-      { x: 1064, y: 380, w: 32,   h: 760, fill: 0x2d1a0e, solid: true },
-      { x: 540, y: 744,  w: 1080, h: 32,  fill: 0x2d1a0e, solid: true },
+      // ── Boundary walls (invisible — pool_map fence/tree edge handles the look) ──
+      { x: 540, y: 50,  w: 1080, h: 100, fill: 0x1a3a1a, solid: true, invisible: true },
+      { x: 540, y: 748, w: 1080, h: 24,  fill: 0x1a3a1a, solid: true, invisible: true },
+      { x: 12,  y: 380, w: 24,  h: 760, fill: 0x1a3a1a, solid: true, invisible: true },
+      { x: 1068, y: 380, w: 24, h: 760, fill: 0x1a3a1a, solid: true, invisible: true },
 
-      // ── Pool deck / concrete surround ─────────────────────────────────────────
-      { x: 450, y: 330, w: 410, h: 240, fill: 0x94a3b8 },
+      // ── Pool water collision (oval approximated — center-left of yard) ─────────
+      { x: 352, y: 390, w: 420, h: 185, fill: 0x0891b2, solid: true, invisible: true },
+      { x: 352, y: 308, w: 290, h: 98,  fill: 0x0891b2, solid: true, invisible: true },
+      { x: 352, y: 468, w: 290, h: 92,  fill: 0x0891b2, solid: true, invisible: true },
 
-      // ── Main pool (water) — solid blocks movement ─────────────────────────────
-      { x: 450, y: 330, w: 370, h: 200, fill: 0x0369a1, propType: 'hottub', solid: true },
-      { x: 450, y: 330, w: 340, h: 170, fill: 0x0284c7 },
-      { x: 450, y: 330, w: 310, h: 145, fill: 0x38bdf8 },
+      // ── Hot tub collision (connected right side of pool) ─────────────────────
+      { x: 622, y: 470, w: 120, h: 105, fill: 0x0284c7, solid: true, invisible: true },
 
-      // ── Hot tub (right side) — solid ──────────────────────────────────────────
-      { x: 840, y: 490, w: 130, h: 110, fill: 0x0369a1, propType: 'hottub', solid: true },
-      { x: 840, y: 490, w: 110, h: 90,  fill: 0x0284c7 },
-      { x: 840, y: 490, w: 90,  h: 70,  fill: 0x38bdf8 },
-
-      // ── Projector screen near house wall (for Knicks + Heated Rivalry) ────────
-      { x: 780, y: 96,  w: 180, h: 88,  fill: 0x111827, stroke: 0x475569, propType: 'tv' },
-      { x: 780, y: 152, w: 8,   h: 60,  fill: 0x6b7280 },
-
-      // ── Grill station ─────────────────────────────────────────────────────────
-      { x: 165, y: 460, w: 90,  h: 44,  fill: C.counter, stroke: 0x94a3b8, propType: 'counter', solid: true },
-      { x: 185, y: 436, w: 50,  h: 18,  fill: 0x374151, stroke: 0x6b7280 },
-
-      // ── Cooler / ice chest ────────────────────────────────────────────────────
-      { x: 110, y: 478, w: 54,  h: 40,  fill: 0x1e3a5f, stroke: 0x3b82f6, solid: true },
-
-      // ── Patio table + chairs (left area) ──────────────────────────────────────
-      { x: 215, y: 320, w: 70, h: 54, fill: C.desk, propKey: 'furn_coffee_table' },
-      { x: 148, y: 314, w: 32, h: 36, fill: 0x78350f, propKey: 'furn_chair' },
-      { x: 284, y: 314, w: 32, h: 36, fill: 0x78350f, propKey: 'furn_chair' },
-      { x: 215, y: 278, w: 32, h: 36, fill: 0x78350f, propKey: 'furn_chair' },
-      { x: 215, y: 356, w: 32, h: 36, fill: 0x78350f, propKey: 'furn_chair' },
-
-      // ── Poolside lawn chairs ───────────────────────────────────────────────────
-      { x: 700, y: 480, w: 36, h: 28, fill: 0x78350f, propKey: 'furn_chair' },
-      { x: 745, y: 480, w: 36, h: 28, fill: 0x78350f, propKey: 'furn_chair' },
-
-      // ── Sam Ferretti's spectator throne (far right patio) ─────────────────────
-      { x: 992, y: 515, w: 40, h: 32, fill: 0x6b7280, propKey: 'furn_chair' },
-
-      // ── Red Bull / drinks table (where they should have been) ─────────────────
-      { x: 265, y: 460, w: 44, h: 36, fill: 0x991b1b, stroke: 0xef4444 },
-
-      // ── Trees / shrubs (perimeter) ────────────────────────────────────────────
-      { x: 80,   y: 80,  w: 44, h: 44, fill: 0x14532d, propType: 'tree', solid: true },
-      { x: 180,  y: 80,  w: 44, h: 44, fill: 0x166534, propType: 'tree', solid: true },
-      { x: 80,   y: 180, w: 44, h: 44, fill: 0x14532d, propType: 'tree', solid: true },
-      { x: 960,  y: 80,  w: 44, h: 44, fill: 0x14532d, propType: 'tree', solid: true },
-      { x: 1040, y: 80,  w: 44, h: 44, fill: 0x166534, propType: 'tree', solid: true },
-      { x: 1040, y: 200, w: 44, h: 44, fill: 0x14532d, propType: 'tree', solid: true },
-      { x: 80,   y: 400, w: 44, h: 44, fill: 0x14532d, propType: 'tree', solid: true },
-      { x: 80,   y: 560, w: 44, h: 44, fill: 0x166534, propType: 'tree', solid: true },
-      { x: 80,   y: 650, w: 44, h: 44, fill: 0x14532d, propType: 'tree', solid: true },
-      { x: 1040, y: 360, w: 44, h: 44, fill: 0x14532d, propType: 'tree', solid: true },
-      { x: 1040, y: 540, w: 44, h: 44, fill: 0x166534, propType: 'tree', solid: true },
-      { x: 1040, y: 650, w: 44, h: 44, fill: 0x14532d, propType: 'tree', solid: true },
-      { x: 200,  y: 660, w: 44, h: 44, fill: 0x14532d, propType: 'tree', solid: true },
-      { x: 350,  y: 660, w: 44, h: 44, fill: 0x166534, propType: 'tree', solid: true },
-      { x: 730,  y: 660, w: 44, h: 44, fill: 0x14532d, propType: 'tree', solid: true },
-      { x: 880,  y: 660, w: 44, h: 44, fill: 0x166534, propType: 'tree', solid: true },
-
-      // ── Character portrait rects (pool party edition) ─────────────────────────
-      // Eric — lounge area left of pool (on his phone, motion arbitrage mode)
-      { x: 130, y: 360, w: 58, h: 78, fill: 0x1e3a5f, propKey: 'npc_eric_pool' },
-      // Nick F — manning the grill
-      { x: 155, y: 530, w: 58, h: 78, fill: 0x1e3a5f, propKey: 'npc_nick_f_pool' },
-      // Nick H — hot tub area right side
-      { x: 800, y: 415, w: 58, h: 78, fill: 0x1e3a5f, propKey: 'npc_nick_h_pool' },
-      // Anastasia — next to Nick H at the hot tub
-      { x: 865, y: 388, w: 58, h: 78, fill: 0x1e3a5f, propKey: 'npc_anastasia_pool' },
-      // Sophia — right of Anastasia
-      { x: 942, y: 455, w: 58, h: 78, fill: 0x1e3a5f, propKey: 'npc_sophia_pool' },
-      // Jacob — poolside center (arrived late, still in street clothes)
-      { x: 622, y: 480, w: 58, h: 78, fill: 0x1e3a5f, propKey: 'npc_jacob_pool' },
-
-      // ── Front gate / entrance ─────────────────────────────────────────────────
-      { x: 540, y: 736, w: 80, h: 18, fill: C.door, stroke: 0x92400e, propType: 'door' },
+      // ── Character portrait rects ──────────────────────────────────────────────
+      // Eric — hot tub (with everyone, motion arbitrage observer)
+      { x: 570, y: 470, w: 58, h: 78, fill: 0x1e3a5f, propKey: 'npc_eric_pool' },
+      // Nick F — BBQ grill (left side of yard, feeding everyone)
+      { x: 118, y: 462, w: 58, h: 78, fill: 0x1e3a5f, propKey: 'npc_nick_f_pool' },
+      // Nick H — hot tub area (right of pool)
+      { x: 598, y: 440, w: 58, h: 78, fill: 0x1e3a5f, propKey: 'npc_nick_h_pool' },
+      // Anastasia — hot tub (with Nick H)
+      { x: 650, y: 418, w: 58, h: 78, fill: 0x1e3a5f, propKey: 'npc_anastasia_pool' },
+      // Sophia — hot tub (with Anastasia)
+      { x: 622, y: 498, w: 58, h: 78, fill: 0x1e3a5f, propKey: 'npc_sophia_pool' },
+      // Jacob — lower deck near entrance gate (arrived late, street clothes + cap)
+      { x: 464, y: 654, w: 58, h: 78, fill: 0x1e3a5f, propKey: 'hero_jacob_sheet' },
+      // Sam Ferretti — patio spectator (starts at gate or chairs)
+      { x: 760, y: 680, w: 40, h: 40, fill: 0xffffff, stroke: 0x9ca3af, propKey: 'furn_chair' },
+      { x: 760, y: 680, w: 58, h: 78, fill: 0x1e3a5f, propKey: 'npc_sam_pool' },
     ],
 
     labels: [
-      { x: 450, y: 192, name: 'THE POOL',             detail: "87°F → 67°F after Eric's ice drop",           color: '#38bdf8' },
-      { x: 840, y: 386, name: 'HOT TUB',              detail: 'Projector night — Knicks → Heated Rivalry',   color: '#7dd3fc' },
-      { x: 185, y: 578, name: 'THE GRILL',            detail: "Nick F's domain. Franks saved everyone.",      color: '#fb923c' },
-      { x: 540, y: 714, name: "NICK F'S BACKYARD",   detail: 'June 13, 2026 — The Suds & Soles Pool Party', color: '#c8e89a' },
+      { x: 540, y: 728, name: "NICK F'S BACKYARD", detail: 'June 13, 2026 — The Suds & Soles Pool Party', color: '#c8e89a' },
     ],
 
-    playerSpawn: { x: 540, y: 700 },
+    playerSpawn: { x: 480, y: 645 },
   },
 
   actors: [],
@@ -1632,7 +1580,7 @@ const chapter9: ChapterConfig = {
     },
 
     // ── PLAYER EXPLORES, THEN WALKS TO GRILL ──────────────────────────────────
-    { type: 'walkTo', x: 165, y: 460, radius: 100, markerLabel: '🎉 Join Nick F at the Grill' },
+    { type: 'walkTo', x: 118, y: 462, radius: 95, markerLabel: '🍖 Find Nick F at the Grill' },
 
     // ── ACT I: THE LOGISTICS CRISIS ────────────────────────────────────────────
     {
@@ -1820,12 +1768,13 @@ const chapter9: ChapterConfig = {
         'Nick H\'s girlfriend. In possession of an ability Eric has never encountered before.',
       ]
     },
+    { type: 'cameraPan', x: 650, y: 428, durationMs: 1200, holdMs: 2700 },
     {
       type: 'dialogue',
       speaker: 'anastasia',
       lines: [
         'Hey! We made it! I brought Sophia — hope that\'s okay.',
-        'Oh my god this pool is so cute. How warm is it?',
+        'Oh my god the pool is so clean. Is it warm?',
       ]
     },
     {
@@ -1850,7 +1799,7 @@ const chapter9: ChapterConfig = {
       type: 'dialogue',
       speaker: 'sophia',
       lines: [
-        'Omg this is SO cute back here! Is that a projector?! For the hot tub?!',
+        'Omg the pool is so nice!! Is that a projector?! For the hot tub?!',
         'We are absolutely watching something good in that hot tub later. This is non-negotiable.',
       ]
     },
@@ -1866,9 +1815,9 @@ const chapter9: ChapterConfig = {
       type: 'dialogue',
       speaker: 'sam_ferretti',
       lines: [
-        'Hey guys. I\'m here. I\'m not feeling great, but I\'m not missing this.',
-        'I\'m going to find a comfortable chair and spectate. Do not put me in any hot tub.',
-        'That is my final position. I will watch everything from the patio.',
+        'Hey guys. I\'m here!',
+        'YOOO Whats up!!!',
+        ':D',
       ]
     },
     {
@@ -1899,6 +1848,7 @@ const chapter9: ChapterConfig = {
         'Nick F opens his mental inventory. Jacob had ONE task. One item.',
       ]
     },
+    { type: 'cameraPan', x: 464, y: 654, durationMs: 1400, holdMs: 2200 },
     {
       type: 'dialogue',
       speaker: 'jacob',
@@ -1986,6 +1936,7 @@ const chapter9: ChapterConfig = {
         'The vibes are immaculate.',
       ]
     },
+    { type: 'walkTo', x: 600, y: 445, radius: 100, markerLabel: '🌊 Join the crew at the Hot Tub' },
     {
       type: 'dialogue',
       speaker: 'nick_h',
@@ -2184,6 +2135,7 @@ const chapter9: ChapterConfig = {
         'Now, at last, Jacob looks at the main pool — cooled to 67 degrees by Eric\'s ice drop — and makes a decision.',
       ]
     },
+    { type: 'walkTo', x: 180, y: 490, radius: 90, markerLabel: '🏊 Move to the Pool Edge' },
     {
       type: 'dialogue',
       speaker: 'jacob',
@@ -2220,7 +2172,7 @@ const chapter9: ChapterConfig = {
           reactionLines: [
             'You lack vision. The Urban Aura is about commitment.',
             'If you go all-in with the cap, it says something. Watch.',
-            'Anastasia is going to look over. I can feel it.',
+            'Everyone is going to look over. I can feel it.',
           ]
         },
         {
@@ -2257,7 +2209,7 @@ const chapter9: ChapterConfig = {
       lines: [
         'Jacob Lebby enters the pool.',
         'He is wearing dark street shorts, a t-shirt, socks still on — and his baseball cap.',
-        'He is treading water. He is looking directly at Anastasia and Sophia.',
+        'He is treading water. He is looking directly at hot tub.',
         'He is waiting for acknowledgment.',
       ]
     },

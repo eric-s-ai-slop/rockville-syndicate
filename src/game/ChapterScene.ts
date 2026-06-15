@@ -31,7 +31,7 @@ import bossBenImg from '../assets/images/micheal_bersofsky.jpg';
 import bossNickFImg from '../assets/images/boss_nick_f.jpg';
 import coinImg from '../assets/images/coin.jpg';
 import shardImg from '../assets/images/shard.jpg';
-import { preprocessShowcaseSheet, preprocessColumnFirstSheet } from './SpritePreprocessor';
+import { preprocessShowcaseSheet, preprocessColumnFirstSheet, preprocessFemalePoolSheet } from './SpritePreprocessor';
 import { extractPropSubject } from './PropExtractor';
 import { buildFurnitureAtlas, furnitureFrame, furnitureAspect, FURNITURE_ATLAS_KEY } from './furnitureCatalog';
 import { buildPackAtlas, packFrame, packSize, PACK_ATLAS_KEY } from './packSpriteAtlas';
@@ -69,6 +69,7 @@ import jacobPoolUrl      from '../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/jaco
 import nickFPoolUrl      from '../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/nick_f(pool).jpg?url';
 import anastasiaPoolUrl  from '../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/anastasia(pool).jpg?url';
 import sophiaPoolUrl     from '../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/sophia(pool).jpg?url';
+import samPoolUrl        from '../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/sam_f(pool).jpg?url';
 import poolMapDayUrl     from '../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/pool_map(day).jpg?url';
 import poolMapNightUrl   from '../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/pool_map(night).jpg?url';
 
@@ -202,6 +203,7 @@ export default class ChapterScene extends Phaser.Scene {
 
   // R1: map of propKey → image sprite for runtime texture swaps (e.g. door open)
   private propSprites: Map<string, Phaser.GameObjects.Image> = new Map();
+  private poolNameplates: Map<string, Phaser.GameObjects.Text> = new Map();
 
   // NPC interaction system
   private npcs: Array<{
@@ -210,6 +212,7 @@ export default class ChapterScene extends Phaser.Scene {
     prompt: Phaser.GameObjects.Text;
   }> = [];
   private dialogueOpen: boolean = false;
+  private movementFrozen: boolean = false;
   private eKey!: Phaser.Input.Keyboard.Key;
   private lastMoveAngle: number = 0;
 
@@ -315,6 +318,8 @@ export default class ChapterScene extends Phaser.Scene {
   }
 
   public preload() {
+    // Load all assets in one batch to avoid Phaser's batch-transition stall (default limit is 32)
+    this.load.maxParallelDownloads = 256;
     this.createProceduralTextures();
     this.safeLoadImage('plasma_shield', plasmaShieldImg);
     this.safeLoadImage('shield_raw', shieldImg);
@@ -356,6 +361,7 @@ export default class ChapterScene extends Phaser.Scene {
     this.safeLoadImage('npc_nick_f_pool',    nickFPoolUrl);
     this.safeLoadImage('npc_anastasia_pool', anastasiaPoolUrl);
     this.safeLoadImage('npc_sophia_pool',    sophiaPoolUrl);
+    this.safeLoadImage('npc_sam_pool',       samPoolUrl);
     this.safeLoadImage('prop_pool_map_day',  poolMapDayUrl);
     this.safeLoadImage('prop_pool_map_night', poolMapNightUrl);
     // R2: crew cars
@@ -573,6 +579,45 @@ export default class ChapterScene extends Phaser.Scene {
       }
     });
 
+    // Process pool party character sheets
+    ['eric', 'nick_h', 'jacob', 'nick_f', 'anastasia', 'sophia', 'sam'].forEach(id => {
+      const rawKey = `npc_${id}_pool`;
+      const sheetKey = `npc_${id}_pool_sheet`;
+      if (!this.textures.exists(rawKey) || this.textures.exists(sheetKey)) return;
+      try {
+        const image = this.textures.get(rawKey).getSourceImage() as HTMLImageElement;
+        const processed = (id === 'anastasia' || id === 'sophia')
+          ? preprocessFemalePoolSheet(image, id)
+          : preprocessShowcaseSheet(image, id);
+        const cleanKey = `npc_${id}_pool_clean_canvas`;
+        this.textures.addCanvas(cleanKey, processed.canvas);
+        const src = this.textures.get(cleanKey).getSourceImage() as HTMLImageElement;
+        this.textures.addSpriteSheet(sheetKey, src, {
+          frameWidth: processed.frameWidth,
+          frameHeight: processed.frameHeight
+        });
+
+        const prefix = `npc_${id}_pool`;
+        this.registerAnim(prefix, sheetKey, 'idle_front', processed.idleFrontFrames, 4, -1);
+        this.registerAnim(prefix, sheetKey, 'idle_side', processed.idleSideFrames, 4, -1);
+        this.registerAnim(prefix, sheetKey, 'idle_back', processed.idleBackFrames, 4, -1);
+        this.registerAnim(prefix, sheetKey, 'walk_front', processed.walkFrontFrames, 8, -1);
+        this.registerAnim(prefix, sheetKey, 'walk_side', processed.walkSideFrames, 8, -1);
+        this.registerAnim(prefix, sheetKey, 'walk_back', processed.walkBackFrames, 8, -1);
+        this.registerAnim(prefix, sheetKey, 'idle', processed.idleFrontFrames, 4, -1);
+        this.registerAnim(prefix, sheetKey, 'walk', processed.walkFrames, 8, -1);
+
+        if (processed.submergedIdleFrames) {
+          this.registerAnim(prefix, sheetKey, 'submerged_idle', processed.submergedIdleFrames, 4, -1);
+        }
+        if (processed.submergedSwimFrames) {
+          this.registerAnim(prefix, sheetKey, 'submerged_swim', processed.submergedSwimFrames, 4, -1);
+        }
+      } catch (err) {
+        console.error(`[GameScene] Pool character spritesheet error for ${id}:`, err);
+      }
+    });
+
     // Damage shield: shield.jpg is a showcase sheet -> extract frame 0 as a single clean icon.
     if (this.textures.exists('shield_raw') && !this.textures.exists('shield_fx')) {
       try {
@@ -601,13 +646,19 @@ export default class ChapterScene extends Phaser.Scene {
     this.buildMapFromConfig(map);
     this.buildAtmosphere(map);
 
-    const sheetKey = 'hero_' + this.playerClass.id + '_sheet';
+    const isPoolParty = this.chapter.id === 'suds_and_soles_pool_party';
+    const hasPoolSheet = this.textures.exists(`npc_${this.playerClass.id}_pool_sheet`);
+    const sheetKey = (isPoolParty && hasPoolSheet) ? `npc_${this.playerClass.id}_pool_sheet` : 'hero_' + this.playerClass.id + '_sheet';
     this.player = this.physics.add.sprite(map.playerSpawn.x, map.playerSpawn.y, sheetKey, 0);
     this.player.setScale(0.5);
     this.player.setCircle(22, 42, 45);
     this.player.setCollideWorldBounds(true);
     this.player.setDrag(500, 500);
-    this.player.play('idle_' + this.playerClass.id, true);
+    if (isPoolParty && hasPoolSheet) {
+      this.player.play(`idle_front_npc_${this.playerClass.id}_pool`, true);
+    } else {
+      this.player.play('idle_' + this.playerClass.id, true);
+    }
     this.player.setDepth(this.player.y);
 
     // Shadow under the player — follows in update()
@@ -616,7 +667,8 @@ export default class ChapterScene extends Phaser.Scene {
 
     // Close, cozy camera — see a room / street at a time.
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
-    this.cameras.main.setZoom(2.0);
+    const zoomLevel = this.chapter.id === 'suds_and_soles_pool_party' ? 1.35 : 2.0;
+    this.cameras.main.setZoom(zoomLevel);
 
     this.cursors = this.input.keyboard!.createCursorKeys();
     this.wasdKeys = {
@@ -707,13 +759,67 @@ export default class ChapterScene extends Phaser.Scene {
 
     this.mapCollidables = [];
     map.rects.forEach(r => {
+      if (r.propKey && this.playerClass) {
+        const pId = this.playerClass.id;
+        if (r.propKey === `npc_${pId}_pool` || r.propKey === `hero_${pId}_sheet` || r.propKey === `npc_${pId}`) {
+          return; // Skip duplicating the player!
+        }
+      }
       if (r.solid) {
-        const obj = this.addMapObject(r.x, r.y, r.w, r.h, r.fill, r.stroke ?? r.fill, r.propType, r.propKey);
-        this.mapCollidables.push(obj);
+        if (r.invisible) {
+          const physRect = this.add.rectangle(r.x, r.y, r.w, r.h, r.fill, 0);
+          physRect.setVisible(false);
+          this.physics.add.existing(physRect, true);
+          (physRect.body as Phaser.Physics.Arcade.StaticBody).setSize(r.w, r.h);
+          this.mapCollidables.push(physRect);
+        } else {
+          const obj = this.addMapObject(r.x, r.y, r.w, r.h, r.fill, r.stroke ?? r.fill, r.propType, r.propKey);
+          this.mapCollidables.push(obj);
+        }
       } else {
         this.drawDecorativeRect(r.x, r.y, r.w, r.h, r.fill, r.stroke ?? r.fill, r.propType, r.propKey);
       }
     });
+
+    if (this.chapter.id === 'suds_and_soles_pool_party') {
+      const charConfigs = [
+        { id: 'eric', key: 'npc_eric_pool' },
+        { id: 'nick_f', key: 'npc_nick_f_pool' },
+        { id: 'nick_h', key: 'npc_nick_h_pool' },
+        { id: 'anastasia', key: 'npc_anastasia_pool' },
+        { id: 'sophia', key: 'npc_sophia_pool' },
+        { id: 'jacob', key: 'hero_jacob_sheet' },
+        { id: 'sam_ferretti', key: 'npc_sam_pool' }
+      ];
+
+      this.poolNameplates = new Map();
+
+      const jacob = this.propSprites.get('hero_jacob_sheet');
+      if (jacob) jacob.setVisible(false);
+      const anastasia = this.propSprites.get('npc_anastasia_pool');
+      if (anastasia) anastasia.setVisible(false);
+      const sophia = this.propSprites.get('npc_sophia_pool');
+      if (sophia) sophia.setVisible(false);
+      const sam = this.propSprites.get('npc_sam_pool');
+      if (sam) sam.setVisible(false);
+
+      charConfigs.forEach(cfg => {
+        const sprite = this.propSprites.get(cfg.key);
+        if (sprite) {
+          const speaker = resolveSpeaker(cfg.id);
+          const nameplate = this.label(sprite.x, sprite.y - 38, speaker.name, {
+            fontSize: '12px', color: speaker.color, fontStyle: 'bold',
+            stroke: '#000000', strokeThickness: 4
+          }).setOrigin(0.5).setDepth(sprite.y + 200);
+          
+          this.poolNameplates.set(cfg.key, nameplate);
+
+          if (!sprite.visible) {
+            nameplate.setVisible(false);
+          }
+        }
+      });
+    }
 
     // BotW-style area title toast — no permanent in-world signs
     const areaTitle = map.areaTitle;
@@ -974,14 +1080,27 @@ export default class ChapterScene extends Phaser.Scene {
         const img = this.add.image(x, y, 'small_props_atlas', propKey).setDisplaySize(w, h).setDepth(y);
         this.propSprites.set(propKey, img);
         return;
-      } else if (this.textures.exists(propKey)) {
-        const renderKey = this.textures.exists(propKey + '_crop') ? propKey + '_crop' : propKey;
-        let aspect = this.propAspects[propKey];
-        if (!aspect) aspect = w / h;
-        let dw = w, dh = w / aspect;
-        if (dh > h) { dh = h; dw = h * aspect; }
-        const img = this.add.image(x, y, renderKey).setDisplaySize(dw, dh).setDepth(y);
-        this.propSprites.set(propKey, img);
+      } else if (this.textures.exists(propKey) || this.textures.exists(propKey + '_sheet')) {
+        const hasSheet = this.textures.exists(propKey + '_sheet') || propKey.endsWith('_sheet');
+        const renderKey = hasSheet ? (propKey.endsWith('_sheet') ? propKey : propKey + '_sheet') : (this.textures.exists(propKey + '_crop') ? propKey + '_crop' : propKey);
+        const frame = hasSheet ? 0 : undefined;
+        const img = hasSheet ? this.add.sprite(x, y, renderKey, frame) : this.add.image(x, y, renderKey, frame);
+        if (hasSheet && img instanceof Phaser.GameObjects.Sprite) {
+          const idleKey = `idle_front_${propKey}`;
+          if (this.anims.exists(idleKey)) {
+            img.play(idleKey, true);
+          }
+        }
+        let dw = w, dh = h;
+        if (!propKey.startsWith('prop_pool_map')) {
+          let aspect = this.propAspects[propKey];
+          if (!aspect) aspect = img.width / img.height;
+          dw = w; dh = w / aspect;
+          if (dh > h) { dh = h; dw = h * aspect; }
+        }
+        const depth = propKey.startsWith('prop_pool_map') ? -100 : y;
+        img.setDisplaySize(dw, dh).setDepth(depth);
+        this.propSprites.set(propKey, img as any);
         return;
       }
     }
@@ -1130,25 +1249,36 @@ export default class ChapterScene extends Phaser.Scene {
         const img = this.add.image(x, y, 'small_props_atlas', propKey).setDisplaySize(dw, dh).setDepth(y);
         this.propSprites.set(propKey, img);
         return;
-      } else if (this.textures.exists(propKey)) {
-        const renderKey = this.textures.exists(propKey + '_crop') ? propKey + '_crop' : propKey;
-        const img = this.add.image(x, y, renderKey);
-
-        let aspect = this.propAspects[propKey];
-        if (!aspect) {
-          aspect = img.width / img.height;
+      } else if (this.textures.exists(propKey) || this.textures.exists(propKey + '_sheet')) {
+        const hasSheet = this.textures.exists(propKey + '_sheet') || propKey.endsWith('_sheet');
+        const renderKey = hasSheet ? (propKey.endsWith('_sheet') ? propKey : propKey + '_sheet') : (this.textures.exists(propKey + '_crop') ? propKey + '_crop' : propKey);
+        const frame = hasSheet ? 0 : undefined;
+        const img = hasSheet ? this.add.sprite(x, y, renderKey, frame) : this.add.image(x, y, renderKey, frame);
+        if (hasSheet && img instanceof Phaser.GameObjects.Sprite) {
+          const idleKey = `idle_front_${propKey}`;
+          if (this.anims.exists(idleKey)) {
+            img.play(idleKey, true);
+          }
         }
 
         let displayWidth = dw;
-        let displayHeight = dw / aspect;
+        let displayHeight = dh;
 
-        if (displayHeight > dh) {
-          displayHeight = dh;
-          displayWidth = dh * aspect;
+        if (!propKey.startsWith('prop_pool_map')) {
+          let aspect = this.propAspects[propKey];
+          if (!aspect) {
+            aspect = img.width / img.height;
+          }
+          displayHeight = displayWidth / aspect;
+          if (displayHeight > dh) {
+            displayHeight = dh;
+            displayWidth = dh * aspect;
+          }
         }
 
-        img.setDisplaySize(displayWidth, displayHeight).setDepth(y);
-        this.propSprites.set(propKey, img);
+        const depth = propKey.startsWith('prop_pool_map') ? -100 : y;
+        img.setDisplaySize(displayWidth, displayHeight).setDepth(depth);
+        this.propSprites.set(propKey, img as any);
         return;
       }
     }
@@ -1380,6 +1510,7 @@ export default class ChapterScene extends Phaser.Scene {
     // Invisible static physics body — visual is provided by drawPropShape
     const rect = this.add.rectangle(x, y, w, h, fillColor, 0);
     this.physics.add.existing(rect, true);
+    (rect.body as Phaser.Physics.Arcade.StaticBody).setSize(w, h);
     this.drawPropShape(x, y, w, h, fillColor, strokeColor, propType, propKey);
     return rect;
   }
@@ -1387,6 +1518,7 @@ export default class ChapterScene extends Phaser.Scene {
   private createWall(x: number, y: number, w: number, h: number) {
     const obstacle = this.add.rectangle(x, y, w, h, 0x374151, 0.8).setStrokeStyle(1.5, 0x4b5563, 0.6).setDepth(-5);
     this.physics.add.existing(obstacle, true);
+    (obstacle.body as Phaser.Physics.Arcade.StaticBody).setSize(w, h);
     this.walls.add(obstacle);
   }
 
@@ -1481,11 +1613,29 @@ export default class ChapterScene extends Phaser.Scene {
       dir = sprite.getData('lastDir') || 'front';
     }
 
-    const base = moving ? 'walk_' : 'idle_';
-    const key = `${base}${dir === 'side' ? 'side' : dir}_${id}`;
-    const fallback = `${moving ? 'walk_' : 'idle_'}${id}`;
-    const finalKey = this.anims.exists(key) ? key : fallback;   // graceful fallback to single walk/idle
-    if (sprite.anims.currentAnim?.key !== finalKey) sprite.play(finalKey, true);
+    if (moving) {
+      const base = 'walk_';
+      const key = `${base}${dir === 'side' ? 'side' : dir}_${id}`;
+      const fallback = `walk_${id}`;
+      const finalKey = this.anims.exists(key) ? key : fallback;
+      if (sprite.anims.currentAnim?.key !== finalKey) sprite.play(finalKey, true);
+    } else {
+      sprite.anims.stop();
+      const base = 'idle_';
+      const key = `${base}${dir === 'side' ? 'side' : dir}_${id}`;
+      const fallback = `idle_${id}`;
+      const finalKey = this.anims.exists(key) ? key : fallback;
+      if (this.anims.exists(finalKey)) {
+        const anim = this.anims.get(finalKey);
+        if (anim && anim.frames && anim.frames.length > 0) {
+          sprite.setFrame(anim.frames[0].frame.name);
+        } else {
+          sprite.setFrame(0);
+        }
+      } else {
+        sprite.setFrame(0);
+      }
+    }
   }
 
   // ─── Update Loop ─────────────────────────────────────────────────────────────
@@ -1507,9 +1657,14 @@ export default class ChapterScene extends Phaser.Scene {
     }
 
     // While a story beat owns the screen (dialogue/choice/cutscene), freeze play.
-    if (this.dialogueOpen) {
+    const isPoolParty = this.chapter.id === 'suds_and_soles_pool_party';
+    const hasPoolSheet = this.textures.exists(`npc_${this.playerClass.id}_pool_sheet`);
+    const animId = (isPoolParty && hasPoolSheet) ? `npc_${this.playerClass.id}_pool` : this.playerClass.id;
+
+    if (this.movementFrozen) {
       this.player.setVelocity(0, 0);
       this.wasdKeys.SPACE.reset();
+      this.applyDirectionalAnim(this.player, animId, 0, 0, this.playerClass.id === 'nick_f');
       return;
     }
 
@@ -1529,13 +1684,17 @@ export default class ChapterScene extends Phaser.Scene {
     if (!this.isDashing && !this.isAttackingAnim) {
       this.player.setVelocity(vx, vy);
       const facesLeftByDefault = this.playerClass.id === 'nick_f';
-      this.applyDirectionalAnim(this.player, this.playerClass.id, vx, vy, facesLeftByDefault);
+      this.applyDirectionalAnim(this.player, animId, vx, vy, facesLeftByDefault);
     } else if (this.isAttackingAnim) {
       this.player.setVelocity(vx, vy);
     }
 
-    if (Phaser.Input.Keyboard.JustDown(this.wasdKeys.SPACE)) {
-      this.executeDash(vx, vy);
+    if (this.dialogueOpen) {
+      this.wasdKeys.SPACE.reset();
+    } else {
+      if (Phaser.Input.Keyboard.JustDown(this.wasdKeys.SPACE)) {
+        this.executeDash(vx, vy);
+      }
     }
 
     // Footstep dust puff + sound every 250ms while moving
@@ -1587,6 +1746,7 @@ export default class ChapterScene extends Phaser.Scene {
     this.beatIndex = index;
     this.beatActive = true;
     const beat = this.chapter.beats[index];
+
     switch (beat.type) {
       case 'dialogue': return this.runDialogueBeat(beat);
       case 'choice': return this.runChoiceBeat(beat);
@@ -1613,16 +1773,19 @@ export default class ChapterScene extends Phaser.Scene {
   private freeze() {
     this.dialogueOpen = true;
     this.player.setVelocity(0, 0);
-    this.physics.pause();
   }
 
   private unfreeze() {
     this.dialogueOpen = false;
-    this.physics.resume();
   }
 
   private runDialogueBeat(beat: Extract<Beat, { type: 'dialogue' }>) {
     this.freeze();
+
+    if (this.chapter.id === 'suds_and_soles_pool_party') {
+      this.handlePoolPartyDialogueBeats(beat);
+    }
+
     const s = resolveSpeaker(beat.speaker);
     this.onStoryDialogue(
       {
@@ -1634,8 +1797,76 @@ export default class ChapterScene extends Phaser.Scene {
     );
   }
 
+  private handlePoolPartyDialogueBeats(beat: Extract<Beat, { type: 'dialogue' }>) {
+    const linesJoined = beat.lines.join(' ');
+
+    // 1. Jacob enters the pool
+    if (linesJoined.includes('Jacob Lebby enters the pool.')) {
+      const jacob = this.propSprites.get('hero_jacob_sheet') as Phaser.GameObjects.Sprite | undefined;
+      const jacobName = this.poolNameplates?.get('hero_jacob_sheet');
+      if (jacob) {
+        jacob.setTexture('npc_jacob_pool_sheet');
+        if (jacob.play) {
+          jacob.play('walk_side_npc_jacob_pool', true);
+        }
+        this.tweens.add({
+          targets: jacob,
+          x: 350,
+          y: 390,
+          duration: 2000,
+          onUpdate: () => {
+            jacob.setDepth(jacob.y);
+            if (jacobName) {
+              jacobName.setPosition(jacob.x, jacob.y - 38);
+              jacobName.setDepth(jacob.y + 200);
+            }
+          },
+          onComplete: () => {
+            if (jacob.play) {
+              jacob.play('idle_front_npc_jacob_pool', true);
+            }
+          }
+        });
+      }
+    }
+
+    // 2. Sam Ferretti appears at the gate
+    if (linesJoined.includes('Then: Sam Ferretti appears at the gate.')) {
+      const sam = this.propSprites.get('npc_sam_pool') as Phaser.GameObjects.Sprite | undefined;
+      const samName = this.poolNameplates?.get('npc_sam_pool');
+      if (sam) {
+        sam.setPosition(480, 680).setVisible(true).setDepth(680);
+        if (samName) {
+          samName.setPosition(480, 680 - 38).setVisible(true).setDepth(680 + 200);
+        }
+        if (sam.play) {
+          sam.play('walk_side_npc_sam_pool', true);
+        }
+        this.tweens.add({
+          targets: sam,
+          x: 760,
+          y: 680,
+          duration: 2500,
+          onUpdate: () => {
+            sam.setDepth(sam.y);
+            if (samName) {
+              samName.setPosition(sam.x, sam.y - 38);
+              samName.setDepth(sam.y + 200);
+            }
+          },
+          onComplete: () => {
+            if (sam.play) {
+              sam.play('idle_front_npc_sam_pool', true);
+            }
+          }
+        });
+      }
+    }
+  }
+
   private runChoiceBeat(beat: Extract<Beat, { type: 'choice' }>) {
     this.freeze();
+    this.movementFrozen = true;
     const s = resolveSpeaker(beat.speaker);
     this.onStoryDialogue(
       {
@@ -1645,6 +1876,7 @@ export default class ChapterScene extends Phaser.Scene {
         choices: beat.options.map(o => ({ text: o.text })),
       },
       (choiceIndex?: number) => {
+        this.movementFrozen = false;
         const opt = beat.options[choiceIndex ?? 0];
         if (opt.ledgerDelta) this.applyLedger(opt.ledgerDelta, opt.text);
         const proceed = () => {
@@ -1697,17 +1929,133 @@ export default class ChapterScene extends Phaser.Scene {
 
   private runCameraPanBeat(beat: Extract<Beat, { type: 'cameraPan' }>) {
     this.freeze();
+    this.movementFrozen = true;
     this.showLetterbox();
     const cam = this.cameras.main;
     cam.stopFollow();
     cam.pan(beat.x, beat.y, beat.durationMs, 'Sine.easeInOut', true);
+
+    if (this.chapter.id === 'suds_and_soles_pool_party') {
+      this.handlePoolPartyPanBeats(beat);
+    }
+
     // Use delayedCall for timing guarantee — pan callback p===1 is unreliable at short distances.
     this.time.delayedCall(beat.durationMs + (beat.holdMs ?? 600), () => {
       this.hideLetterbox();
       cam.startFollow(this.player, true, 0.1, 0.1);
+      this.movementFrozen = false;
       this.unfreeze();
       this.advanceBeat();
     });
+  }
+
+  private handlePoolPartyPanBeats(beat: Extract<Beat, { type: 'cameraPan' }>) {
+    // 1. Anastasia & Sophia arrival pan (x: 650, y: 428)
+    if (beat.x === 650 && beat.y === 428) {
+      const anastasia = this.propSprites.get('npc_anastasia_pool') as Phaser.GameObjects.Sprite | undefined;
+      const sophia = this.propSprites.get('npc_sophia_pool') as Phaser.GameObjects.Sprite | undefined;
+      const anastasiaName = this.poolNameplates?.get('npc_anastasia_pool');
+      const sophiaName = this.poolNameplates?.get('npc_sophia_pool');
+
+      if (anastasia && sophia) {
+        anastasia.setVisible(false);
+        sophia.setVisible(false);
+        if (anastasiaName) anastasiaName.setVisible(false);
+        if (sophiaName) sophiaName.setVisible(false);
+
+        // Spawn + walk when camera reaches the hot tub (exactly at 1200ms)
+        this.time.delayedCall(1200, () => {
+          anastasia.setPosition(480, 650).setVisible(true).setDepth(650);
+          sophia.setPosition(450, 660).setVisible(true).setDepth(660);
+          if (anastasiaName) anastasiaName.setPosition(480, 650 - 38).setVisible(true).setDepth(650 + 200);
+          if (sophiaName) sophiaName.setPosition(450, 660 - 38).setVisible(true).setDepth(660 + 200);
+
+          if (anastasia.play) {
+            anastasia.play('walk_side_npc_anastasia_pool', true);
+          }
+          if (sophia.play) {
+            sophia.play('walk_side_npc_sophia_pool', true);
+          }
+
+          this.tweens.add({
+            targets: anastasia,
+            x: 650,
+            y: 418,
+            duration: 2500,
+            onUpdate: () => {
+              anastasia.setDepth(anastasia.y);
+              if (anastasiaName) {
+                anastasiaName.setPosition(anastasia.x, anastasia.y - 38);
+                anastasiaName.setDepth(anastasia.y + 200);
+              }
+            },
+            onComplete: () => {
+              if (anastasia.play) {
+                anastasia.play('submerged_idle_npc_anastasia_pool', true);
+              }
+            }
+          });
+
+          this.tweens.add({
+            targets: sophia,
+            x: 622,
+            y: 498,
+            duration: 2500,
+            onUpdate: () => {
+              sophia.setDepth(sophia.y);
+              if (sophiaName) {
+                sophiaName.setPosition(sophia.x, sophia.y - 38);
+                sophiaName.setDepth(sophia.y + 200);
+              }
+            },
+            onComplete: () => {
+              if (sophia.play) {
+                sophia.play('submerged_idle_npc_sophia_pool', true);
+              }
+            }
+          });
+        });
+      }
+    }
+
+    // 2. Jacob arrival pan (x: 464, y: 654)
+    if (beat.x === 464 && beat.y === 654) {
+      const jacob = this.propSprites.get('hero_jacob_sheet') as Phaser.GameObjects.Sprite | undefined;
+      const jacobName = this.poolNameplates?.get('hero_jacob_sheet');
+
+      if (jacob) {
+        jacob.setVisible(false);
+        if (jacobName) jacobName.setVisible(false);
+
+        // Spawn + walk when camera reaches the gate (exactly at 1400ms)
+        this.time.delayedCall(1400, () => {
+          jacob.setPosition(464, 654).setVisible(true).setDepth(654);
+          if (jacobName) jacobName.setPosition(464, 654 - 38).setVisible(true).setDepth(654 + 200);
+
+          if (jacob.play) {
+            jacob.play('walk_back_jacob', true);
+          }
+
+          this.tweens.add({
+            targets: jacob,
+            y: 520,
+            duration: 2000,
+            onUpdate: () => {
+              jacob.setDepth(jacob.y);
+              if (jacobName) {
+                jacobName.setPosition(jacob.x, jacob.y - 38);
+                jacobName.setDepth(jacob.y + 200);
+              }
+            },
+            onComplete: () => {
+              if (jacob.play) {
+                jacob.play('idle_front_jacob', true);
+              }
+            }
+          });
+        });
+      }
+    }
   }
 
   private runBossFightBeat(beat: Extract<Beat, { type: 'bossFight' }>) {

@@ -2,6 +2,18 @@ import { expect } from 'vitest';
 import * as matchers from '@testing-library/jest-dom/matchers';
 expect.extend(matchers);
 
+// Mock localStorage globally for testing environment (Node v26 compat)
+const store: Record<string, string> = {};
+const localStorageMock = {
+  getItem: (key: string) => store[key] || null,
+  setItem: (key: string, value: string) => { store[key] = value.toString(); },
+  clear: () => { for (const k in store) delete store[k]; },
+  removeItem: (key: string) => { delete store[key]; },
+  length: 0,
+  key: (index: number) => null,
+};
+Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock, writable: true });
+
 // Improved Mock Canvas 2D Context for jsdom
 HTMLCanvasElement.prototype.getContext = function (contextId: string, options?: any): any {
   if (contextId === '2d') {

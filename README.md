@@ -49,6 +49,7 @@ Each chapter is a self-contained story beat ripped from real events and lore-ifi
 | 6 | Operation Ding Dong Ditch Ben | 12 Watchwater Way | Ben |
 | 7 | The Spain Betrayal | Commons 1522 | Nick F |
 | 8 | The Cabin (Epilogue) | Basye, VA | — |
+| 9 | The Suds & Soles Pool Party | Nick F's Backyard | — |
 
 Chapters unlock sequentially. Completing a chapter saves progress to localStorage. A chapter-select map lets you replay any completed chapter.
 
@@ -88,23 +89,42 @@ App runs at `http://localhost:3000`.
 
 ## Docker Deployment (VPS)
 
-### Build and run
+### 1. Clone & Set Up Directory Permissions
+
+Clone the repository to your VPS and make sure the leaderboard database volume has the correct write permissions:
+
+```bash
+git clone <your-repository-url> /opt/rockville-syndicate
+cd /opt/rockville-syndicate
+mkdir -p db_data && chmod 777 db_data
+```
+
+### 2. Build & Run with Docker Compose
+
+By default, the container listens on port `3000` and maps it to `localhost:3000`. Run the following to build the production image and start the container:
 
 ```bash
 docker compose up -d --build
 ```
 
-The app listens on port 3000. Leaderboard data persists in `./db_data/`.
-
-### With a custom port
+#### Running on a Custom Port
+If you want to run the app on a custom host port (e.g. `8080`), define the `APP_PORT` environment variable:
 
 ```bash
 APP_PORT=8080 docker compose up -d --build
 ```
 
-Then put Nginx or Caddy in front and reverse-proxy to `localhost:3000` (or your custom port).
+Leaderboard submissions are persisted inside the `./db_data/` directory.
 
-### Example Nginx config
+---
+
+## Reverse Proxy Setup (Nginx or Caddy)
+
+Place a reverse proxy in front of your Docker container to handle traffic and SSL termination.
+
+### Option A: Nginx Config
+
+Create a config file (e.g., `/etc/nginx/sites-available/your-domain.com`):
 
 ```nginx
 server {
@@ -122,7 +142,29 @@ server {
 }
 ```
 
-For HTTPS, run `certbot --nginx -d your-domain.com` after configuring the above.
+Enable the config and request an SSL certificate using Certbot:
+
+```bash
+ln -s /etc/nginx/sites-available/your-domain.com /etc/nginx/sites-enabled/
+nginx -t && systemctl reload nginx
+certbot --nginx -d your-domain.com
+```
+
+### Option B: Caddy (Recommended)
+
+Caddy automatically provisions SSL certificates. Add the following to your `/etc/caddy/Caddyfile`:
+
+```caddy
+your-domain.com {
+    reverse_proxy localhost:3000
+}
+```
+
+Then reload Caddy:
+
+```bash
+systemctl reload caddy
+```
 
 ---
 

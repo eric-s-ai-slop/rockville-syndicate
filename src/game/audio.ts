@@ -65,6 +65,7 @@ export const THEME_FOOTSTEP: Record<string, string> = {
   florida:       'concrete',
   suburb_night:  'concrete',
   cabin:         'wood',
+  pool_party:    'grass',  // Ch9: grass footsteps, no procedural floor scatter
 };
 
 export const FOOTSTEP_URLS: Record<string, string[]> = {

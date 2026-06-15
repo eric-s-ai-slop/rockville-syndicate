@@ -17,6 +17,8 @@ export interface SlicedSpriteSheet {
   hurtFrames: number[];
   victoryFrames: number[];
   defeatFrames: number[];
+  submergedIdleFrames?: number[];
+  submergedSwimFrames?: number[];
 }
 
 interface SpriteComponent {
@@ -36,6 +38,7 @@ export function preprocessShowcaseSheet(
 ): SlicedSpriteSheet {
   const width = img.naturalWidth || img.width;
   const height = img.naturalHeight || img.height;
+  const sheetScale = height / 768;
 
   // Create temporary canvas to inspect image pixels
   const tempCanvas = document.createElement('canvas');
@@ -59,7 +62,8 @@ export function preprocessShowcaseSheet(
   const isBackground = (r: number, g: number, b: number, a: number): boolean => {
     if (a < 50) return true;
     const dist = Math.sqrt((r - bgR) ** 2 + (g - bgG) ** 2 + (b - bgB) ** 2);
-    return dist < 45; // safe tolerance for compressed images
+    const tolerance = (characterId && characterId.includes('nick_f')) ? 22 : 45;
+    return dist < tolerance; // safe tolerance for compressed images
   };
 
   // BFS island analysis
@@ -128,12 +132,12 @@ export function preprocessShowcaseSheet(
       const h = maxY - minY + 1;
 
       // Filter noise & labels & big illustration in bottom-left
-      if (w >= 15 && h >= 22) {
+      if (w >= 15 * sheetScale && h >= 22 * sheetScale) {
         // Exclude text labels (which are very short and appear near the top header of the graphics sheet)
-        if (minY < height * 0.10 && h < 24) {
+        if (minY < height * 0.10 && h < 24 * sheetScale) {
           continue;
         }
-        if (w > 180 && minX < 230 && maxY > 300) {
+        if (w > 180 * sheetScale && minX < 230 * sheetScale && maxY > 300 * sheetScale) {
           // Skip the big character illustration (usually extremely wide)
           continue;
         }
@@ -164,8 +168,8 @@ export function preprocessShowcaseSheet(
         const gapX = overlapX >= 0 ? 0 : -overlapX;
 
         // Check if they belong to the same column and are extremely close vertically (split fragments)
-        const isSameCol = Math.abs(c1.cx - c2.cx) < 35 || gapX === 0;
-        const isNearVert = gapY < 12; // Adjusted threshold to prevent merging separate animation rows
+        const isSameCol = Math.abs(c1.cx - c2.cx) < 35 * sheetScale || gapX === 0;
+        const isNearVert = gapY < 12 * sheetScale; // Adjusted threshold to prevent merging separate animation rows
 
         if (isSameCol && isNearVert) {
           const mergedMinX = Math.min(c1.minX, c2.minX);
@@ -195,7 +199,7 @@ export function preprocessShowcaseSheet(
   components.sort((a, b) => a.cy - b.cy);
   const rows: number[] = [];
   components.forEach(c => {
-    let matchedRow = rows.findIndex(cyValue => Math.abs(cyValue - c.cy) < 55);
+    let matchedRow = rows.findIndex(cyValue => Math.abs(cyValue - c.cy) < 55 * sheetScale);
     if (matchedRow === -1) {
       rows.push(c.cy);
       rows.sort((x, y) => x - y);
@@ -205,7 +209,7 @@ export function preprocessShowcaseSheet(
   // Organize frames by sorted rows
   const rowsData: SpriteComponent[][] = Array.from({ length: rows.length }, () => []);
   components.forEach(c => {
-    const rowIdx = rows.findIndex(cyValue => Math.abs(cyValue - c.cy) < 55);
+    const rowIdx = rows.findIndex(cyValue => Math.abs(cyValue - c.cy) < 55 * sheetScale);
     if (rowIdx !== -1) {
       rowsData[rowIdx].push(c);
     }
@@ -262,18 +266,18 @@ export function preprocessShowcaseSheet(
 
     // Gather background color samples around the corners and deep insets of the component
     const cornerSampleLocs = [
-      [comp.minX + 3, comp.minY + 3],
-      [comp.maxX - 3, comp.minY + 3],
-      [comp.minX + 3, comp.maxY - 3],
-      [comp.maxX - 3, comp.maxY - 3],
+      [comp.minX + Math.round(3 * sheetScale), comp.minY + Math.round(3 * sheetScale)],
+      [comp.maxX - Math.round(3 * sheetScale), comp.minY + Math.round(3 * sheetScale)],
+      [comp.minX + Math.round(3 * sheetScale), comp.maxY - Math.round(3 * sheetScale)],
+      [comp.maxX - Math.round(3 * sheetScale), comp.maxY - Math.round(3 * sheetScale)],
       [comp.minX, comp.minY],
       [comp.maxX, comp.minY],
       [comp.minX, comp.maxY],
       [comp.maxX, comp.maxY],
-      [comp.minX + 6, comp.minY + 6],
-      [comp.maxX - 6, comp.minY + 6],
-      [comp.minX + 6, comp.maxY - 6],
-      [comp.maxX - 6, comp.maxY - 6]
+      [comp.minX + Math.round(6 * sheetScale), comp.minY + Math.round(6 * sheetScale)],
+      [comp.maxX - Math.round(6 * sheetScale), comp.minY + Math.round(6 * sheetScale)],
+      [comp.minX + Math.round(6 * sheetScale), comp.maxY - Math.round(6 * sheetScale)],
+      [comp.maxX - Math.round(6 * sheetScale), comp.maxY - Math.round(6 * sheetScale)]
     ];
     const cornerColors: { r: number; g: number; b: number }[] = [];
     cornerSampleLocs.forEach(([cx, cy]) => {
@@ -287,18 +291,25 @@ export function preprocessShowcaseSheet(
       }
     });
 
-    const isBackgroundOrCard = (r: number, g: number, b: number, a: number, lx: number, ly: number, compW: number, compH: number): boolean => {
-      // Force transparency for the outermost border of the card to completely remove lines
-      if (lx < 2 || lx >= compW - 2 || ly < 2 || ly >= compH - 2) {
+    const w = comp.w;
+    const h = comp.h;
+    const isBgMask = new Uint8Array(w * h);
+    const queue: [number, number][] = [];
+
+    const checkIsBackground = (lx: number, ly: number): boolean => {
+      if (lx < 2 || lx >= w - 2 || ly < 2 || ly >= h - 2) {
         return true;
       }
+      const idx = (ly * w + lx) * 4;
+      const r = data[idx];
+      const g = data[idx + 1];
+      const b = data[idx + 2];
+      const a = data[idx + 3];
       if (a < 50) return true;
 
-      // Check against overall background
       const distBg = Math.sqrt((r - bgR) ** 2 + (g - bgG) ** 2 + (b - bgB) ** 2);
       if (distBg < 45) return true;
 
-      // Check against sampled card background colors
       for (const c of cornerColors) {
         const distCorner = Math.sqrt((r - c.r) ** 2 + (g - c.g) ** 2 + (b - c.b) ** 2);
         if (distCorner < 35) return true;
@@ -306,13 +317,57 @@ export function preprocessShowcaseSheet(
       return false;
     };
 
+    // Seed the queue with border pixels
+    for (let lx = 0; lx < w; lx++) {
+      if (!isBgMask[lx] && checkIsBackground(lx, 0)) {
+        isBgMask[lx] = 1;
+        queue.push([lx, 0]);
+      }
+      const bIdx = (h - 1) * w + lx;
+      if (!isBgMask[bIdx] && checkIsBackground(lx, h - 1)) {
+        isBgMask[bIdx] = 1;
+        queue.push([lx, h - 1]);
+      }
+    }
+    for (let ly = 0; ly < h; ly++) {
+      const lIdx = ly * w;
+      if (!isBgMask[lIdx] && checkIsBackground(0, ly)) {
+        isBgMask[lIdx] = 1;
+        queue.push([0, ly]);
+      }
+      const rIdx = ly * w + (w - 1);
+      if (!isBgMask[rIdx] && checkIsBackground(w - 1, ly)) {
+        isBgMask[rIdx] = 1;
+        queue.push([w - 1, ly]);
+      }
+    }
+
+    while (queue.length > 0) {
+      const curr = queue.shift();
+      if (!curr) continue;
+      const [lx, ly] = curr;
+      const neighbors: [number, number][] = [
+        [lx + 1, ly], [lx - 1, ly],
+        [lx, ly + 1], [lx, ly - 1]
+      ];
+      for (const [nx, ny] of neighbors) {
+        if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+          const nIdx = ny * w + nx;
+          if (!isBgMask[nIdx] && checkIsBackground(nx, ny)) {
+            isBgMask[nIdx] = 1;
+            queue.push([nx, ny]);
+          }
+        }
+      }
+    }
+
     // Zero-out background pixels for smooth anti-aliased look
-    for (let i = 0; i < data.length; i += 4) {
-      const pixelIdx = i / 4;
-      const lx = pixelIdx % comp.w;
-      const ly = Math.floor(pixelIdx / comp.w);
-      if (isBackgroundOrCard(data[i], data[i + 1], data[i + 2], data[i + 3], lx, ly, comp.w, comp.h)) {
-        data[i + 3] = 0;
+    for (let ly = 0; ly < h; ly++) {
+      for (let lx = 0; lx < w; lx++) {
+        const idx = ly * w + lx;
+        if (isBgMask[idx] === 1) {
+          data[idx * 4 + 3] = 0;
+        }
       }
     }
 
@@ -501,6 +556,7 @@ export function preprocessColumnFirstSheet(
 ): SlicedSpriteSheet {
   const width = img.naturalWidth || img.width;
   const height = img.naturalHeight || img.height;
+  const sheetScale = height / 768;
 
   const tempCanvas = document.createElement('canvas');
   tempCanvas.width = width;
@@ -518,7 +574,8 @@ export function preprocessColumnFirstSheet(
   const isBackground = (r: number, g: number, b: number, a: number): boolean => {
     if (a < 50) return true;
     const dist = Math.sqrt((r - bgR) ** 2 + (g - bgG) ** 2 + (b - bgB) ** 2);
-    return dist < 45;
+    const tolerance = (_characterId && _characterId.includes('nick_f')) ? 22 : 45;
+    return dist < tolerance;
   };
 
   // BFS island detection (same approach as preprocessShowcaseSheet)
@@ -566,14 +623,14 @@ export function preprocessColumnFirstSheet(
       const w = maxX - minX + 1;
       const h = maxY - minY + 1;
       // Skip text labels near top, very small noise, and excessively wide text bubbles
-      if (minY < height * 0.10 && h < 28) continue;
-      if (w < 12 || h < 18) continue;
+      if (minY < height * 0.10 && h < 28 * sheetScale) continue;
+      if (w < 12 * sheetScale || h < 18 * sheetScale) continue;
       // Skip the large bottom-left portrait illustration
-      if (w > 120 && minX < width * 0.20 && maxY > height * 0.40) continue;
+      if (w > 120 * sheetScale && minX < width * 0.20 && maxY > height * 0.40) continue;
       // Skip text-bubble components (wider than tall)
       if (w > h * 1.8) continue;
       // Skip bottom caption text (filename labels at very bottom)
-      if (minY > height * 0.82 && h < 22) continue;
+      if (minY > height * 0.82 && h < 22 * sheetScale) continue;
 
       components.push({ minX, minY, maxX, maxY, w, h,
         cx: Math.floor((minX + maxX) / 2), cy: Math.floor((minY + maxY) / 2) });
@@ -581,7 +638,7 @@ export function preprocessColumnFirstSheet(
   }
 
   // Group components into columns by X-center proximity
-  const colTolerance = 52;
+  const colTolerance = 52 * sheetScale;
   components.sort((a, b) => a.minX - b.minX);
   const columns: SpriteComponent[][] = [];
   for (const c of components) {
@@ -629,9 +686,70 @@ export function preprocessColumnFirstSheet(
     const frameData = tempCtx.getImageData(comp.minX, comp.minY, comp.w, comp.h);
     const fd = frameData.data;
 
-    // Strip background pixels
+    const w = comp.w;
+    const h = comp.h;
+    const isBgMask = new Uint8Array(w * h);
+    const queue: [number, number][] = [];
+
+    const checkIsBackground = (lx: number, ly: number): boolean => {
+      if (lx < 2 || lx >= w - 2 || ly < 2 || ly >= h - 2) {
+        return true;
+      }
+      const idx = (ly * w + lx) * 4;
+      const r = fd[idx];
+      const g = fd[idx + 1];
+      const b = fd[idx + 2];
+      const a = fd[idx + 3];
+      if (a < 50) return true;
+      const dist = Math.sqrt((r - bgR) ** 2 + (g - bgG) ** 2 + (b - bgB) ** 2);
+      return dist < 45;
+    };
+
+    // Seed queue with border pixels
+    for (let lx = 0; lx < w; lx++) {
+      if (!isBgMask[lx] && checkIsBackground(lx, 0)) {
+        isBgMask[lx] = 1;
+        queue.push([lx, 0]);
+      }
+      const bIdx = (h - 1) * w + lx;
+      if (!isBgMask[bIdx] && checkIsBackground(lx, h - 1)) {
+        isBgMask[bIdx] = 1;
+        queue.push([lx, h - 1]);
+      }
+    }
+    for (let ly = 0; ly < h; ly++) {
+      const lIdx = ly * w;
+      if (!isBgMask[lIdx] && checkIsBackground(0, ly)) {
+        isBgMask[lIdx] = 1;
+        queue.push([0, ly]);
+      }
+      const rIdx = ly * w + (w - 1);
+      if (!isBgMask[rIdx] && checkIsBackground(w - 1, ly)) {
+        isBgMask[rIdx] = 1;
+        queue.push([w - 1, ly]);
+      }
+    }
+
+    while (queue.length > 0) {
+      const curr = queue.shift();
+      if (!curr) continue;
+      const [lx, ly] = curr;
+      for (const [nx, ny] of [[lx + 1, ly], [lx - 1, ly], [lx, ly + 1], [lx, ly - 1]]) {
+        if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+          const nIdx = ny * w + nx;
+          if (!isBgMask[nIdx] && checkIsBackground(nx, ny)) {
+            isBgMask[nIdx] = 1;
+            queue.push([nx, ny]);
+          }
+        }
+      }
+    }
+
     for (let i = 0; i < fd.length; i += 4) {
-      if (isBackground(fd[i], fd[i + 1], fd[i + 2], fd[i + 3])) fd[i + 3] = 0;
+      const pixelIdx = i / 4;
+      if (isBgMask[pixelIdx] === 1) {
+        fd[i + 3] = 0;
+      }
     }
 
     const maxBound = 100;
@@ -725,5 +843,271 @@ export function preprocessColumnFirstSheet(
     idleFrontFrames, idleSideFrames, idleBackFrames,
     walkFrames, walkFrontFrames, walkSideFrames, walkBackFrames, runFrames,
     attackFrames, hurtFrames, victoryFrames, defeatFrames,
+  };
+}
+
+export function preprocessFemalePoolSheet(
+  img: HTMLImageElement,
+  characterId: string
+): SlicedSpriteSheet {
+  const width = img.naturalWidth || img.width;
+  const height = img.naturalHeight || img.height;
+
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = width;
+  tempCanvas.height = height;
+  const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true })!;
+  tempCtx.drawImage(img, 0, 0);
+
+  const imgData = tempCtx.getImageData(0, 0, width, height);
+  const pixels = imgData.data;
+
+  const bgR = pixels[(10 * width + 10) * 4];
+  const bgG = pixels[(10 * width + 10) * 4 + 1];
+  const bgB = pixels[(10 * width + 10) * 4 + 2];
+
+  const scaleX = (val: number) => Math.round(val * (width / 2752));
+  const scaleY = (val: number) => Math.round(val * (height / 1536));
+
+  const targetFrameW = 128, targetFrameH = 128, gridColumns = 12;
+  const finalCanvas = document.createElement('canvas');
+  finalCanvas.width = targetFrameW * gridColumns;
+  finalCanvas.height = targetFrameH * 8;
+  const finalCtx = finalCanvas.getContext('2d')!;
+  finalCtx.clearRect(0, 0, finalCanvas.width, finalCanvas.height);
+  finalCtx.imageSmoothingEnabled = false;
+
+  const drawComp = (comp: { minX: number; minY: number; w: number; h: number }, rowIndex: number, colIndex: number): number => {
+    const frameData = tempCtx.getImageData(comp.minX, comp.minY, comp.w, comp.h);
+    const fd = frameData.data;
+    const w = comp.w;
+    const h = comp.h;
+
+    // Find active bounding box (exclude background)
+    const checkIsBackground = (lx: number, ly: number): boolean => {
+      const idx = (ly * w + lx) * 4;
+      const r = fd[idx];
+      const g = fd[idx + 1];
+      const b = fd[idx + 2];
+      const a = fd[idx + 3];
+      if (a < 50) return true;
+      const dist = Math.sqrt((r - bgR) ** 2 + (g - bgG) ** 2 + (b - bgB) ** 2);
+      return dist < 45;
+    };
+
+    let activeMinX = w, activeMaxX = 0, activeMinY = h, activeMaxY = 0;
+    let foundAny = false;
+    for (let ly = 0; ly < h; ly++) {
+      for (let lx = 0; lx < w; lx++) {
+        if (!checkIsBackground(lx, ly)) {
+          foundAny = true;
+          if (lx < activeMinX) activeMinX = lx;
+          if (lx > activeMaxX) activeMaxX = lx;
+          if (ly < activeMinY) activeMinY = ly;
+          if (ly > activeMaxY) activeMaxY = ly;
+        }
+      }
+    }
+
+    if (!foundAny) {
+      return rowIndex * gridColumns + colIndex;
+    }
+
+    const activeW = activeMaxX - activeMinX + 1;
+    const activeH = activeMaxY - activeMinY + 1;
+    const activeFrameData = tempCtx.getImageData(comp.minX + activeMinX, comp.minY + activeMinY, activeW, activeH);
+    const afd = activeFrameData.data;
+
+    // Border-seeded BFS to mask background
+    const isBgMask = new Uint8Array(activeW * activeH);
+    const queue: [number, number][] = [];
+
+    const checkActiveIsBackground = (lx: number, ly: number): boolean => {
+      if (lx < 2 || lx >= activeW - 2 || ly < 2 || ly >= activeH - 2) {
+        return true;
+      }
+      const idx = (ly * activeW + lx) * 4;
+      const r = afd[idx];
+      const g = afd[idx + 1];
+      const b = afd[idx + 2];
+      const a = afd[idx + 3];
+      if (a < 50) return true;
+      const dist = Math.sqrt((r - bgR) ** 2 + (g - bgG) ** 2 + (b - bgB) ** 2);
+      return dist < 45;
+    };
+
+    // Seed queue with border pixels
+    for (let lx = 0; lx < activeW; lx++) {
+      if (!isBgMask[lx] && checkActiveIsBackground(lx, 0)) {
+        isBgMask[lx] = 1;
+        queue.push([lx, 0]);
+      }
+      const bIdx = (activeH - 1) * activeW + lx;
+      if (!isBgMask[bIdx] && checkActiveIsBackground(lx, activeH - 1)) {
+        isBgMask[bIdx] = 1;
+        queue.push([lx, activeH - 1]);
+      }
+    }
+    for (let ly = 0; ly < activeH; ly++) {
+      const lIdx = ly * activeW;
+      if (!isBgMask[lIdx] && checkActiveIsBackground(0, ly)) {
+        isBgMask[lIdx] = 1;
+        queue.push([0, ly]);
+      }
+      const rIdx = ly * activeW + (activeW - 1);
+      if (!isBgMask[rIdx] && checkActiveIsBackground(activeW - 1, ly)) {
+        isBgMask[rIdx] = 1;
+        queue.push([activeW - 1, ly]);
+      }
+    }
+
+    while (queue.length > 0) {
+      const curr = queue.shift();
+      if (!curr) continue;
+      const [lx, ly] = curr;
+      for (const [nx, ny] of [[lx + 1, ly], [lx - 1, ly], [lx, ly + 1], [lx, ly - 1]]) {
+        if (nx >= 0 && nx < activeW && ny >= 0 && ny < activeH) {
+          const nIdx = ny * activeW + nx;
+          if (!isBgMask[nIdx] && checkActiveIsBackground(nx, ny)) {
+            isBgMask[nIdx] = 1;
+            queue.push([nx, ny]);
+          }
+        }
+      }
+    }
+
+    for (let i = 0; i < afd.length; i += 4) {
+      const pixelIdx = i / 4;
+      if (isBgMask[pixelIdx] === 1) {
+        afd[i + 3] = 0;
+      }
+    }
+
+    const cell = document.createElement('canvas');
+    cell.width = activeW;
+    cell.height = activeH;
+    cell.getContext('2d')!.putImageData(activeFrameData, 0, 0);
+
+    const targetH = 96;
+    const sc = targetH / activeH;
+    const drawW = Math.round(activeW * sc);
+    const drawH = targetH;
+
+    const dx = colIndex * targetFrameW + Math.floor((targetFrameW - drawW) / 2);
+    const dy = rowIndex * targetFrameH + (targetFrameH - drawH) - 10;
+    finalCtx.drawImage(cell, 0, 0, activeW, activeH, dx, dy, drawW, drawH);
+    return rowIndex * gridColumns + colIndex;
+  };
+
+  // Coordinates mapping
+  let coords: any;
+  if (characterId === 'anastasia') {
+    coords = {
+      idleFront: { x: 80, y: 140, w: 200, h: 370 },
+      idleSide:  { x: 415, y: 160, w: 150, h: 350 },
+      idleBack:  { x: 1010, y: 1140, w: 180, h: 350 },
+      walkFront: [
+        { x: 1010, y: 126, w: 180, h: 320 },
+        { x: 1010, y: 460, w: 180, h: 320 },
+        { x: 1010, y: 796, w: 180, h: 320 },
+      ],
+      submergedIdle: [
+        { x: 680, y: 160, w: 220, h: 350 },
+        { x: 680, y: 600, w: 220, h: 380 },
+        { x: 680, y: 1040, w: 220, h: 380 },
+      ],
+      submergedSwim: [
+        { x: 680, y: 160, w: 220, h: 350 },
+        { x: 680, y: 600, w: 220, h: 380 },
+        { x: 680, y: 1040, w: 220, h: 380 },
+      ]
+    };
+  } else { // sophia
+    coords = {
+      idleFront: { x: 80, y: 140, w: 200, h: 370 },
+      idleSide:  { x: 400, y: 160, w: 170, h: 350 },
+      idleBack:  { x: 1030, y: 1162, w: 170, h: 328 },
+      walkFront: [
+        { x: 1030, y: 126, w: 170, h: 320 },
+        { x: 1030, y: 460, w: 170, h: 320 },
+        { x: 1030, y: 796, w: 170, h: 320 },
+      ],
+      submergedIdle: [
+        { x: 700, y: 160, w: 210, h: 350 },
+        { x: 700, y: 600, w: 210, h: 380 },
+        { x: 700, y: 1040, w: 210, h: 380 },
+      ],
+      submergedSwim: [
+        { x: 1230, y: 240, w: 140, h: 250 },
+        { x: 1400, y: 240, w: 160, h: 250 },
+      ]
+    };
+  }
+
+  // Scale coordinates
+  const scaleRect = (r: { x: number; y: number; w: number; h: number }) => ({
+    minX: scaleX(r.x),
+    minY: scaleY(r.y),
+    w: scaleX(r.w),
+    h: scaleY(r.h)
+  });
+
+  const idleFrontFrames: number[] = [];
+  const idleSideFrames: number[] = [];
+  const idleBackFrames: number[] = [];
+  const walkFrontFrames: number[] = [];
+  const walkSideFrames: number[] = [];
+  const walkBackFrames: number[] = [];
+  const submergedIdleFrames: number[] = [];
+  const submergedSwimFrames: number[] = [];
+
+  // Draw rows
+  const rectIF = scaleRect(coords.idleFront);
+  for (let i = 0; i < 4; i++) {
+    idleFrontFrames.push(drawComp(rectIF, 0, i));
+  }
+
+  const rectIS = scaleRect(coords.idleSide);
+  for (let i = 0; i < 4; i++) {
+    idleSideFrames.push(drawComp(rectIS, 1, i));
+  }
+
+  const rectIB = scaleRect(coords.idleBack);
+  for (let i = 0; i < 4; i++) {
+    idleBackFrames.push(drawComp(rectIB, 2, i));
+  }
+
+  coords.walkFront.forEach((r: any, idx: number) => {
+    const rectWF = scaleRect(r);
+    walkFrontFrames.push(drawComp(rectWF, 3, idx));
+  });
+  walkFrontFrames.push(walkFrontFrames[0]); // Pad to 4 frames
+  walkSideFrames.push(...walkFrontFrames);
+  walkBackFrames.push(...idleBackFrames);
+
+  coords.submergedIdle.forEach((r: any, idx: number) => {
+    const rectSI = scaleRect(r);
+    submergedIdleFrames.push(drawComp(rectSI, 6, idx));
+  });
+  submergedIdleFrames.push(submergedIdleFrames[0]);
+
+  coords.submergedSwim.forEach((r: any, idx: number) => {
+    const rectSS = scaleRect(r);
+    submergedSwimFrames.push(drawComp(rectSS, 7, idx));
+  });
+  while (submergedSwimFrames.length < 4) {
+    submergedSwimFrames.push(submergedSwimFrames[0]);
+  }
+
+  const walkFrames = [...walkFrontFrames];
+
+  return {
+    canvas: finalCanvas,
+    frameWidth: targetFrameW,
+    frameHeight: targetFrameH,
+    idleFrontFrames, idleSideFrames, idleBackFrames,
+    walkFrames, walkFrontFrames, walkSideFrames, walkBackFrames, runFrames: walkFrontFrames,
+    attackFrames: idleFrontFrames, hurtFrames: idleFrontFrames, victoryFrames: idleFrontFrames, defeatFrames: idleFrontFrames,
+    submergedIdleFrames, submergedSwimFrames
   };
 }
