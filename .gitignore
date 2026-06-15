@@ -6,3 +6,10 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Scratch & generated artifacts (not source)
+tmp/
+test-results/
+playwright-report/
+db_data/
+test_preprocess*.js

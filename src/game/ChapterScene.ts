@@ -1,4 +1,10 @@
 import Phaser from 'phaser';
+import { MapBuilder } from './scene/MapBuilder';
+import { Actors } from './scene/Actors';
+import { AudioController } from './scene/AudioController';
+import { BeatEngine } from './scene/BeatEngine';
+import type { GameMode } from './modes/types';
+import { getMode } from './modes';
 import {
   CharacterClass,
   CHARACTER_CLASSES,
@@ -91,30 +97,29 @@ export interface StoryDialoguePayload {
 }
 
 export default class ChapterScene extends Phaser.Scene {
-  private playerClass!: CharacterClass;
-  private currentLevelIndex: number = 0;
+  public playerClass!: CharacterClass;
+  public currentLevelIndex: number = 0;
   private onGoldChange!: (gold: number) => void;
   private onHpChange!: (hp: number) => void;
-  private onMessageLog!: (msg: string) => void;
-  private onTriggerQTE!: (boss: BossConfig, callback: (success: boolean) => void) => void;
+  public onMessageLog!: (msg: string) => void;
+  public onTriggerQTE!: (boss: BossConfig, callback: (success: boolean) => void) => void;
   private onLevelCompleted!: () => void;
   private onGameOver!: () => void;
   private onNpcInteract!: (npcId: string, resume: () => void) => void;
 
   // Story / chapter system
-  private chapter!: ChapterConfig;
-  private onStoryDialogue!: (payload: StoryDialoguePayload, done: (choiceIndex?: number) => void) => void;
-  private onLedgerChange!: (total: number, note: string) => void;
-  private ledgerTotal: number = 0;
-  private beatIndex: number = 0;
-  private beatActive: boolean = false;
+  public chapter!: ChapterConfig;
+  public onStoryDialogue!: (payload: StoryDialoguePayload, done: (choiceIndex?: number) => void) => void;
+  public onLedgerChange!: (total: number, note: string) => void;
+  public ledgerTotal: number = 0;
+  public beatIndex: number = 0;
+  public beatActive: boolean = false;
   // Active walkTo target the player must reach to advance.
-  private walkTarget: { x: number; y: number; radius: number; markerLabel?: string; marker?: Phaser.GameObjects.Container } | null = null;
-  private bossBeatResolve: (() => void) | null = null;
-  private propAspects: Record<string, number> = {};
-  private actorSprites: Record<string, Phaser.GameObjects.GameObject[]> = {};
+  public walkTarget: { x: number; y: number; radius: number; markerLabel?: string; marker?: Phaser.GameObjects.Container } | null = null;
+  public propAspects: Record<string, number> = {};
+  public actorSprites: Record<string, Phaser.GameObjects.GameObject[]> = {};
 
-  private player!: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
+  public player!: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private controlsInverted: boolean = false;
   private wasdKeys!: {
@@ -144,16 +149,13 @@ export default class ChapterScene extends Phaser.Scene {
   private brainrotLabel!: Phaser.GameObjects.Text;
 
   // Groups
-  private projectiles!: Phaser.Physics.Arcade.Group;
-  private enemies!: Phaser.Physics.Arcade.Group;
-  private enemyProjectiles!: Phaser.Physics.Arcade.Group;
-  private lootShards!: Phaser.Physics.Arcade.Group;
-  private walls!: Phaser.Physics.Arcade.StaticGroup;
+  public projectiles!: Phaser.Physics.Arcade.Group;
+  public enemies!: Phaser.Physics.Arcade.Group;
+  public enemyProjectiles!: Phaser.Physics.Arcade.Group;
+  public lootShards!: Phaser.Physics.Arcade.Group;
+  public walls!: Phaser.Physics.Arcade.StaticGroup;
 
-  // Boss health bar (floats above the boss)
-  private bossHpBg: Phaser.GameObjects.Rectangle | null = null;
-  private bossHpFill: Phaser.GameObjects.Rectangle | null = null;
-  private bossNameLabel: Phaser.GameObjects.Text | null = null;
+
 
   // R8: pre-boss chase phase — pursuer separate from spawnedBoss
   private chaseSprite: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody | null = null;
@@ -164,46 +166,43 @@ export default class ChapterScene extends Phaser.Scene {
   private chasePursuerId: string | null = null;
 
   // Game state
-  private spawnedBoss: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody | null = null;
-  private isBossActive: boolean = false;
+  public spawnedBoss: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody | null = null;
+  public isBossActive: boolean = false;
   private bossHitFlashing: boolean = false; // throttle — still used to prevent double-shake
   // True while the React QTE modal is open — combat must fully pause (boss AI,
   // auto-fire, AND damage from in-flight delayed attacks).
-  private qteActive: boolean = false;
-  private bossData: BossConfig | null = null;
+  public qteActive: boolean = false;
   private enemiesLeftToSpawn: number = 15;
   private enemiesKilledCount: number = 0;
-  private currentBossHp: number = 0;
   private levelStarted: boolean = false;
 
   // Collider references for map objects (need to store for enemy collision setup)
-  private mapCollidables: Phaser.GameObjects.Rectangle[] = [];
+  public mapCollidables: Phaser.GameObjects.Rectangle[] = [];
 
   // Shadow sprites that follow moving entities
   private playerShadow: Phaser.GameObjects.Image | null = null;
-  private bossShadow: Phaser.GameObjects.Image | null = null;
 
   // Phase C: per-chapter atmosphere
   private ambientOverlay: Phaser.GameObjects.Rectangle | null = null;
   private vignetteOverlay: Phaser.GameObjects.Image | null = null;
   private fakeLights: Phaser.GameObjects.Image[] = [];
-  private particleEmitters: Phaser.GameObjects.Particles.ParticleEmitter[] = [];
+  public particleEmitters: Phaser.GameObjects.Particles.ParticleEmitter[] = [];
 
   // Phase D
   private letterboxTop: Phaser.GameObjects.Rectangle | null = null;
   private letterboxBottom: Phaser.GameObjects.Rectangle | null = null;
   private lastFootstepTime: number = 0;
-  private portraitDataUrls: Record<string, string> = {};
+  public portraitDataUrls: Record<string, string> = {};
 
   // Phase E — audio
-  private stageMusic: Phaser.Sound.BaseSound | null = null;
-  private bossMusic: Phaser.Sound.BaseSound | null = null;     // Techno-Tetris loop
-  private bossMusicSting: Phaser.Sound.BaseSound | null = null; // Prowler one-shot sting
-  private footstepKeys: string[] = [];
+  public stageMusic: Phaser.Sound.BaseSound | null = null;
+  public bossMusic: Phaser.Sound.BaseSound | null = null;     // Techno-Tetris loop
+  public bossMusicSting: Phaser.Sound.BaseSound | null = null; // Prowler one-shot sting
+  public footstepKeys: string[] = [];
 
   // R1: map of propKey → image sprite for runtime texture swaps (e.g. door open)
-  private propSprites: Map<string, Phaser.GameObjects.Image> = new Map();
-  private poolNameplates: Map<string, Phaser.GameObjects.Text> = new Map();
+  public propSprites: Map<string, Phaser.GameObjects.Image> = new Map();
+  public poolNameplates: Map<string, Phaser.GameObjects.Text> = new Map();
 
   // NPC interaction system
   private npcs: Array<{
@@ -211,13 +210,24 @@ export default class ChapterScene extends Phaser.Scene {
     sprite: Phaser.GameObjects.Image | Phaser.GameObjects.Sprite;
     prompt: Phaser.GameObjects.Text;
   }> = [];
-  private dialogueOpen: boolean = false;
-  private movementFrozen: boolean = false;
+  public dialogueOpen: boolean = false;
+  public movementFrozen: boolean = false;
   private eKey!: Phaser.Input.Keyboard.Key;
   private lastMoveAngle: number = 0;
 
+  // Subsystems
+  public mapBuilder!: MapBuilder;
+  public actorsSystem!: Actors;
+  public audioController!: AudioController;
+  public beatEngine!: BeatEngine;
+  public activeMode: GameMode | null = null;
+
   constructor() {
     super({ key: 'ChapterScene' });
+    this.mapBuilder = new MapBuilder(this);
+    this.actorsSystem = new Actors(this);
+    this.audioController = new AudioController(this);
+    this.beatEngine = new BeatEngine(this);
   }
 
   public init(data: {
@@ -270,9 +280,7 @@ export default class ChapterScene extends Phaser.Scene {
     this.beatIndex = 0;
     this.beatActive = false;
     this.walkTarget = null;
-    this.bossBeatResolve = null;
     this.playerShadow = null;
-    this.bossShadow = null;
     this.ambientOverlay = null;
     this.vignetteOverlay = null;
     this.fakeLights = [];
@@ -386,6 +394,23 @@ export default class ChapterScene extends Phaser.Scene {
 
     // Phase E — audio
     this.loadChapterAudio();
+
+    // Preload active/referenced game modes
+    if (this.chapter?.beats) {
+      this.chapter.beats.forEach((beat) => {
+        if (beat.type === 'minigame') {
+          const mode = getMode(beat.modeId);
+          if (mode && mode.preload) {
+            const context = this.beatEngine.buildModeContext();
+            try {
+              mode.preload(context);
+            } catch (err) {
+              console.error(`[ChapterScene] Preload failed for mode ${beat.modeId}:`, err);
+            }
+          }
+        }
+      });
+    }
   }
 
   private safeLoadAudio(key: string, url: string) {
@@ -646,15 +671,14 @@ export default class ChapterScene extends Phaser.Scene {
     this.buildMapFromConfig(map);
     this.buildAtmosphere(map);
 
-    const isPoolParty = this.chapter.id === 'suds_and_soles_pool_party';
     const hasPoolSheet = this.textures.exists(`npc_${this.playerClass.id}_pool_sheet`);
-    const sheetKey = (isPoolParty && hasPoolSheet) ? `npc_${this.playerClass.id}_pool_sheet` : 'hero_' + this.playerClass.id + '_sheet';
+    const sheetKey = (this.chapter.usePoolSheet && hasPoolSheet) ? `npc_${this.playerClass.id}_pool_sheet` : 'hero_' + this.playerClass.id + '_sheet';
     this.player = this.physics.add.sprite(map.playerSpawn.x, map.playerSpawn.y, sheetKey, 0);
     this.player.setScale(0.5);
     this.player.setCircle(22, 42, 45);
     this.player.setCollideWorldBounds(true);
     this.player.setDrag(500, 500);
-    if (isPoolParty && hasPoolSheet) {
+    if (this.chapter.usePoolSheet && hasPoolSheet) {
       this.player.play(`idle_front_npc_${this.playerClass.id}_pool`, true);
     } else {
       this.player.play('idle_' + this.playerClass.id, true);
@@ -667,7 +691,7 @@ export default class ChapterScene extends Phaser.Scene {
 
     // Close, cozy camera — see a room / street at a time.
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
-    const zoomLevel = this.chapter.id === 'suds_and_soles_pool_party' ? 1.35 : 2.0;
+    const zoomLevel = this.chapter.cameraZoom ?? 2.0;
     this.cameras.main.setZoom(zoomLevel);
 
     this.cursors = this.input.keyboard!.createCursorKeys();
@@ -734,766 +758,76 @@ export default class ChapterScene extends Phaser.Scene {
       this.chaseShadow?.destroy(); this.chaseShadow = null;
       this.chaseActive = false;
       this.setControlsInverted(false);
+      if (this.activeMode) {
+        try {
+          this.activeMode.teardown();
+        } catch (err) {
+          console.error('[ChapterScene] activeMode teardown failed:', err);
+        }
+        this.activeMode = null;
+      }
     });
   }
 
   // ─── Map building (data-driven) ───────────────────────────────────────────────
 
-  private buildMapFromConfig(map: MapConfig) {
-    // Wide backdrop so no black shows past edges
-    this.add.rectangle(map.width / 2, map.height / 2, map.width * 6, map.height * 6, map.backdrop, 1).setDepth(-200);
-    // Floor base
-    this.add.rectangle(map.width / 2, map.height / 2, map.width, map.height, map.backdrop, 1).setDepth(-190);
-    // Per-theme floor pattern
-    this.drawFloorLines(map);
-
-    // R16: Decorate with nature flora
-    this.scatterNature(map);
-
-    // Outer boundary walls
-    const t = 14;
-    this.createWall(map.width / 2, t / 2, map.width, t);
-    this.createWall(map.width / 2, map.height - t / 2, map.width, t);
-    this.createWall(t / 2, map.height / 2, t, map.height);
-    this.createWall(map.width - t / 2, map.height / 2, t, map.height);
-
-    this.mapCollidables = [];
-    map.rects.forEach(r => {
-      if (r.propKey && this.playerClass) {
-        const pId = this.playerClass.id;
-        if (r.propKey === `npc_${pId}_pool` || r.propKey === `hero_${pId}_sheet` || r.propKey === `npc_${pId}`) {
-          return; // Skip duplicating the player!
-        }
-      }
-      if (r.solid) {
-        if (r.invisible) {
-          const physRect = this.add.rectangle(r.x, r.y, r.w, r.h, r.fill, 0);
-          physRect.setVisible(false);
-          this.physics.add.existing(physRect, true);
-          (physRect.body as Phaser.Physics.Arcade.StaticBody).setSize(r.w, r.h);
-          this.mapCollidables.push(physRect);
-        } else {
-          const obj = this.addMapObject(r.x, r.y, r.w, r.h, r.fill, r.stroke ?? r.fill, r.propType, r.propKey);
-          this.mapCollidables.push(obj);
-        }
-      } else {
-        this.drawDecorativeRect(r.x, r.y, r.w, r.h, r.fill, r.stroke ?? r.fill, r.propType, r.propKey);
-      }
-    });
-
-    if (this.chapter.id === 'suds_and_soles_pool_party') {
-      const charConfigs = [
-        { id: 'eric', key: 'npc_eric_pool' },
-        { id: 'nick_f', key: 'npc_nick_f_pool' },
-        { id: 'nick_h', key: 'npc_nick_h_pool' },
-        { id: 'anastasia', key: 'npc_anastasia_pool' },
-        { id: 'sophia', key: 'npc_sophia_pool' },
-        { id: 'jacob', key: 'hero_jacob_sheet' },
-        { id: 'sam_ferretti', key: 'npc_sam_pool' }
-      ];
-
-      this.poolNameplates = new Map();
-
-      const jacob = this.propSprites.get('hero_jacob_sheet');
-      if (jacob) jacob.setVisible(false);
-      const anastasia = this.propSprites.get('npc_anastasia_pool');
-      if (anastasia) anastasia.setVisible(false);
-      const sophia = this.propSprites.get('npc_sophia_pool');
-      if (sophia) sophia.setVisible(false);
-      const sam = this.propSprites.get('npc_sam_pool');
-      if (sam) sam.setVisible(false);
-
-      charConfigs.forEach(cfg => {
-        const sprite = this.propSprites.get(cfg.key);
-        if (sprite) {
-          const speaker = resolveSpeaker(cfg.id);
-          const nameplate = this.label(sprite.x, sprite.y - 38, speaker.name, {
-            fontSize: '12px', color: speaker.color, fontStyle: 'bold',
-            stroke: '#000000', strokeThickness: 4
-          }).setOrigin(0.5).setDepth(sprite.y + 200);
-          
-          this.poolNameplates.set(cfg.key, nameplate);
-
-          if (!sprite.visible) {
-            nameplate.setVisible(false);
-          }
-        }
-      });
-    }
-
-    // BotW-style area title toast — no permanent in-world signs
-    const areaTitle = map.areaTitle;
-    if (areaTitle) {
-      this.time.delayedCall(400, () => this.showAreaTitle(areaTitle));
-    }
-    // map.labels are intentionally ignored (createRoomLabel is now a no-op)
-    map.labels.forEach(l => this.createRoomLabel(l.x, l.y, l.name, l.detail, l.color));
+  public buildMapFromConfig(map: MapConfig) {
+    this.mapBuilder.buildMapFromConfig(map);
   }
 
-  // ─── Map Building ────────────────────────────────────────────────────────────
-
-  private buildNeighborhoodMap() {
-    const W = 1000, H = 1000;
-    const ROAD_W = 80;
-
-    // Endless lawn that extends well past the playable area so wide/tall
-    // viewports frame the neighborhood with grass instead of black bars.
-    this.add.rectangle(W / 2, H / 2, 5000, 5000, 0x16331a, 1).setDepth(-12);
-    for (let i = 0; i < 60; i++) {
-      const gx = Phaser.Math.Between(-1400, 2400);
-      const gy = Phaser.Math.Between(-1400, 2400);
-      // skip the core neighborhood — those trees are placed deliberately below
-      if (gx > -120 && gx < 1120 && gy > -120 && gy < 1120) continue;
-      this.add.circle(gx, gy, 20, 0x14532d).setDepth(-11.5);
-      this.add.circle(gx, gy - 3, 13, 0x166534).setDepth(-11.4);
-    }
-
-    // Use actual neighborhood map as base layer if loaded
-    if (this.textures.exists('neighborhood_map')) {
-      const mapBg = this.add.image(W / 2, H / 2, 'neighborhood_map');
-      mapBg.setDisplaySize(W, H).setDepth(-11).setAlpha(0.85);
-    }
-
-    // Base grass (fallback / tint layer)
-    this.add.rectangle(W / 2, H / 2, W, H, 0x4ade80, this.textures.exists('neighborhood_map') ? 0.15 : 1).setDepth(-10);
-    // Slightly darker lawn areas
-    this.add.rectangle(220, 220, 380, 360, 0x22c55e, 0.6).setDepth(-9);
-    this.add.rectangle(780, 220, 380, 360, 0x22c55e, 0.6).setDepth(-9);
-    this.add.rectangle(220, 750, 380, 360, 0x22c55e, 0.6).setDepth(-9);
-    this.add.rectangle(780, 750, 380, 360, 0x22c55e, 0.6).setDepth(-9);
-
-    // Dirt/stone roads
-    this.add.rectangle(W / 2, H / 2, ROAD_W, H, 0x9ca3af).setDepth(-8);   // vertical road
-    this.add.rectangle(W / 2, H / 2, W, ROAD_W, 0x9ca3af).setDepth(-8);   // horizontal road
-    // Road center lines
-    this.add.rectangle(500, 500, 4, H, 0xfbbf24, 0.5).setDepth(-7.5);
-    this.add.rectangle(500, 500, W, 4, 0xfbbf24, 0.5).setDepth(-7.5);
-    // Sidewalks
-    this.add.rectangle(W / 2, H / 2, ROAD_W + 16, H, 0, 0).setStrokeStyle(3, 0xd1d5db, 0.7).setDepth(-8.5);
-    this.add.rectangle(W / 2, H / 2, W, ROAD_W + 16, 0, 0).setStrokeStyle(3, 0xd1d5db, 0.7).setDepth(-8.5);
-
-    // ── TOP-LEFT: Commons 1522 ──────────────────────────────────────────────
-    this.add.rectangle(110, 220, 200, 250, 0xfef9c3).setStrokeStyle(3, 0xca8a04, 0.9).setDepth(-7);
-    this.add.rectangle(110, 120, 200, 50, 0xfbbf24, 0.85).setDepth(-7); // roof overhang
-    this.createRoomLabel(110, 170, "COMMONS 1522", "APT BATTLEGROUND", "#78350f");
-    // Door
-    this.add.rectangle(110, 340, 28, 18, 0x78350f).setStrokeStyle(2, 0x92400e).setDepth(-6);
-    // Windows
-    this.add.rectangle(70, 240, 24, 20, 0x93c5fd, 0.85).setStrokeStyle(1.5, 0x60a5fa).setDepth(-6);
-    this.add.rectangle(150, 240, 24, 20, 0x93c5fd, 0.85).setStrokeStyle(1.5, 0x60a5fa).setDepth(-6);
-    this.add.rectangle(70, 280, 24, 20, 0x93c5fd, 0.85).setStrokeStyle(1.5, 0x60a5fa).setDepth(-6);
-    this.add.rectangle(150, 280, 24, 20, 0x93c5fd, 0.85).setStrokeStyle(1.5, 0x60a5fa).setDepth(-6);
-
-    // ── TOP-CENTER: Kitchen annex (sink hazard) ─────────────────────────────
-    this.add.rectangle(310, 200, 120, 150, 0xf1f5f9).setStrokeStyle(2, 0x94a3b8, 0.75).setDepth(-7);
-    this.createRoomLabel(310, 165, "KITCHEN SINK", "25 FORKS HAZARD", "#475569");
-
-    // ── TOP-RIGHT: 12 Watchwater Way ────────────────────────────────────────
-    this.add.rectangle(890, 220, 200, 250, 0xfce7f3).setStrokeStyle(3, 0xdb2777, 0.9).setDepth(-7);
-    this.add.rectangle(890, 120, 200, 50, 0xf472b6, 0.85).setDepth(-7); // roof
-    this.createRoomLabel(890, 170, "12 WATCHWATER", "BEN BER'S FRONT DOOR", "#be185d");
-    this.add.rectangle(890, 340, 28, 18, 0x9d174d).setStrokeStyle(2, 0xbe185d).setDepth(-6);
-    this.add.rectangle(850, 240, 24, 20, 0xfda4af, 0.85).setStrokeStyle(1.5, 0xfb7185).setDepth(-6);
-    this.add.rectangle(930, 240, 24, 20, 0xfda4af, 0.85).setStrokeStyle(1.5, 0xfb7185).setDepth(-6);
-    this.add.rectangle(850, 280, 24, 20, 0xfda4af, 0.85).setStrokeStyle(1.5, 0xfb7185).setDepth(-6);
-    this.add.rectangle(930, 280, 24, 20, 0xfda4af, 0.85).setStrokeStyle(1.5, 0xfb7185).setDepth(-6);
-
-    // ── CENTER LOUNGE: Heated Rivalry TV Room ───────────────────────────────
-    this.add.rectangle(500, 240, 120, 100, 0x3e1f1f, 0.8).setStrokeStyle(2, 0x8d6e63, 0.55).setDepth(-7);
-    this.createRoomLabel(500, 230, "HEATED RIVALRY", "📺 BASECAMP LOUNGE", "#f5c2c2");
-    this.add.rectangle(500, 270, 60, 20, 0x450a0a).setStrokeStyle(2, 0x991b1b).setDepth(-6); // TV
-
-    // ── BOTTOM-LEFT: Nick's AMG Garage ──────────────────────────────────────
-    this.add.rectangle(110, 760, 200, 250, 0x1e293b).setStrokeStyle(3, 0x475569, 0.9).setDepth(-7);
-    this.add.rectangle(110, 660, 200, 50, 0x334155, 0.85).setDepth(-7); // roof
-    this.createRoomLabel(110, 710, "NICK'S GARAGE", "C55 AMG WORKSHOP", "#94a3b8");
-    this.add.rectangle(110, 880, 70, 16, 0x64748b).setStrokeStyle(2, 0x94a3b8).setDepth(-6); // garage door
-
-    // ── BOTTOM-CENTER: Aidan's Sublease Suite ───────────────────────────────
-    this.add.rectangle(310, 780, 120, 160, 0x0f172a, 0.8).setStrokeStyle(2, 0x1e293b, 0.7).setDepth(-7);
-    this.createRoomLabel(310, 775, "AIDAN'S SUITE", "SUBLEASED TERRITORY", "#64748b");
-
-    // ── BOTTOM-RIGHT: Jacob's Vault ─────────────────────────────────────────
-    this.add.rectangle(890, 760, 200, 250, 0x3b1c00).setStrokeStyle(3, 0xd97706, 0.9).setDepth(-7);
-    this.add.rectangle(890, 660, 200, 50, 0xd97706, 0.85).setDepth(-7); // golden roof
-    this.createRoomLabel(890, 710, "JACOB'S VAULT", "$3,900 LIQUID RESERVES", "#fde047");
-    this.add.rectangle(890, 880, 40, 36, 0x78350f).setStrokeStyle(3, 0xd97706).setDepth(-6); // vault door
-
-    // ── Trees (pixel-style circles) ─────────────────────────────────────────
-    const treePositions = [
-      [60, 400], [160, 400], [60, 590], [160, 590],
-      [840, 400], [940, 400], [840, 590], [940, 590],
-      [380, 100], [620, 100], [380, 900], [620, 900],
-      [400, 440], [600, 440], [400, 560], [600, 560]
-    ];
-    treePositions.forEach(([tx, ty]) => {
-      this.add.circle(tx, ty, 18, 0x15803d).setDepth(-6.5);
-      this.add.circle(tx, ty, 12, 0x16a34a).setDepth(-6);
-      this.add.circle(tx, ty - 2, 8, 0x22c55e).setDepth(-5.5);
-    });
-
-    // ── Fences along road edge ───────────────────────────────────────────────
-    this.add.rectangle(232, 448, 464, 6, 0x78350f, 0.6).setDepth(-6);
-    this.add.rectangle(232, 552, 464, 6, 0x78350f, 0.6).setDepth(-6);
-    this.add.rectangle(768, 448, 464, 6, 0x78350f, 0.6).setDepth(-6);
-    this.add.rectangle(768, 552, 464, 6, 0x78350f, 0.6).setDepth(-6);
-    this.add.rectangle(448, 232, 6, 464, 0x78350f, 0.6).setDepth(-6);
-    this.add.rectangle(552, 232, 6, 464, 0x78350f, 0.6).setDepth(-6);
-    this.add.rectangle(448, 768, 6, 464, 0x78350f, 0.6).setDepth(-6);
-    this.add.rectangle(552, 768, 6, 464, 0x78350f, 0.6).setDepth(-6);
-
-    // World border
-    this.add.rectangle(W / 2, H / 2, W, H).setStrokeStyle(6, 0x4b5563, 0.8).setDepth(-4);
+  public buildNeighborhoodMap() {
+    this.mapBuilder.buildNeighborhoodMap();
   }
 
-  // ─── Floor / Prop Visuals (Phase B) ──────────────────────────────────────────
-
-  private scatterNature(map: MapConfig) {
-    const theme = (map as any).theme as string | undefined;
-    if (!theme) return;
-
-    const outdoorThemes = ['highway_night', 'park', 'florida', 'cabin', 'suburb_night'];
-    if (!outdoorThemes.includes(theme)) return;
-
-    const W = map.width;
-    const H = map.height;
-
-    let seed = 1337;
-    const rng = () => { seed = (seed * 1664525 + 1013904223) & 0xffffffff; return Math.abs(seed) / 0x7fffffff; };
-
-    const natureKeys = ['nature_flower_1', 'nature_flower_2', 'nature_bush_1', 'nature_bush_2'];
-    // Filter loaded keys just in case
-    const availableKeys = natureKeys.filter(key => this.textures.exists(key));
-    if (availableKeys.length === 0) return;
-
-    const count = theme === 'park' || theme === 'cabin' ? 40 : 15;
-
-    for (let i = 0; i < count; i++) {
-      let x = rng() * W;
-      let y = rng() * H;
-
-      // Theme-specific boundary logic
-      if (theme === 'highway_night' || theme === 'florida') {
-        // Keep to the top and bottom shoulders, avoid the middle road
-        if (y > H * 0.25 && y < H * 0.75) {
-          y = rng() > 0.5 ? y * 0.25 : H - (y * 0.25);
-        }
-      } else if (theme === 'park') {
-        // Avoid the central path (W * 0.3 to W * 0.7)
-        if (x > W * 0.3 && x < W * 0.7) {
-          x = rng() > 0.5 ? x * 0.3 : W - (x * 0.3);
-        }
-      } else if (theme === 'cabin') {
-        // Scatter mostly around the edges
-        if (x > W * 0.2 && x < W * 0.8 && y > H * 0.2 && y < H * 0.8) {
-          if (rng() > 0.5) x = rng() * W * 0.2;
-          else x = W - (rng() * W * 0.2);
-        }
-      } else if (theme === 'suburb_night') {
-        // Similar to highway, avoid middle
-        if (y > H * 0.3 && y < H * 0.7) {
-          y = rng() > 0.5 ? y * 0.3 : H - (y * 0.3);
-        }
-      }
-
-      const key = availableKeys[Math.floor(rng() * availableKeys.length)];
-      // Scatter as decorative non-solid sprites, set depth to Y for correct sorting
-      this.add.image(x, y, key).setDepth(y).setScale(0.8 + rng() * 0.4);
-    }
+  public scatterNature(map: MapConfig) {
+    this.mapBuilder.scatterNature(map);
   }
 
-  private drawFloorLines(map: MapConfig) {
-    const W = map.width;
-    const H = map.height;
-    const theme = (map as any).theme as string | undefined;
-    if (!theme) return;
-    const g = this.add.graphics().setDepth(-185);
-
-    switch (theme) {
-      case 'apartment':
-      case 'cabin': {
-        const planks = [0x7c5c2e, 0x6b4e26, 0x7a5a30, 0x6e5228];
-        for (let y = 0; y < H; y += 28) {
-          g.fillStyle(planks[Math.floor(y / 28) % planks.length], 0.3);
-          g.fillRect(0, y, W, 14);
-          g.lineStyle(1, 0x3b1f0a, 0.18);
-          g.lineBetween(0, y + 14, W, y + 14);
-          if (Math.floor(y / 28) % 3 === 0) {
-            const joinX = ((Math.floor(y / 28) * 137) % (W - 20)) + 10;
-            g.lineStyle(1, 0x3b1f0a, 0.12);
-            g.lineBetween(joinX, y, joinX, y + 14);
-          }
-        }
-        break;
-      }
-      case 'hospital': {
-        g.lineStyle(1, 0x6b7280, 0.18);
-        for (let x = 0; x <= W; x += 32) g.lineBetween(x, 0, x, H);
-        for (let y = 0; y <= H; y += 32) g.lineBetween(0, y, W, y);
-        for (let tx = 0; tx < W; tx += 64) {
-          for (let ty = 0; ty < H; ty += 64) {
-            g.fillStyle(0xffffff, 0.03);
-            g.fillRect(tx + 32, ty, 32, 32);
-            g.fillRect(tx, ty + 32, 32, 32);
-          }
-        }
-        break;
-      }
-      case 'highway_night':
-      case 'suburb_night': {
-        g.lineStyle(3, 0xfbbf24, 0.5);
-        [H * 0.33, H * 0.67].forEach(ly => {
-          for (let x = 0; x < W; x += 40) g.lineBetween(x, ly, x + 24, ly);
-        });
-        g.lineStyle(2, 0xe5e7eb, 0.35);
-        g.lineBetween(0, 20, W, 20);
-        g.lineBetween(0, H - 20, W, H - 20);
-        break;
-      }
-      case 'park': {
-        // Deterministic grass scatter — LCG seeded to avoid jitter on reload
-        let seed = 42;
-        const rng = () => { seed = (seed * 1664525 + 1013904223) & 0xffffffff; return Math.abs(seed) / 0x7fffffff; };
-        g.fillStyle(0x166534, 0.25);
-        for (let i = 0; i < 180; i++) {
-          g.fillCircle(rng() * W, rng() * H, 2 + rng() * 4);
-        }
-        g.fillStyle(0xd97706, 0.08);
-        g.fillRect(W * 0.3, 0, W * 0.4, H);
-        break;
-      }
-      case 'florida': {
-        g.lineStyle(3, 0xfbbf24, 0.55);
-        for (let x = 0; x < W; x += 50) g.lineBetween(x, H / 2, x + 30, H / 2);
-        g.lineStyle(2, 0xe5e7eb, 0.35);
-        g.lineBetween(0, 80, W, 80);
-        g.lineBetween(0, H - 80, W, H - 80);
-        break;
-      }
-    }
+  public drawFloorLines(map: MapConfig) {
+    this.mapBuilder.drawFloorLines(map);
   }
 
-  private drawDecorativeRect(x: number, y: number, w: number, h: number, fill: number, stroke: number, propType?: string, propKey?: string) {
-    // R1: sprite override — render a real image if the texture is loaded
-    if (propKey) {
-      if (this.textures.exists('small_props_atlas') && this.textures.get('small_props_atlas').has(propKey)) {
-        const img = this.add.image(x, y, 'small_props_atlas', propKey).setDisplaySize(w, h).setDepth(y);
-        this.propSprites.set(propKey, img);
-        return;
-      } else if (this.textures.exists(propKey) || this.textures.exists(propKey + '_sheet')) {
-        const hasSheet = this.textures.exists(propKey + '_sheet') || propKey.endsWith('_sheet');
-        const renderKey = hasSheet ? (propKey.endsWith('_sheet') ? propKey : propKey + '_sheet') : (this.textures.exists(propKey + '_crop') ? propKey + '_crop' : propKey);
-        const frame = hasSheet ? 0 : undefined;
-        const img = hasSheet ? this.add.sprite(x, y, renderKey, frame) : this.add.image(x, y, renderKey, frame);
-        if (hasSheet && img instanceof Phaser.GameObjects.Sprite) {
-          const idleKey = `idle_front_${propKey}`;
-          if (this.anims.exists(idleKey)) {
-            img.play(idleKey, true);
-          }
-        }
-        let dw = w, dh = h;
-        if (!propKey.startsWith('prop_pool_map')) {
-          let aspect = this.propAspects[propKey];
-          if (!aspect) aspect = img.width / img.height;
-          dw = w; dh = w / aspect;
-          if (dh > h) { dh = h; dw = h * aspect; }
-        }
-        const depth = propKey.startsWith('prop_pool_map') ? -100 : y;
-        img.setDisplaySize(dw, dh).setDepth(depth);
-        this.propSprites.set(propKey, img as any);
-        return;
-      }
-    }
-    // Sprint 2: real rug sprite (kept at floor depth, not Y-sorted up)
-    if (propType === 'rug' && this.textures.exists(FURNITURE_ATLAS_KEY)) {
-      const frame = furnitureFrame('rug_large');
-      if (frame) {
-        const aspect = furnitureAspect('rug_large') ?? (w / h);
-        let dw = w, dh = w / aspect;
-        if (dh > h) { dh = h; dw = h * aspect; }
-        this.add.image(x, y, FURNITURE_ATLAS_KEY, frame).setDisplaySize(dw, dh).setDepth(-10);
-        return;
-      }
-    }
-    if (propType === 'rug') {
-      const g = this.add.graphics().setDepth(-10);
-      g.fillStyle(fill, 0.7);
-      g.fillRect(x - w / 2, y - h / 2, w, h);
-      g.lineStyle(2, stroke, 0.45);
-      g.strokeRect(x - w / 2, y - h / 2, w, h);
-      g.lineStyle(1.5, stroke, 0.25);
-      g.strokeRect(x - w / 2 + 8, y - h / 2 + 8, w - 16, h - 16);
-      return;
-    }
-    // Prop rects with a propType or propKey get the same rendering pipeline as solid
-    // rects — furniture atlas, PROPTYPE_FURNITURE mapping, or procedural shapes.
-    // Pure structural/fill rects (no propType/propKey) stay as cheap flat decals.
-    if (propType || propKey) {
-      this.drawPropShape(x, y, w, h, fill, stroke, propType, propKey);
-    } else {
-      this.add.rectangle(x, y, w, h, fill, 0.65)
-        .setStrokeStyle(1.5, stroke, 0.5).setDepth(-50);
-    }
+  public drawDecorativeRect(x: number, y: number, w: number, h: number, fill: number, stroke: number, propType?: string, propKey?: string) {
+    this.mapBuilder.drawDecorativeRect(x, y, w, h, fill, stroke, propType, propKey);
   }
 
-  // R11: watchwater crop is 668×290 (landscape) — render at natural ratio, not stretched to physics rect.
-  private static readonly PROP_DISPLAY: Record<string, { w: number; h: number }> = {
-    prop_watchwater:      { w: 360, h: 156 },
-    prop_watchwater_open: { w: 360, h: 156 },
-  };
-
-  // Sprint 2: propType → default furniture-catalog sprite name (furn_<name>).
-  // 'sink'/'fridge'/'door' are intentionally absent — no free-pack sprite, so they fall
-  // through to the procedural shapes below. tollbooth/guardrail/firepit/hottub/arcade → RUN 3.
-  private static readonly PROPTYPE_FURNITURE: Record<string, string> = {
-    couch: 'couch', tv: 'tv', desk: 'desk', counter: 'counter',
-    bed: 'bed_double', bench: 'bench', window: 'window',
-  };
-
-  /** Sprint 2: draw a catalog furniture sprite if the atlas + frame exist. Returns true if drawn. */
-  private tryDrawFurniture(x: number, y: number, w: number, h: number, name: string, propType?: string): boolean {
-    if (!this.textures.exists(FURNITURE_ATLAS_KEY)) return false;
-    const frame = furnitureFrame(name);
-    if (!frame) return false;
-    this.drawFurnitureSprite(x, y, w, h, frame, name, propType);
-    return true;
+  public tryDrawFurniture(x: number, y: number, w: number, h: number, name: string, propType?: string): boolean {
+    return this.mapBuilder.tryDrawFurniture(x, y, w, h, name, propType);
   }
 
-  /** Sprint 2: contain-fit (never stretch), Y-sorted furniture sprite. Wide counters tile. */
-  private drawFurnitureSprite(x: number, y: number, w: number, h: number, frame: string, name: string, propType?: string) {
-    const aspect = furnitureAspect(name) ?? (w / h);
-
-    // Counters are drawn edge-to-edge on the sheet — tile horizontally instead of stretching one.
-    if (propType === 'counter') {
-      const tileH = h * 1.4;
-      const tileW = tileH * aspect;
-      const count = Math.max(1, Math.round(w / tileW));
-      const startX = x - (count * tileW) / 2 + tileW / 2;
-      for (let i = 0; i < count; i++) {
-        const seg = this.add.image(startX + i * tileW, y, FURNITURE_ATLAS_KEY, frame)
-          .setOrigin(0.5, 0.6).setDisplaySize(tileW, tileH).setDepth(y);
-        if (i === 0) this.propSprites.set(frame, seg);
-      }
-      return;
-    }
-
-    // Contain-fit within the rect footprint, preserving aspect ratio.
-    let dw = w, dh = w / aspect;
-    if (dh > h) { dh = h; dw = h * aspect; }
-    const scale = 1.15; // furniture reads a touch larger than its (often small) collision body
-    const img = this.add.image(x, y, FURNITURE_ATLAS_KEY, frame)
-      .setOrigin(0.5, 0.6)
-      .setDisplaySize(dw * scale, dh * scale);
-
-    // Tall props: bias depth so the player can walk behind the base.
-    const tall = propType === 'fridge' || name.includes('wardrobe') || name.includes('bookshelf')
-      || name.includes('plant_tall') || name.includes('cabinet_tall') || name === 'tv';
-    img.setDepth(tall ? y + 24 : y);
-    this.propSprites.set(frame, img);
+  public drawFurnitureSprite(x: number, y: number, w: number, h: number, frame: string, name: string, propType?: string) {
+    this.mapBuilder.drawFurnitureSprite(x, y, w, h, frame, name, propType);
   }
 
-  /**
-   * RUN-3: contain-fit a pack_atlas sprite within (w×h), Y-sorted.
-   * `tallBias` adds to depth so the player can walk behind the base.
-   */
-  private drawPackSprite(x: number, y: number, w: number, h: number, frameName: string, tallBias = 0): boolean {
-    const frame = packFrame(frameName);
-    if (!frame || !this.textures.exists(PACK_ATLAS_KEY)) return false;
-    const nat = packSize(frameName) ?? { w, h };
-    const aspect = nat.w / nat.h;
-    let dw = w, dh = w / aspect;
-    if (dh > h) { dh = h; dw = h * aspect; }
-    const img = this.add.image(x, y, PACK_ATLAS_KEY, frame)
-      .setOrigin(0.5, 0.6)
-      .setDisplaySize(dw, dh)
-      .setDepth(y + tallBias);
-    this.propSprites.set(frame, img);
-    return true;
+  public drawPackSprite(x: number, y: number, w: number, h: number, frameName: string, tallBias = 0): boolean {
+    return this.mapBuilder.drawPackSprite(x, y, w, h, frameName, tallBias);
   }
 
-  private drawPropShape(x: number, y: number, w: number, h: number, fill: number, stroke: number, propType?: string, propKey?: string) {
-    let frame: string | null = null;
-    let aspectName: string | null = null;
-
-    // (a) explicit catalog request: propKey === 'furn_<name>'
-    if (propKey?.startsWith('furn_')) {
-      const n = propKey.slice(5);
-      frame = furnitureFrame(n);
-      aspectName = n;
-    }
-
-    // (b) propType default → catalog
-    if (!frame && propType && ChapterScene.PROPTYPE_FURNITURE[propType]) {
-      const n = ChapterScene.PROPTYPE_FURNITURE[propType];
-      frame = furnitureFrame(n);
-      aspectName = n;
-    }
-
-    if (frame && this.textures.exists('furniture_atlas')) {
-      this.drawFurnitureSprite(x, y, w, h, frame, aspectName!, propType);
-      return;
-    }
-
-    // RUN-3: pack-atlas sprites checked first so propType takes precedence over propKey
-    if (propType === 'junglebox' && this.drawPackSprite(x, y, w, h, 'jungle_gym', 20)) return;
-    if (propType === 'hottub'    && this.drawPackSprite(x, y, w, h, 'hottub', 30)) return;
-    if (propType === 'arcade'    && this.drawPackSprite(x, y, w, h, 'arcade_cabinet', 50)) return;
-
-    // R1: sprite override — render a real image if the texture is loaded
-    if (propKey) {
-      const override = ChapterScene.PROP_DISPLAY[propKey];
-      const dw = override ? override.w : w;
-      const dh = override ? override.h : h;
-
-      if (this.textures.exists('small_props_atlas') && this.textures.get('small_props_atlas').has(propKey)) {
-        const img = this.add.image(x, y, 'small_props_atlas', propKey).setDisplaySize(dw, dh).setDepth(y);
-        this.propSprites.set(propKey, img);
-        return;
-      } else if (this.textures.exists(propKey) || this.textures.exists(propKey + '_sheet')) {
-        const hasSheet = this.textures.exists(propKey + '_sheet') || propKey.endsWith('_sheet');
-        const renderKey = hasSheet ? (propKey.endsWith('_sheet') ? propKey : propKey + '_sheet') : (this.textures.exists(propKey + '_crop') ? propKey + '_crop' : propKey);
-        const frame = hasSheet ? 0 : undefined;
-        const img = hasSheet ? this.add.sprite(x, y, renderKey, frame) : this.add.image(x, y, renderKey, frame);
-        if (hasSheet && img instanceof Phaser.GameObjects.Sprite) {
-          const idleKey = `idle_front_${propKey}`;
-          if (this.anims.exists(idleKey)) {
-            img.play(idleKey, true);
-          }
-        }
-
-        let displayWidth = dw;
-        let displayHeight = dh;
-
-        if (!propKey.startsWith('prop_pool_map')) {
-          let aspect = this.propAspects[propKey];
-          if (!aspect) {
-            aspect = img.width / img.height;
-          }
-          displayHeight = displayWidth / aspect;
-          if (displayHeight > dh) {
-            displayHeight = dh;
-            displayWidth = dh * aspect;
-          }
-        }
-
-        const depth = propKey.startsWith('prop_pool_map') ? -100 : y;
-        img.setDisplaySize(displayWidth, displayHeight).setDepth(depth);
-        this.propSprites.set(propKey, img as any);
-        return;
-      }
-    }
-
-    const g = this.add.graphics().setDepth(y);
-    const l = x - w / 2, t = y - h / 2;
-    switch (propType) {
-      case 'couch': {
-        g.fillStyle(fill, 1);
-        g.fillRect(l, t, w, h);
-        g.lineStyle(2, stroke, 0.9);
-        g.strokeRect(l, t, w, h);
-        // Cushion dividers
-        g.lineStyle(1.5, stroke, 0.45);
-        const cw = w / 3;
-        g.lineBetween(l + cw, t + 4, l + cw, t + h - 4);
-        g.lineBetween(l + cw * 2, t + 4, l + cw * 2, t + h - 4);
-        break;
-      }
-      case 'tv': {
-        g.fillStyle(0x374151, 1);
-        g.fillRect(l, t, w, h);
-        g.fillStyle(0x050a14, 1);
-        g.fillRect(l + 3, t + 3, w - 6, h - 6);
-        // Screen glow edge
-        g.lineStyle(1.5, 0x38bdf8, 0.55);
-        g.strokeRect(l + 4, t + 4, w - 8, h - 8);
-        break;
-      }
-      case 'desk': {
-        g.fillStyle(fill, 1);
-        g.fillRect(l, t, w, h);
-        g.lineStyle(2, stroke, 0.8);
-        g.strokeRect(l, t, w, h);
-        // Monitor
-        const mx = l + w - 30, my = t + 4;
-        g.fillStyle(0x1e293b, 1);
-        g.fillRect(mx, my, 24, 16);
-        g.lineStyle(1, 0x60a5fa, 0.5);
-        g.strokeRect(mx, my, 24, 16);
-        break;
-      }
-      case 'counter': {
-        g.fillStyle(fill, 1);
-        g.fillRect(l, t, w, h);
-        g.lineStyle(2, stroke, 0.8);
-        g.strokeRect(l, t, w, h);
-        g.lineStyle(1.5, 0xffffff, 0.12);
-        g.lineBetween(l + 3, t + 3, l + w - 3, t + 3);
-        break;
-      }
-      case 'sink': {
-        const r = Math.min(w, h) * 0.4;
-        g.fillStyle(fill, 1);
-        g.fillEllipse(x, y, r * 2, r * 1.3);
-        g.lineStyle(2, stroke, 0.8);
-        g.strokeEllipse(x, y, r * 2, r * 1.3);
-        g.fillStyle(0x0f172a, 1);
-        g.fillCircle(x, y, 3);
-        break;
-      }
-      case 'fridge': {
-        g.fillStyle(fill, 1);
-        g.fillRect(l, t, w, h);
-        g.lineStyle(2, stroke, 0.8);
-        g.strokeRect(l, t, w, h);
-        g.lineStyle(1.5, stroke, 0.4);
-        g.lineBetween(l + 3, y, l + w - 3, y);
-        // Handle
-        g.lineStyle(2, 0xd1d5db, 0.7);
-        g.lineBetween(l + w - 7, y - h / 4, l + w - 7, y - h / 4 + 8);
-        break;
-      }
-      case 'door': {
-        g.fillStyle(fill, 1);
-        g.fillRect(l, t, w, h);
-        g.lineStyle(2, stroke, 0.9);
-        g.strokeRect(l, t, w, h);
-        g.fillStyle(0xd97706, 1);
-        g.fillCircle(l + w - 7, y, 3);
-        break;
-      }
-      case 'car': {
-        g.fillStyle(fill, 1);
-        g.fillRect(l, t, w, h);
-        g.lineStyle(2, stroke, 0.9);
-        g.strokeRect(l, t, w, h);
-        g.fillStyle(0x1e3a5f, 0.65);
-        g.fillRect(l + 4, t + 4, w - 8, h * 0.22);
-        g.fillRect(l + 4, t + h - 4 - h * 0.22, w - 8, h * 0.22);
-        break;
-      }
-      case 'tree': {
-        const tr = Math.max(w, h) / 2;
-        g.fillStyle(0x166534, 1);
-        g.fillCircle(x, y, tr);
-        g.fillStyle(0x15803d, 1);
-        g.fillCircle(x, y - 3, tr * 0.65);
-        g.lineStyle(1.5, 0x14532d, 0.6);
-        g.strokeCircle(x, y, tr);
-        g.setDepth(y + 50); // tall props sort higher
-        break;
-      }
-      case 'bed': {
-        g.fillStyle(fill, 1);
-        g.fillRect(l, t, w, h);
-        g.lineStyle(2, stroke, 0.8);
-        g.strokeRect(l, t, w, h);
-        // Pillow(s)
-        g.fillStyle(0xf1f5f9, 0.8);
-        g.fillRect(l + 5, t + 5, w * 0.4, h * 0.3);
-        if (w > 70) g.fillRect(l + w - 5 - w * 0.4, t + 5, w * 0.4, h * 0.3);
-        break;
-      }
-      case 'bench': {
-        g.fillStyle(fill, 1);
-        g.fillRect(l, t, w, h);
-        g.lineStyle(2, stroke, 0.8);
-        g.strokeRect(l, t, w, h);
-        // Slat lines
-        g.lineStyle(1, stroke, 0.35);
-        for (let sx = l + w / 4; sx < l + w; sx += w / 4) {
-          g.lineBetween(sx, t + 3, sx, t + h - 3);
-        }
-        break;
-      }
-      case 'firepit': {
-        // Stone ring
-        const fr = Math.min(w, h) * 0.45;
-        g.fillStyle(0x57534e, 1);
-        g.fillCircle(x, y, fr);
-        g.fillStyle(0x292524, 1);
-        g.fillCircle(x, y, fr * 0.65);
-        // Embers glow in the center
-        g.fillStyle(0xff4500, 0.7);
-        g.fillCircle(x, y, fr * 0.3);
-        g.fillStyle(0xffd700, 0.5);
-        g.fillCircle(x, y, fr * 0.12);
-        // Flame particles (capped at 6 particles)
-        if (this.textures.exists('particle_dot')) {
-          const em = this.add.particles(x, y - fr * 0.3, 'particle_dot', {
-            lifespan: 700,
-            speed: { min: 18, max: 36 },
-            angle: { min: 255, max: 285 },
-            scale: { start: 0.35, end: 0 },
-            tint: [0xff4500, 0xff8c00, 0xffd700],
-            quantity: 1,
-            frequency: 130,
-            maxParticles: 0,
-            blendMode: Phaser.BlendModes.ADD,
-          });
-          em.setDepth(y + 2);
-          this.particleEmitters.push(em);
-        }
-        break;
-      }
-      case 'hottub': {
-        // Tub shell (outer rect, rounded-feel via two fills)
-        g.fillStyle(0x0369a1, 1);
-        g.fillRect(l, t, w, h);
-        // Water surface (inner, lighter blue)
-        const htPad = Math.min(w, h) * 0.1;
-        g.fillStyle(0x38bdf8, 0.85);
-        g.fillRect(l + htPad, t + htPad, w - htPad * 2, h - htPad * 2);
-        // Bubbles (4 circles)
-        g.fillStyle(0x7dd3fc, 0.6);
-        const htR = Math.min(w, h) * 0.07;
-        [[0.3, 0.35], [0.6, 0.55], [0.45, 0.7], [0.7, 0.3]].forEach(([fx, fy]) => {
-          g.fillCircle(l + w * fx, t + h * fy, htR);
-        });
-        g.lineStyle(2, 0x0284c7, 1);
-        g.strokeRect(l, t, w, h);
-        break;
-      }
-      case 'arcade': {
-        // Cabinet body
-        g.fillStyle(0x1e1b4b, 1);
-        g.fillRect(l, t, w, h);
-        // Screen (top third, green CRT glow)
-        const scrH = h * 0.38, scrPad = w * 0.12;
-        g.fillStyle(0x052e16, 1);
-        g.fillRect(l + scrPad, t + h * 0.08, w - scrPad * 2, scrH);
-        g.fillStyle(0x4ade80, 0.6);
-        g.fillRect(l + scrPad + 2, t + h * 0.08 + 2, w - scrPad * 2 - 4, scrH - 4);
-        // Joystick ball
-        g.fillStyle(0xf43f5e, 1);
-        g.fillCircle(l + w * 0.35, t + h * 0.68, w * 0.1);
-        // Buttons (2)
-        g.fillStyle(0xfbbf24, 1);
-        g.fillCircle(l + w * 0.62, t + h * 0.66, w * 0.07);
-        g.fillStyle(0x60a5fa, 1);
-        g.fillCircle(l + w * 0.78, t + h * 0.72, w * 0.07);
-        g.lineStyle(2, 0x818cf8, 1);
-        g.strokeRect(l, t, w, h);
-        break;
-      }
-      default: {
-        g.fillStyle(fill, 1);
-        g.fillRect(l, t, w, h);
-        g.lineStyle(2, stroke, 0.8);
-        g.strokeRect(l, t, w, h);
-        break;
-      }
-    }
+  public drawPropShape(x: number, y: number, w: number, h: number, fill: number, stroke: number, propType?: string, propKey?: string) {
+    this.mapBuilder.drawPropShape(x, y, w, h, fill, stroke, propType, propKey);
   }
 
-  // ─── Higher-DPI text rendering. Phaser draws text to a texture at the font's
+  public addMapObject(x: number, y: number, w: number, h: number, fillColor: number, strokeColor: number, propType?: string, propKey?: string): Phaser.GameObjects.Rectangle {
+    return this.mapBuilder.addMapObject(x, y, w, h, fillColor, strokeColor, propType, propKey);
+  }
+
+  public createWall(x: number, y: number, w: number, h: number) {
+    this.mapBuilder.createWall(x, y, w, h);
+  }
+
+  public createRoomLabel(_x: number, _y: number, _name: string, _detail: string, _colorHex: string) {
+    this.mapBuilder.createRoomLabel(_x, _y, _name, _detail, _colorHex);
+  }
+
+  // Higher-DPI text rendering. Phaser draws text to a texture at the font's
   // pixel size and then scales it to the canvas — without bumping resolution,
   // small fonts come out blurry. Render at device pixel ratio (min 2x).
-  private get textRes(): number {
+  public get textRes(): number {
     return Math.max(2, Math.ceil((typeof window !== 'undefined' ? window.devicePixelRatio : 1) * 2));
   }
 
   /** Crisp text helper — applies resolution + a readable default font. */
-  private label(
+  public label(
     x: number,
     y: number,
     text: string,
@@ -1505,27 +839,6 @@ export default class ChapterScene extends Phaser.Scene {
       ...style
     });
   }
-
-  private addMapObject(x: number, y: number, w: number, h: number, fillColor: number, strokeColor: number, propType?: string, propKey?: string): Phaser.GameObjects.Rectangle {
-    // Invisible static physics body — visual is provided by drawPropShape
-    const rect = this.add.rectangle(x, y, w, h, fillColor, 0);
-    this.physics.add.existing(rect, true);
-    (rect.body as Phaser.Physics.Arcade.StaticBody).setSize(w, h);
-    this.drawPropShape(x, y, w, h, fillColor, strokeColor, propType, propKey);
-    return rect;
-  }
-
-  private createWall(x: number, y: number, w: number, h: number) {
-    const obstacle = this.add.rectangle(x, y, w, h, 0x374151, 0.8).setStrokeStyle(1.5, 0x4b5563, 0.6).setDepth(-5);
-    this.physics.add.existing(obstacle, true);
-    (obstacle.body as Phaser.Physics.Arcade.StaticBody).setSize(w, h);
-    this.walls.add(obstacle);
-  }
-
-  // Intentionally empty — permanent in-world room signs removed in Phase B.
-  // Area names are now shown as BotW-style fading toasts via showAreaTitle().
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private createRoomLabel(_x: number, _y: number, _name: string, _detail: string, _colorHex: string) {}
 
   // ─── Brainrot HUD ─────────────────────────────────────────────────────────
 
@@ -1592,56 +905,17 @@ export default class ChapterScene extends Phaser.Scene {
     this.brainrotBar.setAlpha(alpha > 0.3 ? 1 : 0.3);
   }
 
-  private applyDirectionalAnim(sprite: Phaser.GameObjects.Sprite, id: string, vx: number, vy: number, facesLeftByDefault = false) {
-    const moving = vx !== 0 || vy !== 0;
-    let dir: 'front' | 'side' | 'back' = 'front';
-
-    if (moving) {
-      if (Math.abs(vx) >= Math.abs(vy) && vx !== 0) {
-        dir = 'side';
-        // sprites are drawn facing right; flip when moving left (account for per-char default)
-        const movingLeft = vx < 0;
-        sprite.setFlipX(facesLeftByDefault ? !movingLeft : movingLeft);
-      } else {
-        dir = vy > 0 ? 'front' : 'back';   // down = toward camera (front), up = away (back)
-        sprite.setFlipX(false);
-      }
-      // Save last direction in sprite data
-      sprite.setData('lastDir', dir);
-    } else {
-      // Retain last direction if available
-      dir = sprite.getData('lastDir') || 'front';
-    }
-
-    if (moving) {
-      const base = 'walk_';
-      const key = `${base}${dir === 'side' ? 'side' : dir}_${id}`;
-      const fallback = `walk_${id}`;
-      const finalKey = this.anims.exists(key) ? key : fallback;
-      if (sprite.anims.currentAnim?.key !== finalKey) sprite.play(finalKey, true);
-    } else {
-      sprite.anims.stop();
-      const base = 'idle_';
-      const key = `${base}${dir === 'side' ? 'side' : dir}_${id}`;
-      const fallback = `idle_${id}`;
-      const finalKey = this.anims.exists(key) ? key : fallback;
-      if (this.anims.exists(finalKey)) {
-        const anim = this.anims.get(finalKey);
-        if (anim && anim.frames && anim.frames.length > 0) {
-          sprite.setFrame(anim.frames[0].frame.name);
-        } else {
-          sprite.setFrame(0);
-        }
-      } else {
-        sprite.setFrame(0);
-      }
-    }
+  public applyDirectionalAnim(sprite: Phaser.GameObjects.Sprite, id: string, vx: number, vy: number, facesLeftByDefault = false) {
+    this.actorsSystem.applyDirectionalAnim(sprite, id, vx, vy, facesLeftByDefault);
   }
 
   // ─── Update Loop ─────────────────────────────────────────────────────────────
 
   public update(time: number, _delta: number) {
     if (!this.levelStarted) return;
+    if (this.activeMode?.update) {
+      this.activeMode.update(time, _delta);
+    }
 
     // Keep the canvas glued to its container every rendered frame. Phaser's RAF
     // loop is the most reliable ticker available — more dependable than
@@ -1657,9 +931,8 @@ export default class ChapterScene extends Phaser.Scene {
     }
 
     // While a story beat owns the screen (dialogue/choice/cutscene), freeze play.
-    const isPoolParty = this.chapter.id === 'suds_and_soles_pool_party';
     const hasPoolSheet = this.textures.exists(`npc_${this.playerClass.id}_pool_sheet`);
-    const animId = (isPoolParty && hasPoolSheet) ? `npc_${this.playerClass.id}_pool` : this.playerClass.id;
+    const animId = (this.chapter.usePoolSheet && hasPoolSheet) ? `npc_${this.playerClass.id}_pool` : this.playerClass.id;
 
     if (this.movementFrozen) {
       this.player.setVelocity(0, 0);
@@ -1718,8 +991,9 @@ export default class ChapterScene extends Phaser.Scene {
       if (d <= this.walkTarget.radius) {
         const wasDoor = this.walkTarget.markerLabel?.includes('front door');
         this.clearWalkTarget();
-        if (wasDoor && this.chapter.id === 'ding_dong_ditch_ben' && this.cache.audio.exists('sfx_knock')) {
-          [0, 150, 300].forEach(ms => this.time.delayedCall(ms, () => { try { this.sound.play('sfx_knock', { volume: 0.6 }); } catch {} }));
+        const doorSfx = this.chapter.ambientSfx?.onDoor;
+        if (wasDoor && doorSfx && this.cache.audio.exists(doorSfx)) {
+          [0, 150, 300].forEach(ms => this.time.delayedCall(ms, () => { try { this.sound.play(doorSfx, { volume: 0.6 }); } catch {} }));
         }
         this.advanceBeat();
       }
@@ -1731,406 +1005,43 @@ export default class ChapterScene extends Phaser.Scene {
     }
 
     // Combat only exists inside a bossFight beat — and pauses while a QTE modal is up.
-    if (this.isBossActive && !this.qteActive && this.spawnedBoss && this.bossData) {
+    if (this.isBossActive && !this.qteActive && this.spawnedBoss) {
       const nearest = this.findNearestEnemy();
       if (nearest) this.fireWeapon(time, nearest.x, nearest.y);
-      this.handleBossAI(time);
-      this.updateBossHpBarPosition();
     }
   }
 
   // ─── Story Beat Engine ─────────────────────────────────────────────────────────
 
   public startBeat(index: number) {
-    if (index >= this.chapter.beats.length) return;
-    this.beatIndex = index;
-    this.beatActive = true;
-    const beat = this.chapter.beats[index];
-
-    switch (beat.type) {
-      case 'dialogue': return this.runDialogueBeat(beat);
-      case 'choice': return this.runChoiceBeat(beat);
-      case 'walkTo': return this.runWalkToBeat(beat);
-      case 'cameraPan': return this.runCameraPanBeat(beat);
-      case 'bossFight': return this.runBossFightBeat(beat);
-      case 'chase': return this.runChaseBeat(beat);
-      case 'wait': return this.time.delayedCall(beat.ms, () => this.advanceBeat());
-      case 'ledger': this.applyLedger(beat.delta, beat.note); return this.advanceBeat();
-      case 'endChapter': return this.runEndChapter();
-    }
+    this.beatEngine.startBeat(index);
   }
 
-  private advanceBeat() {
-    this.beatActive = false;
-    this.startBeat(this.beatIndex + 1);
+  public advanceBeat() {
+    this.beatEngine.advanceBeat();
   }
 
-  private gotoBeatId(id: string) {
-    const idx = this.chapter.beats.findIndex(b => b.id === id);
-    this.startBeat(idx >= 0 ? idx : this.beatIndex + 1);
+  public gotoBeatId(id: string) {
+    this.beatEngine.gotoBeatId(id);
   }
 
-  private freeze() {
-    this.dialogueOpen = true;
-    this.player.setVelocity(0, 0);
+  public freeze() {
+    this.beatEngine.freeze();
   }
 
-  private unfreeze() {
-    this.dialogueOpen = false;
+  public unfreeze() {
+    this.beatEngine.unfreeze();
   }
 
-  private runDialogueBeat(beat: Extract<Beat, { type: 'dialogue' }>) {
-    this.freeze();
-
-    if (this.chapter.id === 'suds_and_soles_pool_party') {
-      this.handlePoolPartyDialogueBeats(beat);
-    }
-
-    const s = resolveSpeaker(beat.speaker);
-    this.onStoryDialogue(
-      {
-        speakerName: s.name, speakerEmoji: s.emoji, speakerColor: s.color,
-        portraitDataUrl: this.portraitDataUrls[beat.speaker],
-        lines: beat.lines,
-      },
-      () => { this.unfreeze(); this.advanceBeat(); }
-    );
+  public clearWalkTarget() {
+    this.beatEngine.clearWalkTarget();
   }
 
-  private handlePoolPartyDialogueBeats(beat: Extract<Beat, { type: 'dialogue' }>) {
-    const linesJoined = beat.lines.join(' ');
 
-    // 1. Jacob enters the pool
-    if (linesJoined.includes('Jacob Lebby enters the pool.')) {
-      const jacob = this.propSprites.get('hero_jacob_sheet') as Phaser.GameObjects.Sprite | undefined;
-      const jacobName = this.poolNameplates?.get('hero_jacob_sheet');
-      if (jacob) {
-        jacob.setTexture('npc_jacob_pool_sheet');
-        if (jacob.play) {
-          jacob.play('walk_side_npc_jacob_pool', true);
-        }
-        this.tweens.add({
-          targets: jacob,
-          x: 350,
-          y: 390,
-          duration: 2000,
-          onUpdate: () => {
-            jacob.setDepth(jacob.y);
-            if (jacobName) {
-              jacobName.setPosition(jacob.x, jacob.y - 38);
-              jacobName.setDepth(jacob.y + 200);
-            }
-          },
-          onComplete: () => {
-            if (jacob.play) {
-              jacob.play('idle_front_npc_jacob_pool', true);
-            }
-          }
-        });
-      }
-    }
-
-    // 2. Sam Ferretti appears at the gate
-    if (linesJoined.includes('Then: Sam Ferretti appears at the gate.')) {
-      const sam = this.propSprites.get('npc_sam_pool') as Phaser.GameObjects.Sprite | undefined;
-      const samName = this.poolNameplates?.get('npc_sam_pool');
-      if (sam) {
-        sam.setPosition(480, 680).setVisible(true).setDepth(680);
-        if (samName) {
-          samName.setPosition(480, 680 - 38).setVisible(true).setDepth(680 + 200);
-        }
-        if (sam.play) {
-          sam.play('walk_side_npc_sam_pool', true);
-        }
-        this.tweens.add({
-          targets: sam,
-          x: 760,
-          y: 680,
-          duration: 2500,
-          onUpdate: () => {
-            sam.setDepth(sam.y);
-            if (samName) {
-              samName.setPosition(sam.x, sam.y - 38);
-              samName.setDepth(sam.y + 200);
-            }
-          },
-          onComplete: () => {
-            if (sam.play) {
-              sam.play('idle_front_npc_sam_pool', true);
-            }
-          }
-        });
-      }
-    }
-  }
-
-  private runChoiceBeat(beat: Extract<Beat, { type: 'choice' }>) {
-    this.freeze();
-    this.movementFrozen = true;
-    const s = resolveSpeaker(beat.speaker);
-    this.onStoryDialogue(
-      {
-        speakerName: s.name, speakerEmoji: s.emoji, speakerColor: s.color,
-        portraitDataUrl: this.portraitDataUrls[beat.speaker],
-        lines: [beat.prompt],
-        choices: beat.options.map(o => ({ text: o.text })),
-      },
-      (choiceIndex?: number) => {
-        this.movementFrozen = false;
-        const opt = beat.options[choiceIndex ?? 0];
-        if (opt.ledgerDelta) this.applyLedger(opt.ledgerDelta, opt.text);
-        const proceed = () => {
-          this.unfreeze();
-          if (opt.goto) this.gotoBeatId(opt.goto); else this.advanceBeat();
-        };
-        if (opt.reactionLines && opt.reactionLines.length) {
-          const rs = resolveSpeaker(opt.reactionSpeaker ?? beat.speaker);
-          this.onStoryDialogue(
-            {
-              speakerName: rs.name, speakerEmoji: rs.emoji, speakerColor: rs.color,
-              portraitDataUrl: this.portraitDataUrls[opt.reactionSpeaker ?? beat.speaker],
-              lines: opt.reactionLines,
-            },
-            proceed
-          );
-        } else {
-          proceed();
-        }
-      }
-    );
-  }
-
-  private runWalkToBeat(beat: Extract<Beat, { type: 'walkTo' }>) {
-    const radius = beat.radius ?? 60;
-    this.walkTarget = { x: beat.x, y: beat.y, radius, markerLabel: beat.markerLabel, marker: this.makeWalkMarker(beat.x, beat.y, beat.markerLabel) };
-  }
-
-  private makeWalkMarker(x: number, y: number, labelText?: string): Phaser.GameObjects.Container {
-    const ring = this.add.circle(0, 0, 22, 0xfacc15, 0).setStrokeStyle(3, 0xfacc15, 0.9);
-    const dot = this.add.circle(0, 0, 6, 0xfacc15, 0.9);
-    const parts: Phaser.GameObjects.GameObject[] = [ring, dot];
-    if (labelText) {
-      const lbl = this.label(0, -36, labelText, {
-        fontSize: '11px', color: '#fbbf24', fontStyle: 'bold',
-        backgroundColor: '#0b1208e0', padding: { x: 7, y: 4 }, stroke: '#000000', strokeThickness: 2
-      }).setOrigin(0.5);
-      parts.push(lbl);
-    }
-    const container = this.add.container(x, y, parts).setDepth(8000);
-    this.tweens.add({ targets: ring, scaleX: 1.5, scaleY: 1.5, alpha: 0, duration: 1100, repeat: -1, ease: 'Sine.easeOut' });
-    this.tweens.add({ targets: container, y: y - 6, duration: 800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-    return container;
-  }
-
-  private clearWalkTarget() {
-    this.walkTarget?.marker?.destroy();
-    this.walkTarget = null;
-  }
-
-  private runCameraPanBeat(beat: Extract<Beat, { type: 'cameraPan' }>) {
-    this.freeze();
-    this.movementFrozen = true;
-    this.showLetterbox();
-    const cam = this.cameras.main;
-    cam.stopFollow();
-    cam.pan(beat.x, beat.y, beat.durationMs, 'Sine.easeInOut', true);
-
-    if (this.chapter.id === 'suds_and_soles_pool_party') {
-      this.handlePoolPartyPanBeats(beat);
-    }
-
-    // Use delayedCall for timing guarantee — pan callback p===1 is unreliable at short distances.
-    this.time.delayedCall(beat.durationMs + (beat.holdMs ?? 600), () => {
-      this.hideLetterbox();
-      cam.startFollow(this.player, true, 0.1, 0.1);
-      this.movementFrozen = false;
-      this.unfreeze();
-      this.advanceBeat();
-    });
-  }
-
-  private handlePoolPartyPanBeats(beat: Extract<Beat, { type: 'cameraPan' }>) {
-    // 1. Anastasia & Sophia arrival pan (x: 650, y: 428)
-    if (beat.x === 650 && beat.y === 428) {
-      const anastasia = this.propSprites.get('npc_anastasia_pool') as Phaser.GameObjects.Sprite | undefined;
-      const sophia = this.propSprites.get('npc_sophia_pool') as Phaser.GameObjects.Sprite | undefined;
-      const anastasiaName = this.poolNameplates?.get('npc_anastasia_pool');
-      const sophiaName = this.poolNameplates?.get('npc_sophia_pool');
-
-      if (anastasia && sophia) {
-        anastasia.setVisible(false);
-        sophia.setVisible(false);
-        if (anastasiaName) anastasiaName.setVisible(false);
-        if (sophiaName) sophiaName.setVisible(false);
-
-        // Spawn + walk when camera reaches the hot tub (exactly at 1200ms)
-        this.time.delayedCall(1200, () => {
-          anastasia.setPosition(480, 650).setVisible(true).setDepth(650);
-          sophia.setPosition(450, 660).setVisible(true).setDepth(660);
-          if (anastasiaName) anastasiaName.setPosition(480, 650 - 38).setVisible(true).setDepth(650 + 200);
-          if (sophiaName) sophiaName.setPosition(450, 660 - 38).setVisible(true).setDepth(660 + 200);
-
-          if (anastasia.play) {
-            anastasia.play('walk_side_npc_anastasia_pool', true);
-          }
-          if (sophia.play) {
-            sophia.play('walk_side_npc_sophia_pool', true);
-          }
-
-          this.tweens.add({
-            targets: anastasia,
-            x: 650,
-            y: 418,
-            duration: 2500,
-            onUpdate: () => {
-              anastasia.setDepth(anastasia.y);
-              if (anastasiaName) {
-                anastasiaName.setPosition(anastasia.x, anastasia.y - 38);
-                anastasiaName.setDepth(anastasia.y + 200);
-              }
-            },
-            onComplete: () => {
-              if (anastasia.play) {
-                anastasia.play('submerged_idle_npc_anastasia_pool', true);
-              }
-            }
-          });
-
-          this.tweens.add({
-            targets: sophia,
-            x: 622,
-            y: 498,
-            duration: 2500,
-            onUpdate: () => {
-              sophia.setDepth(sophia.y);
-              if (sophiaName) {
-                sophiaName.setPosition(sophia.x, sophia.y - 38);
-                sophiaName.setDepth(sophia.y + 200);
-              }
-            },
-            onComplete: () => {
-              if (sophia.play) {
-                sophia.play('submerged_idle_npc_sophia_pool', true);
-              }
-            }
-          });
-        });
-      }
-    }
-
-    // 2. Jacob arrival pan (x: 464, y: 654)
-    if (beat.x === 464 && beat.y === 654) {
-      const jacob = this.propSprites.get('hero_jacob_sheet') as Phaser.GameObjects.Sprite | undefined;
-      const jacobName = this.poolNameplates?.get('hero_jacob_sheet');
-
-      if (jacob) {
-        jacob.setVisible(false);
-        if (jacobName) jacobName.setVisible(false);
-
-        // Spawn + walk when camera reaches the gate (exactly at 1400ms)
-        this.time.delayedCall(1400, () => {
-          jacob.setPosition(464, 654).setVisible(true).setDepth(654);
-          if (jacobName) jacobName.setPosition(464, 654 - 38).setVisible(true).setDepth(654 + 200);
-
-          if (jacob.play) {
-            jacob.play('walk_back_jacob', true);
-          }
-
-          this.tweens.add({
-            targets: jacob,
-            y: 520,
-            duration: 2000,
-            onUpdate: () => {
-              jacob.setDepth(jacob.y);
-              if (jacobName) {
-                jacobName.setPosition(jacob.x, jacob.y - 38);
-                jacobName.setDepth(jacob.y + 200);
-              }
-            },
-            onComplete: () => {
-              if (jacob.play) {
-                jacob.play('idle_front_jacob', true);
-              }
-            }
-          });
-        });
-      }
-    }
-  }
-
-  private runBossFightBeat(beat: Extract<Beat, { type: 'bossFight' }>) {
-    this.bossBeatResolve = () => this.advanceBeat();
-    this.hideActor(beat.bossId.replace('boss_', ''));
-
-    const bossConfig = BOSSES.find(b => b.id === beat.bossId) ?? BOSSES[0];
-    const intro = beat.introLines ?? [];
-
-    const launchFight = () => {
-      // Letterbox in → camera punch to boss spawn → name slam → begin.
-      // Drive the sequence with delayedCall rather than the pan callback —
-      // cam.pan's p===1 tick is unreliable when target ≈ current position.
-      this.startBossMusic();
-      this.freeze();
-      this.showLetterbox();
-      const cam = this.cameras.main;
-      const ax = beat.arena ? beat.arena.x : this.chapter.map.width / 2;
-      const ay = beat.arena ? beat.arena.y - (beat.arena.h ?? 0) / 2 + 60 : 120;
-      cam.stopFollow();
-      cam.pan(ax, ay, 550, 'Sine.easeInOut', true);
-      // Wait for pan to finish (550ms) then run the name-slam sequence.
-      this.time.delayedCall(550, () => {
-        // Screen-space coords: setScrollFactor(0) objects must use cam.width/height, not midPoint.
-        const cx = cam.width / 2;
-        const cy = cam.height / 2;
-        const nameLabel = this.label(cx, cy - 30, bossConfig.name.toUpperCase(), {
-          fontSize: '28px', color: '#ef4444', fontStyle: 'bold',
-          stroke: '#000000', strokeThickness: 6
-        }).setOrigin(0.5).setScrollFactor(0).setDepth(12000).setScale(3).setAlpha(0);
-        const titleLabel = this.label(cx, cy + 14, bossConfig.title, {
-          fontSize: '13px', color: '#fca5a5', fontStyle: 'italic',
-          stroke: '#000000', strokeThickness: 3
-        }).setOrigin(0.5).setScrollFactor(0).setDepth(12000).setAlpha(0);
-        cam.flash(80, 239, 68, 68);
-        cam.shake(160, 0.018);
-        this.tweens.add({
-          targets: nameLabel, scale: 1, alpha: 1, duration: 260, ease: 'Back.easeOut',
-          onComplete: () => {
-            this.tweens.add({ targets: titleLabel, alpha: 1, duration: 200 });
-          }
-        });
-        this.time.delayedCall(900, () => {
-          this.tweens.add({
-            targets: [nameLabel, titleLabel], alpha: 0, y: '-=20', duration: 300,
-            onComplete: () => { nameLabel.destroy(); titleLabel.destroy(); }
-          });
-          this.hideLetterbox(300);
-          this.time.delayedCall(320, () => {
-            cam.startFollow(this.player, true, 0.1, 0.1);
-            this.unfreeze();
-            this.summonBossMatch(beat.bossId, beat.arena);
-            if (beat.bossId === 'boss_audrey') {
-              this.setControlsInverted(true);
-              this.onMessageLog('🩸 Red Pee Bladder Syndrome: controls are REVERSED for this entire fight.');
-            }
-          });
-        });
-      });
-    };
-
-    if (intro.length) {
-      this.freeze();
-      this.onStoryDialogue(
-        { speakerName: 'VS', speakerEmoji: '⚔️', speakerColor: '#ef4444', lines: intro },
-        () => launchFight()
-      );
-    } else {
-      launchFight();
-    }
-  }
 
   // ─── R8: Chase phase ──────────────────────────────────────────────────────────
 
-  private runChaseBeat(beat: Extract<Beat, { type: 'chase' }>) {
+  public runChaseBeat(beat: Extract<Beat, { type: 'chase' }>) {
     const config = BOSSES.find(b => b.id === beat.pursuerId) ?? BOSSES[0];
     const cam = this.cameras.main;
     this.chasePursuerId = config.id.replace('boss_', '');
@@ -2147,15 +1058,17 @@ export default class ChapterScene extends Phaser.Scene {
     }).setOrigin(0.5).setScrollFactor(0).setDepth(12000).setAlpha(0).setScale(0.4);
 
     // R1: swap watchwater house to "door opened" texture when RUN flashes
-    if (this.chapter.id === 'ding_dong_ditch_ben') {
-      const houseSprite = this.propSprites.get('prop_watchwater');
-      if (houseSprite) {
-        if (this.textures.exists('prop_watchwater_open_clean')) {
-          houseSprite.setTexture('prop_watchwater_open_clean');
-        } else if (this.textures.exists('prop_watchwater_open')) {
-          houseSprite.setTexture('prop_watchwater_open');
+    if (this.chapter.chaseTextureSwaps) {
+      this.chapter.chaseTextureSwaps.forEach(swap => {
+        const sprite = this.propSprites.get(swap.propKey);
+        if (sprite) {
+          if (this.textures.exists(swap.targetTexture)) {
+            sprite.setTexture(swap.targetTexture);
+          } else if (swap.fallbackTexture && this.textures.exists(swap.fallbackTexture)) {
+            sprite.setTexture(swap.fallbackTexture);
+          }
         }
-      }
+      });
     }
 
     this.tweens.add({
@@ -2237,91 +1150,29 @@ export default class ChapterScene extends Phaser.Scene {
 
   // ─── Audio helpers ────────────────────────────────────────────────────────────
 
-  private startStageMusic() {
-    const musicKey = CHAPTER_MUSIC_KEY[this.chapter.id];
-    if (!musicKey || !this.cache.audio.exists(musicKey)) return;
-    try {
-      this.stageMusic = this.sound.add(musicKey, { loop: true, volume: 0 });
-      this.stageMusic.play();
-      this.tweens.add({ targets: this.stageMusic, volume: 0.30, duration: 1200 });
-    } catch { /* Web Audio not ready — play will resume on first canvas interaction */ }
+  public startStageMusic() {
+    this.audioController.startStageMusic();
   }
 
-  private startBossMusic() {
-    // Fade out stage music
-    if (this.stageMusic?.isPlaying) {
-      this.tweens.add({
-        targets: this.stageMusic, volume: 0, duration: 600,
-        onComplete: () => (this.stageMusic as Phaser.Sound.WebAudioSound | null)?.pause(),
-      });
-    }
-    // R3: play Prowler sting once, then transition to Techno-Tetris loop
-    // Crossfade: sting is 4.127s long. Start crossfade at 3.127s.
-    if (this.cache.audio.exists('boss_sting')) {
-      try {
-        this.bossMusicSting = this.sound.add('boss_sting', { loop: false, volume: 0.55 });
-        this.bossMusicSting.play();
-        this.time.delayedCall(3127, () => {
-          if (this.bossMusicSting && this.bossMusicSting.isPlaying) {
-            this.tweens.add({
-              targets: this.bossMusicSting,
-              volume: 0,
-              duration: 1000,
-              onComplete: () => {
-                this.bossMusicSting?.destroy();
-                this.bossMusicSting = null;
-              }
-            });
-          }
-          this.startBossLoop(1000);
-        });
-      } catch {
-        this.startBossLoop(); // sting failed — jump straight to loop
-      }
-    } else {
-      this.startBossLoop();
-    }
+  public startBossMusic() {
+    this.audioController.startBossMusic();
   }
 
-  private startBossLoop(fadeDuration: number = 600) {
-    if (!this.cache.audio.exists('boss_loop')) return;
-    try {
-      this.bossMusic = this.sound.add('boss_loop', { loop: true, volume: 0 });
-      this.bossMusic.play();
-      this.tweens.add({ targets: this.bossMusic, volume: 0.42, duration: fadeDuration });
-    } catch { /* skip */ }
+  public startBossLoop(fadeDuration: number = 600) {
+    this.audioController.startBossLoop(fadeDuration);
   }
 
-  private stopBossMusic() {
-    // Stop and destroy the sting if it is still playing
-    if (this.bossMusicSting) {
-      try { this.bossMusicSting.stop(); } catch { /* skip */ }
-      this.bossMusicSting.destroy();
-      this.bossMusicSting = null;
-    }
-    // Fade out and destroy the loop
-    if (this.bossMusic) {
-      this.tweens.add({
-        targets: this.bossMusic, volume: 0, duration: 700,
-        onComplete: () => { this.bossMusic?.destroy(); this.bossMusic = null; },
-      });
-    }
-    // Resume stage music
-    if (this.stageMusic) {
-      try {
-        if (!(this.stageMusic as any).isPlaying) (this.stageMusic as Phaser.Sound.WebAudioSound).resume();
-        this.tweens.add({ targets: this.stageMusic, volume: 0.30, duration: 900 });
-      } catch { /* skip */ }
-    }
+  public stopBossMusic() {
+    this.audioController.stopBossMusic();
   }
 
-  private applyLedger(delta: number, note: string) {
+  public applyLedger(delta: number, note: string) {
     this.ledgerTotal += delta;
     this.onLedgerChange(this.ledgerTotal, note);
     this.showPassiveIconText(this.player.x, this.player.y - 40, `+$${delta.toFixed(2)} — ${note}`, '#fbbf24');
   }
 
-  private runEndChapter() {
+  public runEndChapter() {
     this.player.play('victory_' + this.playerClass.id, true);
     this.cameras.main.flash(400, 200, 232, 154);
     // Fade out stage music and play victory jingle
@@ -2337,54 +1188,13 @@ export default class ChapterScene extends Phaser.Scene {
 
   // ─── Actor placement ──────────────────────────────────────────────────────────
 
-  private placeActors() {
-    this.chapter.actors.forEach((actor: ActorPlacement) => {
-      // R5: if this slot is the player's hero, use the understudy if one is defined
-      let renderAs = actor.id;
-      if (actor.id === this.playerClass.id) {
-        if (actor.understudyId) {
-          renderAs = actor.understudyId;
-        } else {
-          return; // skip — no understudy, slot stays empty (player is here)
-        }
-      }
-
-      const speaker = resolveSpeaker(renderAs);
-      const sheetKey = `hero_${renderAs}_sheet`;
-      let sprite: Phaser.GameObjects.Image | Phaser.GameObjects.Sprite;
-      if (this.textures.exists(sheetKey)) {
-        const s = this.add.sprite(actor.x, actor.y, sheetKey, 0);
-        // R4: NPCs use a single static frame — no idle animation cycling
-        s.setFrame(0);
-        s.setScale(0.5).setDepth(actor.y);
-        sprite = s;
-      } else {
-        const g = this.make.graphics({ x: 0, y: 0 });
-        g.fillStyle(parseInt(speaker.color.replace('#', ''), 16), 1);
-        g.fillCircle(20, 20, 20);
-        g.generateTexture(`actor_${renderAs}`, 40, 40);
-        g.destroy();
-        sprite = this.add.image(actor.x, actor.y, `actor_${renderAs}`).setScale(1).setDepth(actor.y);
-      }
-      // Nameplate floats above, well above Y-sorted range
-      const nameplate = this.label(actor.x, actor.y - 38, actor.nameOverride ?? speaker.name, {
-        fontSize: '12px', color: speaker.color, fontStyle: 'bold',
-        stroke: '#000000', strokeThickness: 4
-      }).setOrigin(0.5).setDepth(actor.y + 200);
-      // Shadow at feet
-      const shadow = this.add.image(actor.x, actor.y + 18, 'shadow_ellipse')
-        .setAlpha(0.28).setScale(0.7).setDepth(actor.y - 1);
-      // Store under original id so hideActor() still works correctly
-      this.actorSprites[actor.id] = [sprite, nameplate, shadow];
-    });
+  public placeActors() {
+    this.actorsSystem.placeActors();
   }
 
-  /** Hide an ambient actor (used when that character becomes the boss). */
-  private hideActor(id: string) {
-    (this.actorSprites[id] ?? []).forEach(o => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(false));
+  public hideActor(id: string) {
+    this.actorsSystem.hideActor(id);
   }
-
-  // ─── Enemy AI ─────────────────────────────────────────────────────────────
 
   private updateEnemyAI(time: number) {
     this.enemies.getChildren().forEach((obj: any) => {
@@ -2639,9 +1449,6 @@ export default class ChapterScene extends Phaser.Scene {
     if (this.isBossActive || !this.levelStarted) return;
 
     if (this.enemiesLeftToSpawn <= 0) {
-      if (this.enemies.countActive() === 0 && !this.isBossActive) {
-        this.summonBossMatch();
-      }
       return;
     }
 
@@ -2679,81 +1486,9 @@ export default class ChapterScene extends Phaser.Scene {
     }
   }
 
-  // ─── Boss AI ──────────────────────────────────────────────────────────────
 
-  private handleBossAI(time: number) {
-    if (!this.spawnedBoss || !this.bossData) return;
 
-    const targetAngle = Phaser.Math.Angle.Between(this.spawnedBoss.x, this.spawnedBoss.y, this.player.x, this.player.y);
-    const bossSpeed = 80 + this.currentLevelIndex * 15;
-    const vx = Math.cos(targetAngle) * bossSpeed;
-    const vy = Math.sin(targetAngle) * bossSpeed;
-    this.spawnedBoss.setVelocity(vx, vy);
-
-    const bossIdForAnim = this.bossData.id.replace('boss_', '');
-    const atkKey = `attack_boss_${bossIdForAnim}`;
-
-    const isAttacking = this.spawnedBoss.anims.currentAnim?.key === atkKey && this.spawnedBoss.anims.isPlaying;
-
-    if (!isAttacking) {
-      const facesLeftByDefault = bossIdForAnim === 'nick_f';
-      this.applyDirectionalAnim(this.spawnedBoss, `boss_${bossIdForAnim}`, vx, vy, facesLeftByDefault);
-    }
-
-    if (time - this.lastBossAttackTime > 2000) {
-      this.lastBossAttackTime = time;
-      if (this.anims.exists(atkKey)) this.spawnedBoss.play(atkKey, true);
-
-      switch (this.bossData.id) {
-        case 'boss_eric': this.fireBossCoinAttack(); break;
-        case 'boss_audrey': this.teleportKidneyStrike(); break;
-        case 'boss_florida': this.deployTireTreadTether(); break;
-        case 'boss_ben': this.unleashHeyAoE(); break;
-        case 'boss_nick_f': this.dischargeRefundRosterChecks(); break;
-      }
-    }
-
-    // Phase bark
-    const hpRatio = this.currentBossHp / this.bossData.maxHp;
-    const phase = hpRatio < 0.33 ? 1 : hpRatio < 0.66 ? 2 : 3;
-    if (Math.random() < 0.005) {
-      const phaseBarks = this.bossData.phaseBarks;
-      const phaseBark = phaseBarks[phase] ?? this.bossData.combatBarks[Math.floor(Math.random() * this.bossData.combatBarks.length)];
-      this.showBubbleText(this.spawnedBoss, phaseBark, '#ef4444');
-    }
-  }
-
-  private fireBossCoinAttack() {
-    if (!this.spawnedBoss) return;
-    this.onMessageLog('💸 Eric Huang casting index fees!');
-    for (let i = 0; i < 5; i++) {
-      const coin = this.add.circle(this.player.x + Phaser.Math.Between(-150, 150), this.player.y - 300, 12, 0xfacc15);
-      this.physics.add.existing(coin);
-      (coin.body as Phaser.Physics.Arcade.Body).setVelocityY(350);
-      this.physics.add.overlap(this.player, coin, () => { coin.destroy(); this.damagePlayer(18, 'Gold Extortion Coin'); });
-      this.time.delayedCall(2000, () => { if (coin.active) coin.destroy(); });
-    }
-  }
-
-  private teleportKidneyStrike() {
-    if (!this.spawnedBoss) return;
-    this.onMessageLog('🩸 Audrey teleports — Kidney Punch incoming!');
-    const targetX = this.player.x;
-    const targetY = this.player.y;
-    const ring = this.add.circle(targetX, targetY, 40, 0xef4444, 0.3);
-    this.time.delayedCall(700, () => {
-      ring.destroy();
-      if (!this.spawnedBoss) return;
-      this.spawnedBoss.x = targetX;
-      this.spawnedBoss.y = targetY;
-      if (Phaser.Math.Distance.Between(this.player.x, this.player.y, targetX, targetY) < 60) {
-      this.damagePlayer(25, 'Kidney Punch');
-      this.cameras.main.flash(400, 239, 68, 68);
-      }
-    });
-  }
-
-  private setControlsInverted(on: boolean) {
+  public setControlsInverted(on: boolean) {
     if (on === this.controlsInverted) return;          // idempotent
     const { W, S, A, D } = this.wasdKeys;
     this.wasdKeys.W = S; this.wasdKeys.S = W;
@@ -2761,262 +1496,11 @@ export default class ChapterScene extends Phaser.Scene {
     this.controlsInverted = on;
   }
 
-  private deployTireTreadTether() {
-    if (!this.spawnedBoss) return;
-    this.onMessageLog('🏎️ Florida Syndicate — Mustang Crowd Control!');
-    for (let i = 0; i < 8; i++) {
-      const angle = (Math.PI / 4) * i;
-      const proj = this.physics.add.sprite(this.spawnedBoss.x, this.spawnedBoss.y, 'bullet');
-      proj.setTint(0x374151).setVelocity(Math.cos(angle) * 320, Math.sin(angle) * 320);
-      this.enemyProjectiles.add(proj);
-      this.time.delayedCall(2000, () => { if (proj.active) proj.destroy(); });
-    }
-  }
 
-  private unleashHeyAoE() {
-    if (!this.spawnedBoss) return;
-    this.onMessageLog('🔊 Michael Bersofsky bellows "HEY!!!"');
-    this.cameras.main.shake(300, 0.02);
-    for (let i = 0; i < 12; i++) {
-      const angle = (Math.PI / 6) * i;
-      const ringB = this.physics.add.sprite(this.spawnedBoss.x, this.spawnedBoss.y, 'bullet');
-      ringB.setTint(0x6b7280).setScale(1.2).setVelocity(Math.cos(angle) * 250, Math.sin(angle) * 250);
-      this.enemyProjectiles.add(ringB);
-      this.time.delayedCall(3000, () => { if (ringB.active) ringB.destroy(); });
-    }
-  }
-
-  private dischargeRefundRosterChecks() {
-    if (!this.spawnedBoss) return;
-    this.onMessageLog('💸 Nick Farrar drops Refund Checks — 5% Robinhood fee active!');
-    for (let i = 0; i < 6; i++) {
-      const check = this.add.rectangle(
-        this.player.x + Phaser.Math.Between(-200, 200),
-        this.player.y + Phaser.Math.Between(-200, 200),
-        24, 14, 0x10b981
-      );
-      this.physics.add.existing(check);
-      this.tweens.add({ targets: check, scale: 1.4, alpha: 0.1, duration: 1800, onComplete: () => check.destroy() });
-      this.physics.add.overlap(this.player, check, () => { check.destroy(); this.damagePlayer(15, 'Refund Interest Fee'); });
-    }
-  }
-
-  // ─── Boss Spawn ───────────────────────────────────────────────────────────
-
-  private summonBossMatch(bossConfigId?: string, arena?: { x: number; y: number; w: number; h: number }) {
-    if (this.isBossActive) return;
-
-    if (this.spawnedBoss) {
-      this.spawnedBoss.destroy();
-      this.spawnedBoss = undefined as any;
-    }
-    if (this.bossHpBg) { this.bossHpBg.destroy(); }
-    if (this.bossHpFill) { this.bossHpFill.destroy(); }
-    if (this.bossNameLabel) { this.bossNameLabel.destroy(); }
-    if (this.bossShadow) { this.bossShadow.destroy(); }
-
-    this.isBossActive = true;
-    const config = BOSSES.find(b => b.id === bossConfigId) ?? BOSSES[this.currentLevelIndex % BOSSES.length];
-    this.bossData = config;
-    this.currentBossHp = config.maxHp;
-    this.lastBossAttackTime = this.time.now;
-
-    this.onMessageLog(`⚠️ BOSS INCOMING: ${config.name} — ${config.title}!`);
-
-    // Constrain the fight to the arena so combat doesn't sprawl across the map.
-    const ax = arena ? arena.x : this.chapter.map.width / 2;
-    const ay = arena ? arena.y : this.chapter.map.height / 2;
-    const spawnX = ax;
-    const spawnY = arena ? arena.y - arena.h / 2 + 60 : 120;
-
-    // Use processed boss sheet if available, fall back to raw image, then procedural
-    const bossId = config.id.replace('boss_', '');
-    const bossSheetKey = `boss_${bossId}_sheet`;
-    const bossRawKey = config.id; // e.g. 'boss_eric'
-    let bossTex: string;
-    let bossScale: number;
-    if (this.textures.exists(bossSheetKey)) {
-      bossTex = bossSheetKey;
-      bossScale = 0.85;
-    } else if (this.textures.exists(bossRawKey)) {
-      bossTex = bossRawKey;
-      bossScale = 0.55;
-    } else {
-      bossTex = 'enemy_grunter';
-      bossScale = 1.6;
-    }
-    void ax; void ay;
-    this.spawnedBoss = this.physics.add.sprite(spawnX, spawnY, bossTex, 0);
-    if (this.textures.exists(bossSheetKey)) {
-      this.spawnedBoss.play(`idle_boss_${bossId}`, true);
-    }
-    this.spawnedBoss.setScale(bossScale).setCollideWorldBounds(true).setDrag(400, 400);
-    this.spawnedBoss.setDepth(spawnY);
-
-    // Shadow beneath the boss
-    this.bossShadow = this.add.image(spawnX, spawnY + 28, 'shadow_ellipse')
-      .setAlpha(0.4).setScale(1.1).setDepth(spawnY - 1);
-
-    this.showBubbleText(this.spawnedBoss, config.combatBarks[0], '#f43f5e');
-    this.cameras.main.flash(500, 239, 68, 68);
-    this.cameras.main.shake(400, 0.015);
-
-    // Floating boss health bar — depth above all Y-sorted content
-    const barW = 220;
-    this.bossHpBg = this.add.rectangle(this.spawnedBoss.x, this.spawnedBoss.y - 90, barW, 14, 0x1a0606)
-      .setStrokeStyle(2, 0xef4444, 0.9).setDepth(10000);
-    this.bossHpFill = this.add.rectangle(this.spawnedBoss.x - barW / 2 + 2, this.spawnedBoss.y - 90, barW - 4, 10, 0xef4444)
-      .setOrigin(0, 0.5).setDepth(10001);
-    this.bossNameLabel = this.label(this.spawnedBoss.x, this.spawnedBoss.y - 104, `${config.name} — ${config.title}`, {
-      fontSize: '12px', color: '#fca5a5', fontStyle: 'bold',
-      stroke: '#000000', strokeThickness: 4
-    }).setOrigin(0.5).setDepth(10002);
-
-    // Let auto-fire projectiles chip the boss down (QTE delivers big audit hits).
-    // Identify the projectile by group membership rather than argument position
-    // so we never accidentally destroy the boss sprite itself.
-    this.physics.add.overlap(this.projectiles, this.spawnedBoss, (a: any, b: any) => {
-      const projectile = this.projectiles.contains(a) ? a : b;
-      if (projectile === this.spawnedBoss) return;
-      projectile.destroy();
-      const weapon = WEAPONS[this.currentLevelIndex % WEAPONS.length];
-      this.damageBoss(weapon.attackPower * 0.6);
-    });
-
-    this.time.addEvent({
-      delay: 9000,
-      callback: this.triggerBossQTEQuest,
-      callbackScope: this,
-      loop: true
-    });
-  }
-
-  /** Apply damage to the active boss and refresh its health bar. */
-  private damageBoss(amount: number) {
-    if (!this.isBossActive || !this.bossData || !this.spawnedBoss) return;
-    this.currentBossHp = Math.max(0, this.currentBossHp - amount);
-    this.updateBossHpBar();
-    const dmgVal = Math.round(amount);
-    this.showDamageNumber(
-      this.spawnedBoss.x + Phaser.Math.Between(-20, 20),
-      this.spawnedBoss.y - 50,
-      dmgVal,
-      amount >= 30 ? '#facc15' : '#f87171'
-    );
-    if (!this.bossHitFlashing && this.spawnedBoss) {
-      this.bossHitFlashing = true;
-      this.spawnedBoss.setTintFill(0xffffff);
-      this.time.delayedCall(80, () => { this.spawnedBoss?.clearTint(); this.bossHitFlashing = false; });
-    }
-    if (this.currentBossHp <= 0) this.defeatBossSuccess();
-  }
-
-  private updateBossHpBar() {
-    if (!this.bossHpFill || !this.bossData || !this.spawnedBoss) return;
-    const barW = 220;
-    const ratio = Phaser.Math.Clamp(this.currentBossHp / this.bossData.maxHp, 0, 1);
-    this.bossHpFill.width = (barW - 4) * ratio;
-    const color = ratio > 0.5 ? 0x4ade80 : ratio > 0.25 ? 0xfacc15 : 0xef4444;
-    this.bossHpFill.setFillStyle(color);
-  }
-
-  private updateBossHpBarPosition() {
-    if (!this.spawnedBoss) return;
-    // Y-sort boss with characters
-    this.spawnedBoss.setDepth(this.spawnedBoss.y);
-    if (this.bossShadow) {
-      this.bossShadow.setPosition(this.spawnedBoss.x, this.spawnedBoss.y + 28);
-      this.bossShadow.setDepth(this.spawnedBoss.y - 1);
-    }
-    const barW = 220;
-    const bx = this.spawnedBoss.x;
-    const by = this.spawnedBoss.y - 90;
-    this.bossHpBg?.setPosition(bx, by);
-    this.bossHpFill?.setPosition(bx - barW / 2 + 2, by);
-    this.bossNameLabel?.setPosition(bx, by - 14);
-  }
-
-  private destroyBossHpBar() {
-    this.bossHpBg?.destroy(); this.bossHpBg = null;
-    this.bossHpFill?.destroy(); this.bossHpFill = null;
-    this.bossNameLabel?.destroy(); this.bossNameLabel = null;
-  }
-
-  private triggerBossQTEQuest() {
-    if (!this.isBossActive || !this.bossData || !this.spawnedBoss || this.qteActive) return;
-    this.qteActive = true;
-    this.physics.pause();
-    this.spawnedBoss.setVelocity(0, 0);
-    this.onMessageLog(`⚡ [QTE]: Audit ${this.bossData.name} — choose your counter!`);
-    this.onTriggerQTE(this.bossData, (success: boolean) => {
-      this.qteActive = false;
-      this.physics.resume();
-      // Don't let a boss attack fire the instant the modal closes.
-      this.lastBossAttackTime = this.time.now;
-      if (success && this.spawnedBoss && this.bossData) {
-        const dmg = this.bossData.weaknessQTE.damage;
-        this.onMessageLog(`🔥 AUDIT SUCCESS! ${this.bossData.name} -${dmg} BIQ!`);
-        this.cameras.main.flash(300, 34, 197, 94);
-        this.cameras.main.shake(300, 0.02);
-        this.showBubbleText(this.spawnedBoss, 'CALLED OUT ON LOGS! MY B.I.Q. IS PLUMMETING! 💀', '#10b981');
-        this.damageBoss(dmg);
-      } else {
-        this.onMessageLog(`💥 AUDIT FAILED — ${this.bossData?.name} counters!`);
-        this.cameras.main.flash(350, 239, 68, 68);
-        this.damagePlayer(35, 'Failed QTE');
-      }
-    });
-  }
-
-  private defeatBossSuccess() {
-    if (!this.spawnedBoss || !this.bossData) return;
-    this.onMessageLog(`🏆 ${this.bossData.name} logged and archived in the group chat!`);
-
-    for (let i = 0; i < 24; i++) {
-      const star = this.add.circle(this.spawnedBoss.x, this.spawnedBoss.y, 8, 0xfacc15);
-      this.physics.add.existing(star);
-      (star.body as Phaser.Physics.Arcade.Body).setVelocity(Phaser.Math.Between(-300, 300), Phaser.Math.Between(-300, 300));
-      this.time.delayedCall(1000, () => star.destroy());
-    }
-
-    for (let i = 0; i < 10; i++) {
-      const shard = this.physics.add.sprite(
-        this.spawnedBoss.x + Phaser.Math.Between(-30, 30),
-        this.spawnedBoss.y + Phaser.Math.Between(-30, 30),
-        this.textures.exists('shard_sheet') ? 'shard_sheet' : 'loot_shard',
-        this.textures.exists('shard_sheet') ? 0 : undefined
-      );
-      shard.setScale(this.textures.exists('shard_sheet') ? 0.18 : 1)
-        .setTint(0xfacc15).setVelocity(Phaser.Math.Between(-150, 150), Phaser.Math.Between(-150, 150)).setDrag(100, 100);
-      this.lootShards.add(shard);
-    }
-
-    this.destroyBossHpBar();
-    this.bossShadow?.destroy();
-    this.bossShadow = null;
-    this.spawnedBoss.destroy();
-    this.spawnedBoss = null;
-    this.isBossActive = false;
-    this.bossHitFlashing = false;
-    this.setControlsInverted(false);
-    this.isAttackingAnim = false;
-    this.stopBossMusic();
-    this.player.play('victory_' + this.playerClass.id, true);
-    // Hand control back to the story — the bossFight beat resolves here.
-    this.time.delayedCall(1200, () => {
-      this.cameras.main.fadeOut(400, 0, 0, 0);
-      this.time.delayedCall(420, () => {
-        this.cameras.main.fadeIn(300, 0, 0, 0);
-        const resolve = this.bossBeatResolve;
-        this.bossBeatResolve = null;
-        if (resolve) resolve(); else this.onLevelCompleted();
-      });
-    });
-  }
 
   // ─── Damage & Status Effects ───────────────────────────────────────────────
 
-  private damagePlayer(damage: number, source: string) {
+  public damagePlayer(damage: number, source: string) {
     // In-flight delayed attacks (e.g. Kidney Punch) must not land mid-QTE.
     if (this.qteActive) return;
     try {
@@ -3176,7 +1660,7 @@ export default class ChapterScene extends Phaser.Scene {
 
   // ─── UI Helpers ───────────────────────────────────────────────────────────
 
-  private showBubbleText(anchor: Phaser.GameObjects.GameObject, text: string, colorHex = '#ffffff') {
+  public showBubbleText(anchor: Phaser.GameObjects.GameObject, text: string, colorHex = '#ffffff') {
     const sprite = anchor as Phaser.Physics.Arcade.Sprite;
     if (!sprite?.x || !sprite?.y) return;
     const container = this.add.container(sprite.x, sprite.y - 45).setDepth(2000);
@@ -3190,7 +1674,7 @@ export default class ChapterScene extends Phaser.Scene {
     this.tweens.add({ targets: container, y: container.y - 40, alpha: 0, duration: 1900, onComplete: () => container.destroy() });
   }
 
-  private showPassiveIconText(x: number, y: number, text: string, color: string) {
+  public showPassiveIconText(x: number, y: number, text: string, color: string) {
     const label = this.label(x, y, text, {
       fontSize: '13px', color,
       stroke: '#000000', strokeThickness: 4, fontStyle: 'bold'
@@ -3201,7 +1685,7 @@ export default class ChapterScene extends Phaser.Scene {
   // ─── Phase D: Cinematic helpers ───────────────────────────────────────────
 
   /** Tween black bars in from top and bottom — "cutscene" signal. */
-  private showLetterbox(durationMs = 350) {
+  public showLetterbox(durationMs = 350) {
     const cam = this.cameras.main;
     const barH = Math.round(cam.height * 0.10);
     if (!this.letterboxTop) {
@@ -3216,7 +1700,7 @@ export default class ChapterScene extends Phaser.Scene {
     this.tweens.add({ targets: this.letterboxBottom, alpha: 1, y: cam.height - barH, duration: durationMs, ease: 'Sine.easeOut' });
   }
 
-  private hideLetterbox(durationMs = 350) {
+  public hideLetterbox(durationMs = 350) {
     if (!this.letterboxTop && !this.letterboxBottom) return;
     const cam = this.cameras.main;
     this.tweens.add({
@@ -3230,7 +1714,7 @@ export default class ChapterScene extends Phaser.Scene {
   }
 
   /** Floating damage number rising from a world position. */
-  private showDamageNumber(x: number, y: number, amount: number, color: string) {
+  public showDamageNumber(x: number, y: number, amount: number, color: string) {
     const isBig = amount >= 25;
     const txt = this.label(x, y, `-${amount}`, {
       fontSize: isBig ? '16px' : '13px',
@@ -3487,7 +1971,7 @@ export default class ChapterScene extends Phaser.Scene {
   }
 
   /** BotW-style area title toast — bottom-left, fades in then out. Screen-space. */
-  private showAreaTitle(title: string) {
+  public showAreaTitle(title: string) {
     const cam = this.cameras.main;
     const sy = cam.height - 56;
 

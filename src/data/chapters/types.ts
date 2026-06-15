@@ -131,6 +131,7 @@ export type Beat = { id?: string } & (
   | { type: 'walkTo'; x: number; y: number; radius?: number; markerLabel?: string }
   | { type: 'cameraPan'; x: number; y: number; durationMs: number; holdMs?: number }
   | { type: 'bossFight'; bossId: string; arena: { x: number; y: number; w: number; h: number }; introLines?: string[] }
+  | { type: 'minigame'; modeId: string; config?: unknown; introLines?: string[]; background?: boolean }
   | { type: 'chase'; pursuerId: string; durationMs: number }
   | { type: 'wait'; ms: number }
   | { type: 'ledger'; delta: number; note: string }
@@ -152,4 +153,9 @@ export interface ChapterConfig {
   map: MapConfig;
   actors: ActorPlacement[];
   beats: Beat[];
+  cameraZoom?: number;
+  usePoolSheet?: boolean;
+  ambientSfx?: { onDoor?: string };
+  chaseTextureSwaps?: Array<{ propKey: string; targetTexture: string; fallbackTexture?: string }>;
+  poolNameplatesConfigs?: Array<{ id: string; key: string; startHidden?: boolean }>;
 }

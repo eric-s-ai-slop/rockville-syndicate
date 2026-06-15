@@ -62,7 +62,20 @@ const chapter9: ChapterConfig = {
 
   actors: [],
 
+  cameraZoom: 1.35,
+  usePoolSheet: true,
+  poolNameplatesConfigs: [
+    { id: 'eric', key: 'npc_eric_pool' },
+    { id: 'nick_f', key: 'npc_nick_f_pool' },
+    { id: 'nick_h', key: 'npc_nick_h_pool' },
+    { id: 'anastasia', key: 'npc_anastasia_pool', startHidden: true },
+    { id: 'sophia', key: 'npc_sophia_pool', startHidden: true },
+    { id: 'jacob', key: 'hero_jacob_sheet', startHidden: true },
+    { id: 'sam_ferretti', key: 'npc_sam_pool', startHidden: true }
+  ],
+
   beats: [
+    { type: 'minigame', modeId: 'poolParty', background: true },
     // ── OPENING NARRATION ──────────────────────────────────────────────────────
     {
       type: 'dialogue',

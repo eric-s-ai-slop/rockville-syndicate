@@ -57,6 +57,10 @@ const chapter6: ChapterConfig = {
     { id: 'nick_f', x: 680, y: 570, understudyId: 'nick_h' },
     { id: 'eric', x: 200, y: 570, understudyId: 'jacob' },
   ],
+  ambientSfx: { onDoor: 'sfx_knock' },
+  chaseTextureSwaps: [
+    { propKey: 'prop_watchwater', targetTexture: 'prop_watchwater_open_clean', fallbackTexture: 'prop_watchwater_open' }
+  ],
   beats: [
     {
       type: 'dialogue',
