@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Phaser from 'phaser';
 import ChapterScene, { StoryDialoguePayload } from '../game/ChapterScene';
-import { CHARACTER_CLASSES, CharacterClass, BossConfig } from '../data';
+import { CHARACTER_CLASSES, CharacterClass, BossConfig } from '../data/entities';
 import { ChapterConfig } from '../data/chapters';
 import { loadProgress, markChapterComplete, rememberHero } from '../game/progress';
 import shieldImg from '../assets/images/shield.jpg';
