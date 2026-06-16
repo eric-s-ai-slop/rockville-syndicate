@@ -179,6 +179,11 @@ export default class ChapterScene extends Phaser.Scene {
   // Collider references for map objects (need to store for enemy collision setup)
   public mapCollidables: Phaser.GameObjects.Rectangle[] = [];
 
+  // All game objects created during map build — used for teardown on changeScene
+  private mapObjects: Phaser.GameObjects.GameObject[] = [];
+  // Index into chapter.scenes[] for the currently active location
+  public currentSceneIndex: number = 0;
+
   // Shadow sprites that follow moving entities
   private playerShadow: Phaser.GameObjects.Image | null = null;
 
@@ -273,6 +278,8 @@ export default class ChapterScene extends Phaser.Scene {
     this.levelStarted = false;
     this.enemyHitCooldowns.clear();
     this.mapCollidables = [];
+    this.mapObjects = [];
+    this.currentSceneIndex = 0;
     this.npcs = [];
     this.dialogueOpen = false;
     this.lastMoveAngle = 0;
@@ -424,7 +431,7 @@ export default class ChapterScene extends Phaser.Scene {
     this.safeLoadAudio('boss_sting', BOSS_MUSIC_URL);
     this.safeLoadAudio('boss_loop', BOSS_LOOP_URL);
 
-    const variant = THEME_FOOTSTEP[(this.chapter.map as any).theme ?? 'apartment'] ?? 'carpet';
+    const variant = THEME_FOOTSTEP[(this.getActiveSceneConfig().map as any).theme ?? 'apartment'] ?? 'carpet';
     this.footstepKeys = (FOOTSTEP_URLS[variant] ?? []).map((url, i) => {
       const key = `footstep_${i}`;
       this.safeLoadAudio(key, url);
@@ -658,7 +665,7 @@ export default class ChapterScene extends Phaser.Scene {
       }
     }
 
-    const map = this.chapter.map;
+    const { map } = this.getActiveSceneConfig();
     this.physics.world.setBounds(0, 0, map.width, map.height);
     this.cameras.main.setBackgroundColor(map.backdrop);
 
@@ -668,8 +675,7 @@ export default class ChapterScene extends Phaser.Scene {
     this.lootShards = this.physics.add.group();
     this.walls = this.physics.add.staticGroup();
 
-    this.buildMapFromConfig(map);
-    this.buildAtmosphere(map);
+    this.buildMapLayer(map);
 
     const hasPoolSheet = this.textures.exists(`npc_${this.playerClass.id}_pool_sheet`);
     const sheetKey = (this.chapter.usePoolSheet && hasPoolSheet) ? `npc_${this.playerClass.id}_pool_sheet` : 'hero_' + this.playerClass.id + '_sheet';
@@ -706,15 +712,10 @@ export default class ChapterScene extends Phaser.Scene {
     this.eKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.E);
 
     this.physics.add.collider(this.player, this.walls);
-    this.mapCollidables.forEach(obj => {
-      this.physics.add.collider(this.player, obj as any);
-      this.physics.add.collider(this.enemies, obj as any);
-      this.physics.add.collider(this.projectiles, obj as any, (p: any) => p.destroy());
-      this.physics.add.collider(this.enemyProjectiles, obj as any, (p: any) => p.destroy());
-    });
     this.physics.add.collider(this.enemies, this.walls);
     this.physics.add.collider(this.projectiles, this.walls, (p: any) => p.destroy());
     this.physics.add.collider(this.enemyProjectiles, this.walls, (p: any) => p.destroy());
+    this.wireMapColliders();
 
     this.physics.add.overlap(this.player, this.enemyProjectiles, this.handleProjectileHitPlayer, undefined, this);
 
@@ -766,6 +767,88 @@ export default class ChapterScene extends Phaser.Scene {
         }
         this.activeMode = null;
       }
+    });
+  }
+
+  // ─── Multi-scene helpers ──────────────────────────────────────────────────────
+
+  public getActiveSceneConfig(): { map: MapConfig; actors: ActorPlacement[] } {
+    const s = this.chapter.scenes?.[this.currentSceneIndex];
+    return s ?? { map: this.chapter.map, actors: this.chapter.actors };
+  }
+
+  /** Snapshot the display list, build the map + atmosphere, record what was added. */
+  private buildMapLayer(map: MapConfig) {
+    const before = new Set<Phaser.GameObjects.GameObject>(this.children.list);
+    this.buildMapFromConfig(map);
+    this.buildAtmosphere(map);
+    this.mapObjects = this.children.list.filter(o => !before.has(o));
+  }
+
+  /** Add per-object physics colliders for mapCollidables. Call after every map build. */
+  private wireMapColliders() {
+    this.mapCollidables.forEach(obj => {
+      this.physics.add.collider(this.player, obj as any);
+      this.physics.add.collider(this.enemies, obj as any);
+      this.physics.add.collider(this.projectiles, obj as any, (p: any) => p.destroy());
+      this.physics.add.collider(this.enemyProjectiles, obj as any, (p: any) => p.destroy());
+    });
+  }
+
+  /** Tear down all map visuals, physics, and actor sprites — ready for a new scene. */
+  public teardownMap() {
+    // Static walls group: clear + destroy all members
+    this.walls.clear(true, true);
+
+    // Physics-backed solid rectangles (mapCollidables)
+    this.mapCollidables.forEach(obj => { try { obj.destroy(); } catch {} });
+    this.mapCollidables = [];
+
+    // Every visual created during buildMapLayer (backdrop, floor, rects, images, graphics…)
+    this.mapObjects.forEach(obj => { try { if (obj.active) obj.destroy(); } catch {} });
+    this.mapObjects = [];
+
+    // Atmosphere tracked refs (also in mapObjects, but null them out)
+    this.ambientOverlay = null;
+    this.vignetteOverlay = null;
+    this.fakeLights = [];
+    this.particleEmitters.forEach(e => { try { e.destroy(); } catch {} });
+    this.particleEmitters = [];
+    this.propSprites = new Map();
+    this.poolNameplates = new Map();
+
+    // Actor sprites
+    Object.values(this.actorSprites).flat().forEach(obj => {
+      try { (obj as Phaser.GameObjects.GameObject).destroy(); } catch {}
+    });
+    this.actorSprites = {};
+  }
+
+  /** Fade out → swap map → fade in. Advances the beat when complete. */
+  public transitionToScene(sceneIndex: number, transitionMs = 500, onDone?: () => void) {
+    const half = transitionMs / 2;
+    this.movementFrozen = true;
+    this.cameras.main.fadeOut(half, 0, 0, 0);
+    this.cameras.main.once('camerafadeoutcomplete', () => {
+      this.teardownMap();
+      this.currentSceneIndex = sceneIndex;
+      const { map, actors } = this.getActiveSceneConfig();
+
+      this.physics.world.setBounds(0, 0, map.width, map.height);
+      this.cameras.main.setBackgroundColor(map.backdrop);
+
+      this.buildMapLayer(map);
+      this.wireMapColliders();
+      this.player.setPosition(map.playerSpawn.x, map.playerSpawn.y);
+      this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
+
+      this.actorsSystem.placeActors(actors);
+
+      this.cameras.main.fadeIn(half, 0, 0, 0);
+      this.cameras.main.once('camerafadeincomplete', () => {
+        this.movementFrozen = false;
+        onDone?.();
+      });
     });
   }
 

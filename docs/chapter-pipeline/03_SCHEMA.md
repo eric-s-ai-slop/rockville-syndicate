@@ -123,6 +123,7 @@ type Beat = { id?: string } & (
   | { type: 'cameraPan'; x: number; y: number; durationMs: number; holdMs?: number }
   | { type: 'bossFight'; bossId: string; arena: { x: number; y: number; w: number; h: number }; introLines?: string[] }
   | { type: 'minigame'; modeId: string; config?: unknown; introLines?: string[]; background?: boolean }
+  | { type: 'changeScene'; sceneIndex: number; transitionMs?: number }
   | { type: 'wait'; ms: number }
   | { type: 'ledger'; delta: number; note: string }
   | { type: 'endChapter' }
@@ -166,6 +167,13 @@ Speaker ids: `'narrator'` `'eric'` `'jordan'` `'nick_h'` `'nick_f'` `'maharko'` 
 **`ledger`**
 - Use for any real number in the story (overcharge amount, debt, cost of a decision).
 - `note` should be dry and specific: *"Spotify overcharge (per month)"* not *"Eric's fee."*
+
+**`changeScene`**
+- Transitions the player to `chapter.scenes[sceneIndex]` — fades out, tears down the map, rebuilds the new one, fades in.
+- Only available if the chapter uses the `scenes[]` field (from Step 2a multi-scene output).
+- `transitionMs` defaults to 500ms. Use 800–1000 for a more deliberate location cut.
+- Place it between the last beat of the current location and the first beat of the new one. Dialogue spoken before the beat plays out fully before the transition fires.
+- Precede it with a `cameraPan` or `dialogue` beat that signals the location change in-story ("Let's go." / "Outside.") — the black screen without context is disorienting.
 
 **`bossFight`**
 - `introLines` name what's actually at stake, not just who you're fighting. Two lines max.
@@ -240,11 +248,15 @@ const chapterN: ChapterConfig = {
   location: '',    // physical location name
   description: '', // one-sentence logline from the brief
   kind: 'chapter',
-  map: { /* TO BE FILLED — paste map config here */ },
-  actors: [
-    // list actors present with placeholder coordinates
-    // { id: 'jordan', x: 0, y: 0 }
-  ],
+
+  // Single-location chapter: paste map + actors here directly.
+  map: { /* TO BE FILLED — paste MapConfig from Step 2a */ },
+  actors: [ /* TO BE FILLED — paste ActorPlacement[] from Step 2a */ ],
+
+  // Multi-location chapter: include scenes[] AND keep map/actors populated
+  // with the same values as scenes[0] (required by the type).
+  // scenes: [ /* TO BE FILLED — paste ChapterSceneConfig[] from Step 2a */ ],
+
   beats: [ /* generated beats go here */ ],
 };
 ```

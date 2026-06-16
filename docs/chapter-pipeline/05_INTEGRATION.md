@@ -27,8 +27,10 @@ const chapterN: ChapterConfig = {
   location: '',
   description: '',
   kind: 'chapter',
-  map: { /* from Step 3 */ },
-  actors: [ /* from Step 3 */ ],
+  map: { /* from Step 3 — scene 0 map, or the single map */ },
+  actors: [ /* from Step 3 — scene 0 actors, or the single actor list */ ],
+  // Multi-location only: include scenes[] and populate map/actors above with scenes[0]'s values.
+  // scenes: [ /* from Step 3 */ ],
   beats: [ /* from Step 3 */ ],
 };
 
@@ -148,6 +150,7 @@ Open `localhost:3000`. Play through the chapter. Check:
 - [ ] All `dialogue` beats fire in order, no skips
 - [ ] `choice` beat shows all options; reactions play correctly
 - [ ] `ledger` ticks display correctly
+- [ ] If using `changeScene`: location transition fades cleanly, new map loads, player respawns at new `playerSpawn`
 - [ ] Boss fight triggers, boss id resolves, QTE works
 - [ ] Chapter ends cleanly (`endChapter` fires)
 - [ ] No console errors

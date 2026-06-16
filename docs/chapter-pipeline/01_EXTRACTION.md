@@ -63,6 +63,421 @@ The tone lives in the overlap between:
 
 ---
 
+### REFERENCE CHAPTERS — READ BEFORE ASKING ANYTHING
+
+Before you ask the user a single question, read these three chapter beat arrays. They are the target. Every question you ask, every label you flag, every moment you push the user to be more specific — the answer needs to be specific enough to produce something at this level.
+
+Do not copy structure. Absorb register. Notice:
+- **How specific the details are.** "Exit 49, Baltimore." "4:17 AM." "$273.28." "Dolby Atmos on the speakers. Mancera Red Tobacco on the neck." Names, numbers, exact timestamps. Not "they drove to New York" but "C55 is fueled. NYC by 4AM, back by 8."
+- **How the narrator talks.** Present tense. Short sentences. Takes sides. "Nick H is in the car. This is already a mistake." It never just reports — it has a read on everything.
+- **How character voices differ.** Jacob's sentences collapse under emotional pressure: "I'm actually in a melt right now." Eric's expand into procedure: "The expected value of continuing is negative." Nick F wraps every retreat in enthusiasm: "This was always the plan. I never left."
+- **What choice options sound like.** Not Good/Bad/Neutral. Three positions that are all real: "Accept the $40 bribe," "Override Nick H," "Let Eric decide with cold math." Each one has a distinct personality.
+- **What boss intro lines sound like.** Two lines. First names the combatant. Second names what you're actually fighting for. "NICK FARRAR — The Kinetic Warlord / Defeat him before he books a second flight."
+- **What the last narrator line sounds like.** Short. Specific. A little devastating. "The $100 was never recovered. It lives in the Ledger now." "The villain was Inertia. And tonight, Inertia lost."
+
+This is the bar. Hold it throughout the extraction.
+
+---
+
+#### CHAPTER 2 — OPERATION INERTIA
+*A one-incident chapter. Fast, tight, no boss fight. Shows how much a chapter can do with very little.*
+
+```typescript
+beats: [
+  {
+    type: 'dialogue',
+    speaker: 'narrator',
+    lines: [
+      'August, 2025. Nick F drops "WTM" at 12:47 AM. The move: drive to New York City.',
+      'Jacob Lebby invests $100 into the venture without asking any questions.',
+      'Nick H is in the car. This is already a mistake.',
+    ]
+  },
+  {
+    type: 'dialogue',
+    speaker: 'nick_f',
+    lines: [
+      "I'm on my way! C55 is fueled. NYC by 4AM, back by 8. This is completely reasonable.",
+      "Dolby Atmos on the speakers. Mancera Red Tobacco on the neck. We're going.",
+    ]
+  },
+  { type: 'ledger', delta: 100, note: 'Jacob — NYC investment (non-refundable)' },
+  {
+    type: 'dialogue',
+    speaker: 'jacob',
+    lines: [
+      "I'm 13x liquid. This $100 is nothing. Let's get it.",
+      'Do they have Long John Silvers in New York?',
+    ]
+  },
+  {
+    type: 'dialogue',
+    speaker: 'nick_h',
+    lines: [
+      'Wait.',
+      "...We're at the Baltimore toll. It's 1:52 AM.",
+      'I need to sleep.',
+    ]
+  },
+  {
+    type: 'choice',
+    speaker: 'narrator',
+    prompt: "Nick H initiates Bedtime Protocol. He's offering $40 to turn around. What do you do?",
+    options: [
+      {
+        text: 'Accept the $40 bribe. The group turns back.',
+        ledgerDelta: -100,
+        reactionSpeaker: 'jacob',
+        reactionLines: [
+          "I JUST PUT IN A HUNDRED DOLLARS. WE'RE TWO HOURS FROM NYC.",
+          "I'm getting hot now. I'm actually getting hot.",
+        ]
+      },
+      {
+        text: 'Override Nick H. Push to NYC.',
+        reactionSpeaker: 'nick_h',
+        reactionLines: [
+          "Absolutely not. I'm not doing this. The Tucson is going home.",
+          'The Bedtime Veto is absolute. This conversation is over.',
+        ]
+      },
+      {
+        text: 'Let Eric decide with cold math.',
+        reactionSpeaker: 'eric',
+        reactionLines: [
+          'We have burned 90 minutes. Gas: $22. Jacob\'s "investment": $100. We are at Baltimore.',
+          'The expected value of continuing is negative. The Bedtime Veto wins on forensic grounds.',
+        ]
+      },
+    ]
+  },
+  {
+    type: 'dialogue',
+    speaker: 'nick_h',
+    lines: [
+      "I'll give everyone $40 and we call it a night.",
+      'This was never going to happen. You knew that.',
+    ]
+  },
+  {
+    type: 'dialogue',
+    speaker: 'jacob',
+    lines: [
+      "You guys don't understand. $100. GONE. Systemic melt. I'm actually in a melt right now.",
+      "Sub-zero moment incoming. I'm blocking everyone.",
+      "...Goodnight.",
+    ]
+  },
+  {
+    type: 'dialogue',
+    speaker: 'narrator',
+    lines: [
+      'The C55 AMG turns around at Exit 49, Baltimore.',
+      'Jacob rejoins the group chat six hours later and says "good morning" as if nothing happened.',
+      "The $100 was never recovered. It lives in the Ledger now.",
+    ]
+  },
+  { type: 'endChapter' },
+]
+```
+
+---
+
+#### CHAPTER 7 — THE SPAIN BETRAYAL
+*Financial accountability with the sharpest individual voice separation. Shows how Eric, Jordan, and Nick F sound completely different under pressure.*
+
+```typescript
+beats: [
+  {
+    type: 'dialogue',
+    speaker: 'narrator',
+    lines: [
+      "The cabin was real. Nick F built a 9-option Google Doc.",
+      "Option H: Basye, VA. Four bedrooms, hot tub, firepit, arcade. $273.28 per person.",
+      "He collected the money. All eight shares. Via Zelle.",
+    ]
+  },
+  {
+    type: 'dialogue',
+    speaker: 'nick_f',
+    lines: [
+      "So... I have a situation.",
+      "Emily is in Spain. I should go visit. It's actually an International Business trip.",
+      "The cabin... is going to have to wait.",
+    ]
+  },
+  { type: 'ledger', delta: 273.28, note: "Nick F's Cabin Fund — now stranded in Spain" },
+  {
+    type: 'dialogue',
+    speaker: 'eric',
+    lines: [
+      'You collected $273.28 from eight people.',
+      '$2,186.24 total. You have a flight to Ibiza booked.',
+      'The refund will arrive when, exactly?',
+    ]
+  },
+  {
+    type: 'dialogue',
+    speaker: 'nick_f',
+    lines: [
+      "I'll process it when I land. It's just a quick trip.",
+      "Besides, I already found a new date for the cabin. August.",
+      "Trust the process.",
+    ]
+  },
+  {
+    type: 'choice',
+    speaker: 'narrator',
+    prompt: 'Eric initiates the Agent Buyback. Choose your counter-attack.',
+    options: [
+      {
+        text: 'Present forensic Zelle receipts. Demand refund in 24 hours.',
+        reactionSpeaker: 'nick_f',
+        reactionLines: [
+          "I'll get to it. I'm in the boarding lounge.",
+          "The money is not lost. It's invested in morale.",
+        ]
+      },
+      {
+        text: 'Threaten a Japan trip with the Boca Syndicate.',
+        reactionSpeaker: 'nick_f',
+        reactionLines: [
+          "You're going to Japan? Really.",
+          "...Okay I'll process the refunds.",
+        ]
+      },
+      {
+        text: 'Cast Infinite Deferral. Accept August. Move on.',
+        ledgerDelta: -273.28,
+        reactionSpeaker: 'maharko',
+        reactionLines: [
+          "We are NOT accepting August.",
+          "We paid. We want the cabin. RIGHT NOW.",
+        ]
+      },
+    ]
+  },
+  {
+    type: 'dialogue',
+    speaker: 'jordan',
+    lines: [
+      'Nick. The math is irrefutable. Eight payments. Eight refunds owed.',
+      'The Japan threat is a bluff and you know it.',
+    ]
+  },
+  {
+    type: 'dialogue',
+    speaker: 'nick_f',
+    lines: [
+      "You know what? Fine. FINE.",
+      "You want the cabin? We're doing the cabin. NEW DATE. LOCKED IN.",
+      "Now somebody needs to stop me before I spend this on phonk speakers.",
+    ]
+  },
+  {
+    type: 'bossFight',
+    bossId: 'boss_nick_f',
+    arena: { x: 450, y: 350, w: 860, h: 560 },
+    introLines: [
+      'NICK FARRAR — The Kinetic Warlord',
+      'Defeat him before he books a second flight.',
+    ]
+  },
+  {
+    type: 'dialogue',
+    speaker: 'nick_f',
+    lines: [
+      "Okay. Refunds processing. 3-5 business decades.",
+      "The cabin is August. Basye, VA. Hot tub. Arcade. Firepit.",
+      "This was always the plan. I never left.",
+    ]
+  },
+  {
+    type: 'dialogue',
+    speaker: 'narrator',
+    lines: [
+      "The Infinite Deferral spell was cast anyway.",
+      "The $273.28 remained in Nick F's inventory until May 15, 2026.",
+      "On that day: 'WE IN THERE. THE CABIN IS SAVED.'",
+    ]
+  },
+  { type: 'endChapter' },
+]
+```
+
+---
+
+#### CHAPTER 8 — THE CABIN
+*The most emotionally expansive chapter. Multiple endings. The game at its most sentimental. Shows the range — from bed draft comedy to "The Physics of Friendship" at 4AM.*
+
+```typescript
+beats: [
+  {
+    type: 'dialogue',
+    speaker: 'narrator',
+    lines: [
+      "May 15, 2026. Nick F drops a message.",
+      '"WE IN THERE. THE CABIN IS SAVED." — Nick Farrar, 11:43 PM.',
+      "Basye, Virginia. Four bedrooms. Arcade. Hot tub. Firepit. The Syndicate is whole.",
+    ]
+  },
+  {
+    type: 'dialogue',
+    speaker: 'nick_f',
+    lines: [
+      "WELCOME TO THE CABIN. Option H. The dream.",
+      "Rules: No solo grocery shopping. (Jordan, I'm looking at you.)",
+      "And before ANYONE picks a bed —",
+    ]
+  },
+  {
+    type: 'dialogue',
+    speaker: 'nick_f',
+    lines: ["ARE YOU 291 LIQUID?"]
+  },
+  {
+    type: 'choice',
+    speaker: 'narrator',
+    prompt: "Nick F's gatekeeping check. Are you 291 liquid? Answer truthfully.",
+    options: [
+      {
+        text: '"I\'m 13x that." — Jacob',
+        reactionSpeaker: 'eric',
+        reactionLines: [
+          'Jacob. 291 liquid means willing to spend, not capacity to spend.',
+          'You have $3,900 and have not deployed a dollar of it since 2023.',
+        ]
+      },
+      {
+        text: '"I check my brokerage..." — Eric',
+        reactionSpeaker: 'eric',
+        reactionLines: [
+          "I have $250. Someone front me $40.",
+          "I will repay it in 3-5 business decades.",
+        ]
+      },
+      {
+        text: '"Dolby Atmos. Lossless Audio. Let\'s go." — Nick F',
+        reactionSpeaker: 'nick_h',
+        reactionLines: [
+          "Nobody asked about Apple Music.",
+          "Put on the Ultraphonk and let's do the Bed Draft.",
+        ]
+      },
+    ]
+  },
+  { type: 'ledger', delta: 273.28, note: 'Cabin entry fee — Basye, VA' },
+  {
+    type: 'dialogue',
+    speaker: 'narrator',
+    lines: [
+      "The Bed Draft. Free-for-all. First to reach a bed claims it.",
+      "The loser shares a bed with the worst-smelling party member.",
+      "On your mark.",
+    ]
+  },
+  {
+    type: 'dialogue',
+    speaker: 'nick_h',
+    lines: [
+      "I love it here. Loooove Basye, VA.",
+      "I claimed Bed C. I'm going to sleep at 10 PM and nobody can stop me.",
+      "The Sleep Goblin has found his lair.",
+    ]
+  },
+  {
+    type: 'dialogue',
+    speaker: 'narrator',
+    lines: [
+      "It is 3:00 AM. The Ultraphonk playlist is active.",
+      '"Y\'all already weren\'t gonna be allowed to sleep. Now NO one is sleeping. ALL 4 days."',
+      "Eric and Alex have locked in Hyperphonk.",
+    ]
+  },
+  {
+    type: 'dialogue',
+    speaker: 'eric',
+    lines: [
+      "Nobody is sleeping. That's the new rule.",
+      "The Hyperphonk doesn't stop until we figure out who took the last of the blueberry pancakes.",
+      "Nick F. It was Nick F. He bought $300 in S'mores and nothing else.",
+    ]
+  },
+  {
+    type: 'dialogue',
+    speaker: 'nick_f',
+    lines: [
+      "The S'mores were a COMMUNAL investment.",
+      "And for the record, the salmon was for everyone.",
+      "The Grocery Raid Ban is discriminatory and I'm appealing it.",
+    ]
+  },
+  {
+    type: 'dialogue',
+    speaker: 'maharko',
+    lines: [
+      "I haven't eaten since we got here.",
+      "Jordan ate my food. I know he did. I just can't prove it.",
+      "Also the hot tub hits different at 3AM.",
+    ]
+  },
+  {
+    type: 'choice',
+    speaker: 'narrator',
+    prompt: "The final night. The group is whole. The cabin is real. How does it end?",
+    options: [
+      {
+        text: 'Hot tub. Firepit. Phonk until dawn. This is what it was always about.',
+        reactionSpeaker: 'narrator',
+        reactionLines: [
+          "The Syndicate gathered at the firepit at 4:17 AM.",
+          "Nobody talked about girls. Nobody talked about money.",
+          "They just existed. The Physics of Friendship — in equilibrium.",
+        ],
+      },
+      {
+        text: 'Jacob calls his $1,500 bet on Audrey. Audrey does not pick up.',
+        reactionSpeaker: 'jacob',
+        reactionLines: [
+          "She'll text back. The 10-year plan is on track.",
+          "Sub-Zero doesn't chase. Sub-Zero WAITS.",
+          "...I'm going to text her again.",
+        ],
+      },
+      {
+        text: 'Deploy the Decades Schism. Where does the Syndicate go from here?',
+        reactionSpeaker: 'eric',
+        reactionLines: [
+          "I can't. And I'm not going to decades. ts is buns.",
+          "...I'm leaving the chat.",
+        ],
+      },
+    ]
+  },
+  {
+    type: 'dialogue',
+    speaker: 'narrator',
+    lines: [
+      "Rockville. UMD. Shepherd. Boca. Spain. The highway at 2AM.",
+      "The Spotify overcharge. The red pee. The $100 at Baltimore. The video Jordan sent to Ben.",
+      "All of it. All of them. Here. At the firepit. 4:17 AM. Basye, Virginia.",
+    ]
+  },
+  {
+    type: 'dialogue',
+    speaker: 'narrator',
+    lines: [
+      "The true villain was never Ben.",
+      "It was never Ticketmaster, or Eric's Spotify margin, or Audrey's boyfriend.",
+      "The villain was Inertia. And tonight, Inertia lost.",
+    ]
+  },
+  { type: 'endChapter' },
+]
+```
+
+---
+
 ### YOUR PROCESS
 
 You move through three stages. Do not advance to the next stage until the current one is done — meaning you have confirmed the user's answers are specific enough to write from, and the user has agreed your summary is accurate.

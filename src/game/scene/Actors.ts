@@ -9,8 +9,8 @@ export class Actors {
     this.scene = scene;
   }
 
-  public placeActors() {
-    this.scene.chapter.actors.forEach((actor: ActorPlacement) => {
+  public placeActors(actors?: ActorPlacement[]) {
+    (actors ?? this.scene.getActiveSceneConfig().actors).forEach((actor: ActorPlacement) => {
       // R5: if this slot is the player's hero, use the understudy if one is defined
       let renderAs = actor.id;
       if (actor.id === this.scene.playerClass.id) {

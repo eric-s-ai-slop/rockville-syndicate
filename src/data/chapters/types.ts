@@ -135,10 +135,17 @@ export type Beat = { id?: string } & (
   | { type: 'chase'; pursuerId: string; durationMs: number }
   | { type: 'wait'; ms: number }
   | { type: 'ledger'; delta: number; note: string }
+  | { type: 'changeScene'; sceneIndex: number; transitionMs?: number }
   | { type: 'endChapter' }
 );
 
 // ─── Chapter ─────────────────────────────────────────────────────────────────────
+
+/** A single location within a chapter — map layout + who's present. */
+export interface ChapterSceneConfig {
+  map: MapConfig;
+  actors: ActorPlacement[];
+}
 
 export interface ChapterConfig {
   id: string;
@@ -150,8 +157,15 @@ export interface ChapterConfig {
   kind: 'chapter' | 'interlude' | 'epilogue';
   /** Force a specific protagonist for this chapter regardless of crew pick. */
   protagonistOverride?: string;
+  /** Single-map chapters: use map + actors directly. Multi-location chapters: use scenes[]. */
   map: MapConfig;
   actors: ActorPlacement[];
+  /**
+   * Optional multi-scene override. If present, scenes[0] is used as the initial location.
+   * A `changeScene` beat transitions to scenes[N].
+   * scenes[] takes precedence over the top-level map/actors fields when present.
+   */
+  scenes?: ChapterSceneConfig[];
   beats: Beat[];
   cameraZoom?: number;
   usePoolSheet?: boolean;

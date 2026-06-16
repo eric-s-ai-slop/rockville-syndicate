@@ -27,6 +27,7 @@ export class BeatEngine {
       case 'wait': return this.scene.time.delayedCall(beat.ms, () => this.advanceBeat());
       case 'ledger': this.scene.applyLedger(beat.delta, beat.note); return this.advanceBeat();
       case 'minigame': return this.runMinigameBeat(beat);
+      case 'changeScene': return this.scene.transitionToScene(beat.sceneIndex, beat.transitionMs, () => this.advanceBeat());
       case 'endChapter': return this.scene.runEndChapter();
     }
   }

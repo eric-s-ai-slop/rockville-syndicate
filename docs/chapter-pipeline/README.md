@@ -60,9 +60,9 @@ Interviews you before developing anything. Four mandatory checks before advancin
 
 ### Step 2a — Map Design (`02a_MAP_DESIGN.md`) ← run in parallel with 2b
 **In:** Location description + who's present + key dramatic moments (from brief)
-**Out:** `MapConfig` + `ActorPlacement[]` with real pixel coordinates
+**Out:** `MapConfig` + `ActorPlacement[]` with real pixel coordinates — or a `scenes[]` array for multi-location chapters
 
-Proposes layout in plain English first, gets approval, then writes TypeScript. Output includes boss arena bounds and flags any propKeys that fall back to procedural rendering.
+Proposes layout in plain English first, gets approval, then writes TypeScript. For chapters that move between locations, produces a `scenes[]` array; the `changeScene` beat handles the in-engine transition (fade out → swap map → fade in). Output includes boss arena bounds and flags any propKeys that fall back to procedural rendering.
 
 ---
 
@@ -115,3 +115,4 @@ Use after Step 3, after playtesting, or independently.
 - Steps 1 and 3 involve the most back-and-forth. Budget time.
 - The BossConfig can come from either 2b (if you use bossFight) or 4 (if you spec it later). Don't duplicate — pick one.
 - If Step 2b produces a new minigame spec, a developer needs to implement it before the chapter can ship. Factor that into timeline.
+- **Multi-scene chapters**: if Step 2a produces a `scenes[]` array, Step 3 will include `changeScene` beats to trigger location transitions. The engine fades to black, tears down the old map, builds the new one, and fades back in. Existing single-map chapters are unaffected.
