@@ -19,9 +19,19 @@ export class AudioController {
   }
 
   public loadChapterAudio() {
-    const musicKey = CHAPTER_MUSIC_KEY[this.scene.chapter.id];
+    // Chapter-level music key (used when no scene-level override is set)
+    const musicKey = CHAPTER_MUSIC_KEY[this.scene.chapter.id]
+      ?? this.scene.chapter.scenes?.[0]?.music;
     const musicUrl = musicKey ? STAGE_MUSIC_URL[musicKey] : undefined;
     if (musicKey && musicUrl) this.safeLoadAudio(musicKey, musicUrl);
+
+    // Pre-load music for every scene that specifies its own key
+    for (const scene of this.scene.chapter.scenes ?? []) {
+      if (scene.music && scene.music !== musicKey) {
+        const url = STAGE_MUSIC_URL[scene.music];
+        if (url) this.safeLoadAudio(scene.music, url);
+      }
+    }
     this.safeLoadAudio('boss_sting', BOSS_MUSIC_URL);
     this.safeLoadAudio('boss_loop', BOSS_LOOP_URL);
 
@@ -53,13 +63,37 @@ export class AudioController {
   }
 
   public startStageMusic() {
-    const musicKey = CHAPTER_MUSIC_KEY[this.scene.chapter.id];
+    const musicKey = CHAPTER_MUSIC_KEY[this.scene.chapter.id]
+      ?? this.scene.chapter.scenes?.[0]?.music;
     if (!musicKey || !this.scene.cache.audio.exists(musicKey)) return;
     try {
       this.scene.stageMusic = this.scene.sound.add(musicKey, { loop: true, volume: 0 });
       this.scene.stageMusic.play();
       this.scene.tweens.add({ targets: this.scene.stageMusic, volume: 0.30, duration: 1200 });
     } catch { /* Web Audio not ready — play will resume on first canvas interaction */ }
+  }
+
+  /** Crossfade from the current stage music to a new track by Phaser audio key.
+   *  No-op if the key isn't loaded or is already playing. */
+  public crossfadeToMusic(newKey: string) {
+    if (!newKey || !this.scene.cache.audio.exists(newKey)) return;
+    const current = this.scene.stageMusic as Phaser.Sound.WebAudioSound | null;
+    if ((current as any)?.key === newKey && current?.isPlaying) return;
+
+    if (current?.isPlaying) {
+      this.scene.tweens.add({
+        targets: current, volume: 0, duration: 700,
+        onComplete: () => { current.stop(); current.destroy(); this.scene.stageMusic = null; },
+      });
+    }
+
+    this.scene.time.delayedCall(350, () => {
+      try {
+        this.scene.stageMusic = this.scene.sound.add(newKey, { loop: true, volume: 0 });
+        this.scene.stageMusic.play();
+        this.scene.tweens.add({ targets: this.scene.stageMusic, volume: 0.30, duration: 900 });
+      } catch { /* Web Audio context not ready */ }
+    });
   }
 
   public startBossMusic() {

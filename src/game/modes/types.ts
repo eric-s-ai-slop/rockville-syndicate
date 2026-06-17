@@ -54,6 +54,7 @@ export interface ModeContext {
   applyDirectionalAnim(sprite: Phaser.GameObjects.Sprite, id: string, vx: number, vy: number, facesLeftByDefault?: boolean): void;
   propSprites: Map<string, Phaser.GameObjects.Sprite | Phaser.GameObjects.Image>;
   poolNameplates: Map<string, Phaser.GameObjects.Text>;
+  actorSprites: Record<string, Phaser.GameObjects.GameObject[]>;
 }
 
 export interface GameMode<Cfg = unknown> {

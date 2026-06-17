@@ -109,7 +109,49 @@ export class BeatEngine {
 
   private runWalkToBeat(beat: Extract<Beat, { type: 'walkTo' }>) {
     const radius = beat.radius ?? 60;
-    this.scene.walkTarget = { x: beat.x, y: beat.y, radius, markerLabel: beat.markerLabel, marker: this.makeWalkMarker(beat.x, beat.y, beat.markerLabel) };
+    
+    // Create the persistent HUD task popup
+    let taskUi: Phaser.GameObjects.Container | undefined;
+    if (beat.markerLabel) {
+      const bg = this.scene.add.rectangle(0, 0, 200, 40, 0x000000, 0.8).setOrigin(0).setStrokeStyle(2, 0xfacc15);
+      const txt = this.scene.add.text(10, 10, `Task: ${beat.markerLabel}`, {
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        color: '#facc15',
+        fontStyle: 'bold'
+      });
+      // Account for Phaser 3 camera zoom scaling on scrollFactor(0) objects
+      const cam = this.scene.cameras.main;
+      const cx = cam.width / 2;
+      const cy = cam.height / 2;
+      const zoom = cam.zoom || 1;
+      
+      const targetX = (20 - cx) / zoom + cx;
+      const targetY = (60 - cy) / zoom + cy;
+      const startX = (-250 - cx) / zoom + cx;
+
+      taskUi = this.scene.add.container(startX, targetY, [bg, txt])
+        .setScrollFactor(0)
+        .setDepth(15000)
+        .setScale(1 / zoom);
+      
+      // Slide in animation
+      this.scene.tweens.add({
+        targets: taskUi,
+        x: targetX,
+        duration: 400,
+        ease: 'Back.easeOut'
+      });
+    }
+
+    this.scene.walkTarget = { 
+      x: beat.x, 
+      y: beat.y, 
+      radius, 
+      markerLabel: beat.markerLabel, 
+      marker: this.makeWalkMarker(beat.x, beat.y, beat.markerLabel),
+      taskUi 
+    };
   }
 
   private makeWalkMarker(x: number, y: number, labelText?: string): Phaser.GameObjects.Container {
@@ -130,6 +172,21 @@ export class BeatEngine {
   }
 
   public clearWalkTarget() {
+    if (this.scene.walkTarget?.taskUi) {
+      const ui = this.scene.walkTarget.taskUi;
+      const cam = this.scene.cameras.main;
+      const cx = cam.width / 2;
+      const zoom = cam.zoom || 1;
+      const offX = (-250 - cx) / zoom + cx;
+
+      this.scene.tweens.add({
+        targets: ui,
+        x: offX,
+        duration: 300,
+        ease: 'Power2',
+        onComplete: () => ui.destroy()
+      });
+    }
     this.scene.walkTarget?.marker?.destroy();
     this.scene.walkTarget = null;
   }
@@ -202,6 +259,7 @@ export class BeatEngine {
       applyDirectionalAnim: (sprite, id, vx, vy, facesLeftByDefault) => s.applyDirectionalAnim(sprite, id, vx, vy, facesLeftByDefault),
       propSprites: s.propSprites,
       poolNameplates: s.poolNameplates,
+      actorSprites: s.actorSprites,
     };
   }
 

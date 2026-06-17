@@ -106,6 +106,15 @@ export interface ActorPlacement {
   /** Override the displayed nameplate (defaults to the resolved speaker name). */
   nameOverride?: string;
   /**
+   * Explicit texture/sheet key to render this actor with, used when the actor id
+   * has no `hero_<id>_sheet` of its own (e.g. reusing `enemy_frat_bro_sheet` for
+   * frat extras). Falls back to `hero_<id>_sheet`, then a tinted blob.
+   */
+  spriteKey?: string;
+  /** Render scale for the sprite (defaults to 0.5). Use to size oversized art
+   *  such as a tall silhouette down to NPC height. */
+  spriteScale?: number;
+  /**
    * If the player's chosen hero matches `id`, place this character's sprite at
    * the same position instead of leaving the slot empty (R5 roster presence).
    */
@@ -145,6 +154,9 @@ export type Beat = { id?: string } & (
 export interface ChapterSceneConfig {
   map: MapConfig;
   actors: ActorPlacement[];
+  /** Phaser audio key for this scene's stage music. Overrides the chapter-level
+   *  CHAPTER_MUSIC_KEY when set. Crossfades on changeScene. */
+  music?: string;
 }
 
 export interface ChapterConfig {

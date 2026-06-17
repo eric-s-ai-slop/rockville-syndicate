@@ -1,8 +1,11 @@
 // Phase E audio assets — all imported via Vite ?url so special chars in filenames
 // (spaces, parens) don't need renaming.
 
-import ch1Url   from '../assets/audio/stage_music/commons1522(coffee beabadobee).mp3?url';
-import ch2Url   from '../assets/audio/stage_music/night_highway(nightcall kavinsky).mp3?url';
+import ch1Url            from '../assets/audio/stage_music/commons1522(coffee beabadobee).mp3?url';
+import ch2Url            from '../assets/audio/stage_music/night_highway(nightcall kavinsky).mp3?url';
+import umbcBasementUrl   from '../assets/audio/stage_music/Justin Bieber, Nicki Minaj  Beauty And A Beat (Lyrics)(umbc).mp3?url';
+import crowdMurmurUrl    from '../assets/audio/stage_music/People Talking - Sound Effect.mp3?url';
+import cricketAmbientUrl from '../assets/audio/stage_music/cricket on a summer night  Cricket sound effects  Copyright Free Nature sounds.mp3?url';
 import ch3Url   from '../assets/audio/stage_music/hospital(flight from the city).mp3?url';
 import ch4Url   from '../assets/audio/stage_music/jungle_gym(BorderlineTameImpala).mp3?url';
 import ch5Url   from '../assets/audio/stage_music/Jordan_and_maharko_music_for_map (6).mp3?url';
@@ -29,6 +32,9 @@ import uiSelectUrl   from '../assets/audio/kenney_interface-sounds/Audio/select_
 import victoryUrl    from '../assets/audio/kenney_music-jingles/Audio/Steel jingles/jingles_STEEL03.ogg?url';
 
 // chapter id → Phaser audio key for stage music
+// umbc_incident: no chapter-level key — per-scene music handles it via scenes[].music.
+//   Scene 0: 'music_umbc_basement' ("Beauty and a Beat")
+//   Scene 1: 'music_ch2' (Nightcall — Kavinsky, already loaded)
 export const CHAPTER_MUSIC_KEY: Record<string, string> = {
   spotify_insurgency:   'music_ch1',
   nyc_1am_drive:        'music_ch2',
@@ -43,15 +49,20 @@ export const CHAPTER_MUSIC_KEY: Record<string, string> = {
 
 // Phaser audio key → URL, for preloading only this chapter's track
 export const STAGE_MUSIC_URL: Record<string, string> = {
-  music_ch1: ch1Url,
-  music_ch2: ch2Url,
-  music_ch3: ch3Url,
-  music_ch4: ch4Url,
-  music_ch5: ch5Url,
-  music_ch6: ch6Url,
-  music_ch7: ch7Url,
-  music_ch9: ch9Url,
+  music_ch1:           ch1Url,
+  music_ch2:           ch2Url,
+  music_ch3:           ch3Url,
+  music_ch4:           ch4Url,
+  music_ch5:           ch5Url,
+  music_ch6:           ch6Url,
+  music_ch7:           ch7Url,
+  music_ch9:           ch9Url,
+  music_umbc_basement: umbcBasementUrl,
 };
+
+// Ambient SFX (not stage music — loaded via ChapterScene preload)
+export const CROWD_MURMUR_URL    = crowdMurmurUrl;    // sfx_crowd_murmur: basement cameraPan
+export const CRICKET_AMBIENT_URL = cricketAmbientUrl;  // sfx_parking_ambient: storyFractures mode
 
 export const BOSS_MUSIC_URL = bossUrl;   // Prowler sting (plays once on boss intro)
 export const BOSS_LOOP_URL = bossTetrisUrl; // Techno-Tetris loop (plays after sting)

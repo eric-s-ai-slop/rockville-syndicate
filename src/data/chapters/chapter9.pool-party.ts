@@ -2,7 +2,7 @@ import { ChapterConfig } from './types';
 
 const chapter9: ChapterConfig = {
   id: 'suds_and_soles_pool_party',
-  index: 9,
+  index: 10,
   title: 'The Suds & Soles Pool Party',
   subtitle: 'Act VII — Heat Waves & Social Miscalculations',
   location: "Nick F's Backyard — Rockville, MD",

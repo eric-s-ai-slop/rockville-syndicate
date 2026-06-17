@@ -22,13 +22,21 @@ export class Actors {
       }
 
       const speaker = resolveSpeaker(renderAs);
-      const sheetKey = `hero_${renderAs}_sheet`;
+      // Prefer an explicit sprite key (e.g. an extra reusing another character's
+      // sheet); otherwise the character's own processed sheet.
+      const sheetKey = (actor.spriteKey && this.scene.textures.exists(actor.spriteKey))
+        ? actor.spriteKey
+        : `hero_${renderAs}_sheet`;
+      const scale = actor.spriteScale ?? 0.5;
       let sprite: Phaser.GameObjects.Image | Phaser.GameObjects.Sprite;
       if (this.scene.textures.exists(sheetKey)) {
         const s = this.scene.add.sprite(actor.x, actor.y, sheetKey, 0);
         // R4: NPCs use a single static frame — no idle animation cycling
         s.setFrame(0);
-        s.setScale(0.5).setDepth(actor.y);
+        if (actor.id.startsWith('girl')) {
+          s.setBlendMode(Phaser.BlendModes.MULTIPLY);
+        }
+        s.setScale(scale).setDepth(actor.y);
         sprite = s;
       } else {
         const g = this.scene.make.graphics({ x: 0, y: 0 });

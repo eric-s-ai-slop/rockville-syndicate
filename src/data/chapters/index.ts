@@ -4,6 +4,7 @@ import chapter2 from './chapter2.operation-inertia';
 import chapter3 from './chapter3.red-pee-bladder-strike';
 import chapter4 from './chapter4.jungle-gym-gambit';
 import chapter5 from './chapter5.florida-highway-duel';
+import chapterUmbc from './chapter3b.umbc-incident';
 import chapter6 from './chapter6.ding-dong-ditch-ben';
 import chapter7 from './chapter7.spain-betrayal';
 import chapter8 from './chapter8.the-cabin';
@@ -17,6 +18,7 @@ export const CHAPTERS: ChapterConfig[] = [
   chapter3,
   chapter4,
   chapter5,
+  chapterUmbc,
   chapter6,
   chapter7,
   chapter8,

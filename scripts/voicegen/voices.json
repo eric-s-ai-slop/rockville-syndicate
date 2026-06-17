@@ -1,0 +1,8 @@
+{
+  "_comment": "speaker id (matches beat.speaker) -> reference wav path, relative to this folder. Only speakers listed here get voiced; everyone else stays silent. Drop a 6-30s clean mono wav per character under refs/.",
+  "ben": "refs/ben.wav",
+  "maharko": "refs/maharko.wav",
+  "eric": "refs/eric.wav",
+  "nick_f": "refs/nick_f.wav",
+  "nick_h": "refs/nick_h.wav"
+}

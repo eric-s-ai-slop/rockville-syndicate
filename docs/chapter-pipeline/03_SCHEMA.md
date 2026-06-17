@@ -178,6 +178,8 @@ Speaker ids: `'narrator'` `'eric'` `'jordan'` `'nick_h'` `'nick_f'` `'maharko'` 
 **`bossFight`**
 - `introLines` name what's actually at stake, not just who you're fighting. Two lines max.
 - `arena` should fit inside the map bounds with breathing room. Typical: `{ x: mapW/2, y: mapH/2, w: mapW*0.85, h: mapH*0.8 }`.
+- **`bossId` naming:** use `boss_[actorId]` (e.g. `boss_eric`, `boss_ben`). Before naming, check `src/data/entities.ts` — some ids are already taken. `boss_ben` is Michael Bersofsky (Ch6). If a character already has a boss entry, use a context suffix: `boss_ben_umbc`, `boss_eric_round2`, etc. The Step 5 integration checklist covers adding the `BossConfig` to `entities.ts`.
+- **Background modes are replaced by bossFight.** The engine has a single `activeMode` slot. When a `bossFight` beat runs it displaces any active background minigame. If you have a background mode driving NPC movement that needs to continue *after* the boss fight, add a second `{ type: 'minigame', modeId: 'yourMode', background: true }` beat immediately after the `bossFight` beat to re-register it before the next dialogue fires.
 
 **`narrator` dialogue**
 - The narrator (displayed as "The Group Chat") has opinions. It gossips, editorializes, omits.
@@ -259,6 +261,11 @@ const chapterN: ChapterConfig = {
 
   beats: [ /* generated beats go here */ ],
 };
+```
+
+**Do not import map/actors from a separate file.** The map agent may output to `docs/chapter-pipeline/working/` as a `.md` file — that can't be imported. Always paste the `MapConfig` and `ActorPlacement[]` inline into the chapter file. The working directory is for reference only; `src/data/chapters/` is where the chapter lives.
+
+```typescript
 ```
 
 Flag every field that needs real values from the user.

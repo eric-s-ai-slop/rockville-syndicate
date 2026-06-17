@@ -360,14 +360,15 @@ export class MapBuilder {
             img.play(idleKey, true);
           }
         }
+        const isFullscreenBg = propKey.startsWith('prop_pool_map') || propKey.startsWith('stage_');
         let dw = w, dh = h;
-        if (!propKey.startsWith('prop_pool_map')) {
+        if (!isFullscreenBg) {
           let aspect = this.scene.propAspects[propKey];
           if (!aspect) aspect = img.width / img.height;
           dw = w; dh = w / aspect;
           if (dh > h) { dh = h; dw = h * aspect; }
         }
-        const depth = propKey.startsWith('prop_pool_map') ? -100 : y;
+        const depth = isFullscreenBg ? -100 : y;
         img.setDisplaySize(dw, dh).setDepth(depth);
         this.scene.propSprites.set(propKey, img as any);
         return;

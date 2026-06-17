@@ -9,6 +9,7 @@
     "start": "node dist/server.cjs",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
+    "voice:extract": "tsx scripts/voicegen/extract-lines.ts",
     "test": "vitest run",
     "e2e": "playwright test"
   },

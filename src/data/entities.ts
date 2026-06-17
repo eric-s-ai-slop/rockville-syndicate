@@ -638,6 +638,39 @@ export const BOSSES: BossConfig[] = [
     }
   },
   {
+    id: 'boss_ben_umbc',
+    name: 'Ben Bersofsky',
+    title: 'The Ghost at the Party',
+    maxHp: 1200,
+    combatBarks: [
+      "I was just having fun.",
+      "She was into it.",
+      "Everyone was drinking. It wasn't like that.",
+      "You don't know what happened in there.",
+      "Maharko was right there. Ask him.",
+      "I didn't do anything wrong.",
+    ],
+    weaknessQTE: {
+      question: 'Ben deploys Phase 2: "She was into it." What breaks through?',
+      options: [
+        '"You\'re next." Three girls. A pattern.',
+        "He was drunk — it doesn't count when you're drunk.",
+        'She smiled at him first.',
+      ],
+      correctAnswer: '"You\'re next." Three girls. A pattern.',
+      damage: 50,
+    },
+    actions: [
+      '"I Was Just Having Fun" — AoE rationalization wave',
+      '"She Was Into It" — targeted deflection, reduces incoming damage 30%',
+      '"Maharko Was There Too" — deflection shield, must be broken first',
+    ],
+    phaseBarks: {
+      2: "You don't understand. You weren't there.",
+      1: '...',
+    },
+  },
+  {
     id: 'boss_ben',
     name: 'Michael Bersofsky',
     title: 'Operation Ding Dong Ditch Hostile Entity',

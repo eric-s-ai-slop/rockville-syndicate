@@ -142,13 +142,18 @@ interface MapRect {
 
 ```typescript
 interface ActorPlacement {
-  id: string;           // character id
+  id: string;           // character id — must be a canonical speaker id (see below)
   x: number;
   y: number;
   nameOverride?: string; // e.g. 'Nick H (asleep)'
   understudyId?: string; // if player picks this hero, place understudyId here instead
 }
 ```
+
+**Actor `id` must be a canonical character id.** These are the only valid ids:
+`eric` `jordan` `nick_h` `nick_f` `maharko` `jacob` `audrey` `ben` `michael_bersofsky` `caleb` `vs` `anastasia` `sophia` `sam_ferretti`
+
+For unnamed/background characters (frat guys, unnamed girls, etc.), use any descriptive id (e.g. `frat1`, `girl1`) and set `nameOverride` to control what's displayed. The speaker id in dialogue beats must still be one of the canonical ids above — background characters can't speak.
 
 Place actors where they'd naturally be given the location and the story. Characters should be spread across the space — avoid clustering everyone in one corner. The player needs a reason to walk around.
 

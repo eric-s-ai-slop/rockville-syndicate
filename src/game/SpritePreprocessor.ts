@@ -62,7 +62,7 @@ export function preprocessShowcaseSheet(
   const isBackground = (r: number, g: number, b: number, a: number): boolean => {
     if (a < 50) return true;
     const dist = Math.sqrt((r - bgR) ** 2 + (g - bgG) ** 2 + (b - bgB) ** 2);
-    const tolerance = (characterId && characterId.includes('nick_f')) ? 22 : 45;
+    const tolerance = (characterId && characterId.includes('nick_f')) ? 35 : 45;
     return dist < tolerance; // safe tolerance for compressed images
   };
 
@@ -454,59 +454,124 @@ export function preprocessShowcaseSheet(
       });
     }
   } else {
-    // Standard 3-4 row sheet
-    // Row 0 of sheet -> Idle Front (Final Row 0)
-    rowsData[0]?.forEach((c, idx) => {
-      if (idx < gridColumns) idleFrontFrames.push(drawFrameToGrid(c, 0, idx));
-    });
-    // Reuse Front animations as fallbacks for side/back
-    idleSideFrames.push(...idleFrontFrames);
-    idleBackFrames.push(...idleFrontFrames);
+    const isNickF = characterId && characterId.includes('nick_f');
 
-    // Row 1 of sheet -> Walk Cycle (Final Row 3)
-    rowsData[1]?.forEach((c, idx) => {
-      if (idx < gridColumns) walkFrames.push(drawFrameToGrid(c, 3, idx));
-    });
-    walkFrontFrames.push(...walkFrames);
-    walkSideFrames.push(...walkFrames);
-    walkBackFrames.push(...walkFrames);
-    runFrames.push(...walkFrames);
-
-    // Row 2 of sheet -> Combat / Attack Cycle (Final Row 5)
-    rowsData[2]?.forEach((c, idx) => {
-      if (idx < gridColumns) {
-        const idxOnGrid = drawFrameToGrid(c, 5, idx);
-        attackFrames.push(idxOnGrid);
-        // Hurt is the first frame of combat stance/attack as standard flinch pose
-        if (idx === 0) {
-          hurtFrames.push(idxOnGrid);
-        }
-      }
-    });
-
-    // If a 4th row exists (Jacob, Nick F) -> Victory / Defeated (Final Row 7)
-    if (rows.length >= 4 && rowsData[3]) {
-      const half = Math.floor(rowsData[3].length / 2);
-      rowsData[3].forEach((c, idx) => {
-        if (idx < half) {
-          if (idx < gridColumns) victoryFrames.push(drawFrameToGrid(c, 7, idx));
-        } else {
-          const dIdx = idx - half;
-          if (dIdx + 6 < gridColumns) defeatFrames.push(drawFrameToGrid(c, 7, dIdx + 6));
+    if (isNickF) {
+      // Nick F: 4 rows of 16 columns
+      // Row 0: Idle Front (0-3), Idle Back (4-7), Idle Side (8-11)
+      rowsData[0]?.forEach((c, idx) => {
+        if (idx < 4) {
+          idleFrontFrames.push(drawFrameToGrid(c, 0, idx));
+        } else if (idx < 8) {
+          idleBackFrames.push(drawFrameToGrid(c, 2, idx - 4));
+        } else if (idx < 12) {
+          idleSideFrames.push(drawFrameToGrid(c, 1, idx - 8));
+        } else if (idx < 16) {
+          drawFrameToGrid(c, 1, idx - 8); // Extra side frames (cols 4-7 of Output Row 1)
         }
       });
-    } else {
-      // 3-row sheets (Eric, Nick H) -> split attack row frames for victory / defeat fallbacks
-      rowsData[2]?.forEach((c, idx) => {
-        if (idx < gridColumns) {
-          const idxOnGrid = 5 * gridColumns + idx;
-          if (idx < Math.ceil(rowsData[2].length / 2)) {
-            victoryFrames.push(idxOnGrid);
+
+      // Row 1: Walk Front (0-3), Walk Back (4-7), Walk Side (8-15)
+      rowsData[1]?.forEach((c, idx) => {
+        if (idx < 4) {
+          walkFrontFrames.push(drawFrameToGrid(c, 3, idx));
+        } else if (idx < 8) {
+          walkBackFrames.push(drawFrameToGrid(c, 5, idx - 4));
+        } else if (idx < 16) {
+          const gridIdx = drawFrameToGrid(c, 4, idx - 8); // Walk Side (cols 0-7 of Output Row 4)
+          if (idx < 12) {
+            walkSideFrames.push(gridIdx);
           } else {
-            defeatFrames.push(idxOnGrid);
+            // Include extra walk side frames
+            walkSideFrames.push(gridIdx);
           }
         }
       });
+      walkFrames.push(...walkFrontFrames);
+      runFrames.push(...walkSideFrames);
+
+      // Row 2: Combat / Attack (Side attack: columns 8-11)
+      rowsData[2]?.forEach((c, idx) => {
+        if (idx < 4) {
+          drawFrameToGrid(c, 6, idx); // Front combat stance (cols 0-3 of Output Row 6)
+        } else if (idx < 8) {
+          drawFrameToGrid(c, 6, idx); // Back combat stance (cols 4-7 of Output Row 6)
+        } else if (idx < 12) {
+          const gridIdx = drawFrameToGrid(c, 6, idx); // Side attack (cols 8-11 of Output Row 6)
+          attackFrames.push(gridIdx);
+          if (idx === 8) hurtFrames.push(gridIdx);
+        } else {
+          // Extra attack frames (ignore or draw)
+        }
+      });
+
+      // Row 3: Victory / Defeated (split in half)
+      if (rowsData[3]) {
+        const half = Math.floor(rowsData[3].length / 2);
+        rowsData[3].forEach((c, idx) => {
+          if (idx < half) {
+            if (idx < gridColumns) victoryFrames.push(drawFrameToGrid(c, 7, idx));
+          } else {
+            const dIdx = idx - half;
+            if (dIdx + 6 < gridColumns) defeatFrames.push(drawFrameToGrid(c, 7, dIdx + 6));
+          }
+        });
+      }
+    } else {
+      // Standard 3-4 row sheet
+      // Row 0 of sheet -> Idle Front (Final Row 0)
+      rowsData[0]?.forEach((c, idx) => {
+        if (idx < gridColumns) idleFrontFrames.push(drawFrameToGrid(c, 0, idx));
+      });
+      // Reuse Front animations as fallbacks for side/back
+      idleSideFrames.push(...idleFrontFrames);
+      idleBackFrames.push(...idleFrontFrames);
+
+      // Row 1 of sheet -> Walk Cycle (Final Row 3)
+      rowsData[1]?.forEach((c, idx) => {
+        if (idx < gridColumns) walkFrames.push(drawFrameToGrid(c, 3, idx));
+      });
+      walkFrontFrames.push(...walkFrames);
+      walkSideFrames.push(...walkFrames);
+      walkBackFrames.push(...walkFrames);
+      runFrames.push(...walkFrames);
+
+      // Row 2 of sheet -> Combat / Attack Cycle (Final Row 5)
+      rowsData[2]?.forEach((c, idx) => {
+        if (idx < gridColumns) {
+          const idxOnGrid = drawFrameToGrid(c, 5, idx);
+          attackFrames.push(idxOnGrid);
+          // Hurt is the first frame of combat stance/attack as standard flinch pose
+          if (idx === 0) {
+            hurtFrames.push(idxOnGrid);
+          }
+        }
+      });
+
+      // If a 4th row exists (Jacob, Nick F) -> Victory / Defeated (Final Row 7)
+      if (rows.length >= 4 && rowsData[3]) {
+        const half = Math.floor(rowsData[3].length / 2);
+        rowsData[3].forEach((c, idx) => {
+          if (idx < half) {
+            if (idx < gridColumns) victoryFrames.push(drawFrameToGrid(c, 7, idx));
+          } else {
+            const dIdx = idx - half;
+            if (dIdx + 6 < gridColumns) defeatFrames.push(drawFrameToGrid(c, 7, dIdx + 6));
+          }
+        });
+      } else {
+        // 3-row sheets (Eric, Nick H) -> split attack row frames for victory / defeat fallbacks
+        rowsData[2]?.forEach((c, idx) => {
+          if (idx < gridColumns) {
+            const idxOnGrid = 5 * gridColumns + idx;
+            if (idx < Math.ceil(rowsData[2].length / 2)) {
+              victoryFrames.push(idxOnGrid);
+            } else {
+              defeatFrames.push(idxOnGrid);
+            }
+          }
+        });
+      }
     }
   }
 
@@ -574,7 +639,7 @@ export function preprocessColumnFirstSheet(
   const isBackground = (r: number, g: number, b: number, a: number): boolean => {
     if (a < 50) return true;
     const dist = Math.sqrt((r - bgR) ** 2 + (g - bgG) ** 2 + (b - bgB) ** 2);
-    const tolerance = (_characterId && _characterId.includes('nick_f')) ? 22 : 45;
+    const tolerance = (_characterId && _characterId.includes('nick_f')) ? 35 : 45;
     return dist < tolerance;
   };
 

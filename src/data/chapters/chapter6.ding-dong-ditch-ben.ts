@@ -3,7 +3,7 @@ import { C } from './palette';
 
 const chapter6: ChapterConfig = {
   id: 'ding_dong_ditch_ben',
-  index: 6,
+  index: 7,
   title: 'Operation Ding Dong Ditch Ben',
   subtitle: 'Act IV — The Pariah Zone',
   location: '12 Watchwater Way',

@@ -34,6 +34,8 @@ import bossAudreyImg from '../assets/images/boss_audrey.jpg';
 import bossFloridaImg from '../assets/images/boss_florida.jpg';
 // The boss_ben fight is actually Michael Bersofsky (Ben's dad) — use his sheet.
 import bossBenImg from '../assets/images/micheal_bersofsky.jpg';
+// boss_ben_umbc is Ben himself (UMBC chapter) — use the ben portrait.
+import bossBenUmbcImg from '../assets/images/boss_ben.jpg';
 import bossNickFImg from '../assets/images/boss_nick_f.jpg';
 import coinImg from '../assets/images/coin.jpg';
 import shardImg from '../assets/images/shard.jpg';
@@ -46,6 +48,7 @@ import {
   CHAPTER_MUSIC_KEY, STAGE_MUSIC_URL, BOSS_MUSIC_URL, BOSS_LOOP_URL,
   THEME_FOOTSTEP, FOOTSTEP_URLS,
   UI_SELECT_URL, VICTORY_JINGLE_URL, KNOCK_URL,
+  CROWD_MURMUR_URL, CRICKET_AMBIENT_URL,
 } from './audio';
 
 // ─── R1/R2: Stage & car prop images (Vite ?url for special-char filenames) ──────
@@ -67,6 +70,11 @@ import natureBush2Url from '../assets/images/game_decor/nature/Bush 1/Bush 1 - W
 
 // Sprint 2: LimeZu furniture tilesheet — sliced into the furniture_atlas at runtime.
 import interiors48Url from '../assets/images/game_decor/Interiors_free/48x48/Interiors_free_48x48.png?url';
+
+// Ch3b: UMBC Incident stage images + NPC silhouette
+import umbcBasementStageUrl  from '../assets/chapters/umbc incident/umbc_basement.jpg?url';
+import parkingLotNightUrl    from '../assets/chapters/umbc incident/stage_parking_log_night.jpg?url';
+import npcGirlSilhouetteUrl  from '../assets/images/npc_girl_silhouette.jpg?url';
 
 // Ch9: Suds & Soles Pool Party character portraits + map
 import ericPoolUrl       from '../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/Eric(pool).jpg?url';
@@ -115,7 +123,7 @@ export default class ChapterScene extends Phaser.Scene {
   public beatIndex: number = 0;
   public beatActive: boolean = false;
   // Active walkTo target the player must reach to advance.
-  public walkTarget: { x: number; y: number; radius: number; markerLabel?: string; marker?: Phaser.GameObjects.Container } | null = null;
+  public walkTarget: { x: number; y: number; radius: number; markerLabel?: string; marker?: Phaser.GameObjects.Container; taskUi?: Phaser.GameObjects.Container } | null = null;
   public propAspects: Record<string, number> = {};
   public actorSprites: Record<string, Phaser.GameObjects.GameObject[]> = {};
 
@@ -350,6 +358,7 @@ export default class ChapterScene extends Phaser.Scene {
     this.safeLoadImage('boss_audrey', bossAudreyImg);
     this.safeLoadImage('boss_florida', bossFloridaImg);
     this.safeLoadImage('boss_ben', bossBenImg);
+    this.safeLoadImage('boss_ben_umbc', bossBenUmbcImg);
     this.safeLoadImage('boss_nick_f', bossNickFImg);
     // Projectile / loot images
     this.safeLoadImage('coin_img', coinImg);
@@ -369,6 +378,21 @@ export default class ChapterScene extends Phaser.Scene {
     // R1: watchwater house (Ch6)
     this.safeLoadImage('prop_watchwater', propWatchwaterUrl);
     this.safeLoadImage('prop_watchwater_open', propWatchwaterOpenUrl);
+
+    this.safeLoadImage('stage_umbc_basement', umbcBasementStageUrl);
+    this.safeLoadImage('stage_parking_lot_night', parkingLotNightUrl);
+    // Ben has no playable-roster hero sprite; reuse his UMBC portrait (a 1376×768
+    // showcase sheet, same format as the hero art) so he renders as a real,
+    // animated character instead of a colored blob in the basement.
+    this.safeLoadImage('hero_ben_raw_jpg', bossBenUmbcImg);
+    this.safeLoadImage('hero_girl1_raw', npcGirlSilhouetteUrl);
+    this.safeLoadImage('hero_girl2_raw', npcGirlSilhouetteUrl);
+    this.safeLoadImage('hero_girl3_raw', npcGirlSilhouetteUrl);
+    this.audioController.safeLoadAudio('sfx_crowd_murmur', CROWD_MURMUR_URL);
+    this.audioController.safeLoadAudio('sfx_parking_ambient', CRICKET_AMBIENT_URL);
+    // Voiced one-off: Ben's "You're next." Drop the MP3 at public/voice/ben_youre_next.mp3.
+    // Loaded by URL (not a bundler import) so a missing file fails gracefully.
+    this.audioController.safeLoadAudio('sfx_ben_youre_next', '/voice/ben_youre_next.mp3');
     // Ch9: Suds & Soles Pool Party (character portraits + map images)
     this.safeLoadImage('npc_eric_pool',      ericPoolUrl);
     this.safeLoadImage('npc_nick_h_pool',    nickHPoolUrl);
@@ -425,9 +449,22 @@ export default class ChapterScene extends Phaser.Scene {
   }
 
   private loadChapterAudio() {
-    const musicKey = CHAPTER_MUSIC_KEY[this.chapter.id];
+    // Chapter-level music key, falling back to scene 0's per-scene music key
+    // (multi-location chapters like UMBC have no chapter-level key — they drive
+    // music entirely through scenes[].music).
+    const musicKey = CHAPTER_MUSIC_KEY[this.chapter.id]
+      ?? this.chapter.scenes?.[0]?.music;
     const musicUrl = musicKey ? STAGE_MUSIC_URL[musicKey] : undefined;
     if (musicKey && musicUrl) this.safeLoadAudio(musicKey, musicUrl);
+
+    // Pre-load music for every later scene that specifies its own key so the
+    // changeScene crossfade has the track ready.
+    for (const scene of this.chapter.scenes ?? []) {
+      if (scene.music && scene.music !== musicKey) {
+        const url = STAGE_MUSIC_URL[scene.music];
+        if (url) this.safeLoadAudio(scene.music, url);
+      }
+    }
     this.safeLoadAudio('boss_sting', BOSS_MUSIC_URL);
     this.safeLoadAudio('boss_loop', BOSS_LOOP_URL);
 
@@ -491,7 +528,7 @@ export default class ChapterScene extends Phaser.Scene {
 
     this.generatePropsAtlas();
 
-    const heroIds = ['eric', 'jacob', 'nick_f', 'nick_h', 'jordan', 'maharko'];
+    const heroIds = ['eric', 'jacob', 'nick_f', 'nick_h', 'jordan', 'maharko', 'ben'];
     heroIds.forEach(id => {
       const sheetKey = `hero_${id}_sheet`;
       if (this.textures.exists(sheetKey)) return;
@@ -542,7 +579,7 @@ export default class ChapterScene extends Phaser.Scene {
     });
 
     // Process enemy showcase sheets
-    ['ticketmaster', 'dishes', 'zombie', 'frat_bro'].forEach(id => {
+    ['ticketmaster', 'dishes', 'zombie'].forEach(id => {
       const rawKey = `enemy_${id}_raw`;
       const sheetKey = `enemy_${id}_sheet`;
       if (!this.textures.exists(rawKey) || this.textures.exists(sheetKey)) return;
@@ -563,34 +600,75 @@ export default class ChapterScene extends Phaser.Scene {
         this.registerAnim(id, sheetKey, 'defeat', processed.defeatFrames, 4, 0);
       } catch (err) {
         console.error(`[GameScene] Enemy spritesheet error for ${id}:`, err);
+        try {
+          const image = this.textures.get(rawKey).getSourceImage() as HTMLImageElement;
+          const processed = preprocessColumnFirstSheet(image, id);
+          const cleanKey = `enemy_${id}_clean_canvas`;
+          this.textures.addCanvas(cleanKey, processed.canvas);
+          const src = this.textures.get(cleanKey).getSourceImage() as HTMLImageElement;
+          this.textures.addSpriteSheet(sheetKey, src, { frameWidth: processed.frameWidth, frameHeight: processed.frameHeight });
+          this.registerAnim(id, sheetKey, 'idle', processed.idleFrontFrames, 4, -1);
+          this.registerAnim(id, sheetKey, 'walk', processed.walkFrames, 6, -1);
+          this.registerAnim(id, sheetKey, 'attack', processed.attackFrames, 10, 0);
+          this.registerAnim(id, sheetKey, 'hurt', processed.hurtFrames, 8, 0);
+          this.registerAnim(id, sheetKey, 'defeat', processed.defeatFrames, 4, 0);
+        } catch (err2) {
+          const fallbackSource = this.textures.get(rawKey).getSourceImage() as HTMLImageElement;
+          this.textures.addSpriteSheet(sheetKey, fallbackSource, { frameWidth: 128, frameHeight: 128 });
+        }
       }
     });
 
+    // Process girl silhouettes as sprite sheets, removing white background
+    // (Removed: We now use Phaser.BlendModes.MULTIPLY on the raw textures directly)
+
+    // Process boss_ben_umbc as a showcase sheet
+    if (this.textures.exists('boss_ben_umbc') && !this.textures.exists('boss_ben_umbc_sheet')) {
+      try {
+        const image = this.textures.get('boss_ben_umbc').getSourceImage() as HTMLImageElement;
+        const processed = preprocessColumnFirstSheet(image, 'boss_ben_umbc');
+        const cleanKey = 'boss_ben_umbc_clean';
+        this.textures.addCanvas(cleanKey, processed.canvas);
+        const src = this.textures.get(cleanKey).getSourceImage() as HTMLImageElement;
+        this.textures.addSpriteSheet('boss_ben_umbc_sheet', src, { frameWidth: processed.frameWidth, frameHeight: processed.frameHeight });
+        this.registerAnim('boss_ben_umbc', 'boss_ben_umbc_sheet', 'idle', processed.idleFrontFrames, 4, -1);
+        this.registerAnim('boss_ben_umbc', 'boss_ben_umbc_sheet', 'walk', processed.walkFrames, 8, -1);
+        this.registerAnim('boss_ben_umbc', 'boss_ben_umbc_sheet', 'attack', processed.attackFrames, 12, 0);
+        this.registerAnim('boss_ben_umbc', 'boss_ben_umbc_sheet', 'hurt', processed.hurtFrames, 8, 0);
+        this.registerAnim('boss_ben_umbc', 'boss_ben_umbc_sheet', 'defeat', processed.defeatFrames, 4, 0);
+      } catch (err) {
+        console.error('[GameScene] Boss ben umbc spritesheet error:', err);
+      }
+    }
+
     // Process boss showcase sheets — column-first format (columns = categories, rows = frames)
-    ['eric', 'audrey', 'florida', 'ben', 'nick_f'].forEach(bossId => {
-      const rawKey = `boss_${bossId}`;
-      const sheetKey = `boss_${bossId}_sheet`;
+    ['eric', 'audrey', 'florida', 'ben', 'nick_f', 'frat_bro'].forEach(bossId => {
+      // NOTE: frat_bro is included here because it's a column-first sheet like bosses.
+      const rawKey = bossId === 'frat_bro' ? 'enemy_frat_bro_raw' : `boss_${bossId}`;
+      const sheetKey = bossId === 'frat_bro' ? 'enemy_frat_bro_sheet' : `boss_${bossId}_sheet`;
+      const animId = bossId === 'frat_bro' ? 'frat_bro' : `boss_${bossId}`;
+      
       if (!this.textures.exists(rawKey) || this.textures.exists(sheetKey)) return;
       try {
         const image = this.textures.get(rawKey).getSourceImage() as HTMLImageElement;
         const processed = preprocessColumnFirstSheet(image, bossId);
-        const cleanKey = `boss_${bossId}_clean_canvas`;
+        const cleanKey = bossId === 'frat_bro' ? 'enemy_frat_bro_clean_canvas' : `boss_${bossId}_clean_canvas`;
         this.textures.addCanvas(cleanKey, processed.canvas);
         const src = this.textures.get(cleanKey).getSourceImage() as HTMLImageElement;
         this.textures.addSpriteSheet(sheetKey, src, { frameWidth: processed.frameWidth, frameHeight: processed.frameHeight });
-        this.registerAnim(`boss_${bossId}`, sheetKey, 'idle_front', processed.idleFrontFrames, 3, -1);
-        this.registerAnim(`boss_${bossId}`, sheetKey, 'idle_side', processed.idleSideFrames, 3, -1);
-        this.registerAnim(`boss_${bossId}`, sheetKey, 'idle_back', processed.idleBackFrames, 3, -1);
-        this.registerAnim(`boss_${bossId}`, sheetKey, 'walk_front', processed.walkFrontFrames, 8, -1);
-        this.registerAnim(`boss_${bossId}`, sheetKey, 'walk_side', processed.walkSideFrames, 8, -1);
-        this.registerAnim(`boss_${bossId}`, sheetKey, 'walk_back', processed.walkBackFrames, 8, -1);
-        this.registerAnim(`boss_${bossId}`, sheetKey, 'idle', processed.idleFrontFrames, 3, -1);
-        this.registerAnim(`boss_${bossId}`, sheetKey, 'walk', processed.walkFrames, 8, -1);
-        this.registerAnim(`boss_${bossId}`, sheetKey, 'attack', processed.attackFrames, 10, 0);
-        this.registerAnim(`boss_${bossId}`, sheetKey, 'hurt', processed.hurtFrames, 8, 0);
-        this.registerAnim(`boss_${bossId}`, sheetKey, 'defeat', processed.defeatFrames, 4, 0);
+        this.registerAnim(animId, sheetKey, 'idle_front', processed.idleFrontFrames, 3, -1);
+        this.registerAnim(animId, sheetKey, 'idle_side', processed.idleSideFrames, 3, -1);
+        this.registerAnim(animId, sheetKey, 'idle_back', processed.idleBackFrames, 3, -1);
+        this.registerAnim(animId, sheetKey, 'walk_front', processed.walkFrontFrames, 8, -1);
+        this.registerAnim(animId, sheetKey, 'walk_side', processed.walkSideFrames, 8, -1);
+        this.registerAnim(animId, sheetKey, 'walk_back', processed.walkBackFrames, 8, -1);
+        this.registerAnim(animId, sheetKey, 'idle', processed.idleFrontFrames, 3, -1);
+        this.registerAnim(animId, sheetKey, 'walk', processed.walkFrames, 8, -1);
+        this.registerAnim(animId, sheetKey, 'attack', processed.attackFrames, 10, 0);
+        this.registerAnim(animId, sheetKey, 'hurt', processed.hurtFrames, 8, 0);
+        this.registerAnim(animId, sheetKey, 'defeat', processed.defeatFrames, 4, 0);
       } catch (err) {
-        console.error(`[GameScene] Boss spritesheet error for boss_${bossId}:`, err);
+        console.error(`[GameScene] Boss/Enemy spritesheet error for ${bossId}:`, err);
       }
     });
 
@@ -843,6 +921,10 @@ export default class ChapterScene extends Phaser.Scene {
       this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
 
       this.actorsSystem.placeActors(actors);
+
+      // If the new scene specifies its own music, crossfade during the black frame.
+      const sceneMusic = this.chapter.scenes?.[sceneIndex]?.music;
+      if (sceneMusic) this.audioController.crossfadeToMusic(sceneMusic);
 
       this.cameras.main.fadeIn(half, 0, 0, 0);
       this.cameras.main.once('camerafadeincomplete', () => {

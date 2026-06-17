@@ -53,6 +53,14 @@ export const CHAPTERS: ChapterConfig[] = [
 ];
 ```
 
+**Ordering matters — array position, not the `index` field, drives the game.**
+The menu renders chapters in `CHAPTERS` array order, and linear unlock checks the
+*previous array entry* (`progress.ts` → `isChapterUnlocked`). The `index:` field is
+only the number printed on the card. So to insert a chapter mid-sequence:
+1. Place it at the right spot in the `CHAPTERS` array (not just appended at the end).
+2. Renumber the `index:` field of it **and every chapter after it** so the displayed
+   numbers stay sequential (e.g. inserting at slot 6 bumps the old 6→7, 7→8, …).
+
 ---
 
 ## 3. WIRE STAGE MUSIC
@@ -79,9 +87,20 @@ export const STAGE_MUSIC_URL: Record<string, string> = {
 
 If reusing an existing track, just add the `CHAPTER_MUSIC_KEY` entry pointing to the existing key. No new URL import needed.
 
+**Per-scene music (multi-location chapters).** A chapter with `scenes[]` can set
+`music` on any scene (`scenes[N].music: 'music_key'`). That overrides the chapter-level
+`CHAPTER_MUSIC_KEY` and crossfades in on the `changeScene` beat. The key must exist in
+`STAGE_MUSIC_URL` (add the import + entry as above). `scenes[0].music` is the opening track.
+
 ---
 
 ## 4. ADD BOSS CONFIG (if chapter has a bossFight beat)
+
+**Check for id collisions first.** Grep for the intended `bossId` in `entities.ts` before adding:
+```bash
+grep "'boss_yourcharacter'" src/data/entities.ts
+```
+Existing entries: `boss_eric`, `boss_audrey`, `boss_florida`, `boss_ben` (Michael Bersofsky — Ch6), `boss_nick_f`. If the id is taken, use a context suffix (`boss_ben_umbc`, etc.) and update the `bossFight` beat in the chapter file to match.
 
 Edit `src/data/entities.ts`. Add to the `BOSSES` array:
 
@@ -123,7 +142,31 @@ Place the asset file in the appropriate directory:
 
 ---
 
-## 6. TYPECHECK
+## 6. REGISTER A NEW MINIGAME MODE (if Step 2b produced one)
+
+If the chapter has a `{ type: 'minigame', modeId: '...' }` beat whose mode is **new**
+(not `bossFight`/`poolParty`/an existing mode), that mode must be registered or the
+beat is silently skipped (`[BeatEngine] Unknown minigame modeId`).
+
+The mode implementation lives at `src/game/modes/<modeId>/index.ts` (a developer writes
+it — see `docs/ADDING_A_MINIGAME.md`). To register it, edit `src/game/modes/index.ts`:
+
+```typescript
+import { yourModeNameMode } from './yourModeName';   // add import
+// ...with the other registerMode(...) calls:
+registerMode(yourModeNameMode);
+```
+
+Notes:
+- A foreground mode (`background: false`) freezes the player and blocks story beats until
+  it calls `onComplete(...)` exactly once. A `background: true` mode runs alongside beats.
+- Modes load no assets of their own — the `ModeContext` facade exposes no loader. Any
+  textures/audio a mode needs must be loaded in `ChapterScene.ts` preload (Step 5) and
+  the mode reuses those keys.
+
+---
+
+## 7. TYPECHECK
 
 ```bash
 npm run lint
@@ -133,10 +176,11 @@ Fix any type errors before testing. Common ones:
 - Missing required `ChapterConfig` fields
 - `bossId` in a `bossFight` beat that doesn't exist in `BOSSES`
 - Invalid speaker id in a `dialogue` beat
+- A `minigame` beat whose `modeId` was never registered (Section 6)
 
 ---
 
-## 7. RUN AND TEST
+## 8. RUN AND TEST
 
 ```bash
 npm run dev
@@ -159,7 +203,7 @@ Use `window.__OMEGA_GAME__` in the browser console to inspect live scene state i
 
 ---
 
-## 8. REFINE
+## 9. REFINE
 
 Use `DEEPEN.md` for any beats that felt flat during playtesting.
 Targeted changes only — don't rewrite the whole chapter, find the one moment that isn't landing.

@@ -155,11 +155,11 @@ Write `combatBarks` and `phaseBarks` in the character's actual voice. The QTE qu
 **If new minigame — Mode spec:**
 - `modeId`: the string key (camelCase)
 - `GameMode` lifecycle:
-  - `preload`: what assets to load
-  - `start`: what gets created, what input is registered, what the loop initializes
-  - `update`: what happens every frame (movement, collision, timer checks)
-  - `teardown`: what to clean up
-- `ModeContext` API calls it will use (from the API reference in `ADDING_A_MINIGAME.md`)
+  - `preload(ctx)`: what assets to load via `ctx.add` / Phaser loader
+  - `start(ctx, config, onComplete)`: what gets created, what input is registered, what the loop initializes. Call `onComplete({ outcome: 'win' })` or `onComplete({ outcome: 'lose' })` exactly once when done.
+  - `update(time, delta)`: what happens every frame (movement, collision, timer checks)
+  - `teardown()`: what to clean up — destroy all sprites, text, timers, and input listeners created in `start`
+- ModeContext API calls it will use (see reference below)
 - Win path: what triggers `onComplete({ outcome: 'win' })`
 - Lose path: what triggers `onComplete({ outcome: 'lose' })`
 - Config schema: what parameters the beat's `config` object should accept
@@ -167,3 +167,66 @@ Write `combatBarks` and `phaseBarks` in the character's actual voice. The QTE qu
 **IntroLines** — two lines max. First line names what the player is walking into. Second line names what's actually at stake — not the game mechanic, the emotional thing.
 
 **Difficulty note** — is this fair on first attempt? Should it be hard? Is there a version of "losing" that still feels like a valid ending?
+
+---
+
+### MODECONTEXT API REFERENCE
+
+When you write the mode spec, use only methods and properties from this list. Do not invent methods.
+
+**Core Phaser objects — access directly on `ctx`:**
+```
+ctx.add          — Phaser GameObjects factory (add.text, add.image, add.rectangle, add.graphics, etc.)
+ctx.make         — GameObject creator
+ctx.cameras      — Camera manager. Use ctx.cameras.main for the active camera.
+ctx.time         — Timer events. ctx.time.delayedCall(ms, fn), ctx.time.addEvent({...})
+ctx.tweens       — Tween manager. ctx.tweens.add({...})
+ctx.physics      — Arcade physics manager
+ctx.sound        — Audio manager. ctx.sound.play(key), ctx.sound.add(key)
+ctx.input        — Input manager (keyboard, pointer)
+ctx.textures     — Texture cache
+ctx.anims        — Animation manager
+```
+
+**Physics groups (pre-created, use directly):**
+```
+ctx.projectiles        — player bullets
+ctx.enemies            — enemy entities
+ctx.enemyProjectiles   — enemy bullets
+ctx.walls              — static collidables
+```
+
+**Helper methods:**
+```
+ctx.label(x, y, text, style)              — high-DPI text label (always use instead of ctx.add.text)
+ctx.showLetterbox(durationMs)             — cinematic black bars in
+ctx.hideLetterbox(durationMs)             — cinematic black bars out
+ctx.showBubbleText(target, text, color)   — floating speech bubble above a sprite
+ctx.showPassiveIconText(x, y, text, color)— floating passive message
+ctx.showDamageNumber(x, y, amount, color) — falling damage number
+ctx.setControlsInverted(bool)             — invert player movement
+ctx.triggerQTE(boss, callback)            — open the React QTE modal
+ctx.logMessage(msg)                       — log to HUD message board
+ctx.onStoryDialogue(payload, done)        — push a dialogue window to the React overlay
+ctx.hideActor(id)                         — hide a story actor sprite
+ctx.damagePlayer(amount, source)          — reduce player HP
+ctx.applyDirectionalAnim(sprite, id, vx, vy, facesLeft)  — walk animation controller
+```
+
+**Read-only metadata:**
+```
+ctx.player            — the protagonist Phaser sprite
+ctx.playerClass       — character description object
+ctx.chapter           — the active ChapterConfig
+ctx.currentLevelIndex — current chapter index
+ctx.spawnedBoss       — active boss sprite (null if no boss)
+ctx.isBossActive      — true during boss combat
+ctx.qteActive         — true while QTE modal is open
+ctx.propSprites       — Map<string, Image> of placed scenery sprites
+ctx.poolNameplates    — Map<string, Text> of in-world nameplates
+```
+
+**What does NOT exist on ModeContext:**
+- No `getScene()`, `getCamera()`, `getGameState()`, `playSound()`, `letterbox()`, `createButton()`
+- No cross-mode state storage — pass outcome data through `onComplete` only
+- No direct React bridge — use `ctx.onStoryDialogue` for dialogue, `ctx.triggerQTE` for QTEs
