@@ -48,6 +48,7 @@ export interface ModeContext {
 
   // Scene actions & data
   hideActor(id: string): void;
+  showActor(id: string): void;
   damagePlayer(amount: number, source: string): void;
   playerClass: CharacterClass;
   chapter: ChapterConfig;

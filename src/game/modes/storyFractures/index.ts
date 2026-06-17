@@ -87,6 +87,9 @@ export class StoryFracturesMode implements GameMode<StoryFracturesConfig> {
   private timers: Phaser.Time.TimerEvent[] = [];
   private ambient: Phaser.Sound.BaseSound | null = null;
   private counter: Phaser.GameObjects.Text | null = null;
+  private ekgGraphics: Phaser.GameObjects.Graphics | null = null;
+  private ekgTime = 0;
+  private ekgSpiking = false;
 
   preload(): void {
     // No-op: all assets are loaded by ChapterScene. The facade has no loader.
@@ -111,6 +114,34 @@ export class StoryFracturesMode implements GameMode<StoryFracturesConfig> {
   }
 
   update(_time: number, delta: number): void {
+    if (this.ekgGraphics) {
+      this.ekgTime += delta;
+      this.ekgGraphics.clear();
+      const color = this.ekgSpiking ? 0xef4444 : 0x22d3ee; // red or cyan
+      const amp = this.ekgSpiking ? 35 : 12;
+      
+      this.ekgGraphics.lineStyle(2, color, 0.9);
+      this.ekgGraphics.beginPath();
+      const startX = this.ctx.cameras.main.width / 2 - 250;
+      const startY = 35;
+      
+      for (let i = 0; i < 500; i += 4) {
+        let yOffset = 0;
+        const cycle = (this.ekgTime + i * 2) % (this.ekgSpiking ? 200 : 1000);
+        if (cycle > 100 && cycle < 160) {
+          const qrs = cycle - 100;
+          if (qrs < 10) yOffset = -amp * 0.4;
+          else if (qrs < 30) yOffset = amp * 2.0;
+          else yOffset = -amp * 0.7;
+        }
+        if (this.ekgSpiking) yOffset += (Math.random() - 0.5) * 12;
+        
+        if (i === 0) this.ekgGraphics.moveTo(startX + i, startY - yOffset);
+        else this.ekgGraphics.lineTo(startX + i, startY - yOffset);
+      }
+      this.ekgGraphics.strokePath();
+    }
+
     if (this.phase !== 'revealing') return;
 
     // Inter-segment pause so paragraphs land one at a time.
@@ -131,8 +162,12 @@ export class StoryFracturesMode implements GameMode<StoryFracturesConfig> {
       this.completeSegment(view);
       this.revealIndex += 1;
       this.revealChars = 0;
-      this.interSegmentWait = 280;
-      if (this.revealIndex >= this.segViews.length) this.enterReview();
+      this.interSegmentWait = view.seg.fractureId ? 1000 : 280; // wait longer if fracture to give time to react
+      if (this.revealIndex >= this.segViews.length) {
+        // If the last segment is NOT a fracture, we can enter review/win immediately.
+        // If it IS a fracture, completeSegment sets a timer that handles the win/lose.
+        if (!view.seg.fractureId) this.enterReview();
+      }
     }
   }
 
@@ -157,6 +192,8 @@ export class StoryFracturesMode implements GameMode<StoryFracturesConfig> {
     this.revealIndex = 0;
     this.revealChars = 0;
     this.interSegmentWait = 0;
+    this.ekgTime = 0;
+    this.ekgSpiking = false;
 
     const cam = this.ctx.cameras.main;
     cam.setZoom(1);
@@ -192,6 +229,9 @@ export class StoryFracturesMode implements GameMode<StoryFracturesConfig> {
     this.track(this.counter);
     this.updateCounter();
 
+    this.ekgGraphics = this.ctx.add.graphics().setScrollFactor(0).setDepth(DEPTH.hud);
+    this.track(this.ekgGraphics);
+
     // Story paragraphs, stacked. Pre-measure with full text, then blank for reveal.
     let y = 112;
     for (const seg of this.cfg.storySegments) {
@@ -204,13 +244,11 @@ export class StoryFracturesMode implements GameMode<StoryFracturesConfig> {
       const view: SegmentView = { seg, label, revealed: false, found: false };
 
       if (seg.fractureId) {
-        const hint = this.ctx.label(leftX, y, seg.fractureHint ?? 'Something off?', {
-          fontSize: '13px', color: GOLD, fontStyle: 'italic', stroke: '#000000', strokeThickness: 3,
-        }).setScrollFactor(0).setDepth(DEPTH.hud).setAlpha(0);
-        this.track(hint);
-        view.hint = hint;
+        // No hint anymore, the jitter is the hint!
       }
 
+      view.label.setData('origX', leftX);
+      view.label.setData('origY', y);
       this.segViews.push(view);
       y += label.height + 16;
       label.setText(''); // blank until revealed; position already fixed
@@ -218,8 +256,8 @@ export class StoryFracturesMode implements GameMode<StoryFracturesConfig> {
 
     // Footer instruction.
     this.track(
-      this.ctx.label(vw / 2, vh - 40, 'Click the parts of the story that don’t add up.', {
-        fontSize: '14px', color: DIM, stroke: '#000000', strokeThickness: 3,
+      this.ctx.label(vw / 2, vh - 40, 'When the lie detector spikes, smash the glitching lie!', {
+        fontSize: '14px', color: '#22d3ee', fontStyle: 'bold', stroke: '#000000', strokeThickness: 3,
       }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH.hud)
     );
   }
@@ -240,13 +278,44 @@ export class StoryFracturesMode implements GameMode<StoryFracturesConfig> {
     view.revealed = true;
     if (!view.seg.fractureId) return;
 
-    // Fracture paragraph becomes clickable; its hint fades in beside it.
+    this.ekgSpiking = true;
+    this.playOnce('sfx_knock', 1.0); // sharp heartbeat
+    
+    view.label.setColor(RED);
     view.label.setInteractive({ useHandCursor: true });
-    view.label.on('pointerdown', () => this.markFracture(view));
-    if (view.hint) {
-      view.hint.setPosition(view.label.x, view.label.y + view.label.height + 2);
-      this.ctx.tweens.add({ targets: view.hint, alpha: 0.85, duration: 300 });
-    }
+    
+    // Make the text violently jitter
+    const jitterTween = this.ctx.tweens.add({
+      targets: view.label,
+      x: { value: { getEnd: (t: any, k: any, v: any) => view.label.getData('origX') + (Math.random() - 0.5) * 40 } },
+      y: { value: { getEnd: (t: any, k: any, v: any) => view.label.getData('origY') + (Math.random() - 0.5) * 40 } },
+      duration: 60,
+      yoyo: true,
+      repeat: -1,
+    });
+
+    let clicked = false;
+    view.label.once('pointerdown', () => {
+      clicked = true;
+      this.ekgSpiking = false;
+      jitterTween.stop();
+      view.label.setPosition(view.label.getData('origX'), view.label.getData('origY'));
+      this.markFracture(view);
+    });
+
+    // Short reaction window (2.8 seconds)
+    this.addTimer(2800, () => {
+      if (!clicked) {
+        this.ekgSpiking = false;
+        jitterTween.stop();
+        view.label.setPosition(view.label.getData('origX'), view.label.getData('origY'));
+        view.label.setColor(DIM);
+        view.label.disableInteractive();
+        
+        // Instant fail if you miss a fracture
+        this.resolveLose();
+      }
+    });
   }
 
   private markFracture(view: SegmentView): void {
@@ -258,7 +327,6 @@ export class StoryFracturesMode implements GameMode<StoryFracturesConfig> {
     this.playOnce('ui_select', 0.5);
 
     view.label.setColor(GOLD);
-    view.hint?.setVisible(false);
     this.ctx.tweens.add({
       targets: view.label, scale: 1.08, duration: 120, yoyo: true, ease: 'Quad.easeOut',
     });
@@ -279,26 +347,10 @@ export class StoryFracturesMode implements GameMode<StoryFracturesConfig> {
   private enterReview(): void {
     if (this.phase !== 'revealing') return;
     this.phase = 'review';
-
-    // Pulse any still-unmarked fractures so the player knows where to look.
-    const unmarked = this.segViews.filter(v => v.seg.fractureId && !v.found);
-    unmarked.forEach(v => {
-      this.ctx.tweens.add({
-        targets: v.label, alpha: 0.55, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
-      });
-    });
-
-    if (unmarked.length === 0) { this.resolveWin(); return; }
-
-    const cam = this.ctx.cameras.main;
-    const note = this.ctx.label(cam.width / 2, cam.height - 64, 'Last look…', {
-      fontSize: '15px', color: GOLD, fontStyle: 'italic', stroke: '#000000', strokeThickness: 3,
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH.hud);
-    this.track(note);
-
-    this.addTimer(this.reviewWindow, () => {
-      if (this.phase === 'review') this.resolveLose();
-    });
+    
+    // In the new hybrid mode, if we reach the end of the story without losing,
+    // it means all fractures were successfully smashed!
+    this.resolveWin();
   }
 
   private resolveWin(): void {

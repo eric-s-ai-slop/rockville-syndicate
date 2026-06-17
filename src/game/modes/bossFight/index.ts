@@ -31,7 +31,8 @@ export class BossFightMode implements GameMode<any> {
 
     // config might be empty or might contain bossId, arena, and introLines.
     const bossId = config?.bossId ?? BOSSES[ctx.currentLevelIndex % BOSSES.length].id;
-    this.ctx.hideActor(bossId.replace('boss_', ''));
+    const actorToHide = config?.hideActorId ?? bossId.replace('boss_', '');
+    this.ctx.hideActor(actorToHide);
 
     const bossConfig = BOSSES.find(b => b.id === bossId) ?? BOSSES[0];
     const intro = config?.introLines ?? [];

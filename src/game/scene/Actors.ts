@@ -30,14 +30,23 @@ export class Actors {
       const scale = actor.spriteScale ?? 0.5;
       let sprite: Phaser.GameObjects.Image | Phaser.GameObjects.Sprite;
       if (this.scene.textures.exists(sheetKey)) {
-        const s = this.scene.add.sprite(actor.x, actor.y, sheetKey, 0);
-        // R4: NPCs use a single static frame — no idle animation cycling
-        s.setFrame(0);
-        if (actor.id.startsWith('girl')) {
-          s.setBlendMode(Phaser.BlendModes.MULTIPLY);
+        if (sheetKey.endsWith('_raw')) {
+          const s = this.scene.add.image(actor.x, actor.y, sheetKey);
+          if (actor.id.startsWith('girl')) {
+            s.setBlendMode(Phaser.BlendModes.MULTIPLY);
+          }
+          s.setScale(scale).setDepth(actor.y);
+          sprite = s;
+        } else {
+          const s = this.scene.add.sprite(actor.x, actor.y, sheetKey, 0);
+          // R4: NPCs use a single static frame — no idle animation cycling
+          s.setFrame(0);
+          if (actor.id.startsWith('girl')) {
+            s.setBlendMode(Phaser.BlendModes.MULTIPLY);
+          }
+          s.setScale(scale).setDepth(actor.y);
+          sprite = s;
         }
-        s.setScale(scale).setDepth(actor.y);
-        sprite = s;
       } else {
         const g = this.scene.make.graphics({ x: 0, y: 0 });
         g.fillStyle(parseInt(speaker.color.replace('#', ''), 16), 1);
@@ -62,6 +71,11 @@ export class Actors {
   /** Hide an ambient actor (used when that character becomes the boss). */
   public hideActor(id: string) {
     (this.scene.actorSprites[id] ?? []).forEach(o => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(false));
+  }
+
+  /** Show an ambient actor. */
+  public showActor(id: string) {
+    (this.scene.actorSprites[id] ?? []).forEach(o => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(true));
   }
 
   public applyDirectionalAnim(sprite: Phaser.GameObjects.Sprite, id: string, vx: number, vy: number, facesLeftByDefault = false) {

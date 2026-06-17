@@ -1361,6 +1361,10 @@ export default class ChapterScene extends Phaser.Scene {
     this.actorsSystem.hideActor(id);
   }
 
+  public showActor(id: string) {
+    this.actorsSystem.showActor(id);
+  }
+
   private updateEnemyAI(time: number) {
     this.enemies.getChildren().forEach((obj: any) => {
       if (!obj.active) return;

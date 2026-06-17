@@ -113,13 +113,18 @@ export class BeatEngine {
     // Create the persistent HUD task popup
     let taskUi: Phaser.GameObjects.Container | undefined;
     if (beat.markerLabel) {
-      const bg = this.scene.add.rectangle(0, 0, 200, 40, 0x000000, 0.8).setOrigin(0).setStrokeStyle(2, 0xfacc15);
-      const txt = this.scene.add.text(10, 10, `Task: ${beat.markerLabel}`, {
+      const txt = this.scene.add.text(15, 10, `Task: ${beat.markerLabel}`, {
         fontFamily: 'monospace',
         fontSize: '14px',
         color: '#facc15',
         fontStyle: 'bold'
       });
+      const bg = this.scene.add.graphics();
+      bg.fillStyle(0x0a0a0a, 0.85);
+      bg.lineStyle(2, 0xfacc15, 0.5);
+      bg.fillRoundedRect(0, 0, txt.width + 30, txt.height + 20, 6);
+      bg.strokeRoundedRect(0, 0, txt.width + 30, txt.height + 20, 6);
+
       // Account for Phaser 3 camera zoom scaling on scrollFactor(0) objects
       const cam = this.scene.cameras.main;
       const cx = cam.width / 2;
@@ -253,7 +258,8 @@ export class BeatEngine {
       get qteActive() { return s.qteActive; },
       set qteActive(val) { s.qteActive = val; },
       hideActor: (id) => s.hideActor(id),
-      damagePlayer: (amount, source) => s.damagePlayer(amount, source),
+      showActor: (id) => s.showActor(id),
+      damagePlayer: (amt, src) => s.damagePlayer(amt, src),
       get playerClass() { return s.playerClass; },
       chapter: s.chapter,
       applyDirectionalAnim: (sprite, id, vx, vy, facesLeftByDefault) => s.applyDirectionalAnim(sprite, id, vx, vy, facesLeftByDefault),

@@ -48,7 +48,10 @@ export class BasementSceneMode implements GameMode {
     }
 
     // ── POST-BOSS: Maharko closes in on Ben ────────────────────────────────────
+    // The bossFight beat ends, dropping us back into basementScene.
+    // The very next beat is "The frat guys appeared."
     if (text.includes('The frat guys appeared.')) {
+      this.ctx.showActor('ben');
       this.moveActor('maharko', 500, 300, 1400, { flipX: false });
       this.moveActor('frat1', 520, 280, 1400, { flipX: true });
       this.moveActor('frat2', 540, 300, 1400, { flipX: true });

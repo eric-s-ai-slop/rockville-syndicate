@@ -104,6 +104,11 @@ export const UI_PICK_URL = uiPickUrl;
 export const UI_BACK_URL = uiBackUrl;
 export const UI_TOGGLE_URL = uiToggleUrl;
 
+import crackUrl from '../assets/audio/kenney_impact-sounds/Audio/impactGlass_light_000.ogg?url';
+import shatterUrl from '../assets/audio/kenney_impact-sounds/Audio/impactGlass_heavy_000.ogg?url';
+export const UI_CRACK_URL = crackUrl;
+export const UI_SHATTER_URL = shatterUrl;
+
 // ── DIALOGUE TEXT (TASK-08) ──
 import dialogBlipUrl from '../assets/audio/dialog_sound.mp3?url';
 export const DIALOG_BLIP_URL = dialogBlipUrl;

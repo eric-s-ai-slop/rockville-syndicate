@@ -1,8 +1,79 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Lock, Play, Check, EyeOff } from 'lucide-react';
 import { CHAPTERS, ChapterConfig, MapTheme } from '../data/chapters';
 import { isChapterUnlocked, setFreePlay } from '../game/progress';
 import { playUi } from '../game/uiSound';
+
+function ShatterParticles() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    const t = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(t);
+  }, []);
+
+  const particles = useMemo(() => {
+    return Array.from({ length: 120 }).map((_, i) => {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 40 + Math.random() * 200;
+      const tx = Math.cos(angle) * dist;
+      const ty = Math.sin(angle) * dist;
+      const rot = (Math.random() - 0.5) * 1080;
+      const sizeX = 8 + Math.random() * 20;
+      const sizeY = 8 + Math.random() * 20;
+      const isRed = Math.random() > 0.25;
+      
+      // Generate a sharp glass shard shape
+      const p1 = `${Math.random()*30}% ${Math.random()*30}%`;
+      const p2 = `${70+Math.random()*30}% ${Math.random()*30}%`;
+      const p3 = `${70+Math.random()*30}% ${70+Math.random()*30}%`;
+      const p4 = `${Math.random()*30}% ${70+Math.random()*30}%`;
+      const clipPath = Math.random() > 0.5 
+        ? `polygon(${p1}, ${p2}, ${p3})` // Triangle shard
+        : `polygon(${p1}, ${p2}, ${p3}, ${p4})`; // Quad shard
+
+      return { id: i, tx, ty, rot, sizeX, sizeY, isRed, x: 5 + Math.random() * 90, y: 5 + Math.random() * 90, clipPath };
+    });
+  }, []);
+
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-visible z-50">
+      {particles.map(p => (
+        <div
+          key={p.id}
+          className="absolute"
+          style={{
+            left: `${p.x}%`, top: `${p.y}%`,
+            width: p.sizeX, height: p.sizeY,
+            backgroundColor: p.isRed ? '#ef4444' : '#ffffff',
+            opacity: mounted ? 0 : (p.isRed ? 1 : 0.6),
+            clipPath: p.clipPath,
+            transform: mounted ? `translate(${p.tx}px, ${p.ty}px) rotate(${p.rot}deg) scale(0.2)` : 'translate(0,0) rotate(0deg) scale(1)',
+            transition: 'transform 0.6s cubic-bezier(0.1, 0.9, 0.2, 1), opacity 0.6s ease-out',
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+const CrackOverlay = () => (
+  <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-90 z-40" viewBox="0 0 800 150" preserveAspectRatio="none">
+    <g stroke="#ef4444" fill="none" vectorEffect="non-scaling-stroke">
+      {/* Left impact point: x=100, y=75 */}
+      <path d="M 100 75 L 0 20 M 100 75 L 0 100 M 100 75 L 20 150 M 100 75 L 250 10 L 400 0 M 100 75 L 300 140 M 100 75 L 200 75 M 100 75 L 150 110" strokeWidth="1.5" />
+      <path d="M 50 40 Q 80 20 150 40 M 20 110 Q 70 140 130 110 M 150 90 Q 200 60 250 80 M 130 60 Q 150 40 200 40" strokeWidth="0.5" strokeDasharray="3 3" />
+      
+      {/* Right impact point: x=700, y=50 */}
+      <path d="M 700 50 L 800 0 M 700 50 L 800 90 M 700 50 L 750 150 M 700 50 L 500 0 L 400 0 M 700 50 L 550 120 M 700 50 L 600 60 M 700 50 L 650 90" strokeWidth="1.5" />
+      <path d="M 750 25 Q 700 10 650 20 M 780 70 Q 750 120 680 90 M 650 70 Q 600 40 550 50 M 670 40 Q 650 20 600 20" strokeWidth="0.5" strokeDasharray="3 3" />
+      
+      {/* Connecting massive fracture across the center */}
+      <path d="M 250 10 L 350 50 L 450 40 L 550 120" strokeWidth="2" />
+      <path d="M 300 140 L 400 110 L 500 130 L 600 60" strokeWidth="1" />
+      <path d="M 200 75 L 300 85 L 450 70 L 600 60" strokeWidth="1.5" strokeDasharray="5 2" />
+    </g>
+  </svg>
+);
 
 interface ChapterSelectProps {
   heroColor: string;
@@ -45,15 +116,20 @@ const THEME_ICON: Record<MapTheme, string> = {
 export default function ChapterSelect({ heroColor, completed, freePlay, onFreePlayChange, onPick }: ChapterSelectProps) {
   const [localFreePlay, setLocalFreePlay] = useState(freePlay);
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [sealBroken, setSealBroken] = useState(false);
-  const [breaking, setBreaking] = useState(false);
+  const [sealState, setSealState] = useState<'intact'|'cracked'|'broken'>('intact');
+  const [justShattered, setJustShattered] = useState(false);
 
-  const breakSeal = () => {
-    if (breaking || sealBroken) return;
-    playUi('pick');
-    setBreaking(true);
-    // Brief "breaking" flourish before the real card is revealed.
-    setTimeout(() => { setSealBroken(true); setBreaking(false); }, 420);
+  const interactSeal = () => {
+    if (sealState === 'intact') {
+      playUi('crack', 0.6);
+      setSealState('cracked');
+    } else if (sealState === 'cracked') {
+      // Play 8 overlapping instances at full volume to massively multiply amplitude
+      for (let i = 0; i < 8; i++) playUi('shatter', 1.0);
+      setSealState('broken');
+      setJustShattered(true);
+      setTimeout(() => { setJustShattered(false); }, 600);
+    }
   };
 
   const toggleFreePlay = () => {
@@ -75,9 +151,11 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
         e.preventDefault();
         const ch = CHAPTERS[selectedIndex];
         if (!ch) return;
-        if (ch.id === CLASSIFIED_ID && !sealBroken) {
-          breakSeal();
-        } else if (isChapterUnlocked(ch.id, completed, localFreePlay) || (ch.id === CLASSIFIED_ID && sealBroken)) {
+        if (ch.id === CLASSIFIED_ID && sealState !== 'broken') {
+          if (isChapterUnlocked(ch.id, completed, localFreePlay)) {
+            interactSeal();
+          }
+        } else if (isChapterUnlocked(ch.id, completed, localFreePlay)) {
           onPick(ch);
         }
       } else if (e.key === 'f' || e.key === 'F') {
@@ -86,7 +164,7 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedIndex, completed, localFreePlay, onPick, sealBroken, breaking]);
+  }, [selectedIndex, completed, localFreePlay, onPick, sealState]);
 
   return (
     <div
@@ -144,43 +222,56 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
           {CHAPTERS.map((ch, idx) => {
             const isDone = completed.includes(ch.id);
             const isClassified = ch.id === CLASSIFIED_ID;
-            const sealed = isClassified && !sealBroken;
-            const unlocked = isChapterUnlocked(ch.id, completed, localFreePlay) || (isClassified && sealBroken);
+            const sealed = isClassified && sealState !== 'broken';
+            const logicallyUnlocked = isChapterUnlocked(ch.id, completed, localFreePlay);
+            const unlocked = logicallyUnlocked;
             const isSelected = selectedIndex === idx;
 
-            // Redacted CLASSIFIED entry — one click breaks the seal.
+            // Redacted CLASSIFIED entry — clicks break the seal.
             if (sealed) {
+              const cracked = sealState === 'cracked';
               return (
                 <button
                   key={ch.id}
-                  onClick={breakSeal}
+                  disabled={!logicallyUnlocked}
+                  onClick={() => {
+                    if (logicallyUnlocked) interactSeal();
+                  }}
                   className="text-left border p-5 transition-all duration-200 relative overflow-hidden"
                   style={{
                     background: '#120a0a',
-                    borderColor: breaking || isSelected ? '#ef4444' : '#3a1a1a',
-                    cursor: 'pointer',
-                    boxShadow: breaking
-                      ? '0 0 26px #ef444488, inset 0 0 34px #ef444433'
-                      : isSelected ? '0 0 0 2px #ef4444, 0 0 22px #ef444466' : 'none',
-                    transform: breaking
-                      ? 'translateX(4px) scale(1.02)'
-                      : isSelected ? 'translateX(4px) scale(1.015)' : 'none',
+                    borderColor: isSelected ? '#ef4444' : '#3a1a1a',
+                    cursor: logicallyUnlocked ? 'pointer' : 'not-allowed',
+                    opacity: logicallyUnlocked ? 1 : 0.5,
+                    boxShadow: isSelected ? '0 0 0 2px #ef4444, 0 0 22px #ef444466' : 'none',
+                    transform: cracked
+                        ? 'translateX(2px) rotate(1deg)'
+                        : isSelected ? 'translateX(4px) scale(1.015)' : 'none',
                   }}
-                  onMouseEnter={() => { setSelectedIndex(idx); playUi('hover', 0.2); }}
+                  onMouseEnter={() => { setSelectedIndex(idx); if (logicallyUnlocked) playUi('hover', 0.2); }}
                 >
                   <div className="absolute left-0 top-0 bottom-0 w-1" style={{ background: '#ef4444', opacity: 0.6 }} />
                   <div
-                    className="absolute inset-0 flex items-center justify-center pointer-events-none select-none"
-                    style={{ opacity: breaking ? 0.06 : 0.12 }}
+                    className="absolute inset-0 flex items-center justify-center pointer-events-none select-none opacity-12"
                   >
                     <span
                       className="font-mono font-bold tracking-[0.3em] text-2xl"
                       style={{ color: '#ef4444', transform: 'rotate(-8deg)' }}
                     >
-                      CLASSIFIED
+                      {cracked ? (
+                        <>
+                          <span style={{ display: 'inline-block', transform: 'translateY(-2px) translateX(-2px) rotate(-3deg)' }}>CLAS</span>
+                          <span style={{ display: 'inline-block', transform: 'translateY(3px) translateX(2px) rotate(4deg)' }}>SIFIED</span>
+                        </>
+                      ) : (
+                        'CLASSIFIED'
+                      )}
                     </span>
                   </div>
-                  <div className="flex items-center gap-4 relative">
+
+                  {cracked && <CrackOverlay />}
+
+                  <div className="flex items-center gap-4 relative z-10">
                     <div
                       className="w-10 h-10 flex items-center justify-center shrink-0"
                       style={{ background: '#2a1010', color: '#ef4444' }}
@@ -198,7 +289,7 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
                       className="shrink-0 text-[10px] font-mono tracking-wider px-2 py-1 border"
                       style={{ color: '#ef4444', borderColor: '#ef444466' }}
                     >
-                      {breaking ? 'BREAKING…' : 'CLICK TO BREAK SEAL'}
+                      {cracked ? 'SHATTER SEAL' : 'CLICK TO CRACK SEAL'}
                     </span>
                   </div>
                 </button>
@@ -242,13 +333,14 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
                   if (!isSelected) e.currentTarget.style.borderColor = isDone ? heroColor : '#2a3d18';
                 }}
               >
-                {/* Theme accent strip */}
                 <div
                   className="absolute left-0 top-0 bottom-0 w-1"
                   style={{ background: unlocked ? themeColor : '#1a2410', opacity: unlocked ? 0.7 : 0.3 }}
                 />
 
-                <div className="flex items-center gap-4">
+                {isClassified && justShattered && <ShatterParticles />}
+
+                <div className="flex items-center gap-4 relative">
                   <div
                     className="w-10 h-10 flex items-center justify-center shrink-0 font-mono text-sm font-bold"
                     style={{

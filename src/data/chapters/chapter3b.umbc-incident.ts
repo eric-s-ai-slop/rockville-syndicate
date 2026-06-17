@@ -198,6 +198,7 @@ const chapter3b: ChapterConfig = {
     {
       type: 'bossFight',
       bossId: 'boss_ben_umbc',
+      hideActorId: 'ben',
       arena: { x: 460, y: 330, w: 760, h: 520 },
       introLines: [
         'BEN — The Ghost at the Party',
@@ -298,39 +299,33 @@ const chapter3b: ChapterConfig = {
         storySegments: [
           {
             speaker: 'Maharko',
-            text: 'So we were at UMBC. Frat party. Ben brought the stew, as usual. He was drinking, having a good time.',
-          },
-          {
-            speaker: 'Maharko',
-            text: 'I was over by the speakers, talking to some guys.',
+            text: "So we got to the UMBC basement party around 11. It was packed. Humid. You couldn't even hear yourself think over the bass. Ben brought the stew, like always, and started pouring it strong. I grabbed a cup and immediately headed over to the speakers to talk to some guys from my bio class. I was across the room from Ben the whole night.",
             fractureId: 'location',
-            fractureHint: 'Were you?',
           },
           {
             speaker: 'Maharko',
-            text: "I saw Ben talking to a couple girls, but I didn't think anything of it.",
+            text: "Ben was getting sloppy. The stew was hitting him hard. He was just drifting through the crowd, bumping into people. At one point, I saw him talking to a couple of girls by the couch. He was just leaning in, being weird, but I didn't think anything of it. It's Ben.",
             fractureId: 'count',
-            fractureHint: 'A couple?',
           },
           {
             speaker: 'Maharko',
-            text: 'Next thing I know, some frat guys come up to me and say "get your boy and leave."',
+            text: "He was being super loud, shouting over the music to get their attention. Typical Ben trying to show off. I thought he was just trying to get them to dance. I definitely didn't hear him say anything creepy.",
+            fractureId: 'action',
           },
           {
             speaker: 'Maharko',
-            text: "I was like, what? I didn't see anything.",
+            text: "I turned away for a second, and the next thing I know, two massive frat guys are walking up to me. I had absolutely no idea what was going on. They grabbed me by the shoulder and said, 'Get your boy and leave. Right now.' They didn't even give me a chance to ask why.",
             fractureId: 'blindness',
-            fractureHint: 'Nothing?',
           },
           {
             speaker: 'Maharko',
-            text: 'They said he was being inappropriate. I had to steer him out. He was drunk, barely walking.',
+            text: "I went over, grabbed Ben, and practically dragged him up the stairs. He was barely walking. The frat guys watched us the entire way out. When we got to my car, we blasted Travis Scott to try and forget the awkwardness. Ben fell right asleep in the passenger seat.",
+            fractureId: 'music',
           },
           {
             speaker: 'Maharko',
-            text: "On the drive back, he didn't say much. I didn't know what happened until later.",
+            text: "I figured he just drank too much—I didn't actually find out the real reason we got kicked out until the next day.",
             fractureId: 'timing',
-            fractureHint: 'Later?',
           },
         ],
         scrollSpeed: 35,
