@@ -90,6 +90,9 @@ export class StoryFracturesMode implements GameMode<StoryFracturesConfig> {
   private ekgGraphics: Phaser.GameObjects.Graphics | null = null;
   private ekgTime = 0;
   private ekgSpiking = false;
+  
+  private bgImage: Phaser.GameObjects.Image | null = null;
+  private textContainer: Phaser.GameObjects.Container | null = null;
 
   preload(): void {
     // No-op: all assets are loaded by ChapterScene. The facade has no loader.
@@ -163,7 +166,22 @@ export class StoryFracturesMode implements GameMode<StoryFracturesConfig> {
       this.revealIndex += 1;
       this.revealChars = 0;
       this.interSegmentWait = view.seg.fractureId ? 1000 : 280; // wait longer if fracture to give time to react
-      if (this.revealIndex >= this.segViews.length) {
+      
+      if (this.revealIndex < this.segViews.length) {
+        // Scroll container if needed
+        const nextView = this.segViews[this.revealIndex];
+        const globalY = nextView.label.getData('origY') + (this.textContainer?.y || 0);
+        const cam = this.ctx.cameras.main;
+        if (globalY > cam.height - 150 && this.textContainer) {
+          const shift = globalY - (cam.height - 150);
+          this.ctx.tweens.add({
+            targets: this.textContainer,
+            y: this.textContainer.y - shift,
+            duration: 400,
+            ease: 'Sine.easeInOut'
+          });
+        }
+      } else {
         // If the last segment is NOT a fracture, we can enter review/win immediately.
         // If it IS a fracture, completeSegment sets a timer that handles the win/lose.
         if (!view.seg.fractureId) this.enterReview();
@@ -209,6 +227,7 @@ export class StoryFracturesMode implements GameMode<StoryFracturesConfig> {
       const src = this.ctx.textures.get('stage_parking_lot_night').getSourceImage() as HTMLImageElement;
       const cover = Math.max(vw / src.width, vh / src.height);
       img.setDisplaySize(src.width * cover, src.height * cover);
+      this.bgImage = img;
       this.track(img);
     }
     this.track(
@@ -232,13 +251,17 @@ export class StoryFracturesMode implements GameMode<StoryFracturesConfig> {
     this.ekgGraphics = this.ctx.add.graphics().setScrollFactor(0).setDepth(DEPTH.hud);
     this.track(this.ekgGraphics);
 
+    this.textContainer = this.ctx.add.container(0, 0).setScrollFactor(0).setDepth(DEPTH.text);
+    this.track(this.textContainer);
+
     // Story paragraphs, stacked. Pre-measure with full text, then blank for reveal.
     let y = 112;
     for (const seg of this.cfg.storySegments) {
       const label = this.ctx.label(leftX, y, seg.text, {
         fontSize: '17px', color: INK, stroke: '#000000', strokeThickness: 3,
         wordWrap: { width: wrapW },
-      } as Phaser.Types.GameObjects.Text.TextStyle).setScrollFactor(0).setDepth(DEPTH.text);
+      } as Phaser.Types.GameObjects.Text.TextStyle);
+      this.textContainer.add(label);
       this.track(label);
 
       const view: SegmentView = { seg, label, revealed: false, found: false };
@@ -270,6 +293,7 @@ export class StoryFracturesMode implements GameMode<StoryFracturesConfig> {
     this.objs = [];
     this.segViews = [];
     this.counter = null;
+    this.textContainer = null;
   }
 
   // ── reveal + marking ─────────────────────────────────────────────────────────
@@ -331,6 +355,17 @@ export class StoryFracturesMode implements GameMode<StoryFracturesConfig> {
       targets: view.label, scale: 1.08, duration: 120, yoyo: true, ease: 'Quad.easeOut',
     });
     this.updateCounter();
+
+    // Crumbling background effect (Idea 4)
+    if (this.bgImage && this.totalFractures > 0) {
+      const targetAlpha = 1 - (this.foundFractures.size / this.totalFractures);
+      this.ctx.tweens.add({
+        targets: this.bgImage,
+        alpha: targetAlpha,
+        duration: 400,
+        ease: 'Sine.easeOut'
+      });
+    }
 
     if (this.foundFractures.size >= this.totalFractures) {
       this.resolveWin();

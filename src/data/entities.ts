@@ -74,6 +74,12 @@ export interface BossConfig {
     correctAnswer: string;
     damage: number;
   };
+  qtePool?: {
+    question: string;
+    options: string[];
+    correctAnswer: string;
+    damage: number;
+  }[];
   actions: string[];
   phaseBarks: { [phase: number]: string };
 }
@@ -658,8 +664,50 @@ export const BOSSES: BossConfig[] = [
         'She smiled at him first.',
       ],
       correctAnswer: '"You\'re next." Three girls. A pattern.',
-      damage: 50,
+      damage: 200,
     },
+    qtePool: [
+      {
+        question: 'Ben deploys Phase 2: "She was into it." What breaks through?',
+        options: [
+          '"You\'re next." Three girls. A pattern.',
+          "He was drunk — it doesn't count when you're drunk.",
+          'She smiled at him first.',
+        ],
+        correctAnswer: '"You\'re next." Three girls. A pattern.',
+        damage: 200,
+      },
+      {
+        question: 'Ben rationalizes: "I was just having fun." Confront him:',
+        options: [
+          'The others were visibly uncomfortable.',
+          'You were just trying to show off your dance moves.',
+          'You brought the stew as an excuse.',
+        ],
+        correctAnswer: 'The others were visibly uncomfortable.',
+        damage: 200,
+      },
+      {
+        question: 'Ben deflects: "Maharko was right there. Ask him." Expose the lie:',
+        options: [
+          'Maharko said you poured the stew strong.',
+          'Maharko told you to slow down.',
+          'Maharko didn\'t see anything.',
+        ],
+        correctAnswer: 'Maharko said you poured the stew strong.',
+        damage: 200,
+      },
+      {
+        question: 'Ben claims: "You don\'t know what happened in there." Provide evidence:',
+        options: [
+          'The frat guys literally kicked you out.',
+          'Nick F tried calling you for four days.',
+          'You stopped texting the group chat.',
+        ],
+        correctAnswer: 'The frat guys literally kicked you out.',
+        damage: 200,
+      }
+    ],
     actions: [
       '"I Was Just Having Fun" — AoE rationalization wave',
       '"She Was Into It" — targeted deflection, reduces incoming damage 30%',

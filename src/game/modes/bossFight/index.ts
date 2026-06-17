@@ -194,19 +194,56 @@ export class BossFightMode implements GameMode<any> {
       if (projectile === this.ctx.spawnedBoss) return;
       projectile.destroy();
       const weapon = WEAPONS[this.ctx.currentLevelIndex % WEAPONS.length];
-      this.damageBoss(weapon.attackPower * 0.6);
+      this.damageBoss(weapon.attackPower * 0.6, true);
     });
 
     this.qteTimerEvent = this.ctx.time.addEvent({
-      delay: 9000,
+      delay: config.id === 'boss_ben_umbc' ? 5000 : 9000,
       callback: this.triggerBossQTEQuest,
       callbackScope: this,
       loop: true
     });
   }
 
-  private damageBoss(amount: number) {
+  private damageBoss(amount: number, isPhysical: boolean = false) {
     if (!this.ctx.isBossActive || !this.bossData || !this.ctx.spawnedBoss) return;
+    
+    if (isPhysical && this.bossData.id === 'boss_ben_umbc') {
+      // Show 0 damage number and a small flash
+      this.ctx.showDamageNumber(
+        this.ctx.spawnedBoss.x + Phaser.Math.Between(-20, 20),
+        this.ctx.spawnedBoss.y - 50,
+        0,
+        '#6b7280'
+      );
+
+      // Show the shield.jpg to visually explain the 0 damage
+      const isFx = this.ctx.textures.exists('shield_fx');
+      const shieldTex = isFx ? 'shield_fx' : (this.ctx.textures.exists('shield_raw') ? 'shield_raw' : 'plasma_shield');
+      const shieldFlash = this.ctx.add.sprite(this.ctx.spawnedBoss.x, this.ctx.spawnedBoss.y, shieldTex, isFx ? 0 : undefined);
+      shieldFlash.setOrigin(0.5).setScale(0.8).setDepth(1500).setAlpha(0.9);
+      this.ctx.tweens.add({
+        targets: shieldFlash,
+        scale: 1.2,
+        alpha: 0,
+        duration: 350,
+        ease: 'Cubic.easeOut',
+        onComplete: () => shieldFlash.destroy()
+      });
+
+      if (!this.bossHitFlashing && this.ctx.spawnedBoss) {
+        this.bossHitFlashing = true;
+        this.ctx.spawnedBoss.setTintFill(0x6b7280); // Grey flash for deflection
+        this.ctx.time.delayedCall(50, () => { this.ctx.spawnedBoss?.clearTint(); this.bossHitFlashing = false; });
+      }
+
+      // Show log message periodically to avoid spam
+      if (Math.random() < 0.15) {
+        this.ctx.logMessage("Physical attacks do nothing to his self-justifications!");
+      }
+      return;
+    }
+
     this.currentBossHp = Math.max(0, this.currentBossHp - amount);
     this.updateBossHpBar();
     const dmgVal = Math.round(amount);
@@ -270,7 +307,7 @@ export class BossFightMode implements GameMode<any> {
         this.ctx.cameras.main.flash(300, 34, 197, 94);
         this.ctx.cameras.main.shake(300, 0.02);
         this.ctx.showBubbleText(this.ctx.spawnedBoss, 'CALLED OUT ON LOGS! MY B.I.Q. IS PLUMMETING! 💀', '#10b981');
-        this.damageBoss(dmg);
+        this.damageBoss(dmg, false);
       } else {
         this.ctx.logMessage(`💥 AUDIT FAILED — ${this.bossData?.name} counters!`);
         this.ctx.cameras.main.flash(350, 239, 68, 68);
@@ -356,6 +393,13 @@ export class BossFightMode implements GameMode<any> {
         case 'boss_florida': this.deployTireTreadTether(); break;
         case 'boss_ben': this.unleashHeyAoE(); break;
         case 'boss_nick_f': this.dischargeRefundRosterChecks(); break;
+        case 'boss_ben_umbc': 
+          const rand = Math.random();
+          if (rand < 0.25) this.unleashRationalizationWave();
+          else if (rand < 0.50) this.gaslightLasers();
+          else if (rand < 0.75) this.echoChamber();
+          else this.deflectionShield();
+          break;
       }
     }
 
@@ -421,6 +465,112 @@ export class BossFightMode implements GameMode<any> {
       ringB.setTint(0x6b7280).setScale(1.2).setVelocity(Math.cos(angle) * 250, Math.sin(angle) * 250);
       this.ctx.enemyProjectiles.add(ringB);
       this.ctx.time.delayedCall(3000, () => { if (ringB.active) ringB.destroy(); });
+    }
+  }
+
+  private unleashRationalizationWave() {
+    if (!this.ctx.spawnedBoss) return;
+    this.ctx.logMessage('🌊 Ben deploys Rationalization Wave: "I was just having fun!"');
+    this.ctx.showBubbleText(this.ctx.spawnedBoss, "I was just having fun!", '#ef4444');
+    
+    // Shoot 16 fast projectiles in a circle
+    for (let i = 0; i < 16; i++) {
+      const angle = (Math.PI / 8) * i;
+      const proj = this.ctx.physics.add.sprite(this.ctx.spawnedBoss.x, this.ctx.spawnedBoss.y, 'bullet');
+      this.ctx.enemyProjectiles.add(proj);
+      proj.setTint(0xef4444).setScale(1.5).setDepth(1500);
+      const body = proj.body as Phaser.Physics.Arcade.Body;
+      if (body) {
+        body.setAllowGravity(false);
+        body.setVelocity(Math.cos(angle) * 350, Math.sin(angle) * 350);
+      }
+      this.ctx.time.delayedCall(2500, () => { if (proj.active) proj.destroy(); });
+    }
+  }
+
+  private gaslightLasers() {
+    if (!this.ctx.spawnedBoss) return;
+    this.ctx.logMessage('⚡ Ben fires Gaslight Lasers: "You\'re overreacting!"');
+    this.ctx.showBubbleText(this.ctx.spawnedBoss, "You're overreacting!", '#facc15');
+    
+    // Fire 5 rapid projectiles directly at player
+    for (let i = 0; i < 5; i++) {
+      this.ctx.time.delayedCall(i * 150, () => {
+        if (!this.ctx.spawnedBoss || this.ctx.qteActive) return; // Don't fire if QTE is up
+        const targetAngle = Phaser.Math.Angle.Between(this.ctx.spawnedBoss.x, this.ctx.spawnedBoss.y, this.ctx.player.x, this.ctx.player.y);
+        const proj = this.ctx.physics.add.sprite(this.ctx.spawnedBoss.x, this.ctx.spawnedBoss.y, 'bullet');
+        this.ctx.enemyProjectiles.add(proj);
+        proj.setTint(0xfacc15).setScale(1.8).setDepth(1500);
+        const body = proj.body as Phaser.Physics.Arcade.Body;
+        if (body) {
+          body.setAllowGravity(false);
+          body.setVelocity(Math.cos(targetAngle) * 450, Math.sin(targetAngle) * 450);
+        }
+        this.ctx.time.delayedCall(2000, () => { if (proj.active) proj.destroy(); });
+      });
+    }
+  }
+
+  private echoChamber() {
+    if (!this.ctx.spawnedBoss) return;
+    this.ctx.logMessage('🌀 Ben summons Echo Chamber: "They loved me!"');
+    this.ctx.showBubbleText(this.ctx.spawnedBoss, "They loved me!", '#22d3ee');
+    
+    const targetX = this.ctx.player.x;
+    const targetY = this.ctx.player.y;
+    
+    // Spawn projectiles in a large ring around the player that collapse inward
+    for (let i = 0; i < 12; i++) {
+      const angle = (Math.PI / 6) * i;
+      const startX = targetX + Math.cos(angle) * 400;
+      const startY = targetY + Math.sin(angle) * 400;
+      const proj = this.ctx.physics.add.sprite(startX, startY, 'bullet');
+      this.ctx.enemyProjectiles.add(proj);
+      proj.setTint(0x22d3ee).setScale(1.2).setDepth(1500);
+      
+      const inwardAngle = Phaser.Math.Angle.Between(startX, startY, targetX, targetY);
+      const body = proj.body as Phaser.Physics.Arcade.Body;
+      if (body) {
+        body.setAllowGravity(false);
+        body.setVelocity(Math.cos(inwardAngle) * 200, Math.sin(inwardAngle) * 200);
+      }
+      this.ctx.time.delayedCall(3000, () => { if (proj.active) proj.destroy(); });
+    }
+  }
+
+  private deflectionShield() {
+    if (!this.ctx.spawnedBoss) return;
+    this.ctx.logMessage('🛡️ Ben raises Deflection Shield: "She was totally into it!"');
+    this.ctx.showBubbleText(this.ctx.spawnedBoss, "She was totally into it!", '#c084fc');
+    
+    // Spawn spinning projectiles around Ben
+    for (let i = 0; i < 6; i++) {
+      const angleOffset = (Math.PI / 3) * i;
+      const proj = this.ctx.physics.add.sprite(this.ctx.spawnedBoss.x, this.ctx.spawnedBoss.y, 'bullet');
+      this.ctx.enemyProjectiles.add(proj);
+      proj.setTint(0xc084fc).setScale(2.0).setDepth(1500);
+      
+      const body = proj.body as Phaser.Physics.Arcade.Body;
+      if (body) {
+        body.setAllowGravity(false);
+      }
+      
+      let orbitTime = 0;
+      const orbitEvent = this.ctx.time.addEvent({
+        delay: 20,
+        loop: true,
+        callback: () => {
+          if (!proj.active || !this.ctx.spawnedBoss || this.ctx.qteActive) return; // Pause spinning during QTE
+          orbitTime += 0.05;
+          const currentAngle = angleOffset + orbitTime;
+          proj.setPosition(
+            this.ctx.spawnedBoss.x + Math.cos(currentAngle) * 60,
+            this.ctx.spawnedBoss.y + Math.sin(currentAngle) * 60
+          );
+          if (proj.body) proj.body.updateFromGameObject(); // Sync physics body
+        }
+      });
+      this.ctx.time.delayedCall(4000, () => { if (proj.active) proj.destroy(); orbitEvent.destroy(); });
     }
   }
 

@@ -1176,3 +1176,96 @@ export function preprocessFemalePoolSheet(
     submergedIdleFrames, submergedSwimFrames
   };
 }
+
+export function preprocessGirlSilhouetteSheet(img: HTMLImageElement): SlicedSpriteSheet {
+  const width = img.naturalWidth || img.width;
+  const height = img.naturalHeight || img.height;
+  
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = width;
+  tempCanvas.height = height;
+  const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
+  if (!tempCtx) throw new Error('Could not get temp canvas');
+  tempCtx.drawImage(img, 0, 0);
+
+  const imgData = tempCtx.getImageData(0, 0, width, height);
+  const pixels = imgData.data;
+
+  // Background color sample at (2, 2)
+  const bgR = pixels[2 * 4];
+  const bgG = pixels[2 * 4 + 1];
+  const bgB = pixels[2 * 4 + 2];
+
+  // We are mapping a 4x4 grid. Cell size: 212 x 316.
+  const targetFrameW = 128;
+  const targetFrameH = 128;
+  const finalCanvas = document.createElement('canvas');
+  finalCanvas.width = targetFrameW * 4;
+  finalCanvas.height = targetFrameH * 4;
+  const finalCtx = finalCanvas.getContext('2d');
+  if (!finalCtx) throw new Error('finalCtx fail');
+
+  const idleFrontFrames = [0]; // Just return an array of frames
+
+  for (let row = 0; row < 4; row++) {
+    for (let col = 0; col < 4; col++) {
+      const startX = col * 212;
+      const startY = row * 316;
+      
+      // Crop out text at top, and borders
+      const cropX = startX + 15;
+      const cropY = startY + 60;
+      const cropW = 212 - 30;
+      const cropH = 316 - 70;
+
+      const cellData = tempCtx.getImageData(cropX, cropY, cropW, cropH);
+      const cellPixels = cellData.data;
+
+      // Strip background (tolerance 45)
+      for (let i = 0; i < cellPixels.length; i += 4) {
+        const r = cellPixels[i];
+        const g = cellPixels[i+1];
+        const b = cellPixels[i+2];
+        const dist = Math.sqrt((r-bgR)**2 + (g-bgG)**2 + (b-bgB)**2);
+        if (dist < 45 || r > 200) { // Strip light colors / borders
+          cellPixels[i+3] = 0; // Transparent
+        }
+      }
+
+      // Draw cleaned cell to temporary canvas
+      const cleanCellCanvas = document.createElement('canvas');
+      cleanCellCanvas.width = cropW;
+      cleanCellCanvas.height = cropH;
+      const cleanCellCtx = cleanCellCanvas.getContext('2d');
+      if (cleanCellCtx) {
+        cleanCellCtx.putImageData(cellData, 0, 0);
+        // Draw into final grid (scale it down slightly to fit)
+        const scale = 0.5;
+        const dw = cropW * scale;
+        const dh = cropH * scale;
+        const dx = col * targetFrameW + (targetFrameW - dw) / 2;
+        const dy = row * targetFrameH + targetFrameH - dh - 5;
+        finalCtx.drawImage(cleanCellCanvas, dx, dy, dw, dh);
+      }
+    }
+  }
+
+  // Map to the required interface
+  return {
+    canvas: finalCanvas,
+    frameWidth: targetFrameW,
+    frameHeight: targetFrameH,
+    idleFrontFrames: [0, 1, 2, 3],
+    idleSideFrames: [4, 5, 6, 7],
+    idleBackFrames: [8, 9, 10, 11],
+    walkFrames: [0, 1, 2, 3],
+    walkFrontFrames: [0, 1, 2, 3],
+    walkSideFrames: [0, 1, 2, 3],
+    walkBackFrames: [0, 1, 2, 3],
+    runFrames: [0, 1, 2, 3],
+    attackFrames: [0, 1, 2, 3],
+    hurtFrames: [0, 1, 2, 3],
+    victoryFrames: [0, 1, 2, 3],
+    defeatFrames: [0, 1, 2, 3]
+  };
+}

@@ -202,7 +202,19 @@ export default function GameLayout() {
                 onHpChange: (hp: number) => setPlayerHp(hp),
                 onTriggerQTE: (boss: BossConfig, callback: (success: boolean) => void) => {
                   setQteTimer(8);
-                  setActiveQte({ boss, callback });
+                  const shuffledBoss = { ...boss };
+                  
+                  const selectedQTE = boss.qtePool 
+                    ? boss.qtePool[Phaser.Math.Between(0, boss.qtePool.length - 1)]
+                    : boss.weaknessQTE;
+
+                  if (selectedQTE) {
+                    shuffledBoss.weaknessQTE = {
+                      ...selectedQTE,
+                      options: Phaser.Utils.Array.Shuffle([...selectedQTE.options])
+                    };
+                  }
+                  setActiveQte({ boss: shuffledBoss, callback });
                 },
                 onStoryDialogue: (payload: StoryDialoguePayload, done: (i?: number) => void) =>
                   storyRef.current(payload, done),

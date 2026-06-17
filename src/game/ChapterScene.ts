@@ -39,7 +39,7 @@ import bossBenUmbcImg from '../assets/images/boss_ben.jpg';
 import bossNickFImg from '../assets/images/boss_nick_f.jpg';
 import coinImg from '../assets/images/coin.jpg';
 import shardImg from '../assets/images/shard.jpg';
-import { preprocessShowcaseSheet, preprocessColumnFirstSheet, preprocessFemalePoolSheet } from './SpritePreprocessor';
+import { preprocessShowcaseSheet, preprocessColumnFirstSheet, preprocessFemalePoolSheet, preprocessGirlSilhouetteSheet } from './SpritePreprocessor';
 import { extractPropSubject } from './PropExtractor';
 import { buildFurnitureAtlas, furnitureFrame, furnitureAspect, FURNITURE_ATLAS_KEY } from './furnitureCatalog';
 import { buildPackAtlas, packFrame, packSize, PACK_ATLAS_KEY } from './packSpriteAtlas';
@@ -385,9 +385,9 @@ export default class ChapterScene extends Phaser.Scene {
     // showcase sheet, same format as the hero art) so he renders as a real,
     // animated character instead of a colored blob in the basement.
     this.safeLoadImage('hero_ben_raw_jpg', bossBenUmbcImg);
-    this.safeLoadImage('hero_girl1_raw', npcGirlSilhouetteUrl);
-    this.safeLoadImage('hero_girl2_raw', npcGirlSilhouetteUrl);
-    this.safeLoadImage('hero_girl3_raw', npcGirlSilhouetteUrl);
+    this.safeLoadImage('hero_girl1_raw_jpg', npcGirlSilhouetteUrl);
+    this.safeLoadImage('hero_girl2_raw_jpg', npcGirlSilhouetteUrl);
+    this.safeLoadImage('hero_girl3_raw_jpg', npcGirlSilhouetteUrl);
     this.audioController.safeLoadAudio('sfx_crowd_murmur', CROWD_MURMUR_URL);
     this.audioController.safeLoadAudio('sfx_parking_ambient', CRICKET_AMBIENT_URL);
     // Voiced one-off: Ben's "You're next." Drop the MP3 at public/voice/ben_youre_next.mp3.
@@ -578,6 +578,25 @@ export default class ChapterScene extends Phaser.Scene {
       }
     });
 
+    if (this.textures.exists('hero_girl1_raw_jpg') && !this.textures.exists('npc_girl_sheet')) {
+      const src = this.textures.get('hero_girl1_raw_jpg').getSourceImage() as HTMLImageElement;
+      const processed = preprocessGirlSilhouetteSheet(src);
+      
+      const cleanKey = 'npc_girl_sheet_clean';
+      this.textures.addCanvas(cleanKey, processed.canvas);
+      const canvasSource = this.textures.get(cleanKey).getSourceImage() as HTMLImageElement;
+      
+      this.textures.addSpriteSheet('npc_girl_sheet', canvasSource, { 
+        frameWidth: processed.frameWidth, 
+        frameHeight: processed.frameHeight 
+      });
+      
+      // Use different frames (row starts) for different girls so they look varied
+      this.registerAnim('girl1', 'npc_girl_sheet', 'idle_front', [0], 4, -1);
+      this.registerAnim('girl2', 'npc_girl_sheet', 'idle_front', [4], 4, -1);
+      this.registerAnim('girl3', 'npc_girl_sheet', 'idle_front', [8], 4, -1);
+    }
+
     // Process enemy showcase sheets
     ['ticketmaster', 'dishes', 'zombie'].forEach(id => {
       const rawKey = `enemy_${id}_raw`;
@@ -745,6 +764,7 @@ export default class ChapterScene extends Phaser.Scene {
 
     const { map } = this.getActiveSceneConfig();
     this.physics.world.setBounds(0, 0, map.width, map.height);
+    this.cameras.main.setBounds(0, 0, map.width, map.height);
     this.cameras.main.setBackgroundColor(map.backdrop);
 
     this.projectiles = this.physics.add.group();
@@ -913,6 +933,7 @@ export default class ChapterScene extends Phaser.Scene {
       const { map, actors } = this.getActiveSceneConfig();
 
       this.physics.world.setBounds(0, 0, map.width, map.height);
+      this.cameras.main.setBounds(0, 0, map.width, map.height);
       this.cameras.main.setBackgroundColor(map.backdrop);
 
       this.buildMapLayer(map);
@@ -1213,6 +1234,10 @@ export default class ChapterScene extends Phaser.Scene {
 
     // Brief cinematic flash + "RUN!!" label
     this.freeze();
+    if (this.cache.audio.exists('boss_sting')) {
+      // Seek past the initial 0.7s of quiet buildup so the loud 'VWOMP' hits instantly
+      this.sound.play('boss_sting', { volume: 1.2, seek: 0.7 });
+    }
     cam.flash(180, 239, 68, 68);
     cam.shake(280, 0.022);
 

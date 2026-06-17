@@ -83,7 +83,13 @@ export class AudioController {
     if (current?.isPlaying) {
       this.scene.tweens.add({
         targets: current, volume: 0, duration: 700,
-        onComplete: () => { current.stop(); current.destroy(); this.scene.stageMusic = null; },
+        onComplete: () => { 
+          current.stop(); 
+          current.destroy(); 
+          if (this.scene.stageMusic === current) {
+            this.scene.stageMusic = null; 
+          }
+        },
       });
     }
 
@@ -91,7 +97,8 @@ export class AudioController {
       try {
         this.scene.stageMusic = this.scene.sound.add(newKey, { loop: true, volume: 0 });
         this.scene.stageMusic.play();
-        this.scene.tweens.add({ targets: this.scene.stageMusic, volume: 0.30, duration: 900 });
+        const targetVolume = newKey === 'music_ch6' ? 0.70 : 0.30;
+        this.scene.tweens.add({ targets: this.scene.stageMusic, volume: targetVolume, duration: 900 });
       } catch { /* Web Audio context not ready */ }
     });
   }

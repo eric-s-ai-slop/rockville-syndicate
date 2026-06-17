@@ -1,10 +1,9 @@
 import { useEffect, useCallback, useState, useRef } from 'react';
 import { DIALOG_BLIP_URL } from '../game/audio';
 
-const blipPool = [0, 1, 2].map(() => new Audio(DIALOG_BLIP_URL));
-let blipIdx = 0;
+const blipPool = Array.from({ length: 12 }, () => new Audio(DIALOG_BLIP_URL));
 function playBlip(rate = 1, volume = 0.55) {
-  const a = blipPool[blipIdx = (blipIdx + 1) % blipPool.length];
+  const a = blipPool.find(audio => audio.paused || audio.ended) ?? blipPool[0];
   try {
     a.currentTime = 0;
     a.playbackRate = rate;

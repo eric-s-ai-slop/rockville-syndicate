@@ -311,26 +311,29 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
                 }}
                 className="text-left border p-5 transition-all duration-200 relative overflow-hidden"
                 style={{
-                  background: unlocked ? '#142012' : '#0e1509',
-                  borderColor: isSelected || isDone ? heroColor : unlocked ? '#2a3d18' : '#1a2410',
+                  background: isClassified ? (unlocked ? '#1a180a' : '#0e0e05') : (unlocked ? '#142012' : '#0e1509'),
+                  borderColor: isClassified
+                    ? (isSelected || isDone ? '#eab308' : unlocked ? '#4a3f05' : '#2a2402')
+                    : (isSelected || isDone ? heroColor : unlocked ? '#2a3d18' : '#1a2410'),
                   borderLeftWidth: isSelected ? '4px' : undefined,
                   cursor: unlocked ? 'pointer' : 'not-allowed',
                   opacity: unlocked ? 1 : 0.5,
-                  boxShadow: isSelected
-                    ? `0 0 0 2px ${heroColor}, 0 0 22px ${heroColor}66`
-                    : isDone ? `0 0 12px ${heroColor}33` : 'none',
-                  outlineColor: isSelected ? heroColor : 'transparent',
+                  boxShadow: isClassified
+                    ? (isSelected ? `0 0 0 2px #eab308, 0 0 22px #eab30866` : isDone ? `0 0 12px #eab30833` : 'none')
+                    : (isSelected ? `0 0 0 2px ${heroColor}, 0 0 22px ${heroColor}66` : isDone ? `0 0 12px ${heroColor}33` : 'none'),
+                  outlineColor: isSelected ? (isClassified ? '#eab308' : heroColor) : 'transparent',
                   transform: isSelected ? 'translateX(4px) scale(1.015)' : 'none',
+                  backgroundImage: isClassified && unlocked ? 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(234, 179, 8, 0.03) 10px, rgba(234, 179, 8, 0.03) 20px)' : 'none',
                 }}
                 onMouseEnter={e => {
                   setSelectedIndex(idx);
                   if (unlocked) {
                     playUi('hover', 0.2);
-                    e.currentTarget.style.borderColor = heroColor;
+                    e.currentTarget.style.borderColor = isClassified ? '#eab308' : heroColor;
                   }
                 }}
                 onMouseLeave={e => {
-                  if (!isSelected) e.currentTarget.style.borderColor = isDone ? heroColor : '#2a3d18';
+                  if (!isSelected) e.currentTarget.style.borderColor = isDone ? (isClassified ? '#eab308' : heroColor) : (isClassified ? '#4a3f05' : '#2a3d18');
                 }}
               >
                 <div
@@ -344,8 +347,8 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
                   <div
                     className="w-10 h-10 flex items-center justify-center shrink-0 font-mono text-sm font-bold"
                     style={{
-                      background: unlocked ? `${heroColor}1a` : '#1a2410',
-                      color: unlocked ? heroColor : '#4a5a30',
+                      background: isClassified ? (unlocked ? '#eab3081a' : '#2a2402') : (unlocked ? `${heroColor}1a` : '#1a2410'),
+                      color: isClassified ? (unlocked ? '#eab308' : '#5a4f02') : (unlocked ? heroColor : '#4a5a30'),
                     }}
                   >
                     {unlocked ? ch.index : <Lock size={15} />}
@@ -367,11 +370,19 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
                           <Check size={11} /> CLEARED
                         </span>
                       )}
+                      {isClassified && !sealed && (
+                        <span
+                          className="flex items-center gap-1 text-[9px] font-mono border px-1"
+                          style={{ color: '#ef4444', borderColor: '#ef444440', marginLeft: 'auto' }}
+                        >
+                          <EyeOff size={10} /> CLASSIFIED
+                        </span>
+                      )}
                     </div>
-                    <h3 className="font-bold text-base truncate font-display" style={{ color: unlocked ? '#e8f5d0' : '#5a6a40' }}>
+                    <h3 className="font-bold text-base truncate font-display" style={{ color: isClassified ? '#fef08a' : (unlocked ? '#e8f5d0' : '#5a6a40') }}>
                       {ch.title}
                     </h3>
-                    <p className="text-xs opacity-60 truncate" style={{ color: '#8aaa60' }}>
+                    <p className="text-xs opacity-60 truncate" style={{ color: isClassified ? '#eab308' : '#8aaa60' }}>
                       {ch.subtitle} · 📍 {ch.location}
                     </p>
                   </div>

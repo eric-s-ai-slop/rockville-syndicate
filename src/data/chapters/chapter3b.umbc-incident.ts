@@ -32,9 +32,9 @@ const chapter3b: ChapterConfig = {
     { id: 'ben',     x: 120, y: 100 },
     { id: 'maharko', x: 150, y: 480 },
     // Anonymous silhouettes — the tall portrait art is scaled down to NPC height.
-    { id: 'girl1',   x: 100, y: 100, nameOverride: '???', spriteKey: 'hero_girl1_raw', spriteScale: 0.06 },
-    { id: 'girl2',   x: 800, y: 100, nameOverride: '???', spriteKey: 'hero_girl2_raw', spriteScale: 0.06 },
-    { id: 'girl3',   x: 800, y: 500, nameOverride: '???', spriteKey: 'hero_girl3_raw', spriteScale: 0.06 },
+    { id: 'girl1',   x: 100, y: 100, nameOverride: '???', spriteKey: 'npc_girl_sheet' },
+    { id: 'girl2',   x: 800, y: 100, nameOverride: '???', spriteKey: 'npc_girl_sheet' },
+    { id: 'girl3',   x: 700, y: 280, nameOverride: '???', spriteKey: 'npc_girl_sheet' },
     // Frat extras reuse the enemy_frat_bro showcase sheet.
     { id: 'frat1',   x: 700, y: 550, nameOverride: 'Frat Guy', spriteKey: 'enemy_frat_bro_sheet' },
     { id: 'frat2',   x: 800, y: 550, nameOverride: 'Frat Guy', spriteKey: 'enemy_frat_bro_sheet' },
@@ -63,12 +63,12 @@ const chapter3b: ChapterConfig = {
         playerSpawn: { x: 460, y: 580 },
       },
       actors: [
-        { id: 'ben',     x: 120, y: 100 },
+        { id: 'ben',     x: 120, y: 100, spriteKey: 'boss_ben_umbc_sheet' },
         { id: 'maharko', x: 150, y: 480 },
         // Anonymous silhouettes — the tall portrait art is scaled down to NPC height.
-        { id: 'girl1',   x: 100, y: 100, nameOverride: '???', spriteScale: 0.06 },
-        { id: 'girl2',   x: 800, y: 100, nameOverride: '???', spriteScale: 0.06 },
-        { id: 'girl3',   x: 800, y: 500, nameOverride: '???', spriteScale: 0.06 },
+        { id: 'girl1',   x: 100, y: 100, nameOverride: '???', spriteKey: 'npc_girl_sheet' },
+        { id: 'girl2',   x: 800, y: 100, nameOverride: '???', spriteKey: 'npc_girl_sheet' },
+        { id: 'girl3',   x: 700, y: 280, nameOverride: '???', spriteKey: 'npc_girl_sheet' },
         // Frat extras reuse the enemy_frat_bro showcase sheet.
         { id: 'frat1',   x: 700, y: 550, nameOverride: 'Frat Guy', spriteKey: 'enemy_frat_bro_sheet' },
         { id: 'frat2',   x: 800, y: 550, nameOverride: 'Frat Guy', spriteKey: 'enemy_frat_bro_sheet' },
@@ -76,7 +76,21 @@ const chapter3b: ChapterConfig = {
       ],
     },
     {
-      music: 'music_ch2', // Nightcall — Kavinsky; crossfades in on changeScene
+      music: 'music_ch2', // Nightcall — Kavinsky
+      map: {
+        width: 920,
+        height: 660,
+        backdrop: 0x05070a,
+        theme: 'highway_night',
+        areaTitle: 'Car Interior',
+        rects: [],
+        labels: [],
+        playerSpawn: { x: 460, y: 580 },
+      },
+      actors: [],
+    },
+    {
+      music: 'music_ch2',
       map: {
         width: 920,
         height: 660,
@@ -176,25 +190,17 @@ const chapter3b: ChapterConfig = {
       speaker: 'narrator',
       lines: [
         'Ben moved through the room.',
-        'Then the freeze-frame.',
       ]
     },
-    {
-      type: 'dialogue',
-      speaker: 'ben',
-      lines: [
-        "You're next.",
-      ]
-    },
+    { type: 'minigame', modeId: 'stewOffering', background: false },
     {
       type: 'dialogue',
       speaker: 'narrator',
       lines: [
-        'Finger over his mouth.',
-        'Shhh.',
-        'In the background: Maharko. Watching.',
+        'Then the freeze-frame.',
       ]
     },
+    { type: 'minigame', modeId: 'fratAggro', background: false },
     {
       type: 'bossFight',
       bossId: 'boss_ben_umbc',
@@ -236,7 +242,13 @@ const chapter3b: ChapterConfig = {
     },
     { type: 'changeScene', sceneIndex: 1, transitionMs: 800 },
 
-    // ── SCENE 1: PARKING LOT ─────────────────────────────────────────────────
+    // ── SCENE 1: CAR INTERIOR ─────────────────────────────────────────────────
+
+    { type: 'minigame', modeId: 'silentDrive', background: false },
+
+    { type: 'changeScene', sceneIndex: 2, transitionMs: 800 },
+
+    // ── SCENE 2: PARKING LOT ─────────────────────────────────────────────────
 
     {
       type: 'dialogue',
@@ -297,36 +309,28 @@ const chapter3b: ChapterConfig = {
       ],
       config: {
         storySegments: [
-          {
-            speaker: 'Maharko',
-            text: "So we got to the UMBC basement party around 11. It was packed. Humid. You couldn't even hear yourself think over the bass. Ben brought the stew, like always, and started pouring it strong. I grabbed a cup and immediately headed over to the speakers to talk to some guys from my bio class. I was across the room from Ben the whole night.",
-            fractureId: 'location',
-          },
-          {
-            speaker: 'Maharko',
-            text: "Ben was getting sloppy. The stew was hitting him hard. He was just drifting through the crowd, bumping into people. At one point, I saw him talking to a couple of girls by the couch. He was just leaning in, being weird, but I didn't think anything of it. It's Ben.",
-            fractureId: 'count',
-          },
-          {
-            speaker: 'Maharko',
-            text: "He was being super loud, shouting over the music to get their attention. Typical Ben trying to show off. I thought he was just trying to get them to dance. I definitely didn't hear him say anything creepy.",
-            fractureId: 'action',
-          },
-          {
-            speaker: 'Maharko',
-            text: "I turned away for a second, and the next thing I know, two massive frat guys are walking up to me. I had absolutely no idea what was going on. They grabbed me by the shoulder and said, 'Get your boy and leave. Right now.' They didn't even give me a chance to ask why.",
-            fractureId: 'blindness',
-          },
-          {
-            speaker: 'Maharko',
-            text: "I went over, grabbed Ben, and practically dragged him up the stairs. He was barely walking. The frat guys watched us the entire way out. When we got to my car, we blasted Travis Scott to try and forget the awkwardness. Ben fell right asleep in the passenger seat.",
-            fractureId: 'music',
-          },
-          {
-            speaker: 'Maharko',
-            text: "I figured he just drank too much—I didn't actually find out the real reason we got kicked out until the next day.",
-            fractureId: 'timing',
-          },
+          { speaker: 'Maharko', text: "So we got to the UMBC basement party around 11." },
+          { speaker: 'Maharko', text: "It was packed. Humid. You couldn't even hear yourself think." },
+          { speaker: 'Maharko', text: "Ben brought the stew, like always, and started pouring it strong." },
+          { speaker: 'Maharko', text: "I grabbed a cup. Actually, I was pouring some of it out for people too, just to be nice.", fractureId: 'stew_complicity' },
+          { speaker: 'Maharko', text: "I was across the room from Ben the whole night.", fractureId: 'location' },
+          
+          { speaker: 'Maharko', text: "Ben was getting sloppy. Just drifting through the crowd." },
+          { speaker: 'Maharko', text: "At one point, I saw him talking to a couple of girls.", fractureId: 'count' },
+          { speaker: 'Maharko', text: "I assumed they were into him. I couldn't hear a word they were saying.", fractureId: 'action' },
+          
+          { speaker: 'Maharko', text: "I was just minding my own business." },
+          { speaker: 'Maharko', text: "I had absolutely no idea what was going on until the frat guys grabbed me.", fractureId: 'blindness' },
+          
+          { speaker: 'Maharko', text: "They said, 'Get your boy and leave.'" },
+          { speaker: 'Maharko', text: "I tried to ask what happened, but they just shoved us." },
+          
+          { speaker: 'Maharko', text: "I had to drag him up the stairs. I was basically saving him." },
+          
+          { speaker: 'Maharko', text: "We blasted Travis Scott in the car to forget the awkwardness.", fractureId: 'music' },
+          { speaker: 'Maharko', text: "I swear to god, I thought he just drank too much." },
+          { speaker: 'Maharko', text: "I am completely innocent here. I didn't see him do anything.", fractureId: 'innocence' },
+          { speaker: 'Maharko', text: "I didn't actually find out the real reason we got kicked out until the next day.", fractureId: 'timing' },
         ],
         scrollSpeed: 35,
         reviewWindow: 3000,
