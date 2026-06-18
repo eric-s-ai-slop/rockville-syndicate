@@ -702,25 +702,43 @@ export function preprocessColumnFirstSheet(
   const colTolerance = 52 * sheetScale;
   components.sort((a, b) => a.minX - b.minX);
   const columns: SpriteComponent[][] = [];
+  // Use parallel arrays to cache sums to avoid O(N^2) reduces
+  const colCxSums: number[] = [];
+  const colMinXSums: number[] = [];
+
   for (const c of components) {
     let found = false;
-    for (const col of columns) {
-      const colCx = col.reduce((s, m) => s + m.cx, 0) / col.length;
+    for (let i = 0; i < columns.length; i++) {
+      const col = columns[i];
+      const colCx = colCxSums[i] / col.length;
       if (Math.abs(colCx - c.cx) < colTolerance) {
         col.push(c);
+        colCxSums[i] += c.cx;
+        colMinXSums[i] += c.minX;
         found = true;
         break;
       }
     }
-    if (!found) columns.push([c]);
+    if (!found) {
+      columns.push([c]);
+      colCxSums.push(c.cx);
+      colMinXSums.push(c.minX);
+    }
   }
 
   // Sort columns left-to-right; frames within each column top-to-bottom
-  columns.sort((a, b) => {
-    const ax = a.reduce((s, m) => s + m.minX, 0) / a.length;
-    const bx = b.reduce((s, m) => s + m.minX, 0) / b.length;
+  // Sort indices first, then map to preserve association
+  const colIndices = columns.map((_, i) => i);
+  colIndices.sort((a, b) => {
+    const ax = colMinXSums[a] / columns[a].length;
+    const bx = colMinXSums[b] / columns[b].length;
     return ax - bx;
   });
+
+  // Reorder columns according to sorted indices
+  const sortedColumns = colIndices.map(i => columns[i]);
+  columns.length = 0;
+  columns.push(...sortedColumns);
   columns.forEach(col => col.sort((a, b) => a.minY - b.minY));
 
   // Separate main-grid columns (sprites in upper 55% of image) from
