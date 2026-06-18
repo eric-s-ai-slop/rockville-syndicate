@@ -152,48 +152,69 @@ export function preprocessShowcaseSheet(
 
   // Merge nearby fragmented components belonging to the same vertical sprite candidate (e.g. split heads/bodies)
   let mergedAny = true;
+
+  // Extend component type internally for merging state
+  type MergeableComponent = typeof components[0] & { merged?: boolean };
+  const mergeableComponents = components as MergeableComponent[];
+
   while (mergedAny) {
     mergedAny = false;
-    for (let i = 0; i < components.length; i++) {
-      for (let j = i + 1; j < components.length; j++) {
-        const c1 = components[i];
-        const c2 = components[j];
+    for (let i = 0; i < mergeableComponents.length; i++) {
+      const c1 = mergeableComponents[i];
+      if (c1.merged) continue;
+
+      for (let j = i + 1; j < mergeableComponents.length; j++) {
+        const c2 = mergeableComponents[j];
+        if (c2.merged) continue;
+
+        // Fast horizontal check (bounding box check for identical columns)
+        let isSameCol = false;
+        const cxDiff = c1.cx - c2.cx;
+        if ((cxDiff < 0 ? -cxDiff : cxDiff) < 35 * sheetScale) {
+          isSameCol = true;
+        } else {
+          // Calculate horizontal overlap
+          const overlapX = (c1.maxX < c2.maxX ? c1.maxX : c2.maxX) - (c1.minX > c2.minX ? c1.minX : c2.minX);
+          if (overlapX >= 0) isSameCol = true;
+        }
+
+        if (!isSameCol) continue;
 
         // Calculate vertical overlap/gap
-        const overlapY = Math.min(c1.maxY, c2.maxY) - Math.max(c1.minY, c2.minY);
+        const overlapY = (c1.maxY < c2.maxY ? c1.maxY : c2.maxY) - (c1.minY > c2.minY ? c1.minY : c2.minY);
         const gapY = overlapY >= 0 ? 0 : -overlapY;
 
-        // Calculate horizontal overlap/gap
-        const overlapX = Math.min(c1.maxX, c2.maxX) - Math.max(c1.minX, c2.minX);
-        const gapX = overlapX >= 0 ? 0 : -overlapX;
+        // Adjusted threshold to prevent merging separate animation rows
+        if (gapY < 12 * sheetScale) {
+          c1.minX = c1.minX < c2.minX ? c1.minX : c2.minX;
+          c1.minY = c1.minY < c2.minY ? c1.minY : c2.minY;
+          c1.maxX = c1.maxX > c2.maxX ? c1.maxX : c2.maxX;
+          c1.maxY = c1.maxY > c2.maxY ? c1.maxY : c2.maxY;
+          c1.w = c1.maxX - c1.minX + 1;
+          c1.h = c1.maxY - c1.minY + 1;
+          c1.cx = Math.floor((c1.minX + c1.maxX) / 2);
+          c1.cy = Math.floor((c1.minY + c1.maxY) / 2);
 
-        // Check if they belong to the same column and are extremely close vertically (split fragments)
-        const isSameCol = Math.abs(c1.cx - c2.cx) < 35 * sheetScale || gapX === 0;
-        const isNearVert = gapY < 12 * sheetScale; // Adjusted threshold to prevent merging separate animation rows
-
-        if (isSameCol && isNearVert) {
-          const mergedMinX = Math.min(c1.minX, c2.minX);
-          const mergedMinY = Math.min(c1.minY, c2.minY);
-          const mergedMaxX = Math.max(c1.maxX, c2.maxX);
-          const mergedMaxY = Math.max(c1.maxY, c2.maxY);
-
-          c1.minX = mergedMinX;
-          c1.minY = mergedMinY;
-          c1.maxX = mergedMaxX;
-          c1.maxY = mergedMaxY;
-          c1.w = mergedMaxX - mergedMinX + 1;
-          c1.h = mergedMaxY - mergedMinY + 1;
-          c1.cx = Math.floor((mergedMinX + mergedMaxX) / 2);
-          c1.cy = Math.floor((mergedMinY + mergedMaxY) / 2);
-
-          components.splice(j, 1);
+          c2.merged = true;
           mergedAny = true;
-          break;
         }
       }
-      if (mergedAny) break;
+    }
+
+    // Filter out merged components at the end of the pass to avoid costly splices
+    if (mergedAny) {
+      let writeIdx = 0;
+      for (let i = 0; i < mergeableComponents.length; i++) {
+        if (!mergeableComponents[i].merged) {
+          mergeableComponents[writeIdx++] = mergeableComponents[i];
+        }
+      }
+      mergeableComponents.length = writeIdx;
     }
   }
+
+  // Ensure 'components' array is effectively filtered.
+  components.length = mergeableComponents.length;
 
   // Group coordinates into unique horizontal rows
   components.sort((a, b) => a.cy - b.cy);
