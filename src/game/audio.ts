@@ -10,8 +10,10 @@ import ch3Url   from '../assets/audio/stage_music/hospital(flight from the city)
 import ch4Url   from '../assets/audio/stage_music/jungle_gym(BorderlineTameImpala).mp3?url';
 import ch5Url   from '../assets/audio/stage_music/Jordan_and_maharko_music_for_map (6).mp3?url';
 import ch6Url   from '../assets/audio/stage_music/ben_music(in the hall of the mountian king).mp3?url';
-import ch7Url   from '../assets/audio/stage_music/chapter7PASTEL GHOST  DARK BEACH.mp3?url';
+import ch7Url          from '../assets/audio/stage_music/chapter7PASTEL GHOST  DARK BEACH.mp3?url';
+import ch7MariaBrookeUrl from '../assets/audio/stage_music/Craspore - Flashbacks (slowed).mp3?url';
 import ch9Url   from '../assets/audio/stage_music/SUMMER2026_FIRSTPOOLPARTY(Glass Animals - Heat Waves).mp3?url';
+import sfxMessageDingUrl from '../assets/audio/IPHONE NOTIFICATION SOUND EFFECT (PINGDING).mp3?url';
 import bossUrl  from '../assets/audio/boss_music/Prowler Sound Effect.mp3?url';
 import bossTetrisUrl from '../assets/audio/boss_music/Techno - Tetris (Remix).mp3?url';
 
@@ -56,6 +58,7 @@ export const STAGE_MUSIC_URL: Record<string, string> = {
   music_ch5:           ch5Url,
   music_ch6:           ch6Url,
   music_ch7:           ch7Url,
+  music_maria_brooke:  ch7MariaBrookeUrl,
   music_ch9:           ch9Url,
   music_umbc_basement: umbcBasementUrl,
 };
@@ -63,6 +66,8 @@ export const STAGE_MUSIC_URL: Record<string, string> = {
 // Ambient SFX (not stage music — loaded via ChapterScene preload)
 export const CROWD_MURMUR_URL    = crowdMurmurUrl;    // sfx_crowd_murmur: basement cameraPan
 export const CRICKET_AMBIENT_URL = cricketAmbientUrl;  // sfx_parking_ambient: storyFractures mode
+
+export const SFX_MESSAGE_DING_URL = sfxMessageDingUrl;  // groupChat minigame — DM notification
 
 export const BOSS_MUSIC_URL = bossUrl;   // Prowler sting (plays once on boss intro)
 export const BOSS_LOOP_URL = bossTetrisUrl; // Techno-Tetris loop (plays after sting)
