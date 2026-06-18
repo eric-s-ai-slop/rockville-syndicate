@@ -50,9 +50,10 @@ function cropAndKey(
 
   const imgData = ctx.getImageData(0, 0, sw, sh);
   const data = imgData.data;
+  const tolSq = tolerance * tolerance;
   for (let i = 0; i < data.length; i += 4) {
     const dr = data[i] - bgR, dg = data[i + 1] - bgG, db = data[i + 2] - bgB;
-    if (Math.sqrt(dr * dr + dg * dg + db * db) <= tolerance) data[i + 3] = 0;
+    if (dr * dr + dg * dg + db * db <= tolSq) data[i + 3] = 0;
   }
   ctx.putImageData(imgData, 0, 0);
   return canvas;
