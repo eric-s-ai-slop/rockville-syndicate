@@ -6,6 +6,7 @@ import { storyFracturesMode } from './storyFractures';
 import { stewOfferingMode } from './stewOffering';
 import { fratAggroMode } from './fratAggro';
 import { silentDriveMode } from './silentDrive';
+import { groupChatMode } from './groupChat';
 
 const registry = new Map<string, GameMode>();
 
@@ -16,6 +17,7 @@ registerMode(storyFracturesMode);
 registerMode(stewOfferingMode);
 registerMode(fratAggroMode);
 registerMode(silentDriveMode);
+registerMode(groupChatMode);
 
 export function registerMode(m: GameMode) {
   registry.set(m.id, m);

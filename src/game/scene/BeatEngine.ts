@@ -6,6 +6,7 @@ import type { ModeContext, ModeResult } from '../modes/types';
 
 export class BeatEngine {
   public scene: ChapterScene;
+  private lastMinigameResult: ModeResult | null = null;
 
   constructor(scene: ChapterScene) {
     this.scene = scene;
@@ -27,6 +28,7 @@ export class BeatEngine {
       case 'wait': return this.scene.time.delayedCall(beat.ms, () => this.advanceBeat());
       case 'ledger': this.scene.applyLedger(beat.delta, beat.note); return this.advanceBeat();
       case 'minigame': return this.runMinigameBeat(beat);
+      case 'routeOnMinigame': return this.runRouteOnMinigame(beat);
       case 'changeScene': return this.scene.transitionToScene(beat.sceneIndex, beat.transitionMs, () => this.advanceBeat());
       case 'endChapter': return this.scene.runEndChapter();
     }
@@ -269,6 +271,14 @@ export class BeatEngine {
     };
   }
 
+  private runRouteOnMinigame(beat: Extract<Beat, { type: 'routeOnMinigame' }>) {
+    const data = this.lastMinigameResult?.data as Record<string, unknown> | undefined;
+    const saidTrueThing = data?.saidTrueThing === true;
+    const when = saidTrueThing ? (data?.when as string | undefined) : undefined;
+    const target = (when && beat.cases[when]) ? beat.cases[when] : beat.default;
+    if (target) this.gotoBeatId(target); else this.advanceBeat();
+  }
+
   private runMinigameBeat(beat: Extract<Beat, { type: 'minigame' }>) {
     const mode = getMode(beat.modeId);
     if (!mode) {
@@ -312,6 +322,7 @@ export class BeatEngine {
         }
       }
       mode.start(context, beat.config, (result) => {
+        this.lastMinigameResult = result;
         try {
           mode.teardown();
         } catch (err) {

@@ -44,6 +44,7 @@ export const CHAPTER_MUSIC_KEY: Record<string, string> = {
   jungle_gym_gambit:    'music_ch4',
   florida_highway_duel: 'music_ch5',
   ding_dong_ditch_ben:  'music_ch6',
+  maria_brooke:         'music_maria_brooke',
   spain_betrayal:       'music_ch7',
   cabin_basye:          'music_ch1',  // no ch8 track yet — reuse commons1522
   suds_and_soles_pool_party: 'music_ch9',

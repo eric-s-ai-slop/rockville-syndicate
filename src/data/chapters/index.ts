@@ -1,4 +1,5 @@
 import { ChapterConfig } from './types';
+import chapterMariaBrooke from './chapter0.maria-brooke';
 import chapter1 from './chapter1.spotify-insurgency';
 import chapter2 from './chapter2.operation-inertia';
 import chapter3 from './chapter3.red-pee-bladder-strike';
@@ -13,6 +14,7 @@ import chapter9 from './chapter9.pool-party';
 export * from './types';
 
 export const CHAPTERS: ChapterConfig[] = [
+  chapterMariaBrooke,
   chapter1,
   chapter2,
   chapter3,

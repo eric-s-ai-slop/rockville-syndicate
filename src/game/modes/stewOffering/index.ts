@@ -87,13 +87,13 @@ export class StewOfferingMode implements GameMode {
       }
     });
     // Allow clicking the floor to move Ben
-    this.ctx.input.on('pointerdown', this.handleFloorClick, this);
+    this.ctx.physics.scene.input.on('pointerdown', this.handleFloorClick, this);
   }
 
   update(time: number, delta: number): void {}
 
   teardown(): void {
-    this.ctx.input.off('pointerdown', this.handleFloorClick, this);
+    this.ctx.physics.scene.input.off('pointerdown', this.handleFloorClick, this);
     if (this.uiText) {
       this.uiText.destroy();
       this.uiText = null;

@@ -126,7 +126,7 @@ const chapter7: ChapterConfig = {
         { id: 'nick_f',  x: 470, y: 490 },
         { id: 'maharko', x: 290, y: 620 },
         { id: 'nick_h',  x: 110, y: 620 },
-        { id: 'sean',    x: 470, y: 620 },
+        { id: 'sean',    x: 470, y: 620, spriteKey: 'hero_nick_f_sheet' },
       ],
     },
     {
@@ -165,7 +165,7 @@ const chapter7: ChapterConfig = {
         playerSpawn: { x: 600, y: 620 },
       },
       actors: [
-        { id: 'sean', x: 420, y: 610 },
+        { id: 'sean', x: 420, y: 610, spriteKey: 'hero_nick_f_sheet' },
         { id: 'ben',  x: 780, y: 610 },
       ],
     },
@@ -193,7 +193,7 @@ const chapter7: ChapterConfig = {
     { id: 'nick_f',  x: 470, y: 490 },
     { id: 'maharko', x: 290, y: 620 },
     { id: 'nick_h',  x: 110, y: 620 },
-    { id: 'sean',    x: 470, y: 620 },
+    { id: 'sean',    x: 470, y: 620, spriteKey: 'hero_nick_f_sheet' },
   ],
 
   beats: [

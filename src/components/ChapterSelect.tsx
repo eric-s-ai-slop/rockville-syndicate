@@ -87,6 +87,7 @@ const KIND_TAG: Record<ChapterConfig['kind'], string> = {
   chapter: 'CHAPTER',
   interlude: 'INTERLUDE',
   epilogue: 'EPILOGUE',
+  flashback: 'FLASHBACK',
 };
 
 // This chapter is shown as a redacted/CLASSIFIED entry. One click breaks the
@@ -101,6 +102,7 @@ const THEME_COLOR: Record<MapTheme, string> = {
   florida:       '#f59e0b',
   suburb_night:  '#a78bfa',
   cabin:         '#d97706',
+  pool_party:    '#38bdf8',
 };
 
 const THEME_ICON: Record<MapTheme, string> = {
@@ -111,6 +113,7 @@ const THEME_ICON: Record<MapTheme, string> = {
   florida:       '🌴',
   suburb_night:  '🌙',
   cabin:         '🪵',
+  pool_party:    '🏊',
 };
 
 export default function ChapterSelect({ heroColor, completed, freePlay, onFreePlayChange, onPick }: ChapterSelectProps) {
@@ -222,6 +225,25 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
           {CHAPTERS.map((ch, idx) => {
             const isDone = completed.includes(ch.id);
             const isClassified = ch.id === CLASSIFIED_ID;
+            const isFlashback = ch.kind === 'flashback';
+            const prevIsFlashback = idx > 0 && CHAPTERS[idx - 1].kind === 'flashback';
+            const flashbackBadge = isFlashback
+              ? `F${CHAPTERS.slice(0, idx + 1).filter(c => c.kind === 'flashback').length}`
+              : null;
+            // Section header nodes injected before the first flashback and first mainline chapter
+            const sectionHeader = isFlashback && idx === 0 ? (
+              <div key={`header-flashbacks`} className="flex items-center gap-3 pt-1 pb-0">
+                <div className="flex-1 h-px" style={{ background: '#2a3d18' }} />
+                <span className="text-[9px] font-mono tracking-[0.3em]" style={{ color: '#4a5a30' }}>FLASHBACKS</span>
+                <div className="flex-1 h-px" style={{ background: '#2a3d18' }} />
+              </div>
+            ) : (!isFlashback && prevIsFlashback) ? (
+              <div key={`header-main`} className="flex items-center gap-3 pt-1 pb-0">
+                <div className="flex-1 h-px" style={{ background: '#2a3d18' }} />
+                <span className="text-[9px] font-mono tracking-[0.3em]" style={{ color: '#4a5a30' }}>MAIN STORY</span>
+                <div className="flex-1 h-px" style={{ background: '#2a3d18' }} />
+              </div>
+            ) : null;
             const sealed = isClassified && sealState !== 'broken';
             const logicallyUnlocked = isChapterUnlocked(ch.id, completed, localFreePlay);
             const unlocked = logicallyUnlocked;
@@ -231,8 +253,9 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
             if (sealed) {
               const cracked = sealState === 'cracked';
               return (
+                <div key={ch.id} className="contents">
+                {sectionHeader}
                 <button
-                  key={ch.id}
                   disabled={!logicallyUnlocked}
                   onClick={() => {
                     if (logicallyUnlocked) interactSeal();
@@ -293,6 +316,7 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
                     </span>
                   </div>
                 </button>
+                </div>
               );
             }
 
@@ -300,8 +324,9 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
             const themeColor = theme ? THEME_COLOR[theme] : '#2a3d18';
             const themeIcon = theme ? THEME_ICON[theme] : '🗺️';
             return (
+              <div key={ch.id} className="contents">
+              {sectionHeader}
               <button
-                key={ch.id}
                 disabled={!unlocked}
                 onClick={() => {
                   if (unlocked) {
@@ -351,7 +376,7 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
                       color: isClassified ? (unlocked ? '#eab308' : '#5a4f02') : (unlocked ? heroColor : '#4a5a30'),
                     }}
                   >
-                    {unlocked ? ch.index : <Lock size={15} />}
+                    {unlocked ? (flashbackBadge ?? ch.index) : <Lock size={15} />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
@@ -391,6 +416,7 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
                   )}
                 </div>
               </button>
+              </div>
             );
           })}
         </div>

@@ -20,6 +20,7 @@ const EXTRA_SPEAKERS: Speaker[] = [
   { id: 'anastasia', name: 'Anastasia', emoji: '💅', color: '#f472b6' },
   { id: 'sophia', name: 'Sophia', emoji: '🌸', color: '#c084fc' },
   { id: 'sam_ferretti', name: 'Sam Ferretti', emoji: '🤢', color: '#94a3b8' },
+  { id: 'sean', name: 'Sean', emoji: '🏃', color: '#6ee7b7' },
 ];
 
 export function resolveSpeaker(id: string): Speaker {
@@ -42,7 +43,8 @@ export type MapTheme =
   | 'park'
   | 'florida'
   | 'suburb_night'
-  | 'cabin';
+  | 'cabin'
+  | 'pool_party';
 
 export interface MapRect {
   x: number;
@@ -141,6 +143,7 @@ export type Beat = { id?: string } & (
   | { type: 'cameraPan'; x: number; y: number; durationMs: number; holdMs?: number }
   | { type: 'bossFight'; bossId: string; arena: { x: number; y: number; w: number; h: number }; hideActorId?: string; introLines?: string[] }
   | { type: 'minigame'; modeId: string; config?: unknown; introLines?: string[]; background?: boolean }
+  | { type: 'routeOnMinigame'; cases: Record<string, string>; default?: string }
   | { type: 'chase'; pursuerId: string; durationMs: number }
   | { type: 'wait'; ms: number }
   | { type: 'ledger'; delta: number; note: string }
@@ -166,7 +169,7 @@ export interface ChapterConfig {
   subtitle: string;
   location: string;
   description: string;
-  kind: 'chapter' | 'interlude' | 'epilogue';
+  kind: 'chapter' | 'interlude' | 'epilogue' | 'flashback';
   /** Force a specific protagonist for this chapter regardless of crew pick. */
   protagonistOverride?: string;
   /** Single-map chapters: use map + actors directly. Multi-location chapters: use scenes[]. */

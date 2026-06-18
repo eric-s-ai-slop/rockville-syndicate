@@ -49,6 +49,7 @@ import {
   THEME_FOOTSTEP, FOOTSTEP_URLS,
   UI_SELECT_URL, VICTORY_JINGLE_URL, KNOCK_URL,
   CROWD_MURMUR_URL, CRICKET_AMBIENT_URL,
+  SFX_MESSAGE_DING_URL,
 } from './audio';
 
 // ─── R1/R2: Stage & car prop images (Vite ?url for special-char filenames) ──────
@@ -70,6 +71,10 @@ import natureBush2Url from '../assets/images/game_decor/nature/Bush 1/Bush 1 - W
 
 // Sprint 2: LimeZu furniture tilesheet — sliced into the furniture_atlas at runtime.
 import interiors48Url from '../assets/images/game_decor/Interiors_free/48x48/Interiors_free_48x48.png?url';
+
+// Ch0: Maria Brooke stage images
+import stageWjClassroomUrl from '../assets/chapters/maria_brooke/stage_wj_classroom.jpg?url';
+import stageWjTrackUrl     from '../assets/chapters/maria_brooke/stage_wj_track.jpg?url';
 
 // Ch3b: UMBC Incident stage images + NPC silhouette
 import umbcBasementStageUrl  from '../assets/chapters/umbc incident/umbc_basement.jpg?url';
@@ -379,6 +384,8 @@ export default class ChapterScene extends Phaser.Scene {
     this.safeLoadImage('prop_watchwater', propWatchwaterUrl);
     this.safeLoadImage('prop_watchwater_open', propWatchwaterOpenUrl);
 
+    this.safeLoadImage('stage_wj_classroom', stageWjClassroomUrl);
+    this.safeLoadImage('stage_wj_track', stageWjTrackUrl);
     this.safeLoadImage('stage_umbc_basement', umbcBasementStageUrl);
     this.safeLoadImage('stage_parking_lot_night', parkingLotNightUrl);
     // Ben has no playable-roster hero sprite; reuse his UMBC portrait (a 1376×768
@@ -388,6 +395,7 @@ export default class ChapterScene extends Phaser.Scene {
     this.safeLoadImage('hero_girl1_raw_jpg', npcGirlSilhouetteUrl);
     this.safeLoadImage('hero_girl2_raw_jpg', npcGirlSilhouetteUrl);
     this.safeLoadImage('hero_girl3_raw_jpg', npcGirlSilhouetteUrl);
+    this.audioController.safeLoadAudio('sfx_message_ding', SFX_MESSAGE_DING_URL);
     this.audioController.safeLoadAudio('sfx_crowd_murmur', CROWD_MURMUR_URL);
     this.audioController.safeLoadAudio('sfx_parking_ambient', CRICKET_AMBIENT_URL);
     // Voiced one-off: Ben's "You're next." Drop the MP3 at public/voice/ben_youre_next.mp3.
@@ -763,8 +771,10 @@ export default class ChapterScene extends Phaser.Scene {
     }
 
     const { map } = this.getActiveSceneConfig();
+    // Player is confined by physics world bounds + perimeter walls — NOT camera
+    // bounds. Camera bounds clamp scroll and jam the map to one side on wide
+    // viewports (off-center map + blank fill). See CLAUDE.md §4. Do not re-add.
     this.physics.world.setBounds(0, 0, map.width, map.height);
-    this.cameras.main.setBounds(0, 0, map.width, map.height);
     this.cameras.main.setBackgroundColor(map.backdrop);
 
     this.projectiles = this.physics.add.group();
@@ -933,7 +943,7 @@ export default class ChapterScene extends Phaser.Scene {
       const { map, actors } = this.getActiveSceneConfig();
 
       this.physics.world.setBounds(0, 0, map.width, map.height);
-      this.cameras.main.setBounds(0, 0, map.width, map.height);
+      // No camera bounds — see note in create(). Re-adding off-centers the map.
       this.cameras.main.setBackgroundColor(map.backdrop);
 
       this.buildMapLayer(map);
