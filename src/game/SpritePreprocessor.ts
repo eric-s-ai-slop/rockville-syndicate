@@ -195,23 +195,19 @@ export function preprocessShowcaseSheet(
     }
   }
 
-  // Group coordinates into unique horizontal rows
+  // Group coordinates into unique horizontal rows and organize frames
+  // By iterating once, we avoid a redundant O(N*M) findIndex loop and unnecessary re-sorting.
   components.sort((a, b) => a.cy - b.cy);
   const rows: number[] = [];
+  const rowsData: SpriteComponent[][] = [];
   components.forEach(c => {
     let matchedRow = rows.findIndex(cyValue => Math.abs(cyValue - c.cy) < 55 * sheetScale);
     if (matchedRow === -1) {
       rows.push(c.cy);
-      rows.sort((x, y) => x - y);
-    }
-  });
-
-  // Organize frames by sorted rows
-  const rowsData: SpriteComponent[][] = Array.from({ length: rows.length }, () => []);
-  components.forEach(c => {
-    const rowIdx = rows.findIndex(cyValue => Math.abs(cyValue - c.cy) < 55 * sheetScale);
-    if (rowIdx !== -1) {
-      rowsData[rowIdx].push(c);
+      rowsData.push([c]);
+      // Note: components is already sorted by cy, so pushing to rows maintains ascending order.
+    } else {
+      rowsData[matchedRow].push(c);
     }
   });
 
