@@ -198,20 +198,23 @@ export function preprocessShowcaseSheet(
   // Group coordinates into unique horizontal rows
   components.sort((a, b) => a.cy - b.cy);
   const rows: number[] = [];
-  components.forEach(c => {
-    let matchedRow = rows.findIndex(cyValue => Math.abs(cyValue - c.cy) < 55 * sheetScale);
-    if (matchedRow === -1) {
-      rows.push(c.cy);
-      rows.sort((x, y) => x - y);
-    }
-  });
+  const rowsData: SpriteComponent[][] = [];
 
-  // Organize frames by sorted rows
-  const rowsData: SpriteComponent[][] = Array.from({ length: rows.length }, () => []);
+  // Since components are sorted by cy, any new component is most likely to match the last row
+  // because its cy >= last row's cy. If it doesn't match the last row, it won't match any previous
+  // rows, so we can avoid an expensive findIndex call across all rows and do this in a single pass.
   components.forEach(c => {
-    const rowIdx = rows.findIndex(cyValue => Math.abs(cyValue - c.cy) < 55 * sheetScale);
-    if (rowIdx !== -1) {
-      rowsData[rowIdx].push(c);
+    if (rows.length > 0) {
+      const lastRowIdx = rows.length - 1;
+      if (Math.abs(rows[lastRowIdx] - c.cy) < 55 * sheetScale) {
+        rowsData[lastRowIdx].push(c);
+      } else {
+        rows.push(c.cy);
+        rowsData.push([c]);
+      }
+    } else {
+      rows.push(c.cy);
+      rowsData.push([c]);
     }
   });
 
