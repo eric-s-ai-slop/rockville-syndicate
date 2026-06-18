@@ -345,13 +345,24 @@ export class MapBuilder {
   public drawDecorativeRect(x: number, y: number, w: number, h: number, fill: number, stroke: number, propType?: string, propKey?: string) {
     // R1: sprite override — render a real image if the texture is loaded
     if (propKey) {
-      if (this.scene.textures.exists('small_props_atlas') && this.scene.textures.get('small_props_atlas').has(propKey)) {
+      const hasSmallAtlas = this.scene.textures.exists('small_props_atlas');
+      if (hasSmallAtlas && this.scene.textures.get('small_props_atlas').has(propKey)) {
         const img = this.scene.add.image(x, y, 'small_props_atlas', propKey).setDisplaySize(w, h).setDepth(y);
         this.scene.propSprites.set(propKey, img);
         return;
-      } else if (this.scene.textures.exists(propKey) || this.scene.textures.exists(propKey + '_sheet')) {
-        const hasSheet = this.scene.textures.exists(propKey + '_sheet') || propKey.endsWith('_sheet');
-        const renderKey = hasSheet ? (propKey.endsWith('_sheet') ? propKey : propKey + '_sheet') : (this.scene.textures.exists(propKey + '_crop') ? propKey + '_crop' : propKey);
+      }
+
+      const texExistsBase = this.scene.textures.exists(propKey);
+      const texExistsSheet = this.scene.textures.exists(propKey + '_sheet');
+
+      if (texExistsBase || texExistsSheet) {
+        const hasSheet = texExistsSheet || propKey.endsWith('_sheet');
+        let renderKey = propKey;
+        if (hasSheet) {
+          renderKey = propKey.endsWith('_sheet') ? propKey : propKey + '_sheet';
+        } else if (this.scene.textures.exists(propKey + '_crop')) {
+          renderKey = propKey + '_crop';
+        }
         const frame = hasSheet ? 0 : undefined;
         const img = hasSheet ? this.scene.add.sprite(x, y, renderKey, frame) : this.scene.add.image(x, y, renderKey, frame);
         if (hasSheet && img instanceof Phaser.GameObjects.Sprite) {
@@ -495,13 +506,24 @@ export class MapBuilder {
       const dw = override ? override.w : w;
       const dh = override ? override.h : h;
 
-      if (this.scene.textures.exists('small_props_atlas') && this.scene.textures.get('small_props_atlas').has(propKey)) {
+      const hasSmallAtlas = this.scene.textures.exists('small_props_atlas');
+      if (hasSmallAtlas && this.scene.textures.get('small_props_atlas').has(propKey)) {
         const img = this.scene.add.image(x, y, 'small_props_atlas', propKey).setDisplaySize(dw, dh).setDepth(y);
         this.scene.propSprites.set(propKey, img);
         return;
-      } else if (this.scene.textures.exists(propKey) || this.scene.textures.exists(propKey + '_sheet')) {
-        const hasSheet = this.scene.textures.exists(propKey + '_sheet') || propKey.endsWith('_sheet');
-        const renderKey = hasSheet ? (propKey.endsWith('_sheet') ? propKey : propKey + '_sheet') : (this.scene.textures.exists(propKey + '_crop') ? propKey + '_crop' : propKey);
+      }
+
+      const texExistsBase = this.scene.textures.exists(propKey);
+      const texExistsSheet = this.scene.textures.exists(propKey + '_sheet');
+
+      if (texExistsBase || texExistsSheet) {
+        const hasSheet = texExistsSheet || propKey.endsWith('_sheet');
+        let renderKey = propKey;
+        if (hasSheet) {
+          renderKey = propKey.endsWith('_sheet') ? propKey : propKey + '_sheet';
+        } else if (this.scene.textures.exists(propKey + '_crop')) {
+          renderKey = propKey + '_crop';
+        }
         const frame = hasSheet ? 0 : undefined;
         const img = hasSheet ? this.scene.add.sprite(x, y, renderKey, frame) : this.scene.add.image(x, y, renderKey, frame);
         if (hasSheet && img instanceof Phaser.GameObjects.Sprite) {
