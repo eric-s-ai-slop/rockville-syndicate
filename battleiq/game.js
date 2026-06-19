@@ -611,7 +611,9 @@ class GameCoordinator {
 
                 cb(stashedChoice);
 
-                this._lastPickedChoice = null;  // clear so it doesn't leak
+                if (this._lastPickedChoice === stashedChoice) {
+                    this._lastPickedChoice = null;  // clear so it doesn't leak
+                }
             }
             return;
         }
