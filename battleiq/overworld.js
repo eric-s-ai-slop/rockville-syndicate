@@ -77,9 +77,7 @@ class OverworldEngine {
             // even if the NPC's static name happens to match a party member.
             // Without this guard, picking Jacob/Hedgecock/Eric as the starting
             // character would hide the act's boss trigger, leaving no way to
-            // progress through the game. (Bug fix: boss 2 was missing when
-            // player picked Hedgecock, because the rockville (17,5) boss
-            // trigger's static name is "Nick Hedgecock".)
+            // progress through the game.
             if (trig.type === "npc" && trig.name && !trig.triggerBattle) {
                 const alreadyInParty = (game.party || []).some(p =>
                     p.name.toLowerCase() === trig.name.toLowerCase()
