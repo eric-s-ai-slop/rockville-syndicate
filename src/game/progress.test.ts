@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { isChapterUnlocked, setFreePlay, loadProgress } from './progress';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { isChapterUnlocked, setFreePlay, loadProgress, markChapterComplete } from './progress';
 
 vi.mock('../data/chapters', () => ({
   CHAPTERS: [
@@ -48,5 +48,37 @@ describe('setFreePlay', () => {
     expect(loadProgress().freePlay).toBe(true);
     setFreePlay(false);
     expect(loadProgress().freePlay).toBe(false);
+  });
+});
+
+describe('markChapterComplete', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('adds a chapter to empty progress and saves it', () => {
+    const progress = markChapterComplete('chapter1');
+    expect(progress.completedChapters).toEqual(['chapter1']);
+
+    const saved = loadProgress();
+    expect(saved.completedChapters).toEqual(['chapter1']);
+  });
+
+  it('adds a chapter to existing progress without overwriting', () => {
+    markChapterComplete('chapter1');
+    const progress = markChapterComplete('chapter2');
+    expect(progress.completedChapters).toEqual(['chapter1', 'chapter2']);
+
+    const saved = loadProgress();
+    expect(saved.completedChapters).toEqual(['chapter1', 'chapter2']);
+  });
+
+  it('does not duplicate a chapter if already marked as complete', () => {
+    markChapterComplete('chapter1');
+    const progress = markChapterComplete('chapter1');
+    expect(progress.completedChapters).toEqual(['chapter1']);
+
+    const saved = loadProgress();
+    expect(saved.completedChapters).toEqual(['chapter1']);
   });
 });
