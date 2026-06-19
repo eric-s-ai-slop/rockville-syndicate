@@ -9,6 +9,11 @@ describe('StewOfferingMode', () => {
     
     const mockCtx: any = {
       cameras: { main: { startFollow: vi.fn(), stopFollow: vi.fn(), width: 800, height: 600, zoom: 1 } },
+      add: {
+        text: vi.fn().mockReturnValue({ setOrigin: vi.fn().mockReturnThis(), destroy: vi.fn() }),
+        graphics: vi.fn().mockReturnValue({ fillStyle: vi.fn(), lineStyle: vi.fn(), fillRoundedRect: vi.fn(), strokeRoundedRect: vi.fn() }),
+        container: vi.fn().mockReturnValue({ setScrollFactor: vi.fn().mockReturnThis(), setDepth: vi.fn().mockReturnThis(), setScale: vi.fn().mockReturnThis() })
+      },
       scene: {
         add: {
           graphics: vi.fn().mockReturnValue({ fillStyle: vi.fn(), lineStyle: vi.fn(), fillRoundedRect: vi.fn(), strokeRoundedRect: vi.fn() }),
@@ -32,11 +37,16 @@ describe('StewOfferingMode', () => {
       time: {
         delayedCall: vi.fn((delay, cb) => cb())
       },
-      showBubbleText: vi.fn()
+      showBubbleText: vi.fn(),
+      sound: { play: vi.fn() },
+      physics: { scene: { input: { on: vi.fn(), off: vi.fn() } } }
     };
 
     let completed = false;
     mode.start(mockCtx, {}, () => { completed = true; });
+
+    // Mock uiText directly so it doesn't fail when destroyed
+    (mode as any).uiText = { destroy: vi.fn() };
 
     // Simulate clicking girl1
     (mode as any).handleNpcClick('girl1');
