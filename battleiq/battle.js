@@ -354,16 +354,30 @@ class BattleController {
             const isActive = (game.party.indexOf(pm) === this.currentActor);
             if (isActive) card.classList.add("active");
 
-            card.innerHTML = `
-                <div class="pm-name">${pm.name}${lockIcon}</div>
-                <div class="pm-hp-row">
-                    <span class="pm-hp-label">HP</span>
-                    <span class="pm-hp">${pm.hp}/${pm.maxHp}</span>
-                </div>
-                <div class="pm-hp-bar-bg">
-                    <div class="pm-hp-bar ${pm.hp < pm.maxHp * 0.3 ? 'low' : ''}" style="width: ${(pm.hp/pm.maxHp)*100}%"></div>
-                </div>
+            // Securely create elements to prevent XSS from unescaped party member names
+            const nameDiv = document.createElement("div");
+            nameDiv.className = "pm-name";
+            nameDiv.textContent = pm.name + lockIcon; // textContent automatically escapes HTML
+
+            const hpRow = document.createElement("div");
+            hpRow.className = "pm-hp-row";
+            // Safe to use innerHTML here because hp and maxHp are strictly numeric
+            hpRow.innerHTML = `
+                <span class="pm-hp-label">HP</span>
+                <span class="pm-hp">${pm.hp}/${pm.maxHp}</span>
             `;
+
+            const hpBarBg = document.createElement("div");
+            hpBarBg.className = "pm-hp-bar-bg";
+            const hpBar = document.createElement("div");
+            hpBar.className = "pm-hp-bar " + (pm.hp < pm.maxHp * 0.3 ? "low" : "");
+            hpBar.style.width = `${(pm.hp / pm.maxHp) * 100}%`;
+            hpBarBg.appendChild(hpBar);
+
+            card.appendChild(nameDiv);
+            card.appendChild(hpRow);
+            card.appendChild(hpBarBg);
+            
             container.appendChild(card);
         });
     }

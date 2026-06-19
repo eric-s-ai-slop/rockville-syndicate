@@ -320,12 +320,18 @@ export class BossFightMode implements GameMode<any> {
     if (!this.ctx.spawnedBoss || !this.bossData) return;
     this.ctx.logMessage(`🏆 ${this.bossData.name} logged and archived in the group chat!`);
 
-    for (let i = 0; i < 24; i++) {
-      const star = this.ctx.add.circle(this.ctx.spawnedBoss.x, this.ctx.spawnedBoss.y, 8, 0xfacc15);
-      this.ctx.physics.add.existing(star);
-      (star.body as Phaser.Physics.Arcade.Body).setVelocity(Phaser.Math.Between(-300, 300), Phaser.Math.Between(-300, 300));
-      this.ctx.time.delayedCall(1000, () => star.destroy());
-    }
+    // Performance Optimization: Use a built-in ParticleEmitter instead of spawning 24 separate 
+    // Arcade Physics bodies for a purely visual explosion. This completely bypasses physics calculations and heavy GC per object.
+    const particles = this.ctx.add.particles(this.ctx.spawnedBoss.x, this.ctx.spawnedBoss.y, 'particle_dot', {
+      speed: { min: 100, max: 400 },
+      angle: { min: 0, max: 360 },
+      scale: { start: 2, end: 0 },
+      tint: 0xfacc15,
+      lifespan: 1000,
+      emitting: false
+    });
+    particles.explode(24);
+    this.ctx.time.delayedCall(1200, () => particles.destroy());
 
     for (let i = 0; i < 10; i++) {
       const shard = this.ctx.physics.add.sprite(
@@ -362,6 +368,24 @@ export class BossFightMode implements GameMode<any> {
         }
       });
     });
+  }
+
+  private getPooledBullet(x: number, y: number): Phaser.Physics.Arcade.Sprite {
+    let proj = this.ctx.enemyProjectiles.getFirstDead(false) as Phaser.Physics.Arcade.Sprite;
+    if (proj) {
+      proj.setActive(true).setVisible(true);
+      proj.setPosition(x, y);
+      proj.setAlpha(1).setRotation(0).setScale(1).clearTint();
+      if (proj.body) {
+        const body = proj.body as Phaser.Physics.Arcade.Body;
+        body.reset(x, y);
+        body.setAllowGravity(true);
+      }
+    } else {
+      proj = this.ctx.physics.add.sprite(x, y, 'bullet');
+      this.ctx.enemyProjectiles.add(proj);
+    }
+    return proj;
   }
 
   private handleBossAI(time: number) {
@@ -476,15 +500,14 @@ export class BossFightMode implements GameMode<any> {
     // Shoot 16 fast projectiles in a circle
     for (let i = 0; i < 16; i++) {
       const angle = (Math.PI / 8) * i;
-      const proj = this.ctx.physics.add.sprite(this.ctx.spawnedBoss.x, this.ctx.spawnedBoss.y, 'bullet');
-      this.ctx.enemyProjectiles.add(proj);
+      const proj = this.getPooledBullet(this.ctx.spawnedBoss.x, this.ctx.spawnedBoss.y);
       proj.setTint(0xef4444).setScale(1.5).setDepth(1500);
       const body = proj.body as Phaser.Physics.Arcade.Body;
       if (body) {
         body.setAllowGravity(false);
         body.setVelocity(Math.cos(angle) * 350, Math.sin(angle) * 350);
       }
-      this.ctx.time.delayedCall(2500, () => { if (proj.active) proj.destroy(); });
+      this.ctx.time.delayedCall(2500, () => { if (proj.active) { proj.setActive(false).setVisible(false); if (body) body.stop(); } });
     }
   }
 
@@ -498,15 +521,14 @@ export class BossFightMode implements GameMode<any> {
       this.ctx.time.delayedCall(i * 150, () => {
         if (!this.ctx.spawnedBoss || this.ctx.qteActive) return; // Don't fire if QTE is up
         const targetAngle = Phaser.Math.Angle.Between(this.ctx.spawnedBoss.x, this.ctx.spawnedBoss.y, this.ctx.player.x, this.ctx.player.y);
-        const proj = this.ctx.physics.add.sprite(this.ctx.spawnedBoss.x, this.ctx.spawnedBoss.y, 'bullet');
-        this.ctx.enemyProjectiles.add(proj);
+        const proj = this.getPooledBullet(this.ctx.spawnedBoss.x, this.ctx.spawnedBoss.y);
         proj.setTint(0xfacc15).setScale(1.8).setDepth(1500);
         const body = proj.body as Phaser.Physics.Arcade.Body;
         if (body) {
           body.setAllowGravity(false);
           body.setVelocity(Math.cos(targetAngle) * 450, Math.sin(targetAngle) * 450);
         }
-        this.ctx.time.delayedCall(2000, () => { if (proj.active) proj.destroy(); });
+        this.ctx.time.delayedCall(2000, () => { if (proj.active) { proj.setActive(false).setVisible(false); if (body) body.stop(); } });
       });
     }
   }

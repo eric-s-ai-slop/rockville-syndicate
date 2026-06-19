@@ -511,17 +511,22 @@ class GameCoordinator {
             }
         }
 
-        if (newState === "menu") {
-            document.getElementById("menu-state").classList.add("active");
-        } else if (newState === "overworld") {
-            document.getElementById("overworld-state").classList.add("active");
+        const stateViews = {
+            "menu": ["menu-state"],
+            "overworld": ["overworld-state"],
+            "battle": ["battle-state"],
+            "character-select": ["character-select-state", "overworld-state"]
+        };
+
+        const activeViews = stateViews[newState] || [];
+        activeViews.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.add("active");
+        });
+
+        // Handle specific state initialization logic
+        if (newState === "overworld") {
             overworld.resizeCanvas();
-        } else if (newState === "battle") {
-            document.getElementById("battle-state").classList.add("active");
-        } else if (newState === "character-select") {
-            // 2026-06-11 FIX: The character-select state needs the .active class
-            // or the screen appears blank. (Previously this case was missing.)
-            document.getElementById("character-select-state").classList.add("active");
         }
     }
 
@@ -1374,18 +1379,15 @@ class GameCoordinator {
         overworld.loadMap(this.activeMapId);
         this.changeState("overworld");
 
-        // 2026-06-11 FIX: Defer the chapter-indicator / objective-box DOM update
-        // to AFTER changeState() so the .active class is on #overworld-state
-        // before the elements are queried/rendered. (Previously the update
-        // could happen before the parent was active, causing the player to
-        // briefly see the OLD chapter title and OLD objective.)
-        setTimeout(() => {
-            const chapterEl = document.querySelector(".chapter-indicator");
-            const objectiveEl = document.querySelector(".objective-box");
-            if (chapterEl) chapterEl.innerText = this.getDynamicTitle(this.currentActIndex, nextBossId);
-            if (objectiveEl) objectiveEl.innerText = "Objective: Confront " + bossName + "!";
-            console.log(`[BattleIQ:Act] UI updated → chapter="${this.getDynamicTitle(this.currentActIndex, nextBossId)}", objective="Confront ${bossName}!"`);
-        }, 50);
+        // Update the chapter-indicator / objective-box DOM synchronously AFTER changeState()
+        // Because JavaScript is single-threaded, running this immediately after changeState()
+        // guarantees the text is updated before the browser's next paint cycle, preventing flickering
+        // without relying on fragile 'magic delays' like setTimeout.
+        const chapterEl = document.querySelector(".chapter-indicator");
+        const objectiveEl = document.querySelector(".objective-box");
+        if (chapterEl) chapterEl.innerText = this.getDynamicTitle(this.currentActIndex, nextBossId);
+        if (objectiveEl) objectiveEl.innerText = "Objective: Confront " + bossName + "!";
+        console.log(`[BattleIQ:Act] UI updated → chapter="${this.getDynamicTitle(this.currentActIndex, nextBossId)}", objective="Confront ${bossName}!"`);
 
         // Show a quick transition toast (non-blocking) so player knows the act changed
         const actMessages = {

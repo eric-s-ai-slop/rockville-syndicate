@@ -1787,14 +1787,17 @@ export default class ChapterScene extends Phaser.Scene {
     this.onMessageLog('🥷 SUB-ZERO AWAKENED! Jacob enters Mortal Kombat mode. Damage: +50%, Pain: OFF.');
     this.showBubbleText(this.player, "I'M FUCKING SUBZERO!!!", '#38bdf8');
     this.showPassiveIconText(this.player.x, this.player.y - 50, 'SUB-ZERO ACTIVATED 🥷', '#38bdf8');
-    // Ice particles burst
-    for (let i = 0; i < 8; i++) {
-      const ang = (Math.PI / 4) * i;
-      const shard = this.add.rectangle(this.player.x, this.player.y, 8, 3, 0x38bdf8);
-      this.physics.add.existing(shard);
-      (shard.body as Phaser.Physics.Arcade.Body).setVelocity(Math.cos(ang) * 200, Math.sin(ang) * 200);
-      this.time.delayedCall(600, () => shard.destroy());
-    }
+    // Ice particles burst - Performance Optimization
+    // Bypassed Arcade Physics entirely with a WebGL ParticleEmitter to eliminate GC churn for visual effects
+    const particles = this.add.particles(this.player.x, this.player.y, 'particle_dot', {
+      speed: 200,
+      lifespan: 600,
+      scale: { start: 1.5, end: 0 },
+      tint: 0x38bdf8,
+      emitting: false
+    });
+    particles.explode(8);
+    this.time.delayedCall(700, () => particles.destroy());
   }
 
   // ─── Combat Callbacks ─────────────────────────────────────────────────────

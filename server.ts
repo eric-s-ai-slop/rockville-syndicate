@@ -59,17 +59,18 @@ async function startServer() {
   app.post("/api/leaderboard", async (req, res) => {
     const { initials, score, hero } = req.body;
     
-    if (!initials || typeof score !== "number" || !hero) {
+    if (!initials || typeof score !== "number" || !hero || typeof hero !== "string") {
       return res.status(400).json({ error: "Invalid initials, score, or hero" });
     }
 
     const cleanInitials = String(initials).toUpperCase().slice(0, 3);
+    const cleanHero = hero.trim().slice(0, 32);
     
     const newEntry = {
       id: Date.now(),
       initials: cleanInitials,
       score,
-      hero,
+      hero: cleanHero,
       date: new Date().toISOString().split("T")[0]
     };
 

@@ -150,14 +150,22 @@ export function preprocessShowcaseSheet(
     }
   }
 
-  // Merge nearby fragmented components belonging to the same vertical sprite candidate (e.g. split heads/bodies)
+  // Merge nearby fragmented components belonging to the same vertical sprite candidate (e.g. split heads/bodies).
+  // Performance Optimization:
+  // We use a Set (`merged`) to track components that have been consumed by a merge.
+  // This avoids calling `array.splice()` inside the loop and restarting the entire N^2
+  // iteration process upon every single merge, reducing worst-case time complexity from O(N^3) to O(N^2).
+  const merged = new Set<SpriteComponent>();
   let mergedAny = true;
   while (mergedAny) {
     mergedAny = false;
     for (let i = 0; i < components.length; i++) {
+      const c1 = components[i];
+      if (merged.has(c1)) continue;
+
       for (let j = i + 1; j < components.length; j++) {
-        const c1 = components[i];
         const c2 = components[j];
+        if (merged.has(c2)) continue;
 
         // Calculate vertical overlap/gap
         const overlapY = Math.min(c1.maxY, c2.maxY) - Math.max(c1.minY, c2.minY);
@@ -172,36 +180,47 @@ export function preprocessShowcaseSheet(
         const isNearVert = gapY < 12 * sheetScale; // Adjusted threshold to prevent merging separate animation rows
 
         if (isSameCol && isNearVert) {
-          const mergedMinX = Math.min(c1.minX, c2.minX);
-          const mergedMinY = Math.min(c1.minY, c2.minY);
-          const mergedMaxX = Math.max(c1.maxX, c2.maxX);
-          const mergedMaxY = Math.max(c1.maxY, c2.maxY);
+          c1.minX = Math.min(c1.minX, c2.minX);
+          c1.minY = Math.min(c1.minY, c2.minY);
+          c1.maxX = Math.max(c1.maxX, c2.maxX);
+          c1.maxY = Math.max(c1.maxY, c2.maxY);
+          c1.w = c1.maxX - c1.minX + 1;
+          c1.h = c1.maxY - c1.minY + 1;
+          c1.cx = Math.floor((c1.minX + c1.maxX) / 2);
+          c1.cy = Math.floor((c1.minY + c1.maxY) / 2);
 
-          c1.minX = mergedMinX;
-          c1.minY = mergedMinY;
-          c1.maxX = mergedMaxX;
-          c1.maxY = mergedMaxY;
-          c1.w = mergedMaxX - mergedMinX + 1;
-          c1.h = mergedMaxY - mergedMinY + 1;
-          c1.cx = Math.floor((mergedMinX + mergedMaxX) / 2);
-          c1.cy = Math.floor((mergedMinY + mergedMaxY) / 2);
-
-          components.splice(j, 1);
+          // Mark c2 as consumed. We do NOT break the inner loop here!
+          // We keep iterating so the newly expanded c1 can immediately absorb 
+          // any other overlapping components further down the array.
+          merged.add(c2);
           mergedAny = true;
-          break;
         }
       }
-      if (mergedAny) break;
     }
   }
+
+  const activeComponents = components.filter(c => !merged.has(c));
+  components.length = 0;
+  components.push(...activeComponents);
 
   // Group coordinates into unique horizontal rows and organize frames
   // By iterating once, we avoid a redundant O(N*M) findIndex loop and unnecessary re-sorting.
   components.sort((a, b) => a.cy - b.cy);
   const rows: number[] = [];
   const rowsData: SpriteComponent[][] = [];
+  
+  // Performance Optimization: Since `components` are pre-sorted by `cy` (monotonically increasing), 
+  // a new component can only mathematically match the *most recently created row*. We just check the last element 
+  // rather than iterating through the entire `rows` array via `findIndex`.
   components.forEach(c => {
-    let matchedRow = rows.findIndex(cyValue => Math.abs(cyValue - c.cy) < 55 * sheetScale);
+    let matchedRow = -1;
+    if (rows.length > 0) {
+      const lastRowCy = rows[rows.length - 1];
+      if (Math.abs(lastRowCy - c.cy) < 55 * sheetScale) {
+        matchedRow = rows.length - 1;
+      }
+    }
+
     if (matchedRow === -1) {
       rows.push(c.cy);
       rowsData.push([c]);
@@ -1078,8 +1097,24 @@ export function preprocessFemalePoolSheet(
     return rowIndex * gridColumns + colIndex;
   };
 
+  interface SpriteCoords {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  }
+
+  interface CharacterCoords {
+    idleFront: SpriteCoords;
+    idleSide: SpriteCoords;
+    idleBack: SpriteCoords;
+    walkFront: SpriteCoords[];
+    submergedIdle: SpriteCoords[];
+    submergedSwim: SpriteCoords[];
+  }
+
   // Coordinates mapping
-  let coords: any;
+  let coords: CharacterCoords;
   if (characterId === 'anastasia') {
     coords = {
       idleFront: { x: 80, y: 140, w: 200, h: 370 },
