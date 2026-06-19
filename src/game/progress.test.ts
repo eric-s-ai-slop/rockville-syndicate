@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { isChapterUnlocked, setFreePlay, loadProgress } from './progress';
+import { isChapterUnlocked, setFreePlay, loadProgress, resetProgress, saveProgress } from './progress';
 
 vi.mock('../data/chapters', () => ({
   CHAPTERS: [
@@ -48,5 +48,27 @@ describe('setFreePlay', () => {
     expect(loadProgress().freePlay).toBe(true);
     setFreePlay(false);
     expect(loadProgress().freePlay).toBe(false);
+  });
+});
+
+describe('resetProgress', () => {
+  it('clears completed chapters and saves an empty state to localStorage', () => {
+    // Setup initial state
+    saveProgress({ completedChapters: ['chapter1', 'chapter2'], hero: 'test_hero' });
+    expect(loadProgress().completedChapters).toEqual(['chapter1', 'chapter2']);
+
+    // Spy on localStorage to verify the direct behavior
+    const spy = vi.spyOn(window.localStorage, 'setItem');
+
+    resetProgress();
+
+    // Verify it clears out the completed chapters
+    expect(loadProgress().completedChapters).toEqual([]);
+    expect(loadProgress().hero).toBeUndefined();
+
+    // Verify it calls saveProgress which writes the default progress object to localStorage
+    expect(spy).toHaveBeenCalledWith('omega-progress-v1', JSON.stringify({ completedChapters: [] }));
+
+    spy.mockRestore();
   });
 });
