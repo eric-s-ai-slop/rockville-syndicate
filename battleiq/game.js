@@ -1148,10 +1148,6 @@ class GameCoordinator {
         choices.push({ label: "Cancel (don't recruit)", removeId: null });
 
 
-        // 2026-06-11: FIX — pass the actual handler as the 3rd arg of
-        // startDialogueWithChoices so it doesn't get overwritten by the
-        // standard showChoiceMenu callback assignment (which set
-        // this.choiceCallback = null from pendingChoices.callback = null).
         const choiceHandler = (choice) => {
             this.hideChoiceMenu();
 
@@ -1206,7 +1202,7 @@ class GameCoordinator {
                 }
             ],
             choices,
-            choiceHandler  // 2026-06-11 FIX: pass as 3rd arg, not via this.choiceCallback
+            choiceHandler
         );
     }
 
