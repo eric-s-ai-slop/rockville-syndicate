@@ -1184,10 +1184,6 @@ class GameCoordinator {
                     if (this.showToast) {
                         this.showToast(`📤 Removed ${victim.name} to add ${newMember.name}`);
                     }
-                    // 2026-06-11: FIX — actually finalize the recruit (add the
-                    // new member) after the old one is removed. Previously the
-                    // remove logic ran but _finalizeRecruit was never called,
-                    // so the new member (e.g., Jacob) never joined the party.
                     this._finalizeRecruit(newMember);
                 }
             } else {
