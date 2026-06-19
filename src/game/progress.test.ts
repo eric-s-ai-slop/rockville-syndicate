@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { isChapterUnlocked, setFreePlay, loadProgress } from './progress';
+import { isChapterUnlocked, setFreePlay, loadProgress, rememberHero } from './progress';
 
 vi.mock('../data/chapters', () => ({
   CHAPTERS: [
@@ -31,6 +31,24 @@ describe('isChapterUnlocked', () => {
   it('returns false if the previous chapter is NOT in the completed array', () => {
     expect(isChapterUnlocked('chapter2', [], false)).toBe(false);
     expect(isChapterUnlocked('chapter3', ['chapter1'], false)).toBe(false);
+  });
+});
+
+describe('rememberHero', () => {
+  it('saves the new hero ID when none was set previously', () => {
+    rememberHero('eric');
+    const saved = loadProgress();
+    expect(saved.hero).toBe('eric');
+  });
+
+  it('updates the hero ID when one was already set', () => {
+    rememberHero('lucy');
+    const saved = loadProgress();
+    expect(saved.hero).toBe('lucy');
+
+    rememberHero('ethan');
+    const updated = loadProgress();
+    expect(updated.hero).toBe('ethan');
   });
 });
 
