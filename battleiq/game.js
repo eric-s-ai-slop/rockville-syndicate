@@ -1211,7 +1211,7 @@ class GameCoordinator {
                 }
             ],
             choices,
-            choiceHandler  // 2026-06-11 FIX: pass as 3rd arg, not via this.choiceCallback
+            choiceHandler
         );
     }
 
