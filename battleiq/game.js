@@ -813,7 +813,8 @@ class GameCoordinator {
                 hasRemoveId: choice.removeId !== undefined,
                 hasReply: typeof choice.reply === "string",
                 cbType: typeof cb,
-                cbName: cb?.name || "(anonymous)"
+                cbName: cb?.name || "(anonymous)",
+                cbSource: cb?.toString().substring(0, 120) + "..."
             });
 
             // 2026-06-11: Support speaker-switching mid-conversation (e.g., Audrey → Jacob).
