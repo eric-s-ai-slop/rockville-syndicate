@@ -14,6 +14,16 @@ const localStorageMock = {
 };
 Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock, writable: true });
 
+// Mock phaser to prevent loading phaser3spectorjs
+import { vi } from 'vitest';
+vi.mock('phaser', () => {
+    return {
+        default: {},
+        Game: class {},
+        Scene: class {},
+    };
+});
+
 // Improved Mock Canvas 2D Context for jsdom
 HTMLCanvasElement.prototype.getContext = function (contextId: string, options?: any): any {
   if (contextId === '2d') {

@@ -1,9 +1,18 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { preprocessShowcaseSheet } from './SpritePreprocessor';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { preprocessShowcaseSheet, preprocessColumnFirstSheet, preprocessGirlSilhouetteSheet } from './SpritePreprocessor';
 
 describe('SpritePreprocessor', () => {
+  let originalGetContext: any;
+  let originalGetImageData: any;
+
   beforeEach(() => {
-    // Reset vi mocks if necessary
+    // Save original methods
+    originalGetContext = HTMLCanvasElement.prototype.getContext;
+  });
+
+  afterEach(() => {
+    // Restore original methods
+    HTMLCanvasElement.prototype.getContext = originalGetContext;
   });
 
   it('should process a mock sprite sheet correctly and extract components', () => {
@@ -38,13 +47,252 @@ describe('SpritePreprocessor', () => {
     Object.defineProperty(img, 'naturalWidth', { value: 100 });
     Object.defineProperty(img, 'naturalHeight', { value: 100 });
 
-    const originalGetContext = HTMLCanvasElement.prototype.getContext;
     HTMLCanvasElement.prototype.getContext = () => null;
 
     expect(() => preprocessShowcaseSheet(img, 'test-character')).toThrowError(
       'Could not get temporary canvas 2D context'
     );
+  });
 
-    HTMLCanvasElement.prototype.getContext = originalGetContext;
+  const createMockGetContext = (
+    w: number,
+    h: number,
+    mockPixels: Array<{x: number, y: number, color?: number[]}> = []
+  ) => {
+    return function (contextId: string): any {
+      if (contextId === '2d') {
+        return {
+          fillRect: vi.fn(),
+          clearRect: vi.fn(),
+          getImageData: (ix: number, iy: number, iw: number, ih: number) => {
+            const data = new Uint8ClampedArray(iw * ih * 4);
+            // Default fully transparent
+            for (let i = 0; i < data.length; i += 4) {
+              data[i] = 0; data[i + 1] = 0; data[i + 2] = 0; data[i + 3] = 0;
+            }
+
+            // Add specific colored pixels
+            for (const { x, y, color } of mockPixels) {
+              // Map global x, y to local ix, iy
+              if (x >= ix && x < ix + iw && y >= iy && y < iy + ih) {
+                const lx = x - ix;
+                const ly = y - iy;
+                const idx = (ly * iw + lx) * 4;
+                data[idx] = color ? color[0] : 255;
+                data[idx + 1] = color ? color[1] : 0;
+                data[idx + 2] = color ? color[2] : 0;
+                data[idx + 3] = color ? color[3] : 255;
+              }
+            }
+
+            return { data, width: iw, height: ih };
+          },
+          putImageData: vi.fn(),
+          createImageData: vi.fn(() => []),
+          drawImage: vi.fn(),
+          imageSmoothingEnabled: false,
+        };
+      }
+      return null;
+    };
+  };
+
+  it('should handle a 3-row configuration sheet correctly', () => {
+    const img = document.createElement('img');
+    Object.defineProperty(img, 'naturalWidth', { value: 200 });
+    Object.defineProperty(img, 'naturalHeight', { value: 200 });
+
+    // Create 3 "rows" of components
+    const pixels = [];
+    for (let row = 0; row < 3; row++) {
+      for (let col = 0; col < 4; col++) {
+         // Create a 20x20 component box
+         for (let px=0; px<20; px++) {
+            for (let py=0; py<20; py++) {
+               pixels.push({ x: col * 40 + px + 10, y: row * 40 + py + 10 });
+            }
+         }
+      }
+    }
+
+    HTMLCanvasElement.prototype.getContext = createMockGetContext(200, 200, pixels);
+
+    const result = preprocessShowcaseSheet(img, 'standard');
+    expect(result.idleFrontFrames.length).toBeGreaterThan(0);
+    expect(result.walkFrames.length).toBeGreaterThan(0);
+    expect(result.attackFrames.length).toBeGreaterThan(0);
+  });
+
+  it('should handle a 4-row configuration sheet correctly', () => {
+    const img = document.createElement('img');
+    Object.defineProperty(img, 'naturalWidth', { value: 200 });
+    Object.defineProperty(img, 'naturalHeight', { value: 200 });
+
+    // Create 4 "rows" of components
+    const pixels = [];
+    for (let row = 0; row < 4; row++) {
+      for (let col = 0; col < 4; col++) {
+         // Create a 20x20 component box
+         for (let px=0; px<20; px++) {
+            for (let py=0; py<20; py++) {
+               pixels.push({ x: col * 40 + px + 10, y: row * 40 + py + 10 });
+            }
+         }
+      }
+    }
+
+    HTMLCanvasElement.prototype.getContext = createMockGetContext(200, 200, pixels);
+
+    const result = preprocessShowcaseSheet(img, 'jacob');
+    expect(result.idleFrontFrames.length).toBeGreaterThan(0);
+    expect(result.walkFrames.length).toBeGreaterThan(0);
+    expect(result.attackFrames.length).toBeGreaterThan(0);
+    expect(result.victoryFrames.length).toBeGreaterThan(0);
+  });
+
+  it('should handle a 7-row configuration sheet correctly', () => {
+    const img = document.createElement('img');
+    Object.defineProperty(img, 'naturalWidth', { value: 200 });
+    Object.defineProperty(img, 'naturalHeight', { value: 500 }); // Taller to fit 7 rows
+
+    // Create 7 "rows" of components
+    const pixels = [];
+    for (let row = 0; row < 7; row++) {
+      for (let col = 0; col < 4; col++) {
+         // Create a 20x20 component box
+         for (let px=0; px<20; px++) {
+            for (let py=0; py<20; py++) {
+               pixels.push({ x: col * 40 + px + 10, y: row * 60 + py + 10 });
+            }
+         }
+      }
+    }
+
+    HTMLCanvasElement.prototype.getContext = createMockGetContext(200, 500, pixels);
+
+    const result = preprocessShowcaseSheet(img, 'advanced');
+    expect(result.idleFrontFrames.length).toBeGreaterThan(0);
+    expect(result.idleSideFrames.length).toBeGreaterThan(0);
+    expect(result.idleBackFrames.length).toBeGreaterThan(0);
+    expect(result.walkFrontFrames.length).toBeGreaterThan(0);
+    expect(result.attackFrames.length).toBeGreaterThan(0);
+  });
+
+  it('should handle nick_f special case', () => {
+    const img = document.createElement('img');
+    Object.defineProperty(img, 'naturalWidth', { value: 500 });
+    Object.defineProperty(img, 'naturalHeight', { value: 200 });
+
+    // Create 3 "rows" of components, with 12 cols
+    const pixels = [];
+    for (let row = 0; row < 3; row++) {
+      for (let col = 0; col < 12; col++) {
+         // Create a 20x20 component box
+         for (let px=0; px<20; px++) {
+            for (let py=0; py<20; py++) {
+               pixels.push({ x: col * 30 + px + 10, y: row * 40 + py + 10 });
+            }
+         }
+      }
+    }
+
+    HTMLCanvasElement.prototype.getContext = createMockGetContext(500, 200, pixels);
+
+    const result = preprocessShowcaseSheet(img, 'nick_f');
+    expect(result.idleFrontFrames.length).toBeGreaterThan(0);
+    expect(result.idleBackFrames.length).toBeGreaterThan(0);
+    expect(result.idleSideFrames.length).toBeGreaterThan(0);
+  });
+
+  it('should ignore text labels and big illustrations', () => {
+    const img = document.createElement('img');
+    Object.defineProperty(img, 'naturalWidth', { value: 400 });
+    Object.defineProperty(img, 'naturalHeight', { value: 400 });
+
+    const pixels = [];
+    // Small text label at top
+    for (let px=0; px<100; px++) {
+       for (let py=0; py<10; py++) {
+          pixels.push({ x: px + 10, y: py + 10 });
+       }
+    }
+
+    // Big illustration
+    for (let px=0; px<200; px++) {
+       for (let py=0; py<200; py++) {
+          pixels.push({ x: px + 10, y: py + 100 });
+       }
+    }
+
+    HTMLCanvasElement.prototype.getContext = createMockGetContext(400, 400, pixels);
+
+    const result = preprocessShowcaseSheet(img, 'test-character');
+    // Should fallback to 0 frames as no valid components were found
+    expect(result.idleFrontFrames[0]).toBe(0);
+  });
+
+  it('should process column-first sheet correctly (preprocessColumnFirstSheet)', () => {
+    const img = document.createElement('img');
+    Object.defineProperty(img, 'naturalWidth', { value: 200 });
+    Object.defineProperty(img, 'naturalHeight', { value: 200 });
+
+    const pixels = [];
+    // Create columns
+    for (let col = 0; col < 8; col++) {
+      for (let row = 0; row < 4; row++) {
+         for (let px=0; px<10; px++) {
+            for (let py=0; py<10; py++) {
+               pixels.push({ x: col * 20 + px + 5, y: row * 20 + py + 5 });
+            }
+         }
+      }
+    }
+
+    HTMLCanvasElement.prototype.getContext = createMockGetContext(200, 200, pixels);
+
+    const result = preprocessColumnFirstSheet(img, 'test-boss');
+    expect(result).toBeDefined();
+    expect(result.idleFrontFrames.length).toBeGreaterThan(0);
+  });
+
+  it('should throw error if canvas context cannot be created in preprocessColumnFirstSheet', () => {
+    const img = document.createElement('img');
+    Object.defineProperty(img, 'naturalWidth', { value: 100 });
+    Object.defineProperty(img, 'naturalHeight', { value: 100 });
+
+    HTMLCanvasElement.prototype.getContext = () => null;
+
+    expect(() => preprocessColumnFirstSheet(img, 'test-character')).toThrowError();
+  });
+
+  it('should process girl silhouette sheet correctly (preprocessGirlSilhouetteSheet)', () => {
+    const img = document.createElement('img');
+    Object.defineProperty(img, 'naturalWidth', { value: 848 });
+    Object.defineProperty(img, 'naturalHeight', { value: 1264 });
+
+    const pixels = [];
+    // Just mock some non-bg pixels
+    for (let px=0; px<10; px++) {
+      for (let py=0; py<10; py++) {
+         pixels.push({ x: px + 50, y: py + 50 });
+      }
+    }
+
+    HTMLCanvasElement.prototype.getContext = createMockGetContext(848, 1264, pixels);
+
+    const result = preprocessGirlSilhouetteSheet(img);
+    expect(result).toBeDefined();
+    expect(result.idleFrontFrames.length).toBe(4);
+    expect(result.walkFrames.length).toBe(4);
+  });
+
+  it('should throw error if canvas context cannot be created in preprocessGirlSilhouetteSheet', () => {
+    const img = document.createElement('img');
+    Object.defineProperty(img, 'naturalWidth', { value: 100 });
+    Object.defineProperty(img, 'naturalHeight', { value: 100 });
+
+    HTMLCanvasElement.prototype.getContext = () => null;
+
+    expect(() => preprocessGirlSilhouetteSheet(img)).toThrowError();
   });
 });
