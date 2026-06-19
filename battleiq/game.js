@@ -730,7 +730,7 @@ class GameCoordinator {
         // 2026-06-11 FIX: Hide the controls panel so it doesn't hover over the
         // choice text (e.g., D1 Joe's branching dialogue).
         const toolbox = document.getElementById("controls-toolbox");
-        if (toolbox) toolbox.classList.add("choice-menu-active");
+        if (toolbox) toolbox.classList.add("hidden");
 
         const menu = document.getElementById("dialogue-choices");
         const list = document.getElementById("choices-list");
@@ -769,7 +769,14 @@ class GameCoordinator {
         if (menu) menu.classList.add("hidden");
         // 2026-06-11 FIX: Re-show the controls panel when the choice menu closes.
         const toolbox = document.getElementById("controls-toolbox");
-        if (toolbox) toolbox.classList.remove("choice-menu-active");
+        if (toolbox) {
+            // Respect the user's manual hidden state from ControlsHUD
+            if (typeof controlsHUD !== "undefined" && controlsHUD.userHidden) {
+                // Do nothing, leave it hidden
+            } else {
+                toolbox.classList.remove("hidden");
+            }
+        }
     }
 
 
