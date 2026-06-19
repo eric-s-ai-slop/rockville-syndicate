@@ -599,7 +599,6 @@ class GameCoordinator {
                 // option the user picked. Falls back to undefined for
                 // non-choice-related callbacks (which just ignore the arg).
                 const stashedChoice = this._lastPickedChoice;
-                this._lastPickedChoice = null;  // clear so it doesn't leak
 
                 // 2026-06-11: Diagnostic log — would have caught the
                 // missing-arg bug in 1 line. Shows exactly which cb is
@@ -611,6 +610,8 @@ class GameCoordinator {
                 });
 
                 cb(stashedChoice);
+
+                this._lastPickedChoice = null;  // clear so it doesn't leak
             }
             return;
         }
