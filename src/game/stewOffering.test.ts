@@ -15,6 +15,10 @@ describe('StewOfferingMode', () => {
           container: vi.fn().mockReturnValue({ setScrollFactor: vi.fn().mockReturnThis(), setDepth: vi.fn().mockReturnThis(), setScale: vi.fn().mockReturnThis() })
         }
       },
+      add: {
+        graphics: vi.fn().mockReturnValue({ fillStyle: vi.fn(), lineStyle: vi.fn(), fillRect: vi.fn(), strokeRect: vi.fn(), clear: vi.fn(), fillRoundedRect: vi.fn(), strokeRoundedRect: vi.fn() }),
+        container: vi.fn().mockReturnValue({ setScrollFactor: vi.fn().mockReturnThis(), setDepth: vi.fn().mockReturnThis(), setScale: vi.fn().mockReturnThis(), destroy: vi.fn() })
+      },
       label: vi.fn().mockReturnValue({ setOrigin: vi.fn().mockReturnThis(), width: 100, height: 20, setText: vi.fn() }),
       actorSprites: {
         'ben': [mockBen],
@@ -32,7 +36,18 @@ describe('StewOfferingMode', () => {
       time: {
         delayedCall: vi.fn((delay, cb) => cb())
       },
-      showBubbleText: vi.fn()
+      showBubbleText: vi.fn(),
+      physics: {
+        scene: {
+          input: {
+            on: vi.fn(),
+            off: vi.fn()
+          }
+        }
+      },
+      sound: {
+        play: vi.fn()
+      }
     };
 
     let completed = false;
