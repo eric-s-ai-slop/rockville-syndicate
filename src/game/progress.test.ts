@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { isChapterUnlocked, setFreePlay, loadProgress } from './progress';
+import { isChapterUnlocked, setFreePlay, loadProgress, saveProgress } from './progress';
 
 vi.mock('../data/chapters', () => ({
   CHAPTERS: [
@@ -31,6 +31,31 @@ describe('isChapterUnlocked', () => {
   it('returns false if the previous chapter is NOT in the completed array', () => {
     expect(isChapterUnlocked('chapter2', [], false)).toBe(false);
     expect(isChapterUnlocked('chapter3', ['chapter1'], false)).toBe(false);
+  });
+});
+
+describe('saveProgress', () => {
+  it('saves progress to localStorage', () => {
+    const setItemSpy = vi.spyOn(window.localStorage, 'setItem');
+    const mockProgress = { completedChapters: ['chapter1'], freePlay: true };
+
+    saveProgress(mockProgress);
+
+    expect(setItemSpy).toHaveBeenCalledWith('omega-progress-v1', JSON.stringify(mockProgress));
+
+    setItemSpy.mockRestore();
+  });
+
+  it('gracefully handles localStorage exceptions', () => {
+    const setItemSpy = vi.spyOn(window.localStorage, 'setItem').mockImplementation(() => {
+      throw new Error('Quota exceeded');
+    });
+
+    const mockProgress = { completedChapters: [] };
+
+    expect(() => saveProgress(mockProgress)).not.toThrow();
+
+    setItemSpy.mockRestore();
   });
 });
 
