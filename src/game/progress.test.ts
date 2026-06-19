@@ -34,6 +34,28 @@ describe('isChapterUnlocked', () => {
   });
 });
 
+describe('loadProgress', () => {
+  it('returns default progress if localStorage.getItem throws an error (e.g. restrictive browser settings)', () => {
+    const getItemSpy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('Access denied');
+    });
+
+    const progress = loadProgress();
+    expect(progress).toEqual({ completedChapters: [] });
+
+    getItemSpy.mockRestore();
+  });
+
+  it('returns default progress if localStorage contains invalid JSON', () => {
+    const getItemSpy = vi.spyOn(Storage.prototype, 'getItem').mockReturnValue('invalid json');
+
+    const progress = loadProgress();
+    expect(progress).toEqual({ completedChapters: [] });
+
+    getItemSpy.mockRestore();
+  });
+});
+
 describe('setFreePlay', () => {
   it('sets freePlay flag and saves', () => {
     const progress = setFreePlay(true);
