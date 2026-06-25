@@ -301,6 +301,7 @@ const chapter3b: ChapterConfig = {
     },
     {
       type: 'minigame',
+      id: 'story_fractures',
       modeId: 'storyFractures',
       background: false,
       introLines: [

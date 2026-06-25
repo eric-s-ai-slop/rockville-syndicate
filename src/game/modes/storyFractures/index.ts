@@ -319,16 +319,37 @@ export class StoryFracturesMode implements GameMode<StoryFracturesConfig> {
     });
 
     let clicked = false;
-    view.label.once('pointerdown', () => {
-      clicked = true;
-      this.ekgSpiking = false;
-      jitterTween.stop();
-      view.label.setPosition(view.label.getData('origX'), view.label.getData('origY'));
-      this.markFracture(view);
-    });
+    const checkClick = (pointer: any) => {
+      if (clicked) return;
+      
+      const worldX = (this.textContainer ? this.textContainer.x : 0) + view.label.getData('origX');
+      const worldY = (this.textContainer ? this.textContainer.y : 0) + view.label.getData('origY');
+      const w = view.label.width;
+      const h = view.label.height;
+      const padding = 60; // Forgiving hit box to account for the jitter
+
+      if (
+        pointer.x >= worldX - padding &&
+        pointer.x <= worldX + w + padding &&
+        pointer.y >= worldY - padding &&
+        pointer.y <= worldY + h + padding
+      ) {
+        clicked = true;
+        this.ctx.physics.scene.input.off('pointerdown', checkClick);
+        this.ekgSpiking = false;
+        jitterTween.stop();
+        view.label.setPosition(view.label.getData('origX'), view.label.getData('origY'));
+        view.label.disableInteractive();
+        this.markFracture(view);
+      }
+    };
+    
+    // Listen globally but mathematically restrict to the text's bounding box
+    this.ctx.physics.scene.input.on('pointerdown', checkClick);
 
     // Short reaction window (2.8 seconds)
     this.addTimer(2800, () => {
+      this.ctx.physics.scene.input.off('pointerdown', checkClick);
       if (!clicked) {
         this.ekgSpiking = false;
         jitterTween.stop();

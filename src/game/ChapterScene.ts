@@ -933,7 +933,20 @@ export default class ChapterScene extends Phaser.Scene {
     if (this.chapter.id === 'maria_brooke') mariaBrookeStats.reset();
 
     // Kick off the story.
-    this.time.delayedCall(300, () => this.startBeat(0));
+    const urlParams = new URLSearchParams(window.location.search);
+    const startBeatParam = urlParams.get('beat');
+    let startBeatIndex = 0;
+    if (startBeatParam) {
+      const idx = parseInt(startBeatParam, 10);
+      if (!Number.isNaN(idx)) {
+        startBeatIndex = idx;
+      } else {
+        const idIdx = this.chapter.beats.findIndex(b => b.id === startBeatParam);
+        if (idIdx >= 0) startBeatIndex = idIdx;
+      }
+    }
+    
+    this.time.delayedCall(300, () => this.startBeat(startBeatIndex));
 
     // Clean up audio when the scene shuts down
     this.events.once('shutdown', () => {
