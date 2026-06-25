@@ -5,7 +5,7 @@
 - **Node/NPM**: Native package management.
 
 ## 2. Common Developer Commands
-- **Run local dev server**: `npm run dev` (serves at port 3000)
+- **Run local dev server**: `npm run dev` (serves at port 3324)
 - **TypeScript build & typecheck**: `npm run lint` (runs `tsc --noEmit`)
 - **Run Unit Tests**: `npm test` (runs Vitest unit test suite)
 - **Run E2E Tests**: `npm run e2e` (runs Playwright integration tests)
@@ -50,7 +50,7 @@ docs/
 - **Per-track audio mixing**: The global stage music crossfade applies a fixed target volume (usually 0.30). If a specific music track is mastered too quietly, handle it via an inline conditional in `AudioController.ts` (e.g. `newKey === 'music_ch6' ? 0.70 : 0.30`) rather than changing the global default.
 - **Jumpscare audio syncing**: Some audio assets (like the Prowler sting) have a slow, quiet buildup. When playing them alongside a visual jumpscare flash, use the `seek` property (e.g., `sound.play('boss_sting', { volume: 1.2, seek: 0.7 })`) to skip the buildup and instantly hit the peak audio impact alongside the visual.
 - **`window.__OMEGA_GAME__`** exposes the Phaser game in dev (guarded by `import.meta.env.DEV` in `postBoot`). Use it from the browser console to inspect live scene state.
-- **Dev server caches Vite transforms.** After editing, a full restart of `npm run dev` (port 3000) is more reliable than hot reload; verify served code with `curl localhost:3000/src/... | grep <symbol>`.
+- **Dev server caches Vite transforms.** After editing, a full restart of `npm run dev` (port 3324) is more reliable than hot reload; verify served code with `curl localhost:3324/src/... | grep <symbol>`.
 
 ## 5. Development Recipes
 - **How to add a chapter**: Copy an existing chapter file inside `src/data/chapters/`, configure its map and narrative beats, and import/append it to the `CHAPTERS` list in `src/data/chapters/index.ts`.

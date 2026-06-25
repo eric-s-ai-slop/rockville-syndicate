@@ -5,8 +5,7 @@ import { createServer as createViteServer } from "vite";
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
-
+  const PORT = 3324;
   app.use(express.json());
 
   // Simple File-Based DB representing our Stateless SQLite Leaderboard

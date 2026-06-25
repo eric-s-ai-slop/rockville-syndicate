@@ -76,6 +76,7 @@ Chapters are declarative config files in [`src/data/chapters/`](src/data/chapter
 | 3b | The UMBC Incident *(Act III — The Pariah Event)* | UMBC | Ben | `chapter3b.umbc-incident.ts` |
 | 4 | The Jungle Gym Gambit *(Interlude)* | 1202 Princeton Place | — | `chapter4.jungle-gym-gambit.ts` |
 | 5 | The Florida Highway Duel | Boca Raton highway | Jordan | `chapter5.florida-highway-duel.ts` |
+| 5b | The Closed System | Florida, July 4th | Maharko | `chapter5b.rose.ts` |
 | 6 | Operation Ding Dong Ditch Ben | 12 Watchwater Way | Ben | `chapter6.ding-dong-ditch-ben.ts` |
 | 7 | The Spain Betrayal | Commons 1522 | Nick F | `chapter7.spain-betrayal.ts` |
 | 8 | The Cabin *(Epilogue)* | Basye, VA | — | `chapter8.the-cabin.ts` |
@@ -133,6 +134,8 @@ Interactive segments implement the `GameMode` contract in [`src/game/modes/types
 | `fratAggro` | `modes/fratAggro/` | Frat aggression encounter |
 | `silentDrive` | `modes/silentDrive/` | Quiet driving interlude |
 | `groupChat` | `modes/groupChat/` | Simulated group-chat timeline (parser, reactions, timeline) |
+| `carRide` | `modes/carRide/` | Car ride sequence (Maharko boss fight) |
+| `external` | `modes/external/` | Loads external minigames (e.g. BattleIQ) |
 
 The [`modes/_template/`](src/game/modes/_template/) directory is a copyable reference. To build a new one, follow [`docs/ADDING_A_MINIGAME.md`](docs/ADDING_A_MINIGAME.md).
 
@@ -280,9 +283,9 @@ npm install
 npm run dev
 ```
 
-The dev server (`tsx server.ts`) runs at **`http://localhost:3000`**.
+The dev server (`tsx server.ts`) runs at **`http://localhost:3324`**.
 
-> **Tip:** After editing, a full restart of `npm run dev` is more reliable than hot reload for picking up changes (Vite caches transforms). Verify served code with `curl localhost:3000/src/... | grep <symbol>`.
+> **Tip:** After editing, a full restart of `npm run dev` is more reliable than hot reload for picking up changes (Vite caches transforms). Verify served code with `curl localhost:3324/src/... | grep <symbol>`.
 
 ---
 
@@ -290,7 +293,7 @@ The dev server (`tsx server.ts`) runs at **`http://localhost:3000`**.
 
 | Command | What it does |
 |---------|--------------|
-| `npm run dev` | Start the dev server (`tsx server.ts`) on port 3000 |
+| `npm run dev` | Start the dev server (`tsx server.ts`) on port 3324 |
 | `npm run build` | Build client assets with Vite **and** bundle the server to `dist/server.cjs` (esbuild) |
 | `npm start` | Run the built production server (`node dist/server.cjs`) |
 | `npm run lint` | Typecheck the project (`tsc --noEmit`) |
@@ -323,7 +326,7 @@ mkdir -p db_data && chmod 777 db_data
 
 ### 2. Build & Run with Docker Compose
 
-By default the container listens on port `3000` and maps it to `localhost:3000`. Build the production image and start the container:
+By default the container listens on port `3324` and maps it to `localhost:3324`. Build the production image and start the container:
 
 ```bash
 docker compose up -d --build
@@ -355,7 +358,7 @@ server {
     server_name your-domain.com;
 
     location / {
-        proxy_pass http://localhost:3000;
+        proxy_pass http://localhost:3324;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -379,7 +382,7 @@ Caddy automatically provisions SSL certificates. Add the following to `/etc/cadd
 
 ```caddy
 your-domain.com {
-    reverse_proxy localhost:3000
+    reverse_proxy localhost:3324
 }
 ```
 
