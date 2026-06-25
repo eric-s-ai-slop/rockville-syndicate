@@ -315,10 +315,14 @@ const GAME_DATA = {
         // ============================================================================
         maharko_boss: {
             name: "Myat Maharko (D1 Critic Mode)",
-            maxHp: 100,  // 2026-06-11: -50% HP (was 200) for snappier fights
-            hp: 100,
-            atk: 25,
-            def: 12,
+            // 2026-06-24: HP raised to 260 (was 100). At ~35 dmg/hit this is a 7-8
+            // round fight, so the player survives multiple bullet-hell rounds and
+            // chips the boss down — instead of dying in the first round and having
+            // the whole minigame end after a single hit. ATK/DEF bumped to match.
+            maxHp: 260,
+            hp: 260,
+            atk: 32,
+            def: 16,
             speed: 13,
             mood: "STALKING",
             memberId: "maharko",  // When defeated, Maharko auto-joins the party

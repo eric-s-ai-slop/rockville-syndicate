@@ -1319,10 +1319,10 @@ export function preprocessGirlSilhouetteSheet(img: HTMLImageElement): SlicedSpri
   };
 }
 
-export function preprocessStandardSheet(img: HTMLImageElement): SlicedSpriteSheet {
+export function preprocessStandardSheet(img: HTMLImageElement, cols = 3): SlicedSpriteSheet {
   const width = img.naturalWidth || img.width;
   const height = img.naturalHeight || img.height;
-  
+
   const tempCanvas = document.createElement('canvas');
   tempCanvas.width = width;
   tempCanvas.height = height;
@@ -1333,18 +1333,21 @@ export function preprocessStandardSheet(img: HTMLImageElement): SlicedSpriteShee
   const imgData = tempCtx.getImageData(0, 0, width, height);
   const pixels = imgData.data;
 
-  // Background color sample at (0, 0)
-  const bgR = pixels[0];
-  const bgG = pixels[1];
-  const bgB = pixels[2];
-
-  // Strip background
+  // Strip background. These source sheets are JPGs (no alpha), so the intended
+  // transparent area was flattened into a two-tone gray checkerboard
+  // (~#787878 and ~#bdbdbd). A single bg-color sample at (0,0) only catches one of
+  // the two tones, leaving the other as visible checker squares in-game. Instead,
+  // strip ANY near-neutral pixel within the checker brightness band — this removes
+  // both tones while preserving the white tank tops (lum > 210) and every colored
+  // pixel (hair, skin, denim) as well as the dark character outlines (lum < 70).
   for (let i = 0; i < pixels.length; i += 4) {
     const r = pixels[i];
     const g = pixels[i+1];
     const b = pixels[i+2];
-    const dist = Math.sqrt((r-bgR)**2 + (g-bgG)**2 + (b-bgB)**2);
-    if (dist < 45 || r > 240) { // Strip bg and pure white
+    const mx = Math.max(r, g, b);
+    const mn = Math.min(r, g, b);
+    const lum = (r + g + b) / 3;
+    if (mx - mn < 24 && lum > 70 && lum < 210) {
       pixels[i+3] = 0; // Transparent
     }
   }
@@ -1356,7 +1359,7 @@ export function preprocessStandardSheet(img: HTMLImageElement): SlicedSpriteShee
   if (!finalCtx) throw new Error('finalCtx fail');
   finalCtx.putImageData(imgData, 0, 0);
 
-  const frameWidth = width / 3;
+  const frameWidth = width / cols;
   const frameHeight = height / 4;
 
   return {

@@ -272,7 +272,7 @@ export class GroupChatMode implements GameMode {
       this.maskGfx.fillRect(this.L.frameLeft + 2 + cam.scrollX, this.L.frameTop + 2 + cam.scrollY, this.L.frameW - 4, this.L.frameH - 4);
     }
 
-    this.benResolveTarget = Math.min(100, this.benResolveTarget + delta * 0.0008);
+    this.benResolveTarget = Math.min(100, this.benResolveTarget + delta * 0.0005);
     this.benResolve += (this.benResolveTarget - this.benResolve) * 0.08;
     
     const trackW = this.L.frameW - 140;
@@ -691,16 +691,25 @@ export class GroupChatMode implements GameMode {
       ctx.label(0, -6, 'or close the app and say nothing.', { fontSize: '11px', color: '#94a3b8' }).setOrigin(0.5)
     );
 
-    // Close app button
-    const btn = ctx.add.rectangle(0, 34, 170, 30, 0x7f1d1d).setInteractive({ useHandCursor: true }).setStrokeStyle(1, 0xef4444);
+    this.finalPromptOverlay = overlay;
+    this.track(overlay);
+
+    // Close app button — created as TOP-LEVEL objects with setScrollFactor(0),
+    // NOT as children of the overlay container. Phaser does not apply a
+    // container's scrollFactor to its children's input hit-testing, so an
+    // interactive child inside a scrollFactor(0) container has its hit area
+    // offset by the (scrolled) world camera and becomes unclickable. The
+    // reaction buttons work precisely because they are top-level + scrollFactor 0.
+    const btnY = L.cy + 34;
+    const btn = ctx.add.rectangle(L.cx, btnY, 180, 32, 0x7f1d1d)
+      .setDepth(D + 21).setScrollFactor(0)
+      .setInteractive({ useHandCursor: true }).setStrokeStyle(1, 0xef4444);
     btn.on('pointerover', () => btn.setFillStyle(0x991b1b));
     btn.on('pointerout',  () => btn.setFillStyle(0x7f1d1d));
     btn.on('pointerdown', () => this.resolve(false));
-    overlay.add(btn);
-    overlay.add(ctx.label(0, 34, 'Close app', { fontSize: '11px', color: '#fca5a5' }).setOrigin(0.5));
-
-    this.finalPromptOverlay = overlay;
-    this.track(overlay);
+    this.track(btn);
+    this.track(ctx.label(L.cx, btnY, 'Close app', { fontSize: '11px', color: '#fca5a5' })
+      .setDepth(D + 22).setScrollFactor(0).setOrigin(0.5));
 
     // Player can still type — Enter during final prompt counts as late
     const originalHandler = this.keyListener;

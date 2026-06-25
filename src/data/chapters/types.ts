@@ -145,7 +145,7 @@ export type Beat = { id?: string } & (
   | { type: 'walkTo'; x: number; y: number; radius?: number; markerLabel?: string }
   | { type: 'cameraPan'; x: number; y: number; durationMs: number; holdMs?: number }
   | { type: 'bossFight'; bossId: string; arena: { x: number; y: number; w: number; h: number }; hideActorId?: string; introLines?: string[] }
-  | { type: 'minigame'; modeId: string; config?: unknown; introLines?: string[]; background?: boolean }
+  | { type: 'minigame'; modeId: string; config?: unknown; introLines?: string[]; background?: boolean; loseGoto?: string }
   | { type: 'routeOnMinigame'; cases: Record<string, string>; default?: string }
   | { type: 'chase'; pursuerId: string; durationMs: number }
   | { type: 'wait'; ms: number }

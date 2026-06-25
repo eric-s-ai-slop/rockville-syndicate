@@ -40,8 +40,13 @@
 
   // Stub missing globals that battle.js needs (since we are not loading the overworld)
   window.game = window.game || {
+    // 2026-06-24: Hero HP raised to 220 (was 100). The boss turn is a 5s bullet
+    // hell dealing 12 HP/hit; at 100 HP the player could be wiped in the FIRST
+    // round (party empties -> game over -> minigame exits after a single hit).
+    // 220 HP guarantees surviving the opening round and makes the longer,
+    // tankier-boss fight a real dodging challenge instead of an instant loss.
     party: [
-      { name: "Hero", hp: 100, maxHp: 100, atk: 35, def: 10, spd: 14, locked: false }
+      { name: "Hero", hp: 220, maxHp: 220, atk: 35, def: 10, spd: 14, locked: false }
     ],
     inventory: [],
     currentActIndex: 3,
@@ -53,9 +58,19 @@
     }
   };
   
+  // Stub the controls HUD. The real one lives in ui.js/game.js (not loaded in the
+  // embedded sandbox). bulletHell.start() calls controlsHUD.updateControls() at the
+  // start of every enemy turn — without it, the first attack threw
+  // "updateControls is not a function", which the error handler forwarded to the
+  // parent and ended the minigame after a single hit. Stub every method the game
+  // touches (updateControls, init, toggleVisible) plus the userHidden flag.
   window.controlsHUD = window.controlsHUD || {
+    userHidden: false,
+    updateControls: () => {},
     updateHUD: () => {},
-    hideHUD: () => {}
+    hideHUD: () => {},
+    init: () => {},
+    toggleVisible: () => {}
   };
 
   // Forward global keyboard inputs directly to battleController

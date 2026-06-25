@@ -692,26 +692,53 @@ export default class ChapterScene extends Phaser.Scene {
       }
     }
 
-    // Process chapter 5b NPC sheets (they are standard 3x4 grids, not showcase sheets)
-    ['npc_alex_sheet', 'npc_benji_sheet', 'npc_rose_sheet', 'npc_rose_sister_sheet'].forEach(sheetKey => {
+    // Process chapter 5b NPC sheets. These are LimeZu-style walk sheets with 4 rows
+    // (front/back/side directions) but a PER-SHEET column count — rose & alex are
+    // 6-wide, benji & rose_sister are 4-wide. The previous fixed 3-column slice put
+    // ~2 characters in every frame (hence the doubled "Alex" on screen). Static NPCs
+    // only ever render frame 0 (see Actors.ts), so frame 0 must be a single
+    // front-facing standing pose; rose's front row starts at column 1, so her sheet
+    // is shifted left by one cell to land that pose on frame 0.
+    const npcSheets = [
+      { key: 'npc_alex_sheet',        cols: 6, frontCol: 0 },
+      { key: 'npc_benji_sheet',       cols: 4, frontCol: 0 },
+      { key: 'npc_rose_sheet',        cols: 6, frontCol: 1 },
+      { key: 'npc_rose_sister_sheet', cols: 4, frontCol: 0 },
+    ];
+    npcSheets.forEach(({ key: sheetKey, cols, frontCol }) => {
       const rawKey = `${sheetKey}_raw_jpg`;
       if (!this.textures.exists(rawKey) || this.textures.exists(sheetKey)) return;
       try {
         const image = this.textures.get(rawKey).getSourceImage() as HTMLImageElement;
-        const processed = preprocessStandardSheet(image);
+        const processed = preprocessStandardSheet(image, cols);
+        const fw = processed.frameWidth;
+        const fh = processed.frameHeight;
+
+        let canvas = processed.canvas;
+        if (frontCol > 0) {
+          // Drop leading (non-front) columns so the front standing pose is frame 0.
+          const shifted = document.createElement('canvas');
+          shifted.width = fw * (cols - frontCol);
+          shifted.height = canvas.height;
+          const sctx = shifted.getContext('2d');
+          if (sctx) {
+            sctx.drawImage(canvas, frontCol * fw, 0, shifted.width, canvas.height, 0, 0, shifted.width, canvas.height);
+            canvas = shifted;
+          }
+        }
+
         const cleanKey = `${sheetKey}_clean_canvas`;
-        this.textures.addCanvas(cleanKey, processed.canvas);
+        this.textures.addCanvas(cleanKey, canvas);
         const src = this.textures.get(cleanKey).getSourceImage() as HTMLImageElement;
-        this.textures.addSpriteSheet(sheetKey, src, { frameWidth: processed.frameWidth, frameHeight: processed.frameHeight });
-        
-        this.registerAnim(sheetKey, sheetKey, 'idle_front', processed.idleFrontFrames, 4, -1);
-        this.registerAnim(sheetKey, sheetKey, 'idle_side', processed.idleSideFrames, 4, -1);
-        this.registerAnim(sheetKey, sheetKey, 'idle_back', processed.idleBackFrames, 4, -1);
-        this.registerAnim(sheetKey, sheetKey, 'walk_front', processed.walkFrontFrames, 8, -1);
-        this.registerAnim(sheetKey, sheetKey, 'walk_side', processed.walkSideFrames, 8, -1);
-        this.registerAnim(sheetKey, sheetKey, 'walk_back', processed.walkBackFrames, 8, -1);
-        this.registerAnim(sheetKey, sheetKey, 'idle', processed.idleFrontFrames, 4, -1); // Fallback
-        this.registerAnim(sheetKey, sheetKey, 'walk', processed.walkFrames, 8, -1); // Fallback
+        this.textures.addSpriteSheet(sheetKey, src, { frameWidth: fw, frameHeight: fh });
+
+        // Front row = first row. Static NPCs use frame 0; register simple front
+        // idle/walk anims for completeness (e.g. if ever driven as an understudy).
+        const frontRow = Array.from({ length: cols - frontCol }, (_, i) => i);
+        this.registerAnim(sheetKey, sheetKey, 'idle_front', [0], 4, -1);
+        this.registerAnim(sheetKey, sheetKey, 'walk_front', frontRow, 8, -1);
+        this.registerAnim(sheetKey, sheetKey, 'idle', [0], 4, -1); // Fallback
+        this.registerAnim(sheetKey, sheetKey, 'walk', frontRow, 8, -1); // Fallback
       } catch (err) {
         console.error(`[GameScene] NPC sheet error for ${sheetKey}:`, err);
       }

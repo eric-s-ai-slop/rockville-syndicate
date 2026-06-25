@@ -167,8 +167,6 @@ const chapter5b: ChapterConfig = {
           { x: 80, y: 100, w: 40, h: 80, fill: 0x2d5016, propType: 'tree', propKey: 'furn_plant_tall', solid: true },
           // Couch (living room)
           { x: 180, y: 290, w: 200, h: 70, fill: C.couch, propType: 'couch', propKey: 'furn_couch_long', solid: true },
-          // Coffee table
-          { x: 200, y: 400, w: 140, h: 50, fill: C.desk, propType: 'desk', propKey: 'furn_coffee_table', solid: true },
           // Kitchen counter
           { x: 720, y: 250, w: 200, h: 50, fill: C.counter, propType: 'counter', solid: true },
           // Sink
@@ -189,9 +187,9 @@ const chapter5b: ChapterConfig = {
         { id: 'nick_f',      x: 460, y: 560 },
         { id: 'benji',       x: 700, y: 340, nameOverride: 'Benji', spriteKey: 'npc_benji_sheet' },
         { id: 'rose_sister', x: 800, y: 200, nameOverride: "Rose's Sister", spriteKey: 'npc_rose_sister_sheet' },
-        { id: 'party1',      x: 520, y: 200, nameOverride: 'Partygoer' },
-        { id: 'party2',      x: 750, y: 390, nameOverride: 'Partygoer' },
-        { id: 'party3',      x: 380, y: 510, nameOverride: 'Partygoer' },
+        { id: 'party1',      x: 520, y: 200, nameOverride: 'Partygoer', spriteKey: 'enemy_frat_bro_sheet' },
+        { id: 'party2',      x: 750, y: 390, nameOverride: 'Partygoer', spriteKey: 'enemy_frat_bro_sheet' },
+        { id: 'party3',      x: 380, y: 510, nameOverride: 'Partygoer', spriteKey: 'enemy_frat_bro_sheet' },
       ],
     },
 
@@ -422,6 +420,7 @@ const chapter5b: ChapterConfig = {
 
     // 14. [CHANGE SCENE] Lawn → Car
     {
+      id: 'car_scene_start',
       type: 'changeScene',
       sceneIndex: 2,
       transitionMs: 1000
@@ -544,6 +543,7 @@ const chapter5b: ChapterConfig = {
       type: 'minigame',
       modeId: 'battleiq-battle',
       config: { enemyId: 'maharko_boss' },
+      loseGoto: 'car_scene_start',
       introLines: [
         'MAHARKO — The Florida Wildcard',
         'Defeat him before the car gets home.',
@@ -586,6 +586,7 @@ const chapter5b: ChapterConfig = {
       type: 'minigame',
       modeId: 'battleiq-battle',
       config: { enemyId: 'maharko_boss' },
+      loseGoto: 'car_scene_start',
       introLines: [
         'MAHARKO — The Florida Wildcard',
         'Defeat him before the car gets home.',
@@ -673,7 +674,6 @@ const chapter5b: ChapterConfig = {
       { x: 340, y: 70, w: 80, h: 40, fill: C.desk, propType: 'desk', propKey: 'furn_cabinet_tall', solid: true },
       { x: 80, y: 100, w: 40, h: 80, fill: 0x2d5016, propType: 'tree', propKey: 'furn_plant_tall', solid: true },
       { x: 180, y: 290, w: 200, h: 70, fill: C.couch, propType: 'couch', propKey: 'furn_couch_long', solid: true },
-      { x: 200, y: 400, w: 140, h: 50, fill: C.desk, propType: 'desk', propKey: 'furn_coffee_table', solid: true },
       { x: 720, y: 250, w: 200, h: 50, fill: C.counter, propType: 'counter', solid: true },
       { x: 630, y: 250, w: 60, h: 50, fill: C.sink, propType: 'sink', solid: true },
       { x: 850, y: 150, w: 60, h: 80, fill: C.fridge, propType: 'fridge', solid: true },
@@ -690,9 +690,9 @@ const chapter5b: ChapterConfig = {
     { id: 'nick_f',      x: 460, y: 560 },
     { id: 'benji',       x: 700, y: 340, nameOverride: 'Benji', spriteKey: 'npc_benji_sheet' },
     { id: 'rose_sister', x: 800, y: 200, nameOverride: "Rose's Sister", spriteKey: 'npc_rose_sister_sheet' },
-    { id: 'party1',      x: 520, y: 200, nameOverride: 'Partygoer' },
-    { id: 'party2',      x: 750, y: 390, nameOverride: 'Partygoer' },
-    { id: 'party3',      x: 380, y: 510, nameOverride: 'Partygoer' },
+    { id: 'party1',      x: 520, y: 200, nameOverride: 'Partygoer', spriteKey: 'enemy_frat_bro_sheet' },
+    { id: 'party2',      x: 750, y: 390, nameOverride: 'Partygoer', spriteKey: 'enemy_frat_bro_sheet' },
+    { id: 'party3',      x: 380, y: 510, nameOverride: 'Partygoer', spriteKey: 'enemy_frat_bro_sheet' },
   ],
 };
 

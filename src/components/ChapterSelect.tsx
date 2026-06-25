@@ -90,9 +90,10 @@ const KIND_TAG: Record<ChapterConfig['kind'], string> = {
   flashback: 'FLASHBACK',
 };
 
-// This chapter is shown as a redacted/CLASSIFIED entry. One click breaks the
-// seal, after which it renders as a normal, playable card.
-const CLASSIFIED_ID = 'umbc_incident';
+// These chapters are shown as redacted/CLASSIFIED entries. One click cracks the
+// seal, a second shatters it — after which they render as normal, playable cards.
+const CLASSIFIED_IDS = ['umbc_incident', 'rose_florida'];
+type SealState = 'intact' | 'cracked' | 'broken';
 
 const THEME_COLOR: Record<MapTheme, string> = {
   apartment:     '#c8e89a',
@@ -119,19 +120,22 @@ const THEME_ICON: Record<MapTheme, string> = {
 export default function ChapterSelect({ heroColor, completed, freePlay, onFreePlayChange, onPick }: ChapterSelectProps) {
   const [localFreePlay, setLocalFreePlay] = useState(freePlay);
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [sealState, setSealState] = useState<'intact'|'cracked'|'broken'>('intact');
-  const [justShattered, setJustShattered] = useState(false);
+  const [sealStates, setSealStates] = useState<Record<string, SealState>>({});
+  const [justShattered, setJustShattered] = useState<string | null>(null);
 
-  const interactSeal = () => {
-    if (sealState === 'intact') {
+  const sealStateFor = (id: string): SealState => sealStates[id] ?? 'intact';
+
+  const interactSeal = (id: string) => {
+    const state = sealStateFor(id);
+    if (state === 'intact') {
       playUi('crack', 0.6);
-      setSealState('cracked');
-    } else if (sealState === 'cracked') {
+      setSealStates(prev => ({ ...prev, [id]: 'cracked' }));
+    } else if (state === 'cracked') {
       // Play 8 overlapping instances at full volume to massively multiply amplitude
       for (let i = 0; i < 8; i++) playUi('shatter', 1.0);
-      setSealState('broken');
-      setJustShattered(true);
-      setTimeout(() => { setJustShattered(false); }, 600);
+      setSealStates(prev => ({ ...prev, [id]: 'broken' }));
+      setJustShattered(id);
+      setTimeout(() => { setJustShattered(null); }, 600);
     }
   };
 
@@ -154,9 +158,9 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
         e.preventDefault();
         const ch = CHAPTERS[selectedIndex];
         if (!ch) return;
-        if (ch.id === CLASSIFIED_ID && sealState !== 'broken') {
+        if (CLASSIFIED_IDS.includes(ch.id) && sealStateFor(ch.id) !== 'broken') {
           if (isChapterUnlocked(ch.id, completed, localFreePlay)) {
-            interactSeal();
+            interactSeal(ch.id);
           }
         } else if (isChapterUnlocked(ch.id, completed, localFreePlay)) {
           onPick(ch);
@@ -167,7 +171,7 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedIndex, completed, localFreePlay, onPick, sealState]);
+  }, [selectedIndex, completed, localFreePlay, onPick, sealStates]);
 
   return (
     <div
@@ -224,7 +228,7 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
         <div className="flex flex-col gap-3">
           {CHAPTERS.map((ch, idx) => {
             const isDone = completed.includes(ch.id);
-            const isClassified = ch.id === CLASSIFIED_ID;
+            const isClassified = CLASSIFIED_IDS.includes(ch.id);
             const isFlashback = ch.kind === 'flashback';
             const prevIsFlashback = idx > 0 && CHAPTERS[idx - 1].kind === 'flashback';
             const flashbackBadge = isFlashback
@@ -244,21 +248,21 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
                 <div className="flex-1 h-px" style={{ background: '#2a3d18' }} />
               </div>
             ) : null;
-            const sealed = isClassified && sealState !== 'broken';
+            const sealed = isClassified && sealStateFor(ch.id) !== 'broken';
             const logicallyUnlocked = isChapterUnlocked(ch.id, completed, localFreePlay);
             const unlocked = logicallyUnlocked;
             const isSelected = selectedIndex === idx;
 
             // Redacted CLASSIFIED entry — clicks break the seal.
             if (sealed) {
-              const cracked = sealState === 'cracked';
+              const cracked = sealStateFor(ch.id) === 'cracked';
               return (
                 <div key={ch.id} className="contents">
                 {sectionHeader}
                 <button
                   disabled={!logicallyUnlocked}
                   onClick={() => {
-                    if (logicallyUnlocked) interactSeal();
+                    if (logicallyUnlocked) interactSeal(ch.id);
                   }}
                   className="text-left border p-5 transition-all duration-200 relative overflow-hidden"
                   style={{
@@ -366,7 +370,7 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
                   style={{ background: unlocked ? themeColor : '#1a2410', opacity: unlocked ? 0.7 : 0.3 }}
                 />
 
-                {isClassified && justShattered && <ShatterParticles />}
+                {isClassified && justShattered === ch.id && <ShatterParticles />}
 
                 <div className="flex items-center gap-4 relative">
                   <div

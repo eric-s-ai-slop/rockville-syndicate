@@ -304,7 +304,7 @@ const chapterMariaBrooke: ChapterConfig = {
       type: 'minigame',
       modeId: 'groupChat',
       config: {
-        timelineEndsAtMs: 61000,
+        timelineEndsAtMs: 90000,
         finalPromptTimeoutMs: 20000,
         complicityMax: 100,
       },

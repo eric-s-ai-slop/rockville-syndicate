@@ -41,7 +41,13 @@
         <div id="timing-result"></div>
       </div>
       
-      <div id="arena-container" class="arena-container"></div>
+      <!-- Bullet-hell arena. bulletHell.init() grabs #arena-canvas and calls
+           getContext on it; without this element the enemy turn crashed on the
+           first hit (null.getContext), which the error handler forwarded to the
+           parent and ended the whole minigame after a single attack. -->
+      <div id="arena-container" class="arena-container">
+        <canvas id="arena-canvas" width="180" height="150"></canvas>
+      </div>
       
       <div id="party-container" class="party-status-container"></div>
       <div id="active-member-indicator" class="active-member-indicator"></div>

@@ -337,7 +337,13 @@ export class BeatEngine {
         }
         this.scene.activeMode = null;
         this.unfreeze();
-        this.advanceBeat();
+        // On a loss, optionally jump back to a designated beat (e.g. restart the
+        // car scene) instead of advancing into the post-win narration.
+        if (result?.outcome === 'lose' && beat.loseGoto) {
+          this.gotoBeatId(beat.loseGoto);
+        } else {
+          this.advanceBeat();
+        }
       });
     };
 
