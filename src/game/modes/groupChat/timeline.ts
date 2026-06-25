@@ -14,6 +14,9 @@ export interface TimelineMessage {
   photo?: boolean;
   resolve?: number;
   pressure?: PressurePoint;
+  /** When this message spawns, duck the stage music down and leave it there
+   *  (the bit "loses its air"). Set on the frown — the chapter's tonal turn. */
+  duck?: boolean;
 }
 
 export const TIMELINE: TimelineMessage[] = [
@@ -45,7 +48,7 @@ export const TIMELINE: TimelineMessage[] = [
   { t: 41500, thread: 'dm', speaker: 'Ben',          text: "wait fr? what time", resolve: 10 },
   { t: 43500, thread: 'dm', speaker: 'Maria Brooke', text: "like 2" },
   { t: 45000, thread: 'dm', speaker: 'Ben',          text: "i have a track meet at RM that day :/" },
-  { t: 47500, thread: 'dm', speaker: 'Maria Brooke', text: "I didn't get to see you :(", resolve: 14, pressure: {
+  { t: 47500, thread: 'dm', speaker: 'Maria Brooke', text: "I didn't get to see you :(", resolve: 14, duck: true, pressure: {
       id: 'volleyball', prompt: "She's reeling him in. This is the moment.", windowMs: 5000, benLine: "damn i feel bad now", resolveOnIgnore: 22
   } },
   { t: 49000, thread: 'gc', speaker: 'Jordan',       text: "oh no" },

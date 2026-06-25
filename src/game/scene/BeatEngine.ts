@@ -3,6 +3,8 @@ import type ChapterScene from '../ChapterScene';
 import { Beat, resolveSpeaker } from '../../data/chapters';
 import { getMode } from '../modes';
 import type { ModeContext, ModeResult } from '../modes/types';
+import { setRoseSilence } from '../progress';
+import { mariaBrookeStats } from '../modes/mariaBrookeStats';
 
 export class BeatEngine {
   public scene: ChapterScene;
@@ -29,6 +31,7 @@ export class BeatEngine {
       case 'ledger': this.scene.applyLedger(beat.delta, beat.note); return this.advanceBeat();
       case 'minigame': return this.runMinigameBeat(beat);
       case 'routeOnMinigame': return this.runRouteOnMinigame(beat);
+      case 'stopAllAudio': this.scene.stopAllAudio(beat.fadeMs); return this.advanceBeat();
       case 'changeScene': return this.scene.transitionToScene(beat.sceneIndex, beat.transitionMs, () => this.advanceBeat());
       case 'endChapter': return this.scene.runEndChapter();
     }
@@ -88,6 +91,8 @@ export class BeatEngine {
         this.scene.movementFrozen = false;
         const opt = beat.options[choiceIndex ?? 0];
         if (opt.ledgerDelta) this.scene.applyLedger(opt.ledgerDelta, opt.text);
+        if (opt.sideEffect === 'rose_silence') setRoseSilence();
+        else if (opt.sideEffect === 'maria_lookup') mariaBrookeStats.lookUps++;
         const proceed = () => {
           this.unfreeze();
           if (opt.goto) this.gotoBeatId(opt.goto); else this.advanceBeat();
@@ -251,6 +256,8 @@ export class BeatEngine {
       triggerQTE: (boss, cb) => s.onTriggerQTE(boss, cb),
       logMessage: (msg) => s.onMessageLog(msg),
       onStoryDialogue: (payload, done) => s.onStoryDialogue(payload, done),
+      mountExternalGame: (opts, onDone) => s.mountExternalGame(opts, onDone),
+      unmountExternalGame: () => s.unmountExternalGame(),
       get currentLevelIndex() { return s.currentLevelIndex; },
       set currentLevelIndex(val) { s.currentLevelIndex = val; },
       get spawnedBoss() { return s.spawnedBoss; },

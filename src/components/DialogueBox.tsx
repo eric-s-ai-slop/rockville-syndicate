@@ -81,8 +81,8 @@ export default function DialogueBox({
       const char = fullText[i - 1];
       setDisplayedText(fullText.slice(0, i));
 
-      if (!muted && char && isLetter(char) && (i % 2 === 0)) {
-        playBlip(0.95 + Math.random() * 0.2);
+      if (!muted && char && isLetter(char) && (i % 3 === 0)) {
+        playBlip(1.0, 0.4);
       }
 
       if (i >= fullText.length) {

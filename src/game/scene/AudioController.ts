@@ -73,6 +73,26 @@ export class AudioController {
     } catch { /* Web Audio not ready — play will resume on first canvas interaction */ }
   }
 
+  public pauseStageMusic() {
+    if (this.scene.stageMusic?.isPlaying) {
+      this.scene.tweens.add({
+        targets: this.scene.stageMusic, volume: 0, duration: 600,
+        onComplete: () => (this.scene.stageMusic as Phaser.Sound.WebAudioSound | null)?.pause(),
+      });
+    }
+  }
+
+  public resumeStageMusic() {
+    if (this.scene.stageMusic?.isPaused) {
+      (this.scene.stageMusic as Phaser.Sound.WebAudioSound).resume();
+      this.scene.tweens.add({
+        targets: this.scene.stageMusic, volume: 0.30, duration: 600,
+      });
+    } else if (!this.scene.stageMusic?.isPlaying) {
+      this.startStageMusic();
+    }
+  }
+
   /** Crossfade from the current stage music to a new track by Phaser audio key.
    *  No-op if the key isn't loaded or is already playing. */
   public crossfadeToMusic(newKey: string) {
@@ -169,5 +189,35 @@ export class AudioController {
         this.scene.tweens.add({ targets: this.scene.stageMusic, volume: 0.30, duration: 900 });
       } catch { /* skip */ }
     }
+  }
+
+  /** Lower the stage music to a low volume and leave it there — the scene
+   *  audibly "loses its air." Pairs with a later stopAllAudio() for a full cut. */
+  public duckStageMusic(toVolume: number = 0.1, durationMs: number = 1400) {
+    const stage = this.scene.stageMusic;
+    if (stage?.isPlaying) {
+      this.scene.tweens.add({ targets: stage, volume: toVolume, duration: durationMs });
+    }
+  }
+
+  /** Hard-cut all music (stage + boss) to silence over a short fade and do NOT
+   *  restart it. Used for a deliberate silence beat; silence persists until a
+   *  later beat starts music again. (changeScene only revives music when a scene
+   *  sets its own `music`, so the silence carries across scene transitions.) */
+  public stopAllAudio(fadeMs: number = 150) {
+    const kill = (snd: Phaser.Sound.BaseSound | null) => {
+      if (!snd) return;
+      if (snd.isPlaying && fadeMs > 0) {
+        this.scene.tweens.add({
+          targets: snd, volume: 0, duration: fadeMs,
+          onComplete: () => { try { snd.stop(); snd.destroy(); } catch { /* skip */ } },
+        });
+      } else {
+        try { snd.stop(); snd.destroy(); } catch { /* skip */ }
+      }
+    };
+    kill(this.scene.stageMusic);     this.scene.stageMusic = null;
+    kill(this.scene.bossMusic);      this.scene.bossMusic = null;
+    kill(this.scene.bossMusicSting); this.scene.bossMusicSting = null;
   }
 }

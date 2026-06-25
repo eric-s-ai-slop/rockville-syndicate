@@ -21,6 +21,7 @@ const EXTRA_SPEAKERS: Speaker[] = [
   { id: 'sophia', name: 'Sophia', emoji: '🌸', color: '#c084fc' },
   { id: 'sam_ferretti', name: 'Sam Ferretti', emoji: '🤢', color: '#94a3b8' },
   { id: 'sean', name: 'Sean', emoji: '🏃', color: '#6ee7b7' },
+  { id: 'alex', name: 'Alex', emoji: '🌴', color: '#fbbf24' },
 ];
 
 export function resolveSpeaker(id: string): Speaker {
@@ -134,6 +135,8 @@ export interface ChoiceOption {
   reactionLines?: string[];
   /** Jump to the beat with this id instead of falling through. */
   goto?: string;
+  /** Custom side-effect ID to trigger when this option is selected. */
+  sideEffect?: string;
 }
 
 export type Beat = { id?: string } & (
@@ -147,6 +150,7 @@ export type Beat = { id?: string } & (
   | { type: 'chase'; pursuerId: string; durationMs: number }
   | { type: 'wait'; ms: number }
   | { type: 'ledger'; delta: number; note: string }
+  | { type: 'stopAllAudio'; fadeMs?: number }
   | { type: 'changeScene'; sceneIndex: number; transitionMs?: number }
   | { type: 'endChapter' }
 );

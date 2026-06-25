@@ -39,6 +39,8 @@ export interface ModeContext {
   triggerQTE(boss: BossConfig, callback: (success: boolean) => void): void;
   logMessage(msg: string): void;
   onStoryDialogue(payload: any, done: (choiceIndex?: number) => void): void;
+  mountExternalGame(opts: { gameId: string; config?: unknown }, onDone: (r: ModeResult) => void): void;
+  unmountExternalGame(): void;
 
   // Boss & Level metadata/state
   currentLevelIndex: number;

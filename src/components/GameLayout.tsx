@@ -8,6 +8,7 @@ import shieldImg from '../assets/images/shield.jpg';
 import { Play } from 'lucide-react';
 import DialogueBox from './DialogueBox';
 import ChapterSelect from './ChapterSelect';
+import ExternalGameFrame from './ExternalGameFrame';
 import { playUi } from '../game/uiSound';
 
 type GameStatus = 'hero' | 'chapters' | 'playing' | 'chapterComplete' | 'gameover';
@@ -41,6 +42,7 @@ export default function GameLayout() {
   const [qteTimer, setQteTimer] = useState(8);
 
   const [activeStory, setActiveStory] = useState<ActiveStory | null>(null);
+  const [activeExternalGame, setActiveExternalGame] = useState<{ gameId: string, config: unknown, onDone: (r: any) => void } | null>(null);
   const [titleCard, setTitleCard] = useState<TitleCardData | null>(null);
   const [titleCardVisible, setTitleCardVisible] = useState(false);
   const [muted, setMuted] = useState(() => localStorage.getItem('omega-muted') === 'true');
@@ -74,6 +76,7 @@ export default function GameLayout() {
   const storyRef = useRef<(payload: StoryDialoguePayload, done: (i?: number) => void) => void>(() => {});
   // Mirror of activeStory for reading the latest value outside setState updaters.
   const activeStoryRef = useRef<ActiveStory | null>(null);
+  const activeExternalGameRef = useRef<{ onDone: (r: any) => void } | null>(null);
 
   // Load saved progress on mount.
   useEffect(() => {
@@ -218,6 +221,14 @@ export default function GameLayout() {
                 },
                 onStoryDialogue: (payload: StoryDialoguePayload, done: (i?: number) => void) =>
                   storyRef.current(payload, done),
+                mountExternalGame: (opts: { gameId: string; config?: unknown }, onDone: (r: any) => void) => {
+                  activeExternalGameRef.current = { onDone };
+                  setActiveExternalGame({ gameId: opts.gameId, config: opts.config, onDone });
+                },
+                unmountExternalGame: () => {
+                  activeExternalGameRef.current = null;
+                  setActiveExternalGame(null);
+                },
                 onLedgerChange: (total: number, note: string) => setLedger({ total, note }),
                 onChapterCompleted: () => {
                   const p = markChapterComplete(chapter.id);
@@ -546,6 +557,18 @@ export default function GameLayout() {
                   </div>
                 </div>
               </div>
+            )}
+
+            {/* External Minigame Bridge */}
+            {activeExternalGame && (
+              <ExternalGameFrame
+                gameId={activeExternalGame.gameId}
+                config={activeExternalGame.config}
+                onDone={activeExternalGame.onDone}
+                onCancel={() => {
+                  activeExternalGame.onDone({ outcome: 'skip' });
+                }}
+              />
             )}
 
             {/* Story dialogue / choices */}

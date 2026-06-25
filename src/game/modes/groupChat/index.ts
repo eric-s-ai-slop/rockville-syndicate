@@ -1,7 +1,8 @@
 import type { GameMode, ModeContext, ModeResult } from '../types';
 import { TIMELINE, PHASE_DIVIDER_INDEX, PressurePoint } from './timeline';
 import { parseMessage } from './parser';
-import { GROUP_REACTIONS, InterventionPhase, PUSHBACK_ESCALATION } from './reactions';
+import { GROUP_REACTIONS, InterventionPhase, PUSHBACK_ESCALATION, ABSORB_REACTIONS } from './reactions';
+import { mariaBrookeStats } from '../mariaBrookeStats';
 
 // Scene actors/props depth-sort by Y (hundreds). Chat UI must sit far above
 // all world geometry, below the scene letterbox bars (depth 9500).
@@ -42,6 +43,9 @@ export class GroupChatMode implements GameMode {
   private pushCount = 0;
   private messagesSent = 0;
   private jokesSent = 0;
+  private truthsTyped = 0;
+  private pressuresIgnored = 0;
+  private lastAbsorbAt = 0;
   private inPressure = false;
   private activePressure: PressurePoint | null = null;
   private pressureElapsed = 0;
@@ -113,6 +117,9 @@ export class GroupChatMode implements GameMode {
     this.pushCount = 0;
     this.messagesSent = 0;
     this.jokesSent = 0;
+    this.truthsTyped = 0;
+    this.pressuresIgnored = 0;
+    this.lastAbsorbAt = 0;
     this.inPressure = false;
     this.activePressure = null;
     this.pressureElapsed = 0;
@@ -383,6 +390,10 @@ export class GroupChatMode implements GameMode {
 
       this.spawnMessage(next.speaker, next.text, next.thread, next.photo);
 
+      if (next.duck) {
+        try { this.ctx.audioController.duckStageMusic(); } catch { /* skip */ }
+      }
+
       if (next.pressure && !this.pressureResolvedIds.has(next.pressure.id)) {
         this.openPressure(next.pressure);
       }
@@ -530,6 +541,7 @@ export class GroupChatMode implements GameMode {
         this.benResolveTarget = Phaser.Math.Clamp(this.benResolveTarget + resolveGain, 0, 100);
       });
     } else {
+      this.pressuresIgnored++;
       this.spawnMessage('Ben', this.activePressure.benLine, 'dm');
       this.benResolveTarget = Phaser.Math.Clamp(this.benResolveTarget + this.activePressure.resolveOnIgnore, 0, 100);
     }
@@ -590,6 +602,7 @@ export class GroupChatMode implements GameMode {
 
     this.messagesSent++;
     const result = parseMessage(msg);
+    if (result === 'true') this.truthsTyped++;
 
     if (result === 'joke') {
       this.complicity = Math.min(this.cfg.complicityMax, this.complicity + 3);
@@ -619,6 +632,16 @@ export class GroupChatMode implements GameMode {
 
     // Render player message
     this.spawnPlayerMessage(msg);
+
+    // Off-topic/neutral lines still get absorbed so typing always feels heard —
+    // a single dismissive reply, cooldown-gated, with no timeline pause.
+    if (result === 'neutral' && !this.groupReactionFiring && Date.now() - this.lastAbsorbAt > 6000) {
+      this.lastAbsorbAt = Date.now();
+      const r = ABSORB_REACTIONS[Math.floor(Math.random() * ABSORB_REACTIONS.length)];
+      this.ctx.time.delayedCall(800, () => {
+        if (!this.modeEnded) this.spawnMessage(r.speaker, r.text, 'gc');
+      });
+    }
   }
 
   private sendReaction(emoji: string): void {
@@ -692,6 +715,7 @@ export class GroupChatMode implements GameMode {
           this.playerInput = '';
           this.updateInputDisplay();
           const result = parseMessage(msg);
+          if (result === 'true') this.truthsTyped++;
           if (result === 'true' && !this.saidTrueThing) {
             this.saidTrueThing = true;
             this.saidTrueThingAt = 'late';
@@ -711,6 +735,16 @@ export class GroupChatMode implements GameMode {
   private resolve(playerActed: boolean): void {
     if (this.modeEnded) return;
     this.modeEnded = true;
+
+    // Feed the end-of-chapter complicity report (read by the complicityReport
+    // mode). Overwritten fresh each run; lookUps is owned by the (future)
+    // look-up choice beats, so we deliberately don't reset/touch it here.
+    mariaBrookeStats.laughs = this.jokesSent;
+    mariaBrookeStats.truthsTyped = this.truthsTyped;
+    mariaBrookeStats.firstTruthPhase = this.saidTrueThingAt;
+    mariaBrookeStats.messagesSent = this.messagesSent;
+    mariaBrookeStats.pressureIgnored = this.pressuresIgnored;
+    mariaBrookeStats.finalResolve = Math.round(this.benResolve);
 
     if (!playerActed && !this.saidTrueThing) {
       this.onCompleteCallback({

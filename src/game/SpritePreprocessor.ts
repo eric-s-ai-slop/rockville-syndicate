@@ -1318,3 +1318,62 @@ export function preprocessGirlSilhouetteSheet(img: HTMLImageElement): SlicedSpri
     defeatFrames: [0, 1, 2, 3]
   };
 }
+
+export function preprocessStandardSheet(img: HTMLImageElement): SlicedSpriteSheet {
+  const width = img.naturalWidth || img.width;
+  const height = img.naturalHeight || img.height;
+  
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = width;
+  tempCanvas.height = height;
+  const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
+  if (!tempCtx) throw new Error('Could not get temp canvas');
+  tempCtx.drawImage(img, 0, 0);
+
+  const imgData = tempCtx.getImageData(0, 0, width, height);
+  const pixels = imgData.data;
+
+  // Background color sample at (0, 0)
+  const bgR = pixels[0];
+  const bgG = pixels[1];
+  const bgB = pixels[2];
+
+  // Strip background
+  for (let i = 0; i < pixels.length; i += 4) {
+    const r = pixels[i];
+    const g = pixels[i+1];
+    const b = pixels[i+2];
+    const dist = Math.sqrt((r-bgR)**2 + (g-bgG)**2 + (b-bgB)**2);
+    if (dist < 45 || r > 240) { // Strip bg and pure white
+      pixels[i+3] = 0; // Transparent
+    }
+  }
+
+  const finalCanvas = document.createElement('canvas');
+  finalCanvas.width = width;
+  finalCanvas.height = height;
+  const finalCtx = finalCanvas.getContext('2d');
+  if (!finalCtx) throw new Error('finalCtx fail');
+  finalCtx.putImageData(imgData, 0, 0);
+
+  const frameWidth = width / 3;
+  const frameHeight = height / 4;
+
+  return {
+    canvas: finalCanvas,
+    frameWidth: Math.floor(frameWidth),
+    frameHeight: Math.floor(frameHeight),
+    idleFrontFrames: [1],
+    idleSideFrames: [4], // Assuming row 1 is left, row 2 is right. Let's just map 4.
+    idleBackFrames: [10],
+    walkFrames: [0, 1, 2, 1], // fallback
+    walkFrontFrames: [0, 1, 2, 1],
+    walkSideFrames: [3, 4, 5, 4],
+    walkBackFrames: [9, 10, 11, 10],
+    runFrames: [0, 1, 2, 1],
+    attackFrames: [0],
+    hurtFrames: [0],
+    victoryFrames: [0],
+    defeatFrames: [0]
+  };
+}

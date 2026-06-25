@@ -181,6 +181,28 @@ const chapterMariaBrooke: ChapterConfig = {
       ],
     },
     {
+      type: 'choice',
+      speaker: 'narrator',
+      prompt: 'He sent his face with no caption. The chat is losing it. Ben is a few seats away, looking at his phone.',
+      options: [
+        {
+          text: 'Keep watching the chat',
+          reactionSpeaker: 'narrator',
+          reactionLines: ['You keep watching the chat. It is very funny. It keeps being funny.'],
+        },
+        {
+          text: 'Look up at Ben',
+          sideEffect: 'maria_lookup',
+          reactionSpeaker: 'narrator',
+          reactionLines: [
+            'You look up.',
+            'Ben is smiling at his phone the way you smile when someone finally writes back.',
+            'You look back down at the chat.',
+          ],
+        },
+      ],
+    },
+    {
       type: 'walkTo',
       x: 800, y: 500, radius: 80,
       markerLabel: 'See the DMs',
@@ -206,6 +228,28 @@ const chapterMariaBrooke: ChapterConfig = {
       ],
     },
     {
+      type: 'choice',
+      speaker: 'narrator',
+      prompt: '"I didn\'t get to see you :(" Maharko is wheezing. Ben hasn\'t looked up from his phone in a while.',
+      options: [
+        {
+          text: 'Keep watching',
+          reactionSpeaker: 'narrator',
+          reactionLines: ['You keep watching. The frown does its work.'],
+        },
+        {
+          text: 'Look up at Ben',
+          sideEffect: 'maria_lookup',
+          reactionSpeaker: 'narrator',
+          reactionLines: [
+            'You look up.',
+            'He is typing something, deleting it, typing it again.',
+            'He wants to get the wording right. For her.',
+          ],
+        },
+      ],
+    },
+    {
       type: 'dialogue',
       speaker: 'narrator',
       lines: [
@@ -225,6 +269,27 @@ const chapterMariaBrooke: ChapterConfig = {
         "Ben types: wait actually maybe i can skip track.",
         "Ben types: yeah im just gonna go to her game.",
         "Sean is at practice in twenty minutes.",
+      ],
+    },
+    {
+      type: 'choice',
+      speaker: 'narrator',
+      prompt: 'Ben just said he\'d skip practice for her. Sean\'s seat is already empty.',
+      options: [
+        {
+          text: 'Keep watching',
+          reactionSpeaker: 'narrator',
+          reactionLines: ['You keep watching. Somebody types LMFAOOO. It might have been you.'],
+        },
+        {
+          text: 'Look up at Ben',
+          sideEffect: 'maria_lookup',
+          reactionSpeaker: 'narrator',
+          reactionLines: [
+            'You look up.',
+            'Ben is already packing his bag. He looks happy. He looks like he is going somewhere.',
+          ],
+        },
       ],
     },
     {
@@ -248,6 +313,11 @@ const chapterMariaBrooke: ChapterConfig = {
         "Ben is about to skip track practice for a girl who doesn't exist. Say something, or don't.",
       ],
       background: false,
+    },
+    {
+      // The bit peaks ("LMFAOOO") — then the air leaves the room. The cut holds
+      // through the Sean confrontation and never lifts again this chapter.
+      type: 'stopAllAudio',
     },
     {
       type: 'dialogue',
@@ -413,8 +483,15 @@ const chapterMariaBrooke: ChapterConfig = {
       lines: [
         'He came back.',
         'Honestly? We missed him.',
-        'The Maria Brooke thing is still funny though.',
       ],
+    },
+    {
+      // Cold complicity report — assembled from what the player actually did this
+      // run (mariaBrookeStats, populated by groupChat). Delivers the closing line
+      // as an indictment instead of a throwaway narrator aside.
+      type: 'minigame',
+      modeId: 'complicityReport',
+      config: {},
     },
     {
       type: 'endChapter',

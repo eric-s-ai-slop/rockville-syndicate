@@ -10,6 +10,7 @@ export interface Progress {
   hero?: string;
   /** When true, all chapters are selectable regardless of completion order. */
   freePlay?: boolean;
+  rose_silence?: boolean;
 }
 
 export function loadProgress(): Progress {
@@ -42,6 +43,12 @@ export function markChapterComplete(chapterId: string): Progress {
   }
   saveProgress(progress);
   return progress;
+}
+
+export function setRoseSilence(): void {
+  const progress = loadProgress();
+  progress.rose_silence = true;
+  saveProgress(progress);
 }
 
 export function rememberHero(heroId: string): void {

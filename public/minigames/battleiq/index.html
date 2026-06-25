@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>BattleIQ Ingested</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* Omega-specific overrides for the sandbox */
+    body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; }
+    /* Ensure the battle screen is visible immediately upon load since it's an overlay minigame */
+    #battle-screen { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
+    .hidden { display: none !important; }
+  </style>
+  <script>
+    window.addEventListener('error', function(e) {
+      window.parent.postMessage({ source: 'omega-game', token: new URLSearchParams(window.location.search).get('token'), type: 'error', message: e.message + ' at ' + e.filename + ':' + e.lineno }, '*');
+    });
+  </script>
+</head>
+<body>
+  <!-- Mocked out DOM structure expected by battle.js -->
+  <div id="screen-container">
+    <div class="battle-background" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: -1;"></div>
+    <div id="battle-screen" class="hidden">
+      <div class="enemy-sprite-container" style="position: relative; width: 120px; height: 110px; margin: 0 auto;">
+        <div id="enemy-sprite"></div>
+      </div>
+      <div class="enemy-info-bar" style="margin: 0 auto;">
+        <div id="enemy-name"></div>
+        <div id="enemy-mood" class="enemy-mood"></div>
+        <div class="enemy-hp-bar-bg">
+          <div id="enemy-hp-bar" class="enemy-hp-bar"></div>
+        </div>
+      </div>
+      
+      <canvas id="battle-state"></canvas>
+      
+      <div id="damage-popup" class="hidden"></div>
+      <div id="timing-bar-container" class="timing-bar-container hidden">
+        <canvas id="timing-bar-canvas"></canvas>
+        <div id="timing-result"></div>
+      </div>
+      
+      <div id="arena-container" class="arena-container"></div>
+      
+      <div id="party-container" class="party-status-container"></div>
+      <div id="active-member-indicator" class="active-member-indicator"></div>
+      
+      <div class="battle-log-container">
+        <div id="battle-narrative"></div>
+      </div>
+      
+      <div class="battle-controls-container">
+        <div id="main-battle-menu" class="battle-menu">
+          <button id="btn-fight" class="battle-btn" data-option="fight" onclick="battleController.executeMenuSelection('fight')">FIGHT</button>
+          <button id="btn-act" class="battle-btn" data-option="act" onclick="battleController.executeMenuSelection('act')">ACT</button>
+          <button id="btn-item" class="battle-btn" data-option="item" onclick="battleController.executeMenuSelection('item')">ITEM</button>
+          <button id="btn-spare" class="battle-btn" data-option="spare" onclick="battleController.executeMenuSelection('spare')">SPARE</button>
+          <button id="btn-switch" class="battle-btn" data-option="switch" onclick="battleController.executeMenuSelection('switch')">SWITCH</button>
+        </div>
+        
+        <div id="act-submenu" class="battle-submenu hidden"></div>
+        <div id="item-submenu" class="battle-submenu hidden"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BattleIQ source scripts -->
+  <script src="data.js"></script>
+  <script src="assets.js"></script>
+  <script src="audio.js"></script>
+  <script src="bulletHell.js"></script>
+  <script src="battle.js"></script>
+
+  <!-- Omega Bridge (the shim) -->
+  <script src="omega-bridge.js"></script>
+</body>
+</html>

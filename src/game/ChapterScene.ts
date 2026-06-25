@@ -5,6 +5,7 @@ import { AudioController } from './scene/AudioController';
 import { BeatEngine } from './scene/BeatEngine';
 import type { GameMode } from './modes/types';
 import { getMode } from './modes';
+import { mariaBrookeStats } from './modes/mariaBrookeStats';
 import {
   CharacterClass,
   CHARACTER_CLASSES,
@@ -24,6 +25,12 @@ import heroNickFImg from '../assets/images/hero_nick_f_1781236122782.jpg';
 import heroNickHImg from '../assets/images/hero_nick_h_1781236135006.jpg';
 import heroJordanImg from '../assets/images/hero_jordan.jpg';
 import heroMaharkoImg from '../assets/images/hero_maharko.jpg';
+import npcAlexSheet from '../assets/images/npc_alex_sheet.jpg';
+import npcBenjiSheet from '../assets/images/npc_benji_sheet.jpg';
+import npcRoseSheet from '../assets/images/npc_rose_sheet.jpg';
+import npcRoseSisterSheet from '../assets/images/npc_rose_sister_sheet.jpg';
+import stageCarInterior from '../assets/images/game_decor/stages/stage_car_interior.jpg';
+import stageFloridaHouseNight from '../assets/images/game_decor/stages/stage_florida_house_night.jpg';
 import enemyTicketmasterImg from '../assets/images/enemy_ticketmaster.jpg';
 import enemyDishesImg from '../assets/images/enemy_dishes.jpg';
 import enemyZombieImg from '../assets/images/enemy_zombie.jpg';
@@ -39,7 +46,7 @@ import bossBenUmbcImg from '../assets/images/boss_ben.jpg';
 import bossNickFImg from '../assets/images/boss_nick_f.jpg';
 import coinImg from '../assets/images/coin.jpg';
 import shardImg from '../assets/images/shard.jpg';
-import { preprocessShowcaseSheet, preprocessColumnFirstSheet, preprocessFemalePoolSheet, preprocessGirlSilhouetteSheet } from './SpritePreprocessor';
+import { preprocessShowcaseSheet, preprocessColumnFirstSheet, preprocessFemalePoolSheet, preprocessGirlSilhouetteSheet, preprocessStandardSheet } from './SpritePreprocessor';
 import { extractPropSubject } from './PropExtractor';
 import { buildFurnitureAtlas, furnitureFrame, furnitureAspect, FURNITURE_ATLAS_KEY } from './furnitureCatalog';
 import { buildPackAtlas, packFrame, packSize, PACK_ATLAS_KEY } from './packSpriteAtlas';
@@ -50,6 +57,8 @@ import {
   UI_SELECT_URL, VICTORY_JINGLE_URL, KNOCK_URL,
   CROWD_MURMUR_URL, CRICKET_AMBIENT_URL,
   SFX_MESSAGE_DING_URL,
+  SFX_CAMERA_SHUTTER_URL,
+  SFX_ENGINE_HUM_URL,
 } from './audio';
 
 // ─── R1/R2: Stage & car prop images (Vite ?url for special-char filenames) ──────
@@ -232,6 +241,9 @@ export default class ChapterScene extends Phaser.Scene {
   public movementFrozen: boolean = false;
   private eKey!: Phaser.Input.Keyboard.Key;
   private lastMoveAngle: number = 0;
+  
+  public mountExternalGame: (opts: { gameId: string; config?: unknown }, onDone: (r: any) => void) => void = () => {};
+  public unmountExternalGame: () => void = () => {};
 
   // Subsystems
   public mapBuilder!: MapBuilder;
@@ -258,6 +270,8 @@ export default class ChapterScene extends Phaser.Scene {
     onChapterCompleted?: () => void;
     onGameOver?: () => void;
     onStoryDialogue?: (payload: StoryDialoguePayload, done: (choiceIndex?: number) => void) => void;
+    mountExternalGame?: (opts: { gameId: string; config?: unknown }, onDone: (r: any) => void) => void;
+    unmountExternalGame?: () => void;
     onLedgerChange?: (total: number, note: string) => void;
   }) {
     if (!data || !data.hero || !data.chapter) return;
@@ -277,6 +291,8 @@ export default class ChapterScene extends Phaser.Scene {
     this.onGameOver = data.onGameOver!;
     this.onNpcInteract = () => {};
     this.onStoryDialogue = data.onStoryDialogue ?? ((_p, done) => done());
+    this.mountExternalGame = data.mountExternalGame ?? (() => {});
+    this.unmountExternalGame = data.unmountExternalGame ?? (() => {});
     this.onLedgerChange = data.onLedgerChange ?? (() => {});
 
     this.isDashing = false;
@@ -388,6 +404,12 @@ export default class ChapterScene extends Phaser.Scene {
     this.safeLoadImage('stage_wj_track', stageWjTrackUrl);
     this.safeLoadImage('stage_umbc_basement', umbcBasementStageUrl);
     this.safeLoadImage('stage_parking_lot_night', parkingLotNightUrl);
+    this.safeLoadImage('npc_alex_sheet_raw_jpg', npcAlexSheet);
+    this.safeLoadImage('npc_benji_sheet_raw_jpg', npcBenjiSheet);
+    this.safeLoadImage('npc_rose_sheet_raw_jpg', npcRoseSheet);
+    this.safeLoadImage('npc_rose_sister_sheet_raw_jpg', npcRoseSisterSheet);
+    this.safeLoadImage('stage_car_interior', stageCarInterior);
+    this.safeLoadImage('stage_florida_house_night', stageFloridaHouseNight);
     // Ben has no playable-roster hero sprite; reuse his UMBC portrait (a 1376×768
     // showcase sheet, same format as the hero art) so he renders as a real,
     // animated character instead of a colored blob in the basement.
@@ -396,6 +418,8 @@ export default class ChapterScene extends Phaser.Scene {
     this.safeLoadImage('hero_girl2_raw_jpg', npcGirlSilhouetteUrl);
     this.safeLoadImage('hero_girl3_raw_jpg', npcGirlSilhouetteUrl);
     this.audioController.safeLoadAudio('sfx_message_ding', SFX_MESSAGE_DING_URL);
+    this.audioController.safeLoadAudio('sfx_camera_shutter', SFX_CAMERA_SHUTTER_URL);
+    this.audioController.safeLoadAudio('sfx_engine_hum', SFX_ENGINE_HUM_URL);
     this.audioController.safeLoadAudio('sfx_crowd_murmur', CROWD_MURMUR_URL);
     this.audioController.safeLoadAudio('sfx_parking_ambient', CRICKET_AMBIENT_URL);
     // Voiced one-off: Ben's "You're next." Drop the MP3 at public/voice/ben_youre_next.mp3.
@@ -668,6 +692,31 @@ export default class ChapterScene extends Phaser.Scene {
       }
     }
 
+    // Process chapter 5b NPC sheets (they are standard 3x4 grids, not showcase sheets)
+    ['npc_alex_sheet', 'npc_benji_sheet', 'npc_rose_sheet', 'npc_rose_sister_sheet'].forEach(sheetKey => {
+      const rawKey = `${sheetKey}_raw_jpg`;
+      if (!this.textures.exists(rawKey) || this.textures.exists(sheetKey)) return;
+      try {
+        const image = this.textures.get(rawKey).getSourceImage() as HTMLImageElement;
+        const processed = preprocessStandardSheet(image);
+        const cleanKey = `${sheetKey}_clean_canvas`;
+        this.textures.addCanvas(cleanKey, processed.canvas);
+        const src = this.textures.get(cleanKey).getSourceImage() as HTMLImageElement;
+        this.textures.addSpriteSheet(sheetKey, src, { frameWidth: processed.frameWidth, frameHeight: processed.frameHeight });
+        
+        this.registerAnim(sheetKey, sheetKey, 'idle_front', processed.idleFrontFrames, 4, -1);
+        this.registerAnim(sheetKey, sheetKey, 'idle_side', processed.idleSideFrames, 4, -1);
+        this.registerAnim(sheetKey, sheetKey, 'idle_back', processed.idleBackFrames, 4, -1);
+        this.registerAnim(sheetKey, sheetKey, 'walk_front', processed.walkFrontFrames, 8, -1);
+        this.registerAnim(sheetKey, sheetKey, 'walk_side', processed.walkSideFrames, 8, -1);
+        this.registerAnim(sheetKey, sheetKey, 'walk_back', processed.walkBackFrames, 8, -1);
+        this.registerAnim(sheetKey, sheetKey, 'idle', processed.idleFrontFrames, 4, -1); // Fallback
+        this.registerAnim(sheetKey, sheetKey, 'walk', processed.walkFrames, 8, -1); // Fallback
+      } catch (err) {
+        console.error(`[GameScene] NPC sheet error for ${sheetKey}:`, err);
+      }
+    });
+
     // Process boss showcase sheets — column-first format (columns = categories, rows = frames)
     ['eric', 'audrey', 'florida', 'ben', 'nick_f', 'frat_bro'].forEach(bossId => {
       // NOTE: frat_bro is included here because it's a column-first sheet like bosses.
@@ -851,6 +900,10 @@ export default class ChapterScene extends Phaser.Scene {
 
     // Start stage music (fade in over 1.2 s to not blast the player)
     this.startStageMusic();
+
+    // Reset per-chapter complicity accumulators so replays start clean — lookUps
+    // is set by in-chapter look-up choices that run before the minigame.
+    if (this.chapter.id === 'maria_brooke') mariaBrookeStats.reset();
 
     // Kick off the story.
     this.time.delayedCall(300, () => this.startBeat(0));
@@ -1364,6 +1417,11 @@ export default class ChapterScene extends Phaser.Scene {
 
   public stopBossMusic() {
     this.audioController.stopBossMusic();
+  }
+
+  /** Hard-cut all music to silence (deliberate "the air leaves the room" beat). */
+  public stopAllAudio(fadeMs?: number) {
+    this.audioController.stopAllAudio(fadeMs);
   }
 
   public applyLedger(delta: number, note: string) {
