@@ -319,8 +319,7 @@ The dev server (`tsx server.ts`) runs at **`http://localhost:3324`**.
 Clone the repository to your VPS and make sure the leaderboard database volume has the correct write permissions:
 
 ```bash
-git clone <your-repository-url> /opt/rockville-syndicate
-cd /opt/rockville-syndicate
+git clone git@github.com:eric-s-ai-slop/rockville-syndicate.git ./rockville-syndicate
 mkdir -p db_data && chmod 777 db_data
 ```
 
