@@ -29,7 +29,17 @@
     // Wrap triggerGameOver
     const originalLose = battleController.triggerGameOver;
     battleController.triggerGameOver = function() {
-      originalLose.apply(this, arguments);
+      // Be resilient: the original triggerGameOver() calls game.showGameOverScreen()
+      // (defined in game.js, which is NOT loaded in this sandbox). If that — or any
+      // other sandbox-missing global — throws synchronously, we MUST still report the
+      // loss to the parent. Otherwise the dispatch below is skipped, no message ever
+      // reaches Omega, and the minigame freezes instead of returning to the car ride.
+      try {
+        originalLose.apply(this, arguments);
+      } catch (err) {
+        console.warn('[Omega Bridge] triggerGameOver threw; reporting loss anyway:', err);
+      }
+      // Let the game-over beat read, then report the loss.
       setTimeout(() => {
         sendOmegaMessage('complete', { result: { outcome: 'lose' } });
       }, 3000);
@@ -55,6 +65,25 @@
     sparedBosses: [],
     player: {
       updateLocation: () => {}
+    },
+    // The real cinematic game-over lives in game.js, which isn't loaded in this
+    // embedded sandbox. battleController.triggerGameOver() calls this on death, so
+    // without a stub it threw and the minigame froze (see the triggerGameOver
+    // wrapper above). Render a minimal GAME OVER overlay; the bridge reports the
+    // loss ~3s later, which sends the player back to the start of the car ride.
+    showGameOverScreen: () => {
+      try {
+        if (document.getElementById('omega-gameover')) return;
+        const ov = document.createElement('div');
+        ov.id = 'omega-gameover';
+        ov.textContent = 'GAME OVER';
+        ov.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;' +
+          'justify-content:center;background:#000;color:#fff;' +
+          'font:bold 32px monospace;letter-spacing:6px;z-index:9999;';
+        document.body.appendChild(ov);
+      } catch (e) {
+        console.warn('[Omega Bridge] game-over overlay failed:', e);
+      }
     }
   };
   

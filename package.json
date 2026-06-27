@@ -9,6 +9,9 @@
     "start": "node dist/server.cjs",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
+    "lint:es": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "ci": "npm run lint && npm run lint:es && npm test && npm run build",
     "voice:extract": "tsx scripts/voicegen/extract-lines.ts",
     "test": "vitest run",
     "e2e": "playwright test"
@@ -27,6 +30,7 @@
     "vite": "^6.2.3"
   },
   "devDependencies": {
+    "@eslint/js": "^9.17.0",
     "@playwright/test": "^1.60.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -36,6 +40,9 @@
     "autoprefixer": "^10.4.21",
     "canvas": "^3.2.3",
     "esbuild": "^0.25.0",
+    "eslint": "^9.17.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "globals": "^15.14.0",
     "happy-dom": "^20.10.3",
     "jimp": "^1.6.1",
     "jsdom": "^29.1.1",
@@ -43,6 +50,7 @@
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
+    "typescript-eslint": "^8.18.0",
     "vite": "^6.2.3",
     "vitest": "^4.1.8"
   },

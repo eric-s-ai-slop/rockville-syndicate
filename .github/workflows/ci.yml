@@ -1,0 +1,58 @@
+name: CI
+
+# The automated form of the project's "green bar". Every PR and push to main must pass
+# types + lint + unit tests + build before merge. See CONTRIBUTING.md.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Typecheck · Lint · Test · Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck (tsc --noEmit)
+        run: npm run lint
+
+      - name: Lint (eslint)
+        run: npm run lint:es
+
+      - name: Unit tests (vitest)
+        run: npm test
+
+      - name: Build (vite + esbuild)
+        run: npm run build
+
+  # End-to-end tests need Playwright browsers; kept as a separate job so a browser-install
+  # hiccup never blocks the core gate. Make this `required` once the suite is stable.
+  e2e:
+    name: E2E (Playwright)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e

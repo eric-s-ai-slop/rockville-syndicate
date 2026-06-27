@@ -417,13 +417,14 @@ export class BossFightMode implements GameMode<any> {
         case 'boss_florida': this.deployTireTreadTether(); break;
         case 'boss_ben': this.unleashHeyAoE(); break;
         case 'boss_nick_f': this.dischargeRefundRosterChecks(); break;
-        case 'boss_ben_umbc': 
+        case 'boss_ben_umbc': {
           const rand = Math.random();
           if (rand < 0.25) this.unleashRationalizationWave();
           else if (rand < 0.50) this.gaslightLasers();
           else if (rand < 0.75) this.echoChamber();
           else this.deflectionShield();
           break;
+        }
       }
     }
 
