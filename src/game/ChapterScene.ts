@@ -1478,10 +1478,12 @@ export default class ChapterScene extends Phaser.Scene {
   }
 
   private updateEnemyAI(time: number) {
-    this.enemies.getChildren().forEach((obj: any) => {
-      if (!obj.active) return;
+    const enemies = this.enemies.getChildren();
+    for (let i = 0; i < enemies.length; i++) {
+      const obj: any = enemies[i];
+      if (!obj.active) continue;
       const config: EnemyConfig = obj.getData('config');
-      if (!config) return;
+      if (!config) continue;
 
       const dist = Phaser.Math.Distance.Between(obj.x, obj.y, this.player.x, this.player.y);
       const angle = Phaser.Math.Angle.Between(obj.x, obj.y, this.player.x, this.player.y);
@@ -1512,7 +1514,7 @@ export default class ChapterScene extends Phaser.Scene {
           this.showBubbleText(obj, barks[Math.floor(Math.random() * barks.length)], '#fca5a5');
         }
       }
-    });
+    }
   }
 
   // Ticketmaster: hold at range, fires ticket bolt every 2.5s

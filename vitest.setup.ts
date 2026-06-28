@@ -18,7 +18,7 @@ Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock, wri
 import { vi } from 'vitest';
 vi.mock('phaser', () => {
     return {
-        default: {},
+        default: { Scene: class {}, Game: class {}, Math: { Between: () => 0 }, Utils: { Array: { Shuffle: () => [] } }, Scale: { RESIZE: "RESIZE" }, AUTO: "AUTO" },
         Game: class {},
         Scene: class {},
     };

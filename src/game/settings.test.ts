@@ -10,7 +10,11 @@ import {
   effectiveSfxVolume,
   DEFAULT_SETTINGS,
   _reloadFromStorage,
+  saveRunRecord,
+  getChapterBest,
+  getRunRecords,
 } from './settings';
+import type { RunRecord } from './scoring';
 
 const SAVE_KEY = 'omega-save-v2';
 
@@ -72,6 +76,63 @@ describe('migration from legacy v1 keys', () => {
     _reloadFromStorage();
     expect(getSettings()).toEqual(DEFAULT_SETTINGS);
     expect(getProgress().completedChapters).toEqual([]);
+  });
+});
+
+describe('saveRunRecord', () => {
+  const mockRecord = (score: number, chapterId = 'test-chapter'): RunRecord => ({
+    chapterId,
+    heroId: 'test-hero',
+    score,
+    shardsCollected: 0,
+    ledgerTotal: 0,
+    hpRemaining: 100,
+    difficulty: 'normal',
+    date: new Date().toISOString(),
+  });
+
+  it('saves a run record and updates chapter best', () => {
+    const newBest = saveRunRecord(mockRecord(500));
+    expect(newBest).toBe(500);
+
+    const records = getRunRecords();
+    expect(records).toHaveLength(1);
+    expect(records[0].score).toBe(500);
+
+    expect(getChapterBest('test-chapter')).toBe(500);
+  });
+
+  it('maintains the highest score as chapter best', () => {
+    saveRunRecord(mockRecord(500));
+    expect(getChapterBest('test-chapter')).toBe(500);
+
+    // Lower score does not overwrite
+    const best1 = saveRunRecord(mockRecord(400));
+    expect(best1).toBe(500);
+    expect(getChapterBest('test-chapter')).toBe(500);
+
+    // Higher score overwrites
+    const best2 = saveRunRecord(mockRecord(600));
+    expect(best2).toBe(600);
+    expect(getChapterBest('test-chapter')).toBe(600);
+
+    const records = getRunRecords();
+    expect(records).toHaveLength(3);
+    expect(records[0].score).toBe(600); // newest first
+    expect(records[1].score).toBe(400);
+    expect(records[2].score).toBe(500);
+  });
+
+  it('caps run records at 100 entries', () => {
+    for (let i = 0; i < 105; i++) {
+      saveRunRecord(mockRecord(i, 'spam-chapter'));
+    }
+
+    const records = getRunRecords();
+    expect(records).toHaveLength(100);
+    // Because it unshifts new records, the newest 100 should be i=104 down to i=5
+    expect(records[0].score).toBe(104);
+    expect(records[99].score).toBe(5);
   });
 });
 

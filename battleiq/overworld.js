@@ -51,10 +51,14 @@ class OverworldEngine {
         // party (e.g., auto-recruited after a boss fight), hide the trigger so the
         // player can't try to recruit them again. The user already has them.
         // ============================================================================
+
+        // Pre-compute party member names to optimize trigger filtering
+        const partyNamesLower = new Set((game.party || []).map(p => p.name.toLowerCase()));
+
         this.activeTriggers = this.activeTriggers.filter(trig => {
             if (trig.type === "recruit" && GAME_DATA.PLAYERS[trig.memberId]) {
                 const memberName = GAME_DATA.PLAYERS[trig.memberId].name;
-                const alreadyInParty = (game.party || []).some(p => p.name === memberName);
+                const alreadyInParty = partyNamesLower.has(memberName.toLowerCase());
                 if (alreadyInParty) {
                     console.log(`[BattleIQ:Map] Filtered out recruit trigger for "${memberName}" (already in party) at (${trig.x},${trig.y})`);
                     // 2026-06-11: Highlight the Maharko-specific case so the dev
@@ -79,9 +83,7 @@ class OverworldEngine {
             // character would hide the act's boss trigger, leaving no way to
             // progress through the game.
             if (trig.type === "npc" && trig.name && !trig.triggerBattle) {
-                const alreadyInParty = (game.party || []).some(p =>
-                    p.name.toLowerCase() === trig.name.toLowerCase()
-                );
+                const alreadyInParty = partyNamesLower.has(trig.name.toLowerCase());
                 if (alreadyInParty) {
                     console.log(`[BattleIQ:Map] Filtered out NPC trigger for "${trig.name}" (already in party) at (${trig.x},${trig.y})`);
                     return false;
@@ -761,7 +763,13 @@ class OverworldEngine {
         const trig = this.nearTrigger;
         console.log(`[BattleIQ:Interact] Triggering type=${trig.type} id=${trig.id || trig.memberId} at (${trig.x},${trig.y}) text="${trig.text ? trig.text.substring(0, 50) + (trig.text.length > 50 ? '...' : '') : ''}"`);
         // DIAGNOSTIC: Show all active triggers (helps debug recruit issues)
-        console.log(`[BattleIQ:Interact] activeTriggers=[${(this.activeTriggers || []).map(t => `${t.type}:${t.id || t.memberId}@(${t.x},${t.y})`).join(", ")}]`);
+        const trigs = this.activeTriggers || [];
+        if (this._cachedActiveTriggersRef !== trigs || this._cachedActiveTriggersLen !== trigs.length) {
+            this._cachedActiveTriggersRef = trigs;
+            this._cachedActiveTriggersLen = trigs.length;
+            this._cachedActiveTriggersStr = `[BattleIQ:Interact] activeTriggers=[${trigs.map(t => `${t.type}:${t.id || t.memberId}@(${t.x},${t.y})`).join(", ")}]`;
+        }
+        console.log(this._cachedActiveTriggersStr);
 
         if (trig.type === "exit") {
             // GATE: Check if the boss for this act has been defeated.

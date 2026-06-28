@@ -1,4 +1,7 @@
-import { describe, it, expect } from 'vitest';
+
+
+import { describe, it, expect, vi } from 'vitest';
+import { BeatEngine } from './BeatEngine';
 import type { Beat } from '../../data/chapters/types';
 
 // ── Pure routing helpers extracted from BeatEngine ────────────────────────────
@@ -105,5 +108,78 @@ describe('Beat type switch — all known types are handled', () => {
   it('no duplicates in the known type list', () => {
     const set = new Set(knownTypes);
     expect(set.size).toBe(knownTypes.length);
+  });
+});
+
+// ── BeatEngine.startBeat ───────────────────────────────────────────────────────
+
+
+
+
+describe('BeatEngine.startBeat', () => {
+  it('returns early if index is out of bounds', () => {
+    const mockScene: any = {
+      chapter: { beats: [{ type: 'dialogue', speaker: 'eric', lines: ['a'] }] },
+      beatIndex: 0,
+      beatActive: false,
+    };
+    const engine = new BeatEngine(mockScene);
+
+    engine.startBeat(1);
+
+    expect(mockScene.beatIndex).toBe(0);
+    expect(mockScene.beatActive).toBe(false);
+  });
+
+  it('updates state and delegates to runDialogueBeat', () => {
+    const mockScene: any = {
+      chapter: { beats: [{ type: 'dialogue', speaker: 'eric', lines: ['a'] }] },
+      beatIndex: -1,
+      beatActive: false,
+    };
+    const engine = new BeatEngine(mockScene);
+    const runDialogueBeatSpy = vi.spyOn(engine as any, 'runDialogueBeat').mockImplementation(() => {});
+
+    engine.startBeat(0);
+
+    expect(mockScene.beatIndex).toBe(0);
+    expect(mockScene.beatActive).toBe(true);
+    expect(runDialogueBeatSpy).toHaveBeenCalledWith(mockScene.chapter.beats[0]);
+  });
+
+  it('delegates wait beat using scene.time.delayedCall', () => {
+    const mockDelayedCall = vi.fn();
+    const mockScene: any = {
+      chapter: { beats: [{ type: 'wait', ms: 1000 }] },
+      beatIndex: -1,
+      beatActive: false,
+      time: { delayedCall: mockDelayedCall }
+    };
+    const engine = new BeatEngine(mockScene);
+
+    engine.startBeat(0);
+
+    expect(mockScene.beatIndex).toBe(0);
+    expect(mockScene.beatActive).toBe(true);
+    expect(mockDelayedCall).toHaveBeenCalledWith(1000, expect.any(Function));
+  });
+
+  it('delegates ledger beat and calls advanceBeat', () => {
+    const mockApplyLedger = vi.fn();
+    const mockScene: any = {
+      chapter: { beats: [{ type: 'ledger', delta: 50, note: 'test' }] },
+      beatIndex: -1,
+      beatActive: false,
+      applyLedger: mockApplyLedger
+    };
+    const engine = new BeatEngine(mockScene);
+    const advanceBeatSpy = vi.spyOn(engine as any, 'advanceBeat').mockImplementation(() => {});
+
+    engine.startBeat(0);
+
+    expect(mockScene.beatIndex).toBe(0);
+    expect(mockScene.beatActive).toBe(true);
+    expect(mockApplyLedger).toHaveBeenCalledWith(50, 'test');
+    expect(advanceBeatSpy).toHaveBeenCalled();
   });
 });
