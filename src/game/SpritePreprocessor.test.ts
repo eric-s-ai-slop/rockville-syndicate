@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { preprocessShowcaseSheet, preprocessColumnFirstSheet, preprocessGirlSilhouetteSheet } from './SpritePreprocessor';
+import { preprocessShowcaseSheet, preprocessColumnFirstSheet, preprocessGirlSilhouetteSheet, preprocessStandardSheet } from './SpritePreprocessor';
 
 describe('SpritePreprocessor', () => {
   let originalGetContext: any;
@@ -305,5 +305,61 @@ describe('SpritePreprocessor', () => {
     HTMLCanvasElement.prototype.getContext = () => null;
 
     expect(() => preprocessGirlSilhouetteSheet(img)).toThrowError();
+  });
+
+  describe('preprocessStandardSheet checkerboard keying', () => {
+    // Builds a 4x4 mock sheet whose first row carries one pixel of each class we
+    // care about, captures the alpha buffer handed to putImageData, and returns it.
+    const runKeying = (firstRow: number[][]): Uint8ClampedArray => {
+      const w = 4, h = 4;
+      let captured: Uint8ClampedArray | null = null;
+      HTMLCanvasElement.prototype.getContext = function (contextId: string): any {
+        if (contextId !== '2d') return null;
+        return {
+          fillRect: vi.fn(),
+          clearRect: vi.fn(),
+          drawImage: vi.fn(),
+          getImageData: () => {
+            const data = new Uint8ClampedArray(w * h * 4);
+            for (let i = 0; i < data.length; i += 4) data[i + 3] = 255; // opaque black default
+            firstRow.forEach(([r, g, b], px) => {
+              const idx = px * 4;
+              data[idx] = r; data[idx + 1] = g; data[idx + 2] = b; data[idx + 3] = 255;
+            });
+            return { data, width: w, height: h };
+          },
+          putImageData: (imgData: ImageData) => { captured = imgData.data; },
+          imageSmoothingEnabled: false,
+        };
+      } as any;
+
+      const img = document.createElement('img');
+      Object.defineProperty(img, 'naturalWidth', { value: w });
+      Object.defineProperty(img, 'naturalHeight', { value: h });
+      preprocessStandardSheet(img);
+      if (!captured) throw new Error('putImageData was never called');
+      return captured;
+    };
+
+    it('keys out both flattened checker tones', () => {
+      // px0 ~#787878 (lum 120), px1 ~#bdbdbd (lum 189) — both checker tones.
+      const out = runKeying([[120, 120, 120], [189, 189, 189]]);
+      expect(out[3]).toBe(0);  // tone 1 → transparent
+      expect(out[7]).toBe(0);  // tone 2 → transparent
+    });
+
+    it('preserves mid-gray subject pixels between the two checker tones', () => {
+      // px2 lum 155 sits in the gap between the tones — the old [70,210] band would
+      // have punched a hole here; the tolerance-based keying must keep it opaque.
+      const out = runKeying([[120, 120, 120], [189, 189, 189], [155, 155, 155]]);
+      expect(out[3]).toBe(0);    // checker still cleared
+      expect(out[11]).toBe(255); // mid-gray subject preserved
+    });
+
+    it('preserves dark outlines and saturated subject pixels', () => {
+      const out = runKeying([[40, 40, 40], [220, 30, 30]]);
+      expect(out[3]).toBe(255); // dark outline (lum 40) kept
+      expect(out[7]).toBe(255); // saturated red (skin/clothing) kept
+    });
   });
 });

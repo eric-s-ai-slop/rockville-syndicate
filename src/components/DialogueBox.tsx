@@ -188,6 +188,7 @@ export default function DialogueBox({
               {choices!.map((choice, idx) => (
                 <button
                   key={idx}
+                  data-testid="dialogue-choice"
                   onClick={() => { onChoose?.(idx); }}
                   className="w-full text-left px-3 py-2 cursor-pointer flex items-start gap-2 transition-colors duration-100"
                   style={{ background: '#11200a', border: '2px solid #3a5520', color: '#e8f5d0' }}
