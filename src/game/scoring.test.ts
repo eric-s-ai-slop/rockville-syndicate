@@ -46,6 +46,11 @@ describe('ghostBeatenIndex', () => {
     expect(ghostBeatenIndex(2811)).toBe(4); // Beats 2810 (SJF)
   });
 
+  it('handles exact target scores by beating the next lowest target', () => {
+    expect(ghostBeatenIndex(5200)).toBe(1); // ties 5200 (ERH), beats 4850 (NKF)
+    expect(ghostBeatenIndex(4850)).toBe(2); // ties 4850 (NKF), beats 4100 (NBF)
+  });
+
   it('returns -1 if no ghost is beaten', () => {
     expect(ghostBeatenIndex(2810)).toBe(-1); // Tie with last ghost
     expect(ghostBeatenIndex(1000)).toBe(-1); // Worse than last ghost

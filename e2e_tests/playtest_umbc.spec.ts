@@ -1,17 +1,20 @@
 import { test, expect } from '@playwright/test';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
+import { breakSeal } from './helpers';
 
-const ARTIFACT_DIR = '/Users/erichuang/.gemini/antigravity/brain/ba34fdfe-3d80-4604-8433-4bdda0fa7bed';
+// Screenshots are written next to this spec under a gitignored output folder.
+const ARTIFACT_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '__screenshots__');
 
 test('playtest UMBC chapter and capture screenshots', async ({ page }) => {
   // Set a long timeout for the entire test
-  test.setTimeout(90000);
+  test.setTimeout(120000);
 
   // Set viewport to standard size
   await page.setViewportSize({ width: 1024, height: 768 });
 
-  console.log('Navigating to http://localhost:3000...');
-  await page.goto('http://localhost:3000');
+  console.log('Navigating to /...');
+  await page.goto('/');
   await expect(page).toHaveTitle(/Project Omega/);
 
   // 1. Choose crew member (Eric)
@@ -31,10 +34,9 @@ test('playtest UMBC chapter and capture screenshots', async ({ page }) => {
   console.log('Taking sealed card screenshot...');
   await page.screenshot({ path: path.join(ARTIFACT_DIR, 'sealed.png') });
 
-  // Checkpoint 2: Break seal once
+  // Checkpoint 2: Break the redaction seal (crack -> shatter)
   console.log('Clicking to break seal...');
-  await page.getByText('CLICK TO BREAK SEAL').click();
-  await page.waitForTimeout(800); // Wait for break animation
+  await breakSeal(page);
   console.log('Taking break seal screenshot...');
   await page.screenshot({ path: path.join(ARTIFACT_DIR, 'break.png') });
 
@@ -46,27 +48,44 @@ test('playtest UMBC chapter and capture screenshots', async ({ page }) => {
   await page.waitForTimeout(2000);
   await expect(page.locator('canvas')).toBeVisible({ timeout: 10000 });
 
-  // Helper to advance game flow
-  const advanceFlow = async (targetCondition: () => boolean, maxSeconds = 30) => {
+  // Helper to advance game flow. Presses through dialogue, walks to markers by
+  // teleporting onto the walk target, and auto-completes the intermediate
+  // interactive minigames (stewOffering / fratAggro / silentDrive) that sit
+  // between the screenshots we care about by invoking their completion callback.
+  const SKIPPABLE_MODES = ['stewOffering', 'fratAggro', 'silentDrive'];
+  const advanceFlow = async (targetCondition: () => boolean, maxSeconds = 45) => {
     let attempts = 0;
     const maxAttempts = maxSeconds * 4; // 250ms check interval
     while (attempts < maxAttempts) {
       const isTarget = await page.evaluate(targetCondition);
       if (isTarget) return true;
 
-      // Check if React dialogue box is visible in the DOM
-      const isDialogOpen = await page.locator('p.font-pixel').isVisible();
+      // Auto-complete any skippable foreground minigame that is blocking flow.
+      const skipped = await page.evaluate((skippable) => {
+        const scene = (window as any).__OMEGA_GAME__?.scene.getScene('ChapterScene');
+        const mode = scene?.activeMode;
+        if (mode && skippable.includes(mode.id) && typeof mode.onCompleteCallback === 'function') {
+          mode.onCompleteCallback({ outcome: 'win' });
+          return true;
+        }
+        return false;
+      }, SKIPPABLE_MODES);
 
-      if (isDialogOpen) {
-        await page.keyboard.press('Space');
-      } else {
-        await page.evaluate(() => {
-          const scene = (window as any).__OMEGA_GAME__?.scene.getScene('ChapterScene');
-          if (scene && scene.walkTarget) {
-            scene.player.x = scene.walkTarget.x;
-            scene.player.y = scene.walkTarget.y;
-          }
-        });
+      if (!skipped) {
+        // Check if React dialogue box is visible in the DOM
+        const isDialogOpen = await page.locator('p.font-pixel').first().isVisible();
+
+        if (isDialogOpen) {
+          await page.keyboard.press('Space');
+        } else {
+          await page.evaluate(() => {
+            const scene = (window as any).__OMEGA_GAME__?.scene.getScene('ChapterScene');
+            if (scene && scene.walkTarget) {
+              scene.player.x = scene.walkTarget.x;
+              scene.player.y = scene.walkTarget.y;
+            }
+          });
+        }
       }
       await page.waitForTimeout(250);
       attempts++;
@@ -74,11 +93,11 @@ test('playtest UMBC chapter and capture screenshots', async ({ page }) => {
     throw new Error('Timeout waiting for target condition');
   };
 
-  // 5. Play dialogue up to "You're next."
-  console.log('Playing up to "You\'re next."...');
+  // 5. Play dialogue up to Ben's "try this stew" line (a voiced dialogue beat).
+  console.log('Playing up to the "try this stew" line...');
   await advanceFlow(() => {
     const p = document.querySelector('p.font-pixel');
-    return p ? p.innerHTML.includes("You're next.") : false;
+    return p ? p.innerHTML.includes('try this stew') : false;
   });
   await page.waitForTimeout(300);
   console.log('Taking voice screenshot...');
