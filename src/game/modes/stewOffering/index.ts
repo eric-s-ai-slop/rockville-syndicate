@@ -118,7 +118,7 @@ export class StewOfferingMode implements GameMode {
     this.onCompleteCallback = null;
   }
 
-  private handleFloorClick(pointer: Phaser.Input.Pointer, currentlyOver: any[]) {
+  private handleFloorClick(pointer: Phaser.Input.Pointer, currentlyOver: Phaser.GameObjects.GameObject[]) {
     // If we clicked on an interactive sprite (like a girl or UI), do nothing
     if (currentlyOver.length > 0) return;
     if (this.isMoving) return;
