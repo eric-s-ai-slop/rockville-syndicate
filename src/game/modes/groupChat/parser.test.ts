@@ -35,6 +35,32 @@ describe('parseMessage', () => {
   describe('freeform earnest fallback (real words, no slang)', () => {
     it('honest plea', () => expect(parseMessage('you should be honest with him')).toBe('true'));
     it('this is just wrong', () => expect(parseMessage('this is just wrong')).toBe('true'));
+
+    describe('triggers true for all assertion keywords if msg length >= 12 and no jokes', () => {
+      const keywords = [
+        'not', 'fake', 'real', 'eric', 'stop', 'dont', "don't",
+        'should', 'tell', 'truth', 'wrong', 'lie', 'warn', 'honest', 'expose',
+      ];
+      keywords.forEach(kw => {
+        const msg = `i think you ${kw} to listen`; // length > 12
+        it(`"${msg}" triggers fallback because of "${kw}"`, () => {
+          expect(parseMessage(msg)).toBe('true');
+        });
+      });
+    });
+
+    describe('returns neutral if assertion keyword is present but length < 12', () => {
+      it('short assertion', () => expect(parseMessage('wrong man')).toBe('neutral'));
+      it('short assertion 2', () => expect(parseMessage('expose him')).toBe('neutral'));
+    });
+
+    describe('returns neutral if assertion keyword is present AND joke token is present', () => {
+      // It has a joke token so it isn't an earnest assertion,
+      // and it has an assertion token so it isn't a pure joke.
+      // E.g., not matching TRUE_KEYWORDS
+      it('assertion with joke token', () => expect(parseMessage('this is wrong lmao')).toBe('neutral'));
+      it('assertion with joke emoji', () => expect(parseMessage('expose him 💀')).toBe('neutral'));
+    });
   });
 
   describe('downgrades banter that merely contains a soft keyword', () => {
