@@ -61,11 +61,15 @@ export function preprocessShowcaseSheet(
   const bgB = pixels[10 * 4 + 2];
 
   // Tolerance helper
+  const tolerance = (characterId && characterId.includes('nick_f')) ? 35 : 45;
+  const toleranceSq = tolerance * tolerance;
   const isBackground = (r: number, g: number, b: number, a: number): boolean => {
     if (a < 50) return true;
-    const dist = Math.sqrt((r - bgR) ** 2 + (g - bgG) ** 2 + (b - bgB) ** 2);
-    const tolerance = (characterId && characterId.includes('nick_f')) ? 35 : 45;
-    return dist < tolerance; // safe tolerance for compressed images
+    const dr = r - bgR;
+    const dg = g - bgG;
+    const db = b - bgB;
+    const distSq = dr * dr + dg * dg + db * db;
+    return distSq < toleranceSq; // safe tolerance for compressed images
   };
 
   // BFS island analysis
@@ -321,12 +325,18 @@ export function preprocessShowcaseSheet(
       const a = data[idx + 3];
       if (a < 50) return true;
 
-      const distBg = Math.sqrt((r - bgR) ** 2 + (g - bgG) ** 2 + (b - bgB) ** 2);
-      if (distBg < 45) return true;
+      const drBg = r - bgR;
+      const dgBg = g - bgG;
+      const dbBg = b - bgB;
+      const distBgSq = drBg * drBg + dgBg * dgBg + dbBg * dbBg;
+      if (distBgSq < 2025) return true; // 45 * 45
 
       for (const c of cornerColors) {
-        const distCorner = Math.sqrt((r - c.r) ** 2 + (g - c.g) ** 2 + (b - c.b) ** 2);
-        if (distCorner < 35) return true;
+        const drC = r - c.r;
+        const dgC = g - c.g;
+        const dbC = b - c.b;
+        const distCornerSq = drC * drC + dgC * dgC + dbC * dbC;
+        if (distCornerSq < 1225) return true; // 35 * 35
       }
       return false;
     };
@@ -648,11 +658,15 @@ export function preprocessColumnFirstSheet(
   const bgG = pixels[(10 * width + 10) * 4 + 1];
   const bgB = pixels[(10 * width + 10) * 4 + 2];
 
+  const tolerance = (_characterId && _characterId.includes('nick_f')) ? 35 : 45;
+  const toleranceSq = tolerance * tolerance;
   const isBackground = (r: number, g: number, b: number, a: number): boolean => {
     if (a < 50) return true;
-    const dist = Math.sqrt((r - bgR) ** 2 + (g - bgG) ** 2 + (b - bgB) ** 2);
-    const tolerance = (_characterId && _characterId.includes('nick_f')) ? 35 : 45;
-    return dist < tolerance;
+    const dr = r - bgR;
+    const dg = g - bgG;
+    const db = b - bgB;
+    const distSq = dr * dr + dg * dg + db * db;
+    return distSq < toleranceSq;
   };
 
   // BFS island detection (same approach as preprocessShowcaseSheet)
@@ -798,8 +812,11 @@ export function preprocessColumnFirstSheet(
       const b = fd[idx + 2];
       const a = fd[idx + 3];
       if (a < 50) return true;
-      const dist = Math.sqrt((r - bgR) ** 2 + (g - bgG) ** 2 + (b - bgB) ** 2);
-      return dist < 45;
+      const dr = r - bgR;
+      const dg = g - bgG;
+      const db = b - bgB;
+      const distSq = dr * dr + dg * dg + db * db;
+      return distSq < 2025; // 45 * 45
     };
 
     // Seed queue with border pixels
@@ -990,8 +1007,11 @@ export function preprocessFemalePoolSheet(
       const b = fd[idx + 2];
       const a = fd[idx + 3];
       if (a < 50) return true;
-      const dist = Math.sqrt((r - bgR) ** 2 + (g - bgG) ** 2 + (b - bgB) ** 2);
-      return dist < 45;
+      const dr = r - bgR;
+      const dg = g - bgG;
+      const db = b - bgB;
+      const distSq = dr * dr + dg * dg + db * db;
+      return distSq < 2025; // 45 * 45
     };
 
     let activeMinX = w, activeMaxX = 0, activeMinY = h, activeMaxY = 0;
@@ -1031,8 +1051,11 @@ export function preprocessFemalePoolSheet(
       const b = afd[idx + 2];
       const a = afd[idx + 3];
       if (a < 50) return true;
-      const dist = Math.sqrt((r - bgR) ** 2 + (g - bgG) ** 2 + (b - bgB) ** 2);
-      return dist < 45;
+      const dr = r - bgR;
+      const dg = g - bgG;
+      const db = b - bgB;
+      const distSq = dr * dr + dg * dg + db * db;
+      return distSq < 2025; // 45 * 45
     };
 
     // Seed queue with border pixels
@@ -1278,8 +1301,11 @@ export function preprocessGirlSilhouetteSheet(img: HTMLImageElement): SlicedSpri
         const r = cellPixels[i];
         const g = cellPixels[i+1];
         const b = cellPixels[i+2];
-        const dist = Math.sqrt((r-bgR)**2 + (g-bgG)**2 + (b-bgB)**2);
-        if (dist < 45 || r > 200) { // Strip light colors / borders
+        const dr = r - bgR;
+        const dg = g - bgG;
+        const db = b - bgB;
+        const distSq = dr * dr + dg * dg + db * db;
+        if (distSq < 2025 || r > 200) { // Strip light colors / borders
           cellPixels[i+3] = 0; // Transparent
         }
       }
