@@ -1365,18 +1365,26 @@ export function preprocessStandardSheet(img: HTMLImageElement, cols = 3): Sliced
   // Strip background. These source sheets are JPGs (no alpha), so the intended
   // transparent area was flattened into a two-tone gray checkerboard
   // (~#787878 and ~#bdbdbd). A single bg-color sample at (0,0) only catches one of
-  // the two tones, leaving the other as visible checker squares in-game. Instead,
-  // strip ANY near-neutral pixel within the checker brightness band — this removes
-  // both tones while preserving the white tank tops (lum > 210) and every colored
-  // pixel (hair, skin, denim) as well as the dark character outlines (lum < 70).
+  // the two tones, leaving the other as visible checker squares in-game.
+  //
+  // Earlier this keyed out the entire near-neutral band (lum 70–210), but that
+  // punched holes through legitimately-gray subject pixels (gray hair, denim,
+  // hoodies) that happen to land mid-band. Instead, match each checker tone
+  // within a tolerance: this clears both checker squares (plus JPEG ringing
+  // around them) while preserving mid-grays between the two tones, the white tank
+  // tops above them, and the dark outlines below — and it removes a strict subset
+  // of the old band, so it can never key out a pixel the old code would have kept.
+  const CHECKER_TONES = [120, 189]; // ~#787878 and ~#bdbdbd luminance
+  const CHECKER_TOLERANCE = 24;     // absorbs JPEG noise around each flat tone
   for (let i = 0; i < pixels.length; i += 4) {
     const r = pixels[i];
     const g = pixels[i+1];
     const b = pixels[i+2];
     const mx = Math.max(r, g, b);
     const mn = Math.min(r, g, b);
+    if (mx - mn >= 24) continue; // saturated → part of the subject, never bg
     const lum = (r + g + b) / 3;
-    if (mx - mn < 24 && lum > 70 && lum < 210) {
+    if (CHECKER_TONES.some((tone) => Math.abs(lum - tone) <= CHECKER_TOLERANCE)) {
       pixels[i+3] = 0; // Transparent
     }
   }
