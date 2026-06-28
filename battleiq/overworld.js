@@ -763,7 +763,13 @@ class OverworldEngine {
         const trig = this.nearTrigger;
         console.log(`[BattleIQ:Interact] Triggering type=${trig.type} id=${trig.id || trig.memberId} at (${trig.x},${trig.y}) text="${trig.text ? trig.text.substring(0, 50) + (trig.text.length > 50 ? '...' : '') : ''}"`);
         // DIAGNOSTIC: Show all active triggers (helps debug recruit issues)
-        console.log(`[BattleIQ:Interact] activeTriggers=[${(this.activeTriggers || []).map(t => `${t.type}:${t.id || t.memberId}@(${t.x},${t.y})`).join(", ")}]`);
+        const trigs = this.activeTriggers || [];
+        if (this._cachedActiveTriggersRef !== trigs || this._cachedActiveTriggersLen !== trigs.length) {
+            this._cachedActiveTriggersRef = trigs;
+            this._cachedActiveTriggersLen = trigs.length;
+            this._cachedActiveTriggersStr = `[BattleIQ:Interact] activeTriggers=[${trigs.map(t => `${t.type}:${t.id || t.memberId}@(${t.x},${t.y})`).join(", ")}]`;
+        }
+        console.log(this._cachedActiveTriggersStr);
 
         if (trig.type === "exit") {
             // GATE: Check if the boss for this act has been defeated.
