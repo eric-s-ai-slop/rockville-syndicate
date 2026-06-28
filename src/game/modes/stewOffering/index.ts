@@ -137,8 +137,8 @@ export class StewOfferingMode implements GameMode {
       (ben as Phaser.GameObjects.Sprite).setFlipX(targetX < (ben.x as number));
     }
 
-    const benNameplate = this.ctx.actorSprites['ben']?.[1];
-    const benShadow = this.ctx.actorSprites['ben']?.[2];
+    const benNameplate = this.ctx.actorSprites['ben']?.[1] as Phaser.GameObjects.Text | undefined;
+    const benShadow = this.ctx.actorSprites['ben']?.[2] as Phaser.GameObjects.Image | undefined;
 
     this.ctx.tweens.add({
       targets: ben,
@@ -147,15 +147,15 @@ export class StewOfferingMode implements GameMode {
       duration,
       ease: 'Sine.easeInOut',
       onUpdate: () => {
-        const s = ben as any;
-        s.setDepth?.(s.y);
+        const s = ben as Phaser.GameObjects.Sprite;
+        if (s.setDepth) s.setDepth(s.y);
         if (benNameplate) {
-          (benNameplate as any).setPosition?.(s.x, s.y - 38);
-          (benNameplate as any).setDepth?.(s.y + 200);
+          benNameplate.setPosition(s.x, s.y - 38);
+          benNameplate.setDepth(s.y + 200);
         }
         if (benShadow) {
-          (benShadow as any).setPosition?.(s.x, s.y + 18);
-          (benShadow as any).setDepth?.(s.y - 1);
+          benShadow.setPosition(s.x, s.y + 18);
+          benShadow.setDepth(s.y - 1);
         }
       },
       onComplete: () => {
@@ -186,8 +186,8 @@ export class StewOfferingMode implements GameMode {
       (ben as Phaser.GameObjects.Sprite).setFlipX((target.x as number) < (ben.x as number));
     }
 
-    const benNameplate = this.ctx.actorSprites['ben']?.[1];
-    const benShadow = this.ctx.actorSprites['ben']?.[2];
+    const benNameplate = this.ctx.actorSprites['ben']?.[1] as Phaser.GameObjects.Text | undefined;
+    const benShadow = this.ctx.actorSprites['ben']?.[2] as Phaser.GameObjects.Image | undefined;
 
     this.ctx.tweens.add({
       targets: ben,
@@ -196,15 +196,15 @@ export class StewOfferingMode implements GameMode {
       duration,
       ease: 'Sine.easeInOut',
       onUpdate: () => {
-        const s = ben as any;
-        s.setDepth?.(s.y);
+        const s = ben as Phaser.GameObjects.Sprite;
+        if (s.setDepth) s.setDepth(s.y);
         if (benNameplate) {
-          (benNameplate as any).setPosition?.(s.x, s.y - 38);
-          (benNameplate as any).setDepth?.(s.y + 200);
+          benNameplate.setPosition(s.x, s.y - 38);
+          benNameplate.setDepth(s.y + 200);
         }
         if (benShadow) {
-          (benShadow as any).setPosition?.(s.x, s.y + 18);
-          (benShadow as any).setDepth?.(s.y - 1);
+          benShadow.setPosition(s.x, s.y + 18);
+          benShadow.setDepth(s.y - 1);
         }
       },
       onComplete: () => {
@@ -234,8 +234,8 @@ export class StewOfferingMode implements GameMode {
         (target as any).setFlipX(walkAwayX < (target as any).x);
       }
       
-      const targetNameplate = this.ctx.actorSprites[npcId]?.[1];
-      const targetShadow = this.ctx.actorSprites[npcId]?.[2];
+      const targetNameplate = this.ctx.actorSprites[npcId]?.[1] as Phaser.GameObjects.Text | undefined;
+      const targetShadow = this.ctx.actorSprites[npcId]?.[2] as Phaser.GameObjects.Image | undefined;
 
       this.ctx.tweens.add({
         targets: target,
@@ -244,15 +244,15 @@ export class StewOfferingMode implements GameMode {
         duration: 2000,
         ease: 'Sine.easeOut',
         onUpdate: () => {
-          const s = target as any;
-          s.setDepth?.(s.y);
+          const s = target as Phaser.GameObjects.Sprite;
+          if (s.setDepth) s.setDepth(s.y);
           if (targetNameplate) {
-            (targetNameplate as any).setPosition?.(s.x, s.y - 38);
-            (targetNameplate as any).setDepth?.(s.y + 200);
+            targetNameplate.setPosition(s.x, s.y - 38);
+            targetNameplate.setDepth(s.y + 200);
           }
           if (targetShadow) {
-            (targetShadow as any).setPosition?.(s.x, s.y + 18);
-            (targetShadow as any).setDepth?.(s.y - 1);
+            targetShadow.setPosition(s.x, s.y + 18);
+            targetShadow.setDepth(s.y - 1);
           }
         }
       });
@@ -276,10 +276,10 @@ export class StewOfferingMode implements GameMode {
     });
   }
 
-  private getSprite(actorId: string): any {
+  private getSprite(actorId: string): Phaser.GameObjects.Sprite | Phaser.GameObjects.Image | undefined {
     const objs = this.ctx.actorSprites[actorId];
     if (!objs?.[0]) return undefined;
-    return objs[0];
+    return objs[0] as Phaser.GameObjects.Sprite | Phaser.GameObjects.Image;
   }
 }
 
