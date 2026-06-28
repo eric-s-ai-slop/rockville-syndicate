@@ -223,12 +223,18 @@ class GameCoordinator {
         if (!container) return;
         container.innerHTML = "";
 
+        const itemsMap = {};
+        for (let i = 0; i < GAME_DATA.ITEMS.length; i++) {
+            const it = GAME_DATA.ITEMS[i];
+            itemsMap[it.id] = it;
+        }
+
         GAME_DATA.STARTING_CHARACTERS.forEach((char, idx) => {
             const card = document.createElement("div");
             card.className = "char-card" + (idx === this.selectedCharIndex ? " selected" : "");
 
             const itemsList = char.startingItems.map(id => {
-                const item = GAME_DATA.ITEMS.find(it => it.id === id);
+                const item = itemsMap[id];
                 return item ? item.name : id;
             }).join(", ");
 
