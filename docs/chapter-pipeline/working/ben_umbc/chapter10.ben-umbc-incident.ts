@@ -11,7 +11,7 @@ export const actors = scenes[0].actors;
 
 export const chapter3: ChapterConfig = {
   id: 'umbc_incident',
-  index: 3, // TODO: slot before ding_dong_ditch_ben and renumber
+  index: 6,
   title: 'The UMBC Incident',
   subtitle: 'Act III — The Pariah Event',
   location: 'UMBC Frat Basement / Parking Lot at Night',
