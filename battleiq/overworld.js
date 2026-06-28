@@ -51,10 +51,14 @@ class OverworldEngine {
         // party (e.g., auto-recruited after a boss fight), hide the trigger so the
         // player can't try to recruit them again. The user already has them.
         // ============================================================================
+
+        // Pre-compute party member names to optimize trigger filtering
+        const partyNamesLower = new Set((game.party || []).map(p => p.name.toLowerCase()));
+
         this.activeTriggers = this.activeTriggers.filter(trig => {
             if (trig.type === "recruit" && GAME_DATA.PLAYERS[trig.memberId]) {
                 const memberName = GAME_DATA.PLAYERS[trig.memberId].name;
-                const alreadyInParty = (game.party || []).some(p => p.name === memberName);
+                const alreadyInParty = partyNamesLower.has(memberName.toLowerCase());
                 if (alreadyInParty) {
                     console.log(`[BattleIQ:Map] Filtered out recruit trigger for "${memberName}" (already in party) at (${trig.x},${trig.y})`);
                     // 2026-06-11: Highlight the Maharko-specific case so the dev
@@ -79,9 +83,7 @@ class OverworldEngine {
             // character would hide the act's boss trigger, leaving no way to
             // progress through the game.
             if (trig.type === "npc" && trig.name && !trig.triggerBattle) {
-                const alreadyInParty = (game.party || []).some(p =>
-                    p.name.toLowerCase() === trig.name.toLowerCase()
-                );
+                const alreadyInParty = partyNamesLower.has(trig.name.toLowerCase());
                 if (alreadyInParty) {
                     console.log(`[BattleIQ:Map] Filtered out NPC trigger for "${trig.name}" (already in party) at (${trig.x},${trig.y})`);
                     return false;
