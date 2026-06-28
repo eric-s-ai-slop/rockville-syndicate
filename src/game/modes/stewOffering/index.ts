@@ -12,6 +12,7 @@ export class StewOfferingMode implements GameMode {
   private isMoving = false;
   
   private uiText: Phaser.GameObjects.Text | null = null;
+  private uiContainer: Phaser.GameObjects.Container | null = null;
 
   preload(ctx: ModeContext): void {}
 
@@ -51,13 +52,13 @@ export class StewOfferingMode implements GameMode {
     const targetX = cx;
     const targetY = (80 - cy) / zoom + cy;
 
-    this.uiText = ctx.add.container(targetX, targetY, [bg, txt])
+    this.uiContainer = ctx.add.container(targetX, targetY, [bg, txt])
       .setScrollFactor(0)
       .setDepth(15000)
-      .setScale(1 / zoom) as any;
+      .setScale(1 / zoom);
 
-    // Use txt as the updatable element
-    (this.uiText as any)._txt = txt;
+    // Keep txt as the updatable element reference
+    this.uiText = txt;
 
     if (ben) {
       ben.setInteractive({ useHandCursor: true });
@@ -94,10 +95,11 @@ export class StewOfferingMode implements GameMode {
 
   teardown(): void {
     this.ctx.physics.scene.input.off('pointerdown', this.handleFloorClick, this);
-    if (this.uiText) {
-      this.uiText.destroy();
-      this.uiText = null;
+    if (this.uiContainer) {
+      this.uiContainer.destroy();
+      this.uiContainer = null;
     }
+    this.uiText = null;
     this.targetNpcs.forEach(id => {
       const sprite = this.getSprite(id);
       if (sprite) {
@@ -258,17 +260,18 @@ export class StewOfferingMode implements GameMode {
       });
       
       this.offersCompleted++;
-      if (this.uiText && (this.uiText as any)._txt) {
-        (this.uiText as any)._txt.setText(`OFFER STEW: ${this.offersCompleted} / 3\n(Click people to offer stew)`);
+      if (this.uiText) {
+        this.uiText.setText(`OFFER STEW: ${this.offersCompleted} / 3\n(Click people to offer stew)`);
       }
       
       this.isMoving = false;
       
       if (this.offersCompleted >= 3) {
-        if (this.uiText) {
-          this.uiText.destroy();
-          this.uiText = null;
+        if (this.uiContainer) {
+          this.uiContainer.destroy();
+          this.uiContainer = null;
         }
+        this.uiText = null;
         this.ctx.time.delayedCall(1500, () => {
           if (this.onCompleteCallback) this.onCompleteCallback({ outcome: 'win' });
         });
