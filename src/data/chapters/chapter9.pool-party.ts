@@ -14,7 +14,7 @@ const chapter9: ChapterConfig = {
     width: 1080,
     height: 760,
     backdrop: 0x0a1a0a,
-    theme: 'pool_party' as any,
+    theme: 'pool_party',
     areaTitle: "Nick F's Backyard — June 13, 2026",
 
     rects: [
