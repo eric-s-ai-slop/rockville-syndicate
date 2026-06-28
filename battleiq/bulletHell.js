@@ -7,6 +7,14 @@ const BUILD_VERSION = "v1.1.0-debug-2026-06-11T16:28:00";
 console.log(`[BattleIQ:Build] bulletHell.js loaded ${BUILD_VERSION}`);
 
 
+function secureRandom() {
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+        return crypto.getRandomValues(new Uint32Array(1))[0] / 4294967296;
+    }
+    return Math.random();
+}
+
+
 class BulletHellEngine {
     constructor() {
         this.canvas = null;
@@ -267,14 +275,14 @@ class BulletHellEngine {
             // Jacob: Melt blobs (💧), Crazy 8 cards (🃏), and Galaxy Gas clouds (☁️)
             // SPEED BALANCED 2026: vy 2-4 → 1.2-2.4 (40% slower for easier dodging)
             const chars = ["💧", "🃏", "☁️", "🐮"];
-            const char = chars[Math.floor(Math.random() * chars.length)];
+            const char = chars[Math.floor(secureRandom() * chars.length)];
 
             // Spawn from top, falling down
             this.bullets.push({
-                x: Math.random() * this.canvas.width,
+                x: secureRandom() * this.canvas.width,
                 y: -10,
-                vx: (Math.random() - 0.5) * 0.9,
-                vy: 1.2 + Math.random() * 1.2,
+                vx: (secureRandom() - 0.5) * 0.9,
+                vy: 1.2 + secureRandom() * 1.2,
                 size: 8,
                 fontSize: 14,
                 char: char,
@@ -284,9 +292,9 @@ class BulletHellEngine {
         } else if (patternId === "bedtime_chicken") {
             // Hedgecock: Chicken emojis (🐔) and alarm clocks (⏰)
             // SPEED BALANCED 2026: speed 1.6 → 1.0
-            const side = Math.random() < 0.5 ? "left" : "right";
+            const side = secureRandom() < 0.5 ? "left" : "right";
             const rx = side === "left" ? -10 : this.canvas.width + 10;
-            const ry = Math.random() * this.canvas.height;
+            const ry = secureRandom() * this.canvas.height;
 
             // Aim directly towards player heart (slower for easier dodging)
             const angle = Math.atan2(this.heartY - ry, this.heartX - rx);
@@ -300,7 +308,7 @@ class BulletHellEngine {
                 vy: Math.sin(angle) * speed,
                 size: 8,
                 fontSize: 14,
-                char: Math.random() < 0.7 ? "🐔" : "⏰",
+                char: secureRandom() < 0.7 ? "🐔" : "⏰",
                 spin: true,
                 angle: 0
             });
@@ -310,7 +318,7 @@ class BulletHellEngine {
             const angle = ticks * 0.55;
             const speed = 1.0;
             const chars = ["🪙", "📧", "💤", "🃏"];
-            const char = chars[Math.floor(Math.random() * chars.length)];
+            const char = chars[Math.floor(secureRandom() * chars.length)];
 
             this.bullets.push({
                 x: this.canvas.width / 2,
@@ -327,21 +335,21 @@ class BulletHellEngine {
             // Eric Pattern 2: A-List Cancellation Barrage (dense falling cards + film reels)
             // SPEED BALANCED 2026: vy 2.2-3.7 → 1.4-2.4
             const chars = ["💳", "🎬", "🎟️", "💴"];
-            const char = chars[Math.floor(Math.random() * chars.length)];
+            const char = chars[Math.floor(secureRandom() * chars.length)];
 
             // 2-3 bullets per tick (denser than other patterns)
             const bulletCount = 2 + Math.floor(ticks / 4) % 2;
             for (let i = 0; i < bulletCount; i++) {
                 this.bullets.push({
-                    x: Math.random() * this.canvas.width,
-                    y: -10 - Math.random() * 20,
-                    vx: (Math.random() - 0.5) * 0.5,
-                    vy: 1.4 + Math.random() * 1.0,
+                    x: secureRandom() * this.canvas.width,
+                    y: -10 - secureRandom() * 20,
+                    vx: (secureRandom() - 0.5) * 0.5,
+                    vy: 1.4 + secureRandom() * 1.0,
                     size: 9,
                     fontSize: 14,
                     char: char,
                     spin: true,
-                    angle: Math.random() * Math.PI * 2
+                    angle: secureRandom() * Math.PI * 2
                 });
             }
         } else if (patternId === "inflation_rain") {
@@ -350,12 +358,12 @@ class BulletHellEngine {
             const speedMult = 1 + (ticks * 0.015); // 0.015 instead of 0.05 = 70% slower growth
             const cappedMult = Math.min(speedMult, 2.0); // hard cap at 2.0x
             const chars = ["💵", "🪙", "💰", "🪙"];
-            const char = chars[Math.floor(Math.random() * chars.length)];
+            const char = chars[Math.floor(secureRandom() * chars.length)];
 
             this.bullets.push({
-                x: Math.random() * this.canvas.width,
+                x: secureRandom() * this.canvas.width,
                 y: -10,
-                vx: (Math.random() - 0.5) * 0.4,
+                vx: (secureRandom() - 0.5) * 0.4,
                 vy: 1.5 * cappedMult,
                 size: 9,
                 fontSize: 14,
@@ -372,12 +380,12 @@ class BulletHellEngine {
 
             // Aim toward heart with some spread
             const baseAngle = Math.atan2(this.heartY - cy, this.heartX - cx);
-            const spread = (Math.random() - 0.5) * 0.4;
+            const spread = (secureRandom() - 0.5) * 0.4;
             const angle = baseAngle + spread;
             const speed = 1.4;
 
             const chars = ["📍", "🚫", "📍", "🚫"];
-            const char = chars[Math.floor(Math.random() * chars.length)];
+            const char = chars[Math.floor(secureRandom() * chars.length)];
 
             this.bullets.push({
                 x: cx,
@@ -393,9 +401,9 @@ class BulletHellEngine {
         } else if (patternId === "tired_zzz") {
             // Eric Pattern 5: Tired Zzz (slow, easy breather)
             // SPEED BALANCED 2026: speed 0.8 → 0.5 (very easy, the breather between patterns)
-            const side = Math.random() < 0.5 ? "left" : "right";
+            const side = secureRandom() < 0.5 ? "left" : "right";
             const rx = side === "left" ? -10 : this.canvas.width + 10;
-            const ry = Math.random() * this.canvas.height;
+            const ry = secureRandom() * this.canvas.height;
 
             // Slow, lazy aim
             const angle = Math.atan2(this.heartY - ry, this.heartX - rx);
@@ -437,9 +445,9 @@ class BulletHellEngine {
             }
 
             // Continuous tracking bullets (alternating 📍 Find My and 💰 crypto)
-            const side = Math.random() < 0.5 ? "left" : "right";
+            const side = secureRandom() < 0.5 ? "left" : "right";
             const rx = side === "left" ? -10 : this.canvas.width + 10;
-            const ry = Math.random() * this.canvas.height;
+            const ry = secureRandom() * this.canvas.height;
             const angle = Math.atan2(this.heartY - ry, this.heartX - rx);
             const speed = 0.8;
 
@@ -450,7 +458,7 @@ class BulletHellEngine {
                 vy: Math.sin(angle) * speed,
                 size: 8,
                 fontSize: 14,
-                char: Math.random() < 0.5 ? "📍" : "💰",
+                char: secureRandom() < 0.5 ? "📍" : "💰",
                 spin: false,
                 angle: 0
             });
@@ -460,9 +468,9 @@ class BulletHellEngine {
             // SPEED BALANCED 2026: gokart vx 2.5→1.6, stew vy 2→1.4
             if (ticks % 4 === 0) { // Less frequent go-karts
                 // Horizontal sweeping Go-Karts
-                const rSide = Math.random() < 0.5 ? "left" : "right";
+                const rSide = secureRandom() < 0.5 ? "left" : "right";
                 const rx = rSide === "left" ? -20 : this.canvas.width + 20;
-                const ry = Math.random() * (this.canvas.height - 40) + 20;
+                const ry = secureRandom() * (this.canvas.height - 40) + 20;
 
                 this.bullets.push({
                     x: rx,
@@ -479,13 +487,13 @@ class BulletHellEngine {
 
             // Normal falling stew drops
             this.bullets.push({
-                x: Math.random() * this.canvas.width,
+                x: secureRandom() * this.canvas.width,
                 y: -10,
                 vx: 0,
                 vy: 1.4,
                 size: 8,
                 fontSize: 14,
-                char: Math.random() < 0.6 ? "🍲" : "🚫",
+                char: secureRandom() < 0.6 ? "🍲" : "🚫",
                 spin: true,
                 angle: 0
             });
@@ -497,9 +505,9 @@ class BulletHellEngine {
             // SPEED BALANCED: karts vx 1.8 (vs stew 1.6), debris vy 1.5 (vs stew 1.4)
             if (ticks % 5 === 0) { // Slightly less frequent than stew_gokart
                 // Horizontal sweeping F1 karts (left or right)
-                const rSide = Math.random() < 0.5 ? "left" : "right";
+                const rSide = secureRandom() < 0.5 ? "left" : "right";
                 const rx = rSide === "left" ? -20 : this.canvas.width + 20;
-                const ry = Math.random() * (this.canvas.height - 40) + 20;
+                const ry = secureRandom() * (this.canvas.height - 40) + 20;
 
                 this.bullets.push({
                     x: rx,
@@ -516,13 +524,13 @@ class BulletHellEngine {
 
             // Falling F1 debris: checkered flags + block icons
             this.bullets.push({
-                x: Math.random() * this.canvas.width,
+                x: secureRandom() * this.canvas.width,
                 y: -10,
                 vx: 0,
                 vy: 1.5,
                 size: 8,
                 fontSize: 14,
-                char: Math.random() < 0.5 ? "🏁" : "🚫",
+                char: secureRandom() < 0.5 ? "🏁" : "🚫",
                 spin: true,
                 angle: 0
             });
