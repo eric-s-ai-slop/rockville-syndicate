@@ -55,4 +55,30 @@ describe('parseMessage', () => {
   it('a hard keyword survives banter tokens ("it\'s a catfish lmao")', () => {
     expect(parseMessage("it's a catfish lmao")).toBe('true');
   });
+
+  describe('edge cases based on tokens, emojis, and length', () => {
+    it('soft true-keyword with only emoji is a joke', () => {
+      expect(parseMessage('made up 💀')).toBe('joke');
+      expect(parseMessage('fake 😭')).toBe('joke');
+    });
+
+    it('hard true-keyword with emoji survives as true', () => {
+      expect(parseMessage("it's a catfish 💀")).toBe('true');
+      expect(parseMessage('tell him 😂')).toBe('true');
+    });
+
+    it('assertion with joke tokens or emojis falls through to neutral', () => {
+      // hasJokeToken = true, hasAssertion = true
+      expect(parseMessage('you should tell the truth lmao')).toBe('neutral');
+      // hasJokeEmoji = true, hasAssertion = true
+      expect(parseMessage('you should tell the truth 💀')).toBe('neutral');
+    });
+
+    it('short assertions bypass freeform fallback and fall through to neutral', () => {
+      // length < 12, hasJokeToken = false, hasJokeEmoji = false, hasAssertion = true
+      expect(parseMessage('stop')).toBe('neutral');
+      expect(parseMessage('lie')).toBe('neutral');
+      expect(parseMessage('wrong')).toBe('neutral');
+    });
+  });
 });
