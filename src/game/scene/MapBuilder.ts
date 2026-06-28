@@ -496,9 +496,16 @@ export class MapBuilder {
     }
 
     // RUN-3: pack-atlas sprites checked first so propType takes precedence over propKey
-    if (propType === 'junglebox' && this.drawPackSprite(x, y, w, h, 'jungle_gym', 20)) return;
-    if (propType === 'hottub'    && this.drawPackSprite(x, y, w, h, 'hottub', 30)) return;
-    if (propType === 'arcade'    && this.drawPackSprite(x, y, w, h, 'arcade_cabinet', 50)) return;
+    if (propType === 'junglebox'   && this.drawPackSprite(x, y, w, h, 'jungle_gym', 20)) return;
+    if (propType === 'hottub'      && this.drawPackSprite(x, y, w, h, 'hottub', 30)) return;
+    if (propType === 'arcade'      && this.drawPackSprite(x, y, w, h, 'arcade_cabinet', 50)) return;
+    if (propType === 'tollbooth'   && this.drawPackSprite(x, y, w, h, 'tollbooth_front', 0)) return;
+    if (propType === 'barrier_arm' && this.drawPackSprite(x, y, w, h, 'barrier_arm_down', 0)) return;
+    if (propType === 'cone'        && this.drawPackSprite(x, y, w, h, 'pack_cone', 10)) return;
+    if (propType === 'guardrail') {
+      const gName = w >= h ? 'guardrail_h' : 'guardrail_v';
+      if (this.drawPackSprite(x, y, w, h, gName, 0)) return;
+    }
 
     // R1: sprite override — render a real image if the texture is loaded
     if (propKey) {

@@ -105,6 +105,7 @@ export const carRideMode: GameMode<CarRideConfig> = {
       if (barksTimer) barksTimer.remove();
       ctx.onStoryDialogue({
         speakerName: 'The Group Chat',
+        speakerEmoji: '💬',
         speakerColor: '#c8e89a',
         lines: ["The car arrived home. You didn't get to say all of it."]
       }, () => {
@@ -143,6 +144,7 @@ export const carRideMode: GameMode<CarRideConfig> = {
         
         ctx.onStoryDialogue({
           speakerName: 'You',
+          speakerEmoji: '🗨️',
           speakerColor: '#6ee7b7',
           lines: ["(Choose a response...)"],
           choices: phase.responses.map(r => ({ text: r.text }))

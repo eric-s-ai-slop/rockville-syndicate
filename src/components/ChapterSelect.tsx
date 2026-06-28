@@ -188,7 +188,7 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
             A playable recollection. Pick where to begin.
           </p>
           {/* R7: Linear / Free Play toggle */}
-          <div className="inline-flex items-center gap-0 border-2" style={{ background: '#0e1509', borderColor: '#2a3d18' }}>
+          <div className="inline-flex items-center gap-0" style={{ background: '#0e1509', borderWidth: '2px', borderStyle: 'solid', borderColor: '#2a3d18' }}>
             <button
               onClick={() => {
                 if (localFreePlay) {
@@ -264,9 +264,10 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
                   onClick={() => {
                     if (logicallyUnlocked) interactSeal(ch.id);
                   }}
-                  className="text-left border p-5 transition-all duration-200 relative overflow-hidden"
+                  className="text-left p-5 transition-all duration-200 relative overflow-hidden"
                   style={{
                     background: '#120a0a',
+                    borderWidth: '1px', borderStyle: 'solid',
                     borderColor: isSelected ? '#ef4444' : '#3a1a1a',
                     cursor: logicallyUnlocked ? 'pointer' : 'not-allowed',
                     opacity: logicallyUnlocked ? 1 : 0.5,
@@ -338,9 +339,10 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
                     onPick(ch);
                   }
                 }}
-                className="text-left border p-5 transition-all duration-200 relative overflow-hidden"
+                className="text-left p-5 transition-all duration-200 relative overflow-hidden"
                 style={{
                   background: isClassified ? (unlocked ? '#1a180a' : '#0e0e05') : (unlocked ? '#142012' : '#0e1509'),
+                  borderWidth: '1px', borderStyle: 'solid',
                   borderColor: isClassified
                     ? (isSelected || isDone ? '#eab308' : unlocked ? '#4a3f05' : '#2a2402')
                     : (isSelected || isDone ? heroColor : unlocked ? '#2a3d18' : '#1a2410'),

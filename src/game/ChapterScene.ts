@@ -3,7 +3,8 @@ import { MapBuilder } from './scene/MapBuilder';
 import { Actors } from './scene/Actors';
 import { AudioController } from './scene/AudioController';
 import { BeatEngine } from './scene/BeatEngine';
-import type { GameMode } from './modes/types';
+import { PlayerController } from './scene/PlayerController';
+import type { GameMode, ModeResult } from './modes/types';
 import { getMode } from './modes';
 import { mariaBrookeStats } from './modes/mariaBrookeStats';
 import {
@@ -13,10 +14,12 @@ import {
   BOSSES,
   BossConfig,
   LORE_BARKS,
-  WEAPONS,
   ENEMIES,
-  NPC_CHARACTERS
+  NPC_CHARACTERS,
+  POWER_UPS,
+  DIFFICULTY_MODS,
 } from '../data/entities';
+import { getSettings } from './settings';
 import plasmaShieldImg from '../assets/images/plasma_shield_1781235159690.jpg';
 import shieldImg from '../assets/images/shield.jpg';
 import heroEricImg from '../assets/images/hero_eric_1781236098529.jpg';
@@ -57,8 +60,6 @@ import {
   UI_SELECT_URL, VICTORY_JINGLE_URL, KNOCK_URL,
   CROWD_MURMUR_URL, CRICKET_AMBIENT_URL,
   SFX_MESSAGE_DING_URL,
-  SFX_CAMERA_SHUTTER_URL,
-  SFX_ENGINE_HUM_URL,
 } from './audio';
 
 // ─── R1/R2: Stage & car prop images (Vite ?url for special-char filenames) ──────
@@ -124,8 +125,9 @@ export default class ChapterScene extends Phaser.Scene {
   private onGoldChange!: (gold: number) => void;
   private onHpChange!: (hp: number) => void;
   public onMessageLog!: (msg: string) => void;
-  public onTriggerQTE!: (boss: BossConfig, callback: (success: boolean) => void) => void;
-  private onLevelCompleted!: () => void;
+  public onTriggerQTE!: (boss: BossConfig, callback: (success: boolean, damage: number) => void) => void;
+  private onLevelCompleted!: (stats: { shardsCollected: number; ledgerTotal: number; hpRemaining: number }) => void;
+  public shardsCollected: number = 0;
   private onGameOver!: () => void;
   private onNpcInteract!: (npcId: string, resume: () => void) => void;
 
@@ -144,7 +146,7 @@ export default class ChapterScene extends Phaser.Scene {
   public player!: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private controlsInverted: boolean = false;
-  private wasdKeys!: {
+  public wasdKeys!: {
     W: Phaser.Input.Keyboard.Key;
     A: Phaser.Input.Keyboard.Key;
     S: Phaser.Input.Keyboard.Key;
@@ -152,13 +154,14 @@ export default class ChapterScene extends Phaser.Scene {
     SPACE: Phaser.Input.Keyboard.Key;
     F: Phaser.Input.Keyboard.Key;
   };
-  private isDashing: boolean = false;
-  private dashCooldown: boolean = false;
-  private lastFired: number = 0;
+  // Player movement / dash / weapon subsystem
+  public playerController!: PlayerController;
+
+  // Active power-up cleanup fns (cleared on teardown / chapter transition)
+  private activePowerUpCleanups: Array<() => void> = [];
   private lastBossAttackTime: number = 0;
   private activeGold: number = 0;
   private activeHp: number = 100;
-  private isAttackingAnim: boolean = false;
   private enemyHitCooldowns = new Map<any, number>();
   private enemyFlashCooldowns = new Map<any, number>();
 
@@ -218,7 +221,6 @@ export default class ChapterScene extends Phaser.Scene {
   // Phase D
   private letterboxTop: Phaser.GameObjects.Rectangle | null = null;
   private letterboxBottom: Phaser.GameObjects.Rectangle | null = null;
-  private lastFootstepTime: number = 0;
   public portraitDataUrls: Record<string, string> = {};
 
   // Phase E — audio
@@ -240,9 +242,8 @@ export default class ChapterScene extends Phaser.Scene {
   public dialogueOpen: boolean = false;
   public movementFrozen: boolean = false;
   private eKey!: Phaser.Input.Keyboard.Key;
-  private lastMoveAngle: number = 0;
   
-  public mountExternalGame: (opts: { gameId: string; config?: unknown }, onDone: (r: any) => void) => void = () => {};
+  public mountExternalGame: (opts: { gameId: string; config?: unknown }, onDone: (r: ModeResult) => void) => void = () => {};
   public unmountExternalGame: () => void = () => {};
 
   // Subsystems
@@ -266,11 +267,11 @@ export default class ChapterScene extends Phaser.Scene {
     playerHp?: number;
     onHpChange?: (hp: number) => void;
     onMessageLog?: (msg: string) => void;
-    onTriggerQTE?: (boss: BossConfig, callback: (success: boolean) => void) => void;
-    onChapterCompleted?: () => void;
+    onTriggerQTE?: (boss: BossConfig, callback: (success: boolean, damage: number) => void) => void;
+    onChapterCompleted?: (stats: { shardsCollected: number; ledgerTotal: number; hpRemaining: number }) => void;
     onGameOver?: () => void;
     onStoryDialogue?: (payload: StoryDialoguePayload, done: (choiceIndex?: number) => void) => void;
-    mountExternalGame?: (opts: { gameId: string; config?: unknown }, onDone: (r: any) => void) => void;
+    mountExternalGame?: (opts: { gameId: string; config?: unknown }, onDone: (r: ModeResult) => void) => void;
     unmountExternalGame?: () => void;
     onLedgerChange?: (total: number, note: string) => void;
   }) {
@@ -288,6 +289,7 @@ export default class ChapterScene extends Phaser.Scene {
     this.onMessageLog = data.onMessageLog ?? (() => {});
     this.onTriggerQTE = data.onTriggerQTE!;
     this.onLevelCompleted = data.onChapterCompleted ?? (() => {});
+    this.shardsCollected = 0;
     this.onGameOver = data.onGameOver!;
     this.onNpcInteract = () => {};
     this.onStoryDialogue = data.onStoryDialogue ?? ((_p, done) => done());
@@ -295,8 +297,10 @@ export default class ChapterScene extends Phaser.Scene {
     this.unmountExternalGame = data.unmountExternalGame ?? (() => {});
     this.onLedgerChange = data.onLedgerChange ?? (() => {});
 
-    this.isDashing = false;
-    this.dashCooldown = false;
+    if (!this.playerController) {
+      this.playerController = new PlayerController(this);
+    }
+    this.playerController.reset();
     this.lastBossAttackTime = 0;
     this.spawnedBoss = null;
     this.isBossActive = false;
@@ -311,7 +315,6 @@ export default class ChapterScene extends Phaser.Scene {
     this.currentSceneIndex = 0;
     this.npcs = [];
     this.dialogueOpen = false;
-    this.lastMoveAngle = 0;
     this.ledgerTotal = 0;
     this.beatIndex = 0;
     this.beatActive = false;
@@ -323,7 +326,6 @@ export default class ChapterScene extends Phaser.Scene {
     this.particleEmitters = [];
     this.letterboxTop = null;
     this.letterboxBottom = null;
-    this.lastFootstepTime = 0;
     this.portraitDataUrls = {};
     this.bossMusicSting = null;
     this.propSprites = new Map();
@@ -418,8 +420,7 @@ export default class ChapterScene extends Phaser.Scene {
     this.safeLoadImage('hero_girl2_raw_jpg', npcGirlSilhouetteUrl);
     this.safeLoadImage('hero_girl3_raw_jpg', npcGirlSilhouetteUrl);
     this.audioController.safeLoadAudio('sfx_message_ding', SFX_MESSAGE_DING_URL);
-    this.audioController.safeLoadAudio('sfx_camera_shutter', SFX_CAMERA_SHUTTER_URL);
-    this.audioController.safeLoadAudio('sfx_engine_hum', SFX_ENGINE_HUM_URL);
+
     this.audioController.safeLoadAudio('sfx_crowd_murmur', CROWD_MURMUR_URL);
     this.audioController.safeLoadAudio('sfx_parking_ambient', CRICKET_AMBIENT_URL);
     // Voiced one-off: Ben's "You're next." Drop the MP3 at public/voice/ben_youre_next.mp3.
@@ -500,7 +501,7 @@ export default class ChapterScene extends Phaser.Scene {
     this.safeLoadAudio('boss_sting', BOSS_MUSIC_URL);
     this.safeLoadAudio('boss_loop', BOSS_LOOP_URL);
 
-    const variant = THEME_FOOTSTEP[(this.getActiveSceneConfig().map as any).theme ?? 'apartment'] ?? 'carpet';
+    const variant = THEME_FOOTSTEP[this.getActiveSceneConfig().map.theme ?? 'apartment'] ?? 'carpet';
     this.footstepKeys = (FOOTSTEP_URLS[variant] ?? []).map((url, i) => {
       const key = `footstep_${i}`;
       this.safeLoadAudio(key, url);
@@ -897,8 +898,10 @@ export default class ChapterScene extends Phaser.Scene {
 
     this.physics.add.collider(this.player, this.walls);
     this.physics.add.collider(this.enemies, this.walls);
-    this.physics.add.collider(this.projectiles, this.walls, (p: any) => p.destroy());
-    this.physics.add.collider(this.enemyProjectiles, this.walls, (p: any) => p.destroy());
+    this.physics.add.collider(this.projectiles, this.walls,
+      (p) => (p as Phaser.GameObjects.GameObject).destroy());
+    this.physics.add.collider(this.enemyProjectiles, this.walls,
+      (p) => (p as Phaser.GameObjects.GameObject).destroy());
     this.wireMapColliders();
 
     this.physics.add.overlap(this.player, this.enemyProjectiles, this.handleProjectileHitPlayer, undefined, this);
@@ -950,6 +953,7 @@ export default class ChapterScene extends Phaser.Scene {
 
     // Clean up audio when the scene shuts down
     this.events.once('shutdown', () => {
+      this.audioController.destroy();
       this.stageMusic?.destroy();
       this.bossMusic?.destroy();
       this.bossMusicSting?.destroy();
@@ -960,6 +964,9 @@ export default class ChapterScene extends Phaser.Scene {
       this.chaseShadow?.destroy(); this.chaseShadow = null;
       this.chaseActive = false;
       this.setControlsInverted(false);
+      // Clear all active power-up timers/effects so they don't bleed into the next chapter.
+      this.activePowerUpCleanups.forEach(fn => fn());
+      this.activePowerUpCleanups = [];
       if (this.activeMode) {
         try {
           this.activeMode.teardown();
@@ -988,11 +995,16 @@ export default class ChapterScene extends Phaser.Scene {
 
   /** Add per-object physics colliders for mapCollidables. Call after every map build. */
   private wireMapColliders() {
-    this.mapCollidables.forEach(obj => {
-      this.physics.add.collider(this.player, obj as any);
-      this.physics.add.collider(this.enemies, obj as any);
-      this.physics.add.collider(this.projectiles, obj as any, (p: any) => p.destroy());
-      this.physics.add.collider(this.enemyProjectiles, obj as any, (p: any) => p.destroy());
+    // Phaser's TypeScript types don't expose Rectangle as ArcadeColliderType even though
+    // the rectangles have static physics bodies — cast once at the loop level.
+    this.mapCollidables.forEach((obj: Phaser.GameObjects.Rectangle) => {
+      const wall = obj as unknown as Phaser.Types.Physics.Arcade.ArcadeColliderType;
+      this.physics.add.collider(this.player, wall);
+      this.physics.add.collider(this.enemies, wall);
+      this.physics.add.collider(this.projectiles, wall,
+        (p) => (p as Phaser.GameObjects.GameObject).destroy());
+      this.physics.add.collider(this.enemyProjectiles, wall,
+        (p) => (p as Phaser.GameObjects.GameObject).destroy());
     });
   }
 
@@ -1239,40 +1251,8 @@ export default class ChapterScene extends Phaser.Scene {
     if (this.wasdKeys.A.isDown || this.cursors.left.isDown) vx = -speed;
     else if (this.wasdKeys.D.isDown || this.cursors.right.isDown) vx = speed;
 
-    if (vx !== 0 || vy !== 0) {
-      this.lastMoveAngle = Math.atan2(vy, vx);
-    }
-
-    if (!this.isDashing && !this.isAttackingAnim) {
-      this.player.setVelocity(vx, vy);
-      const facesLeftByDefault = this.playerClass.id === 'nick_f';
-      this.applyDirectionalAnim(this.player, animId, vx, vy, facesLeftByDefault);
-    } else if (this.isAttackingAnim) {
-      this.player.setVelocity(vx, vy);
-    }
-
-    if (this.dialogueOpen) {
-      this.wasdKeys.SPACE.reset();
-    } else {
-      if (Phaser.Input.Keyboard.JustDown(this.wasdKeys.SPACE)) {
-        this.executeDash(vx, vy);
-      }
-    }
-
-    // Footstep dust puff + sound every 250ms while moving
-    if ((vx !== 0 || vy !== 0) && time - this.lastFootstepTime > 250 && this.textures.exists('particle_dot')) {
-      this.lastFootstepTime = time;
-      if (this.footstepKeys.length) {
-        const key = this.footstepKeys[Math.floor(Math.random() * this.footstepKeys.length)];
-        try { this.sound.play(key, { volume: 0.12 }); } catch { /* audio not ready */ }
-      }
-      const puff = this.add.image(
-        this.player.x + Phaser.Math.Between(-6, 6),
-        this.player.y + 14,
-        'particle_dot'
-      ).setAlpha(0.5).setScale(0.8).setDepth(this.player.y - 2).setTint(0xbbaa99);
-      this.tweens.add({ targets: puff, alpha: 0, scale: 1.8, y: puff.y + 8, duration: 320, onComplete: () => puff.destroy() });
-    }
+    // Delegate movement → dash → footsteps → auto-fire to PlayerController
+    this.playerController.update(time, vx, vy, animId, this.dialogueOpen);
 
     // walkTo beat: advance when the player reaches the marked spot.
     if (this.walkTarget) {
@@ -1282,7 +1262,7 @@ export default class ChapterScene extends Phaser.Scene {
         this.clearWalkTarget();
         const doorSfx = this.chapter.ambientSfx?.onDoor;
         if (wasDoor && doorSfx && this.cache.audio.exists(doorSfx)) {
-          [0, 150, 300].forEach(ms => this.time.delayedCall(ms, () => { try { this.sound.play(doorSfx, { volume: 0.6 }); } catch {} }));
+          [0, 150, 300].forEach(ms => this.time.delayedCall(ms, () => { try { this.sound.play(doorSfx, { volume: 0.6 * getSettings().sfxVolume }); } catch {} }));
         }
         this.advanceBeat();
       }
@@ -1293,11 +1273,6 @@ export default class ChapterScene extends Phaser.Scene {
       this.handleChaseAI();
     }
 
-    // Combat only exists inside a bossFight beat — and pauses while a QTE modal is up.
-    if (this.isBossActive && !this.qteActive && this.spawnedBoss) {
-      const nearest = this.findNearestEnemy();
-      if (nearest) this.fireWeapon(time, nearest.x, nearest.y);
-    }
   }
 
   // ─── Story Beat Engine ─────────────────────────────────────────────────────────
@@ -1339,7 +1314,7 @@ export default class ChapterScene extends Phaser.Scene {
     this.freeze();
     if (this.cache.audio.exists('boss_sting')) {
       // Seek past the initial 0.7s of quiet buildup so the loud 'VWOMP' hits instantly
-      this.sound.play('boss_sting', { volume: 1.2, seek: 0.7 });
+      this.sound.play('boss_sting', { volume: 1.2 * getSettings().musicVolume, seek: 0.7 });
     }
     cam.flash(180, 239, 68, 68);
     cam.shake(280, 0.022);
@@ -1477,10 +1452,14 @@ export default class ChapterScene extends Phaser.Scene {
     if (this.stageMusic?.isPlaying) {
       this.tweens.add({ targets: this.stageMusic, volume: 0, duration: 800 });
     }
-    try { this.sound.play('victory_jingle', { volume: 0.6 }); } catch { /* skip */ }
+    try { this.sound.play('victory_jingle', { volume: 0.6 * getSettings().sfxVolume }); } catch { /* skip */ }
     this.time.delayedCall(1200, () => {
       this.cameras.main.fadeOut(500, 0, 0, 0);
-      this.time.delayedCall(520, () => this.onLevelCompleted());
+      this.time.delayedCall(520, () => this.onLevelCompleted({
+        shardsCollected: this.shardsCollected,
+        ledgerTotal: this.ledgerTotal,
+        hpRemaining: this.activeHp,
+      }));
     });
   }
 
@@ -1649,101 +1628,7 @@ export default class ChapterScene extends Phaser.Scene {
     }
   }
 
-  // ─── Dash ─────────────────────────────────────────────────────────────────
-
-  private executeDash(vx: number, vy: number) {
-    if (this.dashCooldown || this.isDashing) return;
-
-    if (this.playerClass.id === 'nick_f' && Math.random() < 0.05) {
-      this.onMessageLog('⚠️ Keys locked in the C55 AMG — dash failed!');
-      this.dashCooldown = true;
-      this.showBubbleText(this.player, 'KEYS LOCKED IN C55 AMG 💀', '#ef4444');
-      this.time.delayedCall(4000, () => { this.dashCooldown = false; });
-      return;
-    }
-
-    this.isDashing = true;
-    this.dashCooldown = true;
-
-    const dashFactor = this.playerClass.id === 'nick_f' ? 3.0 : 2.2;
-    const dashX = vx === 0 && vy === 0 ? this.playerClass.speed * dashFactor : vx * dashFactor;
-    const dashY = vx === 0 && vy === 0 ? 0 : vy * dashFactor;
-
-    this.player.setVelocity(dashX, dashY);
-
-    try {
-      const shieldFlash = this.add.sprite(this.player.x, this.player.y, 'plasma_shield');
-      shieldFlash.setOrigin(0.5).setScale(0.12).setDepth(15).setAlpha(0.7);
-      this.tweens.add({
-        targets: shieldFlash,
-        scale: 0.55, alpha: 0,
-        x: this.player.x + dashX * 0.12,
-        y: this.player.y + dashY * 0.12,
-        duration: 350,
-        onComplete: () => shieldFlash.destroy()
-      });
-    } catch {}
-
-    for (let i = 0; i < 4; i++) {
-      this.time.delayedCall(i * 60, () => {
-        const ghost = this.add.sprite(this.player.x, this.player.y, this.player.texture.key, this.player.frame.name);
-        ghost.setScale(this.player.scaleX).setAlpha(0.6 - i * 0.15).setRotation(this.player.rotation);
-        this.tweens.add({ targets: ghost, alpha: 0, scale: 0.8, duration: 300, onComplete: () => ghost.destroy() });
-      });
-    }
-
-    this.time.delayedCall(220, () => { this.isDashing = false; });
-    this.time.delayedCall(this.playerClass.id === 'nick_f' ? 900 : 1500, () => { this.dashCooldown = false; });
-  }
-
-  // ─── Weapons ──────────────────────────────────────────────────────────────
-
-  private findNearestEnemy(): { x: number; y: number } | null {
-    let nearest: { x: number; y: number } | null = null;
-    let nearestDist = Infinity;
-    const candidates: any[] = this.isBossActive && this.spawnedBoss
-      ? [this.spawnedBoss]
-      : (this.enemies.getChildren() as any[]);
-    candidates.forEach(obj => {
-      if (!obj.active) return;
-      const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, obj.x, obj.y);
-      if (d < nearestDist) { nearestDist = d; nearest = { x: obj.x, y: obj.y }; }
-    });
-    return nearestDist < 700 ? nearest : null;
-  }
-
-  private fireWeapon(time: number, targetX?: number, targetY?: number) {
-    const weapon = WEAPONS[this.currentLevelIndex % WEAPONS.length];
-    if (time < this.lastFired + weapon.cooldown) return;
-    this.lastFired = time;
-
-    this.isAttackingAnim = true;
-    this.player.play('attack_' + this.playerClass.id, true);
-    this.time.delayedCall(220, () => { this.isAttackingAnim = false; });
-
-    const useCoinSheet = this.textures.exists('coin_sheet');
-    const texKey = useCoinSheet ? 'coin_sheet' : 'bullet';
-    const frame = useCoinSheet ? 0 : undefined;
-    const projectile = this.projectiles.create(this.player.x, this.player.y, texKey, frame);
-    if (!projectile) return;
-
-    projectile.setScale(useCoinSheet ? 0.22 : 0.35).setTint(0xfbbf24).setActive(true).setVisible(true);
-    const body = projectile.body as Phaser.Physics.Arcade.Body;
-    if (body) { body.setGravity(0, 0); body.setAllowGravity(false); }
-
-    const targetAngle = Phaser.Math.Angle.Between(this.player.x, this.player.y, targetX ?? this.player.x + Math.cos(this.lastMoveAngle), targetY ?? this.player.y + Math.sin(this.lastMoveAngle));
-    // Face player toward firing direction (no free rotation — just flip horizontally)
-    this.player.setFlipX(Math.cos(targetAngle) < 0);
-
-    projectile.setVelocity(Math.cos(targetAngle) * 650, Math.sin(targetAngle) * 650);
-    projectile.setRotation(targetAngle + Math.PI / 2);
-
-    if (Math.random() < 0.12) {
-      this.showBubbleText(this.player, weapon.unleashedQuote, '#facc15');
-    }
-
-    this.time.delayedCall(2000, () => { if (projectile?.active) projectile.destroy(); });
-  }
+  // Dash, weapon, and footstep logic lives in PlayerController (scene/PlayerController.ts).
 
   // ─── Enemy Spawning ───────────────────────────────────────────────────────
 
@@ -1805,6 +1690,14 @@ export default class ChapterScene extends Phaser.Scene {
   public damagePlayer(damage: number, source: string) {
     // In-flight delayed attacks (e.g. Kidney Punch) must not land mid-QTE.
     if (this.qteActive) return;
+
+    // Dash i-frames — show a dodge bark but deal no damage.
+    if (this.playerController.isInvuln(this.time.now)) {
+      const barks = ['AURA +1', 'NaTaKa', 'jestermaxxed', 'SIGMA DODGE', 'main character moment', 'rizz check passed'];
+      this.showPassiveIconText(this.player.x, this.player.y - 40, barks[Math.floor(Math.random() * barks.length)] + ' ✨', '#60a5fa');
+      return;
+    }
+
     try {
       const isFx = this.textures.exists('shield_fx');
       const shieldTex = isFx ? 'shield_fx'
@@ -1820,7 +1713,7 @@ export default class ChapterScene extends Phaser.Scene {
       this.tweens.add({ targets: fx, scale: endScale, alpha: 0, duration: 380, onComplete: () => fx.destroy() });
     } catch {}
 
-    let finalDmg = damage;
+    let finalDmg = Math.round(damage * DIFFICULTY_MODS[getSettings().difficulty].playerDamageTaken);
     if (this.playerClass.id === 'jacob') {
       if (this.subZeroActive) {
         finalDmg = Math.floor(damage * 0.5); // Sub-Zero: immune to pain
@@ -1854,7 +1747,7 @@ export default class ChapterScene extends Phaser.Scene {
     }
 
     if (this.activeHp > 0) {
-      this.isAttackingAnim = false;
+      this.playerController.cancelAttackAnim();
       this.player.play('hurt_' + this.playerClass.id, true);
     } else {
       this.player.play('defeat_' + this.playerClass.id, true);
@@ -1920,7 +1813,15 @@ export default class ChapterScene extends Phaser.Scene {
       const shardTex = this.textures.exists('shard_sheet') ? 'shard_sheet' : 'loot_shard';
       const shardFrame = this.textures.exists('shard_sheet') ? 0 : undefined;
       const shard = this.physics.add.sprite(enemy.x, enemy.y, shardTex, shardFrame);
-      shard.setScale(this.textures.exists('shard_sheet') ? 0.18 : 1).setTint(0x34d399);
+      shard.setScale(this.textures.exists('shard_sheet') ? 0.18 : 1);
+      const dropRate = DIFFICULTY_MODS[getSettings().difficulty].powerUpDropRate;
+      if (Math.random() < dropRate) {
+        const pu = POWER_UPS[Math.floor(Math.random() * POWER_UPS.length)];
+        shard.setTint(0x8b5cf6).setData('powerUpId', pu.id);
+        this.showPassiveIconText(enemy.x, enemy.y - 20, pu.name, '#c4b5fd');
+      } else {
+        shard.setTint(0x34d399);
+      }
       this.lootShards.add(shard);
       enemy.destroy();
       this.enemiesKilledCount++;
@@ -1951,7 +1852,15 @@ export default class ChapterScene extends Phaser.Scene {
   }
 
   private handleCollectLoot(_player: any, shard: any) {
+    const powerUpId = shard.getData('powerUpId') as string | undefined;
     shard.destroy();
+
+    if (powerUpId) {
+      this.applyPowerUp(powerUpId);
+      return;
+    }
+
+    this.shardsCollected += 1;
     const gold = Phaser.Math.Between(15, 35);
     this.activeGold += gold;
     this.onGoldChange(this.activeGold);
@@ -1961,6 +1870,93 @@ export default class ChapterScene extends Phaser.Scene {
       const barks = LORE_BARKS;
       this.onMessageLog(`🔓 "${barks[Math.floor(Math.random() * barks.length)]}"`);
     }
+  }
+
+  public applyPowerUp(id: string): void {
+    const pu = POWER_UPS.find(p => p.id === id);
+    if (!pu) return;
+
+    this.onMessageLog(`✨ POWER-UP: ${pu.name} — ${pu.quote}`);
+    this.showBubbleText(this.player, pu.quote.slice(0, 60), '#c4b5fd');
+    this.showPassiveIconText(this.player.x, this.player.y - 50, `🎁 ${pu.name}`, '#8b5cf6');
+
+    const cleanup: Array<() => void> = [];
+
+    switch (pu.effectType) {
+      case 'invincibility': {
+        this.playerController.playerInvulnUntil = this.time.now + pu.durationMs;
+        this.player.setTint(0x8b5cf6);
+        const timer = this.time.delayedCall(pu.durationMs, () => { this.player.clearTint(); });
+        cleanup.push(() => { timer.destroy(); this.player.clearTint(); this.playerController.playerInvulnUntil = 0; });
+        break;
+      }
+      case 'heal': {
+        const healed = Math.min(this.playerClass.maxHp, this.activeHp + Math.round(this.playerClass.maxHp * 0.6));
+        this.activeHp = healed;
+        this.onHpChange(healed);
+        this.cameras.main.flash(250, 16, 185, 129);
+        break;
+      }
+      case 'speed_boost': {
+        const origSpeed = this.playerClass.speed;
+        this.playerClass.speed = Math.round(origSpeed * 2.5);
+        // galaxy_gas also inverts controls for the "B12 depleting" joke
+        if (pu.id === 'galaxy_gas') this.setControlsInverted(true);
+        const timer = this.time.delayedCall(pu.durationMs, () => {
+          this.playerClass.speed = origSpeed;
+          if (pu.id === 'galaxy_gas') this.setControlsInverted(false);
+        });
+        cleanup.push(() => { timer.destroy(); this.playerClass.speed = origSpeed; if (pu.id === 'galaxy_gas') this.setControlsInverted(false); });
+        break;
+      }
+      case 'defense_buff': {
+        // Double weapon damage by halving cooldown; remove dash cooldown gate.
+        const origCooldown = this.playerClass.attack;
+        this.playerClass.attack = origCooldown * 2;
+        this.playerController.resetDashCooldown();
+        const timer = this.time.delayedCall(pu.durationMs, () => { this.playerClass.attack = origCooldown; });
+        cleanup.push(() => { timer.destroy(); this.playerClass.attack = origCooldown; });
+        break;
+      }
+      case 'poison_aura': {
+        // Tick nearby enemies/boss with periodic AoE damage
+        const tickEvent = this.time.addEvent({
+          delay: 800,
+          loop: true,
+          callback: () => {
+            const range = 120;
+            const targets: any[] = this.isBossActive && this.spawnedBoss ? [this.spawnedBoss] : this.enemies.getChildren();
+            targets.forEach(t => {
+              if (!t.active) return;
+              if (Phaser.Math.Distance.Between(this.player.x, this.player.y, t.x, t.y) < range) {
+                this.showDamageNumber(t.x, t.y - 20, 8, '#84cc16');
+                if (t === this.spawnedBoss) {
+                  // Can't call bossFight.damageBoss directly, but a boss projectile-hit workaround exists
+                  // — instead just show visual; real damage via projectile overlap is the primary path
+                } else {
+                  const currHp = (t.getData('hp') as number ?? 0) - 8;
+                  t.setData('hp', currHp);
+                  if (currHp <= 0) t.destroy();
+                }
+              }
+            });
+          }
+        });
+        this.player.setTint(0x84cc16);
+        const timer = this.time.delayedCall(pu.durationMs, () => { tickEvent.destroy(); this.player.clearTint(); });
+        cleanup.push(() => { timer.destroy(); tickEvent.destroy(); this.player.clearTint(); });
+        break;
+      }
+      case 'brainrot_clear': {
+        this.brainrotLevel = 0;
+        this.updateBrainrotHUD();
+        this.cameras.main.flash(200, 16, 185, 129);
+        break;
+      }
+    }
+
+    const cleanupAll = () => { cleanup.forEach(fn => fn()); };
+    this.activePowerUpCleanups.push(cleanupAll);
   }
 
   // ─── UI Helpers ───────────────────────────────────────────────────────────

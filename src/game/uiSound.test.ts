@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { playUi, isUiMuted } from './uiSound';
+import { updateSettings, _reloadFromStorage } from './settings';
 
 describe('uiSound', () => {
   const mockPlay = vi.fn().mockResolvedValue(undefined);
@@ -7,6 +8,7 @@ describe('uiSound', () => {
 
   beforeEach(() => {
     window.localStorage.clear();
+    _reloadFromStorage(); // reset settings store to defaults (unmuted)
     mockPlay.mockClear();
     audioInstances = [];
 
@@ -35,13 +37,13 @@ describe('uiSound', () => {
     expect(isUiMuted()).toBe(false);
   });
 
-  it('isUiMuted returns true when localStorage has omega-muted=true', () => {
-    window.localStorage.setItem('omega-muted', 'true');
+  it('isUiMuted returns true when the settings store is muted', () => {
+    updateSettings({ muted: true });
     expect(isUiMuted()).toBe(true);
   });
 
   it('playUi does not play sound if muted', () => {
-    window.localStorage.setItem('omega-muted', 'true');
+    updateSettings({ muted: true });
     playUi('click');
     expect(mockPlay).not.toHaveBeenCalled();
   });

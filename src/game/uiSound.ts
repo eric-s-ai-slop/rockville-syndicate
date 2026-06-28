@@ -1,4 +1,5 @@
 import { UI_CLICK_URL, UI_HOVER_URL, UI_PICK_URL, UI_BACK_URL, UI_TOGGLE_URL, UI_CRACK_URL, UI_SHATTER_URL } from './audio';
+import { getSettings, effectiveSfxVolume } from './settings';
 
 type UiSound = 'click' | 'hover' | 'pick' | 'back' | 'toggle' | 'crack' | 'shatter';
 const URLS: Record<UiSound, string> = {
@@ -18,9 +19,10 @@ function get(name: UiSound): HTMLAudioElement {
   return free;
 }
 export function isUiMuted(): boolean {
-  try { return localStorage.getItem('omega-muted') === 'true'; } catch { return false; }
+  return getSettings().muted;
 }
 export function playUi(name: UiSound, volume = 0.4): void {
-  if (isUiMuted()) return;
-  try { const a = get(name); a.currentTime = 0; a.volume = volume; a.play().catch(() => {}); } catch {}
+  const gain = effectiveSfxVolume();
+  if (gain <= 0) return;
+  try { const a = get(name); a.currentTime = 0; a.volume = volume * gain; a.play().catch(() => {}); } catch {}
 }

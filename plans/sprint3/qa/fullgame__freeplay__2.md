@@ -1,3 +1,5 @@
+> **ARCHIVED** — Sprint 3 QA snapshot; verify against current code before acting on any finding.
+
 # QA Report — fullgame (Full Game) — lens: freeplay
 Agent: 2  |  Date: 2024-06-14  |  Build: (current)
 

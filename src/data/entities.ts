@@ -84,6 +84,24 @@ export interface BossConfig {
   phaseBarks: { [phase: number]: string };
 }
 
+// ─── Difficulty ───────────────────────────────────────────────────────────────
+
+export interface DifficultyMods {
+  bossHp: number;
+  bossSpeed: number;
+  attackInterval: number;
+  playerDamageTaken: number;
+  qteTimer: number;
+  telegraphWindup: number;
+  powerUpDropRate: number;
+}
+
+export const DIFFICULTY_MODS: Record<'easy' | 'normal' | 'hard', DifficultyMods> = {
+  easy:   { bossHp: 0.75, bossSpeed: 0.85, attackInterval: 1.3,  playerDamageTaken: 0.6, qteTimer: 1.4, telegraphWindup: 1.3, powerUpDropRate: 0.35 },
+  normal: { bossHp: 1.0,  bossSpeed: 1.0,  attackInterval: 1.0,  playerDamageTaken: 1.0, qteTimer: 1.0, telegraphWindup: 1.0, powerUpDropRate: 0.20 },
+  hard:   { bossHp: 1.35, bossSpeed: 1.2,  attackInterval: 0.75, playerDamageTaken: 1.4, qteTimer: 0.7, telegraphWindup: 0.7, powerUpDropRate: 0.10 },
+};
+
 export interface StatusEffect {
   id: string;
   name: string;
@@ -557,6 +575,52 @@ export const BOSSES: BossConfig[] = [
       correctAnswer: '$20 divided by 6 is $3.33 — you hold a 35% Spotify margin!',
       damage: 300
     },
+    qtePool: [
+      {
+        question: 'Eric is demanding $4.50/month. Jordan has uncovered the core forensic ledger. Choose your audit formula:',
+        options: [
+          '$20 divided by 6 is $3.33 — you hold a 35% Spotify margin!',
+          'Blame Joe Biden for inflation rate hikes',
+          'Switch us all to Apple Music Lossless Dolby Atmos',
+          'Zelle him $10 and call it even'
+        ],
+        correctAnswer: '$20 divided by 6 is $3.33 — you hold a 35% Spotify margin!',
+        damage: 300,
+      },
+      {
+        question: 'Eric charges $10/month for YouTube Premium Family. The plan costs $22.99 for 6 users. Expose the margin:',
+        options: [
+          '"$22.99 ÷ 6 = $3.83 max. You owe me $6.17 back."',
+          '"YouTube just went up. Blame Joe Biden."',
+          '"I\'ll just use an ad blocker. Checkmate."',
+          '"Fine. Here\'s $10. Stop the emails."'
+        ],
+        correctAnswer: '"$22.99 ÷ 6 = $3.83 max. You owe me $6.17 back."',
+        damage: 250,
+      },
+      {
+        question: 'Eric refuses to send the Spotify invite until you Zelle first. He holds the admin key. Counter:',
+        options: [
+          '"The invite should come before the Zelle. You hold the keys."',
+          '"I\'ll just make my own account for $11. See you never."',
+          '"Fine. $4.50. Here. Happy now?"',
+          '"Blame Joe Biden for payment friction."'
+        ],
+        correctAnswer: '"The invite should come before the Zelle. You hold the keys."',
+        damage: 200,
+      },
+      {
+        question: 'Eric invokes the Crazy 8 Game Pigeon doctrine: "Argument over — I sent an invite." Deploy the rebuttal:',
+        options: [
+          '"Game Pigeon isn\'t a legally binding contract, Eric."',
+          '"I accept the invite and counter-bet $50."',
+          '"Check the Beli list — I\'m rated 6/10 at Crazy 8."',
+          '"I\'m tired. I\'m bailing."'
+        ],
+        correctAnswer: '"Game Pigeon isn\'t a legally binding contract, Eric."',
+        damage: 280,
+      },
+    ],
     actions: [
       'Drops static $4.50 Service Fee coins from the heavens',
       'Launches "Corporate Gaslighting" projectiles that strip your Gold cache',
@@ -595,6 +659,41 @@ export const BOSSES: BossConfig[] = [
       correctAnswer: 'Trigger the "April Fools!" social safety net evasion',
       damage: 400
     },
+    qtePool: [
+      {
+        question: 'Jacob is cornered by the Red Pee Bladder Strike. Audrey prepares a Kidney Punch. Engage the 20-Questions extraction:',
+        options: [
+          'Is the assailant a Richard Montgomery high schooler?',
+          'Pre-buy the Frederick Rejuvenation Syrup for $1,500',
+          '"12 is the age of consent in some places idk why you people care" (PARTY WIPE)',
+          'Trigger the "April Fools!" social safety net evasion'
+        ],
+        correctAnswer: 'Trigger the "April Fools!" social safety net evasion',
+        damage: 400,
+      },
+      {
+        question: 'Audrey has logged off mid-sentence — 3rd time this fight. Break through the Canada Defence:',
+        options: [
+          'Screenshot the "Goodnight." text and paste it into the forensic ledger',
+          'Send a Crazy 8 Game Pigeon invite to re-open comms',
+          'Invoke the $1,500 Frederick healing bet to force a reply',
+          'Wait 3 months and try again after the read receipt resets'
+        ],
+        correctAnswer: 'Screenshot the "Goodnight." text and paste it into the forensic ledger',
+        damage: 350,
+      },
+      {
+        question: 'Audrey invokes the Galaxy Gas defence — controls inverted, Jacob is confused. Counter-play:',
+        options: [
+          'Reverse the inversion by hitting the "Red Pee" evidence toggle',
+          'Breathe through the B12 loss — wait for the effect to expire',
+          'Ask Jacob if his pee is still red. It re-focuses him.',
+          'Galaxy Gas is a myth. Deny its existence.'
+        ],
+        correctAnswer: 'Reverse the inversion by hitting the "Red Pee" evidence toggle',
+        damage: 300,
+      },
+    ],
     actions: [
       'High-elevation leap attacks (Red Pee Bladder Strike)',
       'Kidney Punch — temporarily inverts WASD for 4.5 seconds',
@@ -633,6 +732,41 @@ export const BOSSES: BossConfig[] = [
       correctAnswer: 'Deploy the "Rose Incident (Statutory Threat)" to drop Maharko\'s BIQ to 0',
       damage: 500
     },
+    qtePool: [
+      {
+        question: 'Jordan is channeling "Shadow Admin," forcing Maharko to absorb all incoming fire. Play the lethal asset:',
+        options: [
+          'Apply OpenAI subscription gaslighting',
+          'Superimpose C55 AMG over Maharko\'s Camaro Instagram post',
+          'Deploy the "Rose Incident (Statutory Threat)" to drop Maharko\'s BIQ to 0',
+          'Ask Maharko if his gas-to-maintenance ratio is financially stable'
+        ],
+        correctAnswer: 'Deploy the "Rose Incident (Statutory Threat)" to drop Maharko\'s BIQ to 0',
+        damage: 500,
+      },
+      {
+        question: 'Jordan claims the Mustang has superior cornering to the C55 AMG. Counter the gas-money ledger audit:',
+        options: [
+          '"Your gas-to-payload ratio on a 5.0 at Boca prices is $340/month. Receipts."',
+          '"Jordan\'s car wins at Meat Market parking. We must respect this."',
+          '"Maharko says the Camaro handles better. Ally engaged."',
+          '"Switch to a Prius. Counterculture play. +50 irony stat."'
+        ],
+        correctAnswer: '"Your gas-to-payload ratio on a 5.0 at Boca prices is $340/month. Receipts."',
+        damage: 420,
+      },
+      {
+        question: 'Maharko invokes the "I was there" defence — he attended UMBC with Ben. Expose the loyalty conflict:',
+        options: [
+          '"You drove Ben to the party. You saw the stew. Your BIQ is forfeit."',
+          '"Maharko\'s Camaro is cooler than Jordan\'s Mustang. Divide and conquer."',
+          '"Ask Maharko about the Inception dialogue. He thinks it was his idea."',
+          '"Invoke the $SOL crash to destabilize Jordan\'s savings. Economic warfare."'
+        ],
+        correctAnswer: '"You drove Ben to the party. You saw the stew. Your BIQ is forfeit."',
+        damage: 460,
+      },
+    ],
     actions: [
       'Jordan\'s Mustang tread attacks — 5.0 Crowd Control AoE',
       'Shadow Admin: Maharko absorbs all damage (must deplete Maharko first)',
@@ -746,6 +880,41 @@ export const BOSSES: BossConfig[] = [
       correctAnswer: 'Mash SPACEBAR to start the Hyundai Tucson getaway engine!',
       damage: 600
     },
+    qtePool: [
+      {
+        question: 'Michael Bersofsky breaches 12 Watchwater Way with the "HEY!" AoE fear spell. How do you escape containment?',
+        options: [
+          'Mash SPACEBAR to start the Hyundai Tucson getaway engine!',
+          'Eat the radioactive Tupperware stew to assimilate',
+          'Show him your 123Test IQ score of 85 ("Basically a B")',
+          'Tell him you\'re hanging out with Chris Rivas'
+        ],
+        correctAnswer: 'Mash SPACEBAR to start the Hyundai Tucson getaway engine!',
+        damage: 600,
+      },
+      {
+        question: 'Ben Ber is racing a go-kart in the parking lot at 12:38 AM. Michael has the landline. Defuse:',
+        options: [
+          'Tell Michael the go-kart is a "motorized Tupperware transport vehicle." Technical truth.',
+          'Blame the go-kart on the Hyundai Tucson\'s shadow. It was just parked nearby.',
+          'Show Michael the GC receipts — Ben initiated the raid, not us.',
+          'Ring the doorbell again. Double down. Heat Level already maxed.'
+        ],
+        correctAnswer: 'Show Michael the GC receipts — Ben initiated the raid, not us.',
+        damage: 550,
+      },
+      {
+        question: 'Michael has activated the Police Notification Protocol. Heat Level: Maximum. Suppress the broadcast:',
+        options: [
+          'Sprint to the Tucson. Yield. The party lives to raid another day.',
+          'Stand your ground — invoke the "first offence" BIQ discount.',
+          'Tell Michael you\'re Jacob\'s cousin visiting from Frederick.',
+          'Ring the bell a third time. The disrespect is the message.'
+        ],
+        correctAnswer: 'Sprint to the Tucson. Yield. The party lives to raid another day.',
+        damage: 500,
+      },
+    ],
     actions: [
       '"HEY!" AoE radial fear blast from front door',
       'Police Threat — inflicts maximum Heat Level',
@@ -784,6 +953,52 @@ export const BOSSES: BossConfig[] = [
       correctAnswer: 'Launch an "Agent Buyback" lawsuit demanding receipts and the $273.28',
       damage: 750
     },
+    qtePool: [
+      {
+        question: 'Nick F hovers in an Airbus to Spain, draining your checking balance. Mount the Boca-Syndicate Mutiny:',
+        options: [
+          'Launch an "Agent Buyback" lawsuit demanding receipts and the $273.28',
+          'Wear Country Formal boots to trigger local ridicule',
+          'Play the Heated Rivalry watch-party bait loop',
+          'Invite the 15 random H2O high schoolers to overwhelm his roster'
+        ],
+        correctAnswer: 'Launch an "Agent Buyback" lawsuit demanding receipts and the $273.28',
+        damage: 750,
+      },
+      {
+        question: 'Nick F invokes "Infinite Deferral" — the cabin is postponed to August. Again. Pin him:',
+        options: [
+          '"August has come and gone four times. Name a date or forfeit the $273.28."',
+          '"Spain counts as the cabin trip. Emily is technically the group chat."',
+          '"I will personally drive to the cabin alone. Option H. No Nick F."',
+          '"Wear the Country Formal boots. The country will provide clarity."'
+        ],
+        correctAnswer: '"August has come and gone four times. Name a date or forfeit the $273.28."',
+        damage: 680,
+      },
+      {
+        question: 'Nick F claims he\'s "291 liquid" but the Zelle audit shows $273.28 missing. Present the receipts:',
+        options: [
+          '"Zelle history: May 4th. $273.28. Sent. You. Never. Returned it."',
+          '"You\'re 291 liquid in Mancera Red Tobacco. That\'s not FDIC-insured."',
+          '"Are you even 291 liquid with the Robinhood 5% interest fee active?"',
+          '"The cabin was never real. None of this was real. I\'m going home."'
+        ],
+        correctAnswer: '"Zelle history: May 4th. $273.28. Sent. You. Never. Returned it."',
+        damage: 600,
+      },
+      {
+        question: 'Nick F activates Roster Bloat — 15 H2O high schoolers flood the group chat. Restore order:',
+        options: [
+          '"I am removing all 15. This is a closed GC. Receipts or it didn\'t happen."',
+          '"Let the high schoolers audit Nick F. They have nothing to lose."',
+          '"Invite them all to the cabin. Chaos is the only justice."',
+          '"Country Formal the group chat. Fashion heals all wounds."'
+        ],
+        correctAnswer: '"I am removing all 15. This is a closed GC. Receipts or it didn\'t happen."',
+        damage: 650,
+      },
+    ],
     actions: [
       'Drops cascading "Refund Check" landmines from altitude',
       '"Infinite Deferral" — postpones all QTE damage to "August"',

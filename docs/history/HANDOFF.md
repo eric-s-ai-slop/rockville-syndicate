@@ -1,3 +1,7 @@
+> **ARCHIVED** — This document describes a build from 2026-06-12 and is no longer current.
+> Many items listed as TODO are already done. Verify against the code, not this doc.
+> Living reference: `CLAUDE.md`, `docs/ARCHITECTURE_AND_MAINTAINABILITY.md`, and the `docs/` track specs.
+
 # HANDOFF — Project Omega: The Rockville Syndicate
 
 Last updated: 2026-06-12. Single entry point for the next agent.

@@ -1,45 +1,26 @@
-// Persistent chapter progress, stored in localStorage so the story remembers
-// how far the player has gotten between sessions.
+// Persistent chapter progress. As of save-schema-v2 this is a thin facade over
+// the unified store in `settings.ts` — progress now lives in the single
+// `omega-save-v2` blob alongside player settings. The public API here is
+// unchanged so existing callers keep working.
 
 import { CHAPTERS } from '../data/chapters';
+import { getProgress, saveProgressData, type ProgressData } from './settings';
 
-const KEY = 'omega-progress-v1';
-
-export interface Progress {
-  completedChapters: string[];
-  hero?: string;
-  /** When true, all chapters are selectable regardless of completion order. */
-  freePlay?: boolean;
-  rose_silence?: boolean;
-}
+export type Progress = ProgressData;
 
 export function loadProgress(): Progress {
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return { completedChapters: [] };
-    const parsed = JSON.parse(raw) as Progress;
-    return {
-      completedChapters: Array.isArray(parsed.completedChapters) ? parsed.completedChapters : [],
-      hero: typeof parsed.hero === 'string' ? parsed.hero : undefined,
-      freePlay: typeof parsed.freePlay === 'boolean' ? parsed.freePlay : false,
-    };
-  } catch {
-    return { completedChapters: [] };
-  }
+  // Return a copy so callers can't mutate the cached store in place.
+  return { ...getProgress() };
 }
 
 export function saveProgress(progress: Progress): void {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(progress));
-  } catch {
-    // ignore (private mode / quota) — progress is a nicety, not load-bearing
-  }
+  saveProgressData(progress);
 }
 
 export function markChapterComplete(chapterId: string): Progress {
   const progress = loadProgress();
   if (!progress.completedChapters.includes(chapterId)) {
-    progress.completedChapters.push(chapterId);
+    progress.completedChapters = [...progress.completedChapters, chapterId];
   }
   saveProgress(progress);
   return progress;
@@ -58,6 +39,8 @@ export function rememberHero(heroId: string): void {
 }
 
 export function resetProgress(): void {
+  // Clear story progress but preserve hero/settings continuity is not desired
+  // here — a full story reset wipes progress fields to defaults.
   saveProgress({ completedChapters: [] });
 }
 

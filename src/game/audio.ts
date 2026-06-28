@@ -16,8 +16,6 @@ import ch9Url   from '../assets/audio/stage_music/SUMMER2026_FIRSTPOOLPARTY(Glas
 import sfxMessageDingUrl from '../assets/audio/IPHONE NOTIFICATION SOUND EFFECT (PINGDING).mp3?url';
 import bossUrl  from '../assets/audio/boss_music/Prowler Sound Effect.mp3?url';
 import bossTetrisUrl from '../assets/audio/boss_music/Techno - Tetris (Remix).mp3?url';
-import cameraShutterUrl from '../assets/audio/SFX_CAMERA_SHUTTER.mp3?url';
-import engineHumUrl from '../assets/audio/SFX_ENGINE_HUM.mp3?url';
 
 import fc0 from '../assets/audio/kenney_impact-sounds/Audio/footstep_carpet_000.ogg?url';
 import fc1 from '../assets/audio/kenney_impact-sounds/Audio/footstep_carpet_001.ogg?url';
@@ -48,12 +46,9 @@ export const CHAPTER_MUSIC_KEY: Record<string, string> = {
   ding_dong_ditch_ben:  'music_ch6',
   maria_brooke:         'music_maria_brooke',
   spain_betrayal:       'music_ch7',
-  cabin_basye:          'music_ch1',  // no ch8 track yet — reuse commons1522
+  cabin_basye:          'music_ch7',  // Dark Beach (Pastel Ghost) — moody night-cabin atmosphere
   suds_and_soles_pool_party: 'music_ch9',
 };
-
-export const SFX_CAMERA_SHUTTER_URL = cameraShutterUrl;
-export const SFX_ENGINE_HUM_URL = engineHumUrl;
 
 // Phaser audio key → URL, for preloading only this chapter's track
 export const STAGE_MUSIC_URL: Record<string, string> = {

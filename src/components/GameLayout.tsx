@@ -3,7 +3,9 @@ import Phaser from 'phaser';
 import ChapterScene, { StoryDialoguePayload } from '../game/ChapterScene';
 import { CHARACTER_CLASSES, CharacterClass, BossConfig } from '../data/entities';
 import { ChapterConfig } from '../data/chapters';
-import { loadProgress, markChapterComplete, rememberHero } from '../game/progress';
+import { loadProgress, markChapterComplete, rememberHero, setFreePlay as persistFreePlay } from '../game/progress';
+import { useSettings, updateSettings, getSettings, saveRunRecord, getRunRecords } from '../game/settings';
+import { computeRunScore, GHOST_TARGETS, ghostBeatenIndex, type RunRecord } from '../game/scoring';
 import shieldImg from '../assets/images/shield.jpg';
 import { Play } from 'lucide-react';
 import DialogueBox from './DialogueBox';
@@ -11,7 +13,7 @@ import ChapterSelect from './ChapterSelect';
 import ExternalGameFrame from './ExternalGameFrame';
 import { playUi } from '../game/uiSound';
 
-type GameStatus = 'hero' | 'chapters' | 'playing' | 'chapterComplete' | 'gameover';
+type GameStatus = 'hero' | 'chapters' | 'playing' | 'chapterComplete' | 'gameover' | 'records';
 
 interface TitleCardData {
   chapterNumber: string;
@@ -34,10 +36,13 @@ export default function GameLayout() {
   const [playerHp, setPlayerHp] = useState(120);
   const [ledger, setLedger] = useState<{ total: number; note: string }>({ total: 0, note: '' });
   const [gameStatus, setGameStatus] = useState<GameStatus>('hero');
+  const [lastRunRecord, setLastRunRecord] = useState<RunRecord | null>(null);
+  const [prevBest, setPrevBest] = useState<number>(0);
 
   const [activeQte, setActiveQte] = useState<{
     boss: BossConfig;
-    callback: (success: boolean) => void;
+    callback: (success: boolean, damage: number) => void;
+    selectedDamage: number;
   } | null>(null);
   const [qteTimer, setQteTimer] = useState(8);
 
@@ -45,16 +50,13 @@ export default function GameLayout() {
   const [activeExternalGame, setActiveExternalGame] = useState<{ gameId: string, config: unknown, onDone: (r: any) => void } | null>(null);
   const [titleCard, setTitleCard] = useState<TitleCardData | null>(null);
   const [titleCardVisible, setTitleCardVisible] = useState(false);
-  const [muted, setMuted] = useState(() => localStorage.getItem('omega-muted') === 'true');
-  const [colorBlind, setColorBlind] = useState(() => localStorage.getItem('omega-colorblind') === 'true');
-  const [textScale, setTextScale] = useState<1 | 1.25 | 1.5>(() => {
-    const v = localStorage.getItem('omega-textscale');
-    return v === '1.5' ? 1.5 : v === '1.25' ? 1.25 : 1;
-  });
-  const [freePlay, setFreePlay] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('omega-progress-v1') || '{}')?.freePlay === true; } catch { return false; }
-  });
-  const [showControls, setShowControls] = useState(false);
+  // Settings are sourced from the unified store (save-schema-v2). `useSettings()`
+  // re-renders this component whenever any setting changes, from React or Phaser.
+  const settings = useSettings();
+  const { muted, colorBlind, textScale } = settings;
+  const [freePlay, setFreePlayState] = useState(() => loadProgress().freePlay === true);
+  const [showSettings, setShowSettings] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<'audio' | 'gameplay' | 'access' | 'controls'>('audio');
   const [soundAlert, setSoundAlert] = useState(false);
   const isMobile = typeof window !== 'undefined' && (
     /Android|iPhone|iPad|iPod|Mobi/i.test(navigator.userAgent) ||
@@ -196,20 +198,23 @@ export default function GameLayout() {
             postBoot: (game) => {
               game.canvas.setAttribute('tabindex', '0');
               game.canvas.focus();
-              game.sound.mute = localStorage.getItem('omega-muted') === 'true';
+              game.sound.mute = getSettings().muted;
+              game.sound.volume = getSettings().masterVolume;
               if (import.meta.env.DEV) (window as unknown as { __OMEGA_GAME__?: Phaser.Game }).__OMEGA_GAME__ = game;
               game.scene.add('ChapterScene', ChapterScene, true, {
                 hero: selectedHero,
                 chapter,
                 playerHp: selectedHero.maxHp,
                 onHpChange: (hp: number) => setPlayerHp(hp),
-                onTriggerQTE: (boss: BossConfig, callback: (success: boolean) => void) => {
+                onTriggerQTE: (boss: BossConfig, callback: (success: boolean, damage: number) => void) => {
                   setQteTimer(8);
                   const shuffledBoss = { ...boss };
-                  
-                  const selectedQTE = boss.qtePool 
+
+                  const selectedQTE = boss.qtePool
                     ? boss.qtePool[Phaser.Math.Between(0, boss.qtePool.length - 1)]
                     : boss.weaknessQTE;
+
+                  const selectedDamage = selectedQTE?.damage ?? boss.weaknessQTE.damage;
 
                   if (selectedQTE) {
                     shuffledBoss.weaknessQTE = {
@@ -217,7 +222,7 @@ export default function GameLayout() {
                       options: Phaser.Utils.Array.Shuffle([...selectedQTE.options])
                     };
                   }
-                  setActiveQte({ boss: shuffledBoss, callback });
+                  setActiveQte({ boss: shuffledBoss, callback, selectedDamage });
                 },
                 onStoryDialogue: (payload: StoryDialoguePayload, done: (i?: number) => void) =>
                   storyRef.current(payload, done),
@@ -230,9 +235,31 @@ export default function GameLayout() {
                   setActiveExternalGame(null);
                 },
                 onLedgerChange: (total: number, note: string) => setLedger({ total, note }),
-                onChapterCompleted: () => {
+                onChapterCompleted: (stats) => {
                   const p = markChapterComplete(chapter.id);
                   setCompletedChapters(p.completedChapters);
+                  const difficulty = getSettings().difficulty;
+                  const score = computeRunScore(
+                    stats.shardsCollected,
+                    stats.hpRemaining,
+                    stats.ledgerTotal,
+                    difficulty,
+                  );
+                  const heroId = chapter.protagonistOverride ?? (selectedHero?.id ?? 'unknown');
+                  const record: RunRecord = {
+                    chapterId: chapter.id,
+                    heroId,
+                    score,
+                    shardsCollected: stats.shardsCollected,
+                    ledgerTotal: stats.ledgerTotal,
+                    hpRemaining: stats.hpRemaining,
+                    difficulty,
+                    date: new Date().toISOString(),
+                  };
+                  const oldBest = p.chapterBests?.[chapter.id] ?? 0;
+                  setPrevBest(oldBest);
+                  setLastRunRecord(record);
+                  saveRunRecord(record);
                   setGameStatus('chapterComplete');
                 },
                 onGameOver: () => setGameStatus('gameover'),
@@ -296,7 +323,7 @@ export default function GameLayout() {
       setQteTimer(prev => {
         if (prev <= 1) {
           clearInterval(timer);
-          activeQte.callback(false);
+          activeQte.callback(false, 0);
           setActiveQte(null);
           return 0;
         }
@@ -308,7 +335,7 @@ export default function GameLayout() {
 
   const handleQteResponse = (option: string) => {
     if (!activeQte) return;
-    activeQte.callback(option === activeQte.boss.weaknessQTE.correctAnswer);
+    activeQte.callback(option === activeQte.boss.weaknessQTE.correctAnswer, activeQte.selectedDamage);
     setActiveQte(null);
   };
 
@@ -321,7 +348,15 @@ export default function GameLayout() {
   const returnToChapters = () => {
     teardownGame();
     setActiveChapter(null);
+    setLastRunRecord(null);
     setGameStatus('chapters');
+  };
+
+  const openRecords = () => {
+    teardownGame();
+    setActiveChapter(null);
+    setLastRunRecord(null);
+    setGameStatus('records');
   };
 
   const protagonist = activeChapter?.protagonistOverride
@@ -381,42 +416,19 @@ export default function GameLayout() {
             <span className="opacity-70" style={{ color: '#8aaa60' }}>{activeChapter?.title}</span>
           </div>
         )}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <button
-            onClick={() => {
-              const nextScale = textScale === 1 ? 1.25 : textScale === 1.25 ? 1.5 : 1;
-              setTextScale(nextScale);
-              localStorage.setItem('omega-textscale', nextScale.toString());
-            }}
-            className="text-base opacity-60 hover:opacity-100 transition-opacity font-mono"
-            title="Text Scale"
-          >
-            {textScale}x
-          </button>
-          <button
-            onClick={() => {
-              const next = !colorBlind;
-              setColorBlind(next);
-              localStorage.setItem('omega-colorblind', String(next));
-            }}
+            onClick={() => { playUi('click'); setShowSettings(true); }}
             className="text-base opacity-60 hover:opacity-100 transition-opacity"
-            title={colorBlind ? 'Disable Color-Blind Mode' : 'Enable Color-Blind Mode'}
+            title="Settings"
           >
-            {colorBlind ? '👁️' : '🕶️'}
-          </button>
-          <button
-            onClick={() => setShowControls(true)}
-            className="text-base opacity-60 hover:opacity-100 transition-opacity"
-            title="Controls"
-          >
-            ⌨️
+            ⚙️
           </button>
           <button
             onClick={() => {
               playUi('toggle');
               const next = !muted;
-              setMuted(next);
-              localStorage.setItem('omega-muted', String(next));
+              updateSettings({ muted: next });
               if (phaserGameRef.current) phaserGameRef.current.sound.mute = next;
             }}
             className="text-base opacity-60 hover:opacity-100 transition-opacity"
@@ -500,13 +512,28 @@ export default function GameLayout() {
 
         {/* Chapter selection */}
         {gameStatus === 'chapters' && selectedHero && (
-          <ChapterSelect
-            heroColor={selectedHero.color}
-            completed={completedChapters}
-            freePlay={freePlay}
-            onFreePlayChange={setFreePlay}
-            onPick={handlePickChapter}
-          />
+          <div className="h-full flex flex-col overflow-hidden">
+            <div className="shrink-0 flex justify-end px-4 pt-3">
+              <button
+                onClick={() => { playUi('click'); setGameStatus('records'); }}
+                className="font-pixel text-[9px] px-3 py-1.5 transition-colors cursor-pointer"
+                style={{ background: '#0f1c09', border: '1px solid #2a3d18', color: '#8aaa60' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = selectedHero.color; e.currentTarget.style.color = selectedHero.color; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = '#2a3d18'; e.currentTarget.style.color = '#8aaa60'; }}
+              >
+                🏆 Hall of Records
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <ChapterSelect
+                heroColor={selectedHero.color}
+                completed={completedChapters}
+                freePlay={freePlay}
+                onFreePlayChange={(next: boolean) => { setFreePlayState(next); persistFreePlay(next); }}
+                onPick={handlePickChapter}
+              />
+            </div>
+          </div>
         )}
 
         {/* Playing */}
@@ -639,26 +666,176 @@ export default function GameLayout() {
           </div>
         )}
 
-        {/* Chapter complete interstitial — 8-bit style */}
-        {gameStatus === 'chapterComplete' && activeChapter && (
-          <div className="h-full flex flex-col items-center justify-center text-center p-8 omega-fade-up" style={{ background: '#0a1006' }}>
-            <div className="text-5xl mb-4" style={{ imageRendering: 'pixelated' }}>✅</div>
-            <div className="pixel-panel p-6 max-w-sm w-full mb-6" style={{ borderColor: selectedHero?.color ?? '#c8e89a' }}>
+        {/* Chapter complete — score summary */}
+        {gameStatus === 'chapterComplete' && activeChapter && lastRunRecord && (() => {
+          const rec = lastRunRecord;
+          const isNewBest = rec.score > prevBest && prevBest > 0;
+          const firstClear = prevBest === 0;
+          const beatenIdx = ghostBeatenIndex(rec.score);
+          const beatenGhost = beatenIdx >= 0 ? GHOST_TARGETS[beatenIdx] : null;
+          const heroColor = selectedHero?.color ?? '#c8e89a';
+          const diffLabel = rec.difficulty === 'easy' ? 'EASY ×0.75' : rec.difficulty === 'hard' ? 'HARD ×1.5' : 'NORMAL ×1.0';
+          return (
+            <div className="h-full overflow-y-auto flex flex-col items-center justify-center text-center p-8 omega-fade-up" style={{ background: '#0a1006' }}>
               <p className="font-pixel text-[9px] tracking-widest mb-2" style={{ color: '#8aaa60' }}>CHAPTER CLEARED</p>
-              <h2 className="font-display text-xl font-bold mb-3" style={{ color: '#c8e89a' }}>{activeChapter.title}</h2>
-              <p className="font-pixel text-[9px] leading-loose" style={{ color: '#8aaa60' }}>
-                The Ledger remembers.<br />${ledger.total.toFixed(2)} on the books.
-              </p>
+              <h2 className="font-display text-xl font-bold mb-1" style={{ color: '#c8e89a' }}>{activeChapter.title}</h2>
+              <p className="text-[10px] font-mono mb-5" style={{ color: '#8aaa60' }}>{diffLabel}</p>
+
+              {/* Score readout */}
+              <div className="pixel-panel p-5 w-full mb-4" style={{ maxWidth: 400, borderColor: heroColor }}>
+                <div className="flex justify-between items-baseline mb-3">
+                  <span className="font-pixel text-[9px]" style={{ color: '#8aaa60' }}>RUN SCORE</span>
+                  <span className="font-display text-3xl font-bold" style={{ color: heroColor, textShadow: `0 0 20px ${heroColor}88` }}>
+                    {rec.score.toLocaleString()}
+                  </span>
+                </div>
+                {/* Breakdown */}
+                <div className="space-y-1 text-left border-t pt-3" style={{ borderColor: '#2a3d18' }}>
+                  {[
+                    ['Shards collected', `${rec.shardsCollected} × 200`, rec.shardsCollected * 200],
+                    ['HP remaining', `${rec.hpRemaining} × 10`, Math.max(0, rec.hpRemaining) * 10],
+                    ['Ledger balance', `$${rec.ledgerTotal.toFixed(2)} × 5`, Math.max(0, Math.round(rec.ledgerTotal * 5))],
+                  ].map(([label, formula, pts]) => (
+                    <div key={label as string} className="flex justify-between font-pixel text-[9px]">
+                      <span style={{ color: '#8aaa60' }}>{label as string}</span>
+                      <span style={{ color: '#c8e89a' }}>{formula as string} = <strong style={{ color: '#e8f5d0' }}>{(pts as number).toLocaleString()}</strong></span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Personal best comparison */}
+              <div className="pixel-panel p-4 w-full mb-4" style={{ maxWidth: 400, borderColor: '#2a3d18' }}>
+                <div className="flex justify-between font-pixel text-[9px] mb-1">
+                  <span style={{ color: '#8aaa60' }}>PERSONAL BEST</span>
+                  <span style={{ color: firstClear ? '#facc15' : isNewBest ? '#4ade80' : '#c8e89a' }}>
+                    {firstClear ? `NEW! ${rec.score.toLocaleString()}` : isNewBest ? `NEW BEST! ${rec.score.toLocaleString()}` : prevBest.toLocaleString()}
+                  </span>
+                </div>
+                {/* Ghost targets */}
+                <div className="border-t pt-2 mt-2" style={{ borderColor: '#2a3d18' }}>
+                  {GHOST_TARGETS.slice(0, 3).map((g, i) => {
+                    const beaten = rec.score > g.score;
+                    return (
+                      <div key={g.initials} className="flex justify-between font-pixel text-[9px] py-0.5">
+                        <span style={{ color: beaten ? '#4ade80' : '#3a5520' }}>
+                          {beaten ? '✓' : ' '} #{i + 1} {g.initials}
+                        </span>
+                        <span style={{ color: beaten ? '#4ade80' : '#3a5520' }}>{g.score.toLocaleString()}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Ghost bark */}
+              {beatenGhost && (
+                <div className="font-pixel text-[9px] mb-4 px-4 py-2" style={{ background: '#0f2e18', border: '1px solid #4ade80', color: '#4ade80', maxWidth: 400, width: '100%' }}>
+                  YOU BEAT {beatenGhost.initials}'s SCORE! The Syndicate takes notice.
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { playUi('back'); returnToChapters(); }}
+                  className="px-6 py-3 font-pixel text-[10px] cursor-pointer transition-all"
+                  style={{ background: heroColor, color: '#0c1208', border: '2px solid #0c1208', imageRendering: 'pixelated' }}
+                >
+                  ▶ CONTINUE
+                </button>
+                <button
+                  onClick={() => { playUi('click'); openRecords(); }}
+                  className="px-6 py-3 font-pixel text-[10px] cursor-pointer transition-all"
+                  style={{ background: '#0f1c09', border: `2px solid ${heroColor}66`, color: '#8aaa60', imageRendering: 'pixelated' }}
+                >
+                  🏆 HALL OF RECORDS
+                </button>
+              </div>
             </div>
-            <button
-              onClick={() => { playUi('back'); returnToChapters(); }}
-              className="px-8 py-3 font-pixel text-[10px] cursor-pointer transition-all"
-              style={{ background: selectedHero?.color ?? '#c8e89a', color: '#0c1208', border: '2px solid #0c1208', imageRendering: 'pixelated' }}
-            >
-              ▶ CONTINUE
-            </button>
-          </div>
-        )}
+          );
+        })()}
+
+        {/* Hall of Records */}
+        {gameStatus === 'records' && (() => {
+          const records = getRunRecords();
+          const heroColor = selectedHero?.color ?? '#c8e89a';
+          // Group personal bests by chapter
+          const bestByChapter: Record<string, RunRecord> = {};
+          for (const r of [...records].reverse()) {
+            if (!bestByChapter[r.chapterId] || r.score > bestByChapter[r.chapterId].score) {
+              bestByChapter[r.chapterId] = r;
+            }
+          }
+          const bests = Object.values(bestByChapter).sort((a, b) => b.score - a.score);
+          const allTimeTotal = bests.reduce((sum, r) => sum + r.score, 0);
+          return (
+            <div className="h-full overflow-y-auto flex flex-col items-center p-8 omega-fade-up" style={{ background: '#0a1006' }}>
+              <div className="w-full" style={{ maxWidth: 560 }}>
+                <div className="text-center mb-6">
+                  <div className="text-4xl mb-2">🏆</div>
+                  <h2 className="font-display text-2xl font-bold mb-1" style={{ color: '#c8e89a' }}>Hall of Records</h2>
+                  <p className="font-pixel text-[9px]" style={{ color: '#8aaa60' }}>THE ROCKVILLE SYNDICATE · ALL-TIME</p>
+                </div>
+
+                {/* Ghost leaderboard */}
+                <div className="pixel-panel p-4 mb-4" style={{ borderColor: '#facc15' }}>
+                  <p className="font-pixel text-[9px] tracking-widest mb-3" style={{ color: '#facc15' }}>SYNDICATE GHOST SCORES</p>
+                  {GHOST_TARGETS.map((g, i) => {
+                    const myBest = bests[0]?.score ?? 0;
+                    const beaten = myBest > g.score;
+                    return (
+                      <div key={g.initials} className="flex justify-between items-center font-pixel text-[9px] py-1 border-b" style={{ borderColor: '#1a2e10' }}>
+                        <span style={{ color: beaten ? '#4ade80' : '#8aaa60' }}>
+                          #{i + 1}  {beaten ? '✓ ' : ''}{g.initials}
+                        </span>
+                        <span style={{ color: beaten ? '#4ade80' : '#facc15' }}>{g.score.toLocaleString()}</span>
+                      </div>
+                    );
+                  })}
+                  {bests[0] && (
+                    <div className="flex justify-between items-center font-pixel text-[9px] py-1 mt-1" style={{ borderTop: '1px solid #2a3d18' }}>
+                      <span style={{ color: heroColor }}>▶ YOU (best run)</span>
+                      <span style={{ color: heroColor }}>{bests[0].score.toLocaleString()}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Per-chapter personal bests */}
+                <div className="pixel-panel p-4 mb-4" style={{ borderColor: '#2a3d18' }}>
+                  <p className="font-pixel text-[9px] tracking-widest mb-3" style={{ color: '#8aaa60' }}>YOUR CHAPTER BESTS</p>
+                  {bests.length === 0 && (
+                    <p className="font-pixel text-[9px]" style={{ color: '#3a5520' }}>No runs recorded yet. Complete a chapter to start.</p>
+                  )}
+                  {bests.map(r => (
+                    <div key={r.chapterId} className="flex justify-between items-center font-pixel text-[9px] py-1 border-b" style={{ borderColor: '#1a2e10' }}>
+                      <span style={{ color: '#c8e89a' }}>{r.chapterId.replace('ch', 'Ch. ')}</span>
+                      <div className="flex items-center gap-3">
+                        <span style={{ color: '#3a5520' }}>{r.difficulty}</span>
+                        <span style={{ color: heroColor }}>{r.score.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  ))}
+                  {bests.length > 0 && (
+                    <div className="flex justify-between font-pixel text-[9px] pt-2 mt-1" style={{ borderTop: '1px solid #2a3d18' }}>
+                      <span style={{ color: '#8aaa60' }}>ALL-TIME TOTAL</span>
+                      <span style={{ color: heroColor, fontWeight: 'bold' }}>{allTimeTotal.toLocaleString()}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-center">
+                  <button
+                    onClick={() => { playUi('back'); setGameStatus(activeChapter ? 'chapters' : 'chapters'); setActiveChapter(null); }}
+                    className="px-8 py-3 font-pixel text-[10px] cursor-pointer transition-all"
+                    style={{ background: '#0f1c09', border: `2px solid ${heroColor}66`, color: '#8aaa60', imageRendering: 'pixelated' }}
+                  >
+                    ◀ BACK
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Game Over — 8-bit style */}
         {gameStatus === 'gameover' && (
@@ -685,38 +862,212 @@ export default function GameLayout() {
 
       </div>
 
-      {/* Controls modal */}
-      {showControls && (
+      {/* Settings modal */}
+      {showSettings && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center"
-          style={{ background: 'rgba(0,0,0,0.75)' }}
-          onClick={() => setShowControls(false)}
+          style={{ background: 'rgba(0,0,0,0.80)' }}
+          onClick={() => setShowSettings(false)}
         >
           <div
-            className="p-8 max-w-sm w-full mx-4"
-            style={{ background: '#111c0a', border: '1px solid #2a3d18', color: '#e8f5d0' }}
+            className="p-6 w-full mx-4"
+            style={{ background: '#111c0a', border: '1px solid #2a3d18', color: '#e8f5d0', maxWidth: 420, maxHeight: '82vh', overflowY: 'auto' }}
             onClick={e => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-6">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-2">
-                <span className="text-lg">⌨️</span>
-                <span className="font-bold text-sm font-display" style={{ color: '#c8e89a' }}>Controls</span>
+                <span className="text-lg">⚙️</span>
+                <span className="font-bold text-sm font-display" style={{ color: '#c8e89a' }}>Settings</span>
               </div>
-              <button onClick={() => setShowControls(false)} className="opacity-50 hover:opacity-100 transition-opacity text-sm">✕</button>
+              <button onClick={() => setShowSettings(false)} className="opacity-50 hover:opacity-100 transition-opacity text-sm">✕</button>
             </div>
-            <div className="space-y-3 text-xs font-mono">
-              {[
-                ['WASD / ↑↓←→', 'Move'],
-                ['SPACE / E / ENTER', 'Talk · Advance dialogue'],
-                ['1 – 9', 'Select dialogue choice'],
-                ['ESC', 'Back to chapter select'],
-              ].map(([keys, action]) => (
-                <div key={keys} className="flex items-center justify-between gap-4">
-                  <span className="px-2 py-1 text-[10px] font-mono" style={{ background: '#0c1208', border: '1px solid #2a3d18', color: '#8aaa60', whiteSpace: 'nowrap' }}>{keys}</span>
-                  <span className="opacity-70 text-right" style={{ color: '#8aaa60' }}>{action}</span>
-                </div>
+
+            {/* Tabs */}
+            <div className="flex gap-1 mb-5">
+              {(['audio', 'gameplay', 'access', 'controls'] as const).map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setSettingsTab(tab)}
+                  className="flex-1 py-1.5 text-[9px] font-mono uppercase tracking-wide transition-colors cursor-pointer"
+                  style={{
+                    background: settingsTab === tab ? '#1a2e10' : '#0c1208',
+                    border: '1px solid',
+                    borderColor: settingsTab === tab ? '#4ade80' : '#2a3d18',
+                    color: settingsTab === tab ? '#c8e89a' : '#8aaa60',
+                  }}
+                >
+                  {tab === 'access' ? 'A11y' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </button>
               ))}
             </div>
+
+            {/* ── Audio ─────────────────────────────────────────────── */}
+            {settingsTab === 'audio' && (
+              <div className="space-y-4">
+                {([
+                  ['Master', 'masterVolume'],
+                  ['Music', 'musicVolume'],
+                  ['SFX', 'sfxVolume'],
+                ] as const).map(([label, key]) => (
+                  <div key={key}>
+                    <div className="flex justify-between text-xs font-mono mb-1.5">
+                      <span style={{ color: '#8aaa60' }}>{label}</span>
+                      <span style={{ color: '#c8e89a' }}>{Math.round(settings[key] * 100)}%</span>
+                    </div>
+                    <input
+                      type="range" min={0} max={100}
+                      value={Math.round(settings[key] * 100)}
+                      onChange={e => updateSettings({ [key]: parseInt(e.target.value) / 100 })}
+                      className="w-full cursor-pointer"
+                      style={{ accentColor: '#4ade80' }}
+                    />
+                  </div>
+                ))}
+                <label className="flex items-center gap-3 text-xs font-mono cursor-pointer pt-1">
+                  <input
+                    type="checkbox"
+                    checked={settings.muted}
+                    onChange={e => {
+                      const next = e.target.checked;
+                      updateSettings({ muted: next });
+                      if (phaserGameRef.current) phaserGameRef.current.sound.mute = next;
+                    }}
+                    style={{ accentColor: '#4ade80' }}
+                  />
+                  <span style={{ color: '#8aaa60' }}>Mute all audio</span>
+                </label>
+                <p className="text-[9px] font-mono pt-1" style={{ color: '#3a5520' }}>
+                  Volume changes take effect on next chapter load.
+                </p>
+              </div>
+            )}
+
+            {/* ── Gameplay ──────────────────────────────────────────── */}
+            {settingsTab === 'gameplay' && (
+              <div className="space-y-5">
+                <div>
+                  <p className="text-xs font-mono mb-2" style={{ color: '#8aaa60' }}>Difficulty</p>
+                  <div className="flex gap-1.5">
+                    {(['easy', 'normal', 'hard'] as const).map(d => {
+                      const accent = d === 'easy' ? '#4ade80' : d === 'hard' ? '#ef4444' : '#facc15';
+                      const active = settings.difficulty === d;
+                      return (
+                        <button
+                          key={d}
+                          onClick={() => updateSettings({ difficulty: d })}
+                          className="flex-1 py-2 text-[10px] font-mono uppercase tracking-wide transition-colors cursor-pointer"
+                          style={{
+                            background: active ? `${accent}22` : '#0c1208',
+                            border: '2px solid',
+                            borderColor: active ? accent : '#2a3d18',
+                            color: active ? accent : '#8aaa60',
+                          }}
+                        >
+                          {d}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[10px] font-mono mt-2" style={{ color: '#8aaa60', opacity: 0.7 }}>
+                    {settings.difficulty === 'easy' && 'Bosses hit softer · more power-up drops · telegraphs last longer.'}
+                    {settings.difficulty === 'normal' && 'Balanced. The Syndicate plays fair.'}
+                    {settings.difficulty === 'hard' && 'Boss HP +35% · attacks faster · QTE timers tighter.'}
+                  </p>
+                </div>
+                <div>
+                  <div className="flex justify-between text-xs font-mono mb-1.5">
+                    <span style={{ color: '#8aaa60' }}>Text Speed</span>
+                    <span style={{ color: '#c8e89a' }}>
+                      {settings.textSpeedMs === 0
+                        ? 'Instant'
+                        : settings.textSpeedMs <= 14
+                        ? 'Fast'
+                        : settings.textSpeedMs <= 35
+                        ? 'Normal'
+                        : 'Slow'}
+                    </span>
+                  </div>
+                  <input
+                    type="range" min={0} max={100}
+                    value={100 - Math.round((settings.textSpeedMs / 200) * 100)}
+                    onChange={e => updateSettings({ textSpeedMs: Math.round(((100 - parseInt(e.target.value)) / 100) * 200) })}
+                    className="w-full cursor-pointer"
+                    style={{ accentColor: '#4ade80' }}
+                  />
+                  <div className="flex justify-between text-[9px] font-mono mt-0.5" style={{ color: '#3a5520' }}>
+                    <span>Slow</span>
+                    <span>Fast</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── Accessibility ─────────────────────────────────────── */}
+            {settingsTab === 'access' && (
+              <div className="space-y-4">
+                <div>
+                  <p className="text-xs font-mono mb-2" style={{ color: '#8aaa60' }}>Text Scale</p>
+                  <div className="flex gap-1.5">
+                    {([1, 1.25, 1.5] as const).map(s => (
+                      <button
+                        key={s}
+                        onClick={() => updateSettings({ textScale: s })}
+                        className="flex-1 py-2 text-[10px] font-mono transition-colors cursor-pointer"
+                        style={{
+                          background: settings.textScale === s ? '#1a2e10' : '#0c1208',
+                          border: '2px solid',
+                          borderColor: settings.textScale === s ? '#4ade80' : '#2a3d18',
+                          color: settings.textScale === s ? '#c8e89a' : '#8aaa60',
+                        }}
+                      >
+                        {s}×
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {([
+                  { key: 'colorBlind' as const, label: 'Color-Blind Mode', hint: 'Adds patterns alongside color cues' },
+                  { key: 'reduceMotion' as const, label: 'Reduce Motion', hint: 'Dampens screen shake, flashes, and big tweens' },
+                ] as const).map(({ key, label, hint }) => (
+                  <label key={key} className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={settings[key]}
+                      onChange={e => updateSettings({ [key]: e.target.checked })}
+                      style={{ accentColor: '#4ade80', marginTop: 2, flexShrink: 0 }}
+                    />
+                    <div>
+                      <div className="text-xs font-mono" style={{ color: '#c8e89a' }}>{label}</div>
+                      <div className="text-[10px] font-mono mt-0.5" style={{ color: '#8aaa60', opacity: 0.7 }}>{hint}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
+
+            {/* ── Controls ──────────────────────────────────────────── */}
+            {settingsTab === 'controls' && (
+              <div className="space-y-3">
+                {([
+                  ['WASD / ↑↓←→', 'Move'],
+                  ['SPACE / E / ENTER', 'Talk · Advance dialogue'],
+                  ['1 – 9', 'Select dialogue choice'],
+                  ['ESC', 'Back to chapter select'],
+                  ['SHIFT + WASD', 'Dash (i-frames active)'],
+                ] as const).map(([keys, action]) => (
+                  <div key={keys} className="flex items-center justify-between gap-4">
+                    <span
+                      className="px-2 py-1 text-[10px] font-mono shrink-0"
+                      style={{ background: '#0c1208', border: '1px solid #2a3d18', color: '#8aaa60', whiteSpace: 'nowrap' }}
+                    >
+                      {keys}
+                    </span>
+                    <span className="text-xs font-mono text-right" style={{ color: '#8aaa60', opacity: 0.7 }}>{action}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

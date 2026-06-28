@@ -6,12 +6,40 @@ import {
   THEME_FOOTSTEP, FOOTSTEP_URLS,
   UI_SELECT_URL, VICTORY_JINGLE_URL, KNOCK_URL,
 } from '../audio';
+import { subscribeSettings, getSettings } from '../../game/settings';
+
+// Per-track mix levels (target volume before musicVolume multiplier is applied).
+const STAGE_MIX  = 0.30;
+const BOSS_MIX   = 0.42;
+const CH6_MIX    = 0.70;
 
 export class AudioController {
   private scene: ChapterScene;
+  private settingsUnsub: (() => void) | null = null;
+  private currentStageMix = STAGE_MIX;
 
   constructor(scene: ChapterScene) {
     this.scene = scene;
+    this.settingsUnsub = subscribeSettings(() => this.applyVolumeToLiveSounds());
+  }
+
+  /** Unsubscribe from settings. Call from ChapterScene shutdown. */
+  public destroy(): void {
+    this.settingsUnsub?.();
+    this.settingsUnsub = null;
+  }
+
+  /** Push current settings volumes into the sound manager + any live music tracks. */
+  private applyVolumeToLiveSounds(): void {
+    const s = getSettings();
+    try {
+      if (this.scene.sound) this.scene.sound.volume = s.masterVolume;
+      const mv = s.musicVolume;
+      if (this.scene.stageMusic)
+        (this.scene.stageMusic as Phaser.Sound.WebAudioSound).volume = this.currentStageMix * mv;
+      if (this.scene.bossMusic)
+        (this.scene.bossMusic as Phaser.Sound.WebAudioSound).volume = BOSS_MIX * mv;
+    } catch { /* scene may be mid-shutdown */ }
   }
 
   public safeLoadAudio(key: string, url: string) {
@@ -67,9 +95,10 @@ export class AudioController {
       ?? this.scene.chapter.scenes?.[0]?.music;
     if (!musicKey || !this.scene.cache.audio.exists(musicKey)) return;
     try {
+      this.currentStageMix = STAGE_MIX;
       this.scene.stageMusic = this.scene.sound.add(musicKey, { loop: true, volume: 0 });
       this.scene.stageMusic.play();
-      this.scene.tweens.add({ targets: this.scene.stageMusic, volume: 0.30, duration: 1200 });
+      this.scene.tweens.add({ targets: this.scene.stageMusic, volume: STAGE_MIX * getSettings().musicVolume, duration: 1200 });
     } catch { /* Web Audio not ready — play will resume on first canvas interaction */ }
   }
 
@@ -86,7 +115,7 @@ export class AudioController {
     if (this.scene.stageMusic?.isPaused) {
       (this.scene.stageMusic as Phaser.Sound.WebAudioSound).resume();
       this.scene.tweens.add({
-        targets: this.scene.stageMusic, volume: 0.30, duration: 600,
+        targets: this.scene.stageMusic, volume: this.currentStageMix * getSettings().musicVolume, duration: 600,
       });
     } else if (!this.scene.stageMusic?.isPlaying) {
       this.startStageMusic();
@@ -115,10 +144,10 @@ export class AudioController {
 
     this.scene.time.delayedCall(350, () => {
       try {
+        this.currentStageMix = newKey === 'music_ch6' ? CH6_MIX : STAGE_MIX;
         this.scene.stageMusic = this.scene.sound.add(newKey, { loop: true, volume: 0 });
         this.scene.stageMusic.play();
-        const targetVolume = newKey === 'music_ch6' ? 0.70 : 0.30;
-        this.scene.tweens.add({ targets: this.scene.stageMusic, volume: targetVolume, duration: 900 });
+        this.scene.tweens.add({ targets: this.scene.stageMusic, volume: this.currentStageMix * getSettings().musicVolume, duration: 900 });
       } catch { /* Web Audio context not ready */ }
     });
   }
@@ -164,7 +193,7 @@ export class AudioController {
     try {
       this.scene.bossMusic = this.scene.sound.add('boss_loop', { loop: true, volume: 0 });
       this.scene.bossMusic.play();
-      this.scene.tweens.add({ targets: this.scene.bossMusic, volume: 0.42, duration: fadeDuration });
+      this.scene.tweens.add({ targets: this.scene.bossMusic, volume: BOSS_MIX * getSettings().musicVolume, duration: fadeDuration });
     } catch { /* skip */ }
   }
 
@@ -186,7 +215,7 @@ export class AudioController {
     if (this.scene.stageMusic) {
       try {
         if (!(this.scene.stageMusic as any).isPlaying) (this.scene.stageMusic as Phaser.Sound.WebAudioSound).resume();
-        this.scene.tweens.add({ targets: this.scene.stageMusic, volume: 0.30, duration: 900 });
+        this.scene.tweens.add({ targets: this.scene.stageMusic, volume: this.currentStageMix * getSettings().musicVolume, duration: 900 });
       } catch { /* skip */ }
     }
   }

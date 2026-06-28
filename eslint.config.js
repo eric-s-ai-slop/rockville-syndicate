@@ -22,12 +22,7 @@ export default tseslint.config(
       'public/**',
       'battleiq/**', // legacy standalone JS prototype — out of scope
       'scripts/voicegen/.venv-tts/**',
-      // throwaway debug scripts at repo root (Track G2 will relocate/remove these)
-      'debug_preprocess.*',
-      'find_green.cjs',
-      'inspect_colors.cjs',
-      'inspect_sheet_columns.cjs',
-      'bench_rows.ts',
+      'scripts/dev/**', // throwaway debug/inspection scripts — not production code
       'eslint.config.js',
     ],
   },

@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import { BossConfig, CharacterClass } from '../../data/entities';
 import { ChapterConfig } from '../../data/chapters';
+import type { Beat } from '../../data/chapters/types';
+import type { StoryDialoguePayload } from '../ChapterScene';
 import { AudioController } from '../scene/AudioController';
 
 export interface ModeResult {
@@ -36,9 +38,9 @@ export interface ModeContext {
   showPassiveIconText(x: number, y: number, text: string, color: string): void;
   showDamageNumber(x: number, y: number, amount: number, color: string): void;
   setControlsInverted(inverted: boolean): void;
-  triggerQTE(boss: BossConfig, callback: (success: boolean) => void): void;
+  triggerQTE(boss: BossConfig, callback: (success: boolean, damage: number) => void): void;
   logMessage(msg: string): void;
-  onStoryDialogue(payload: any, done: (choiceIndex?: number) => void): void;
+  onStoryDialogue(payload: StoryDialoguePayload, done: (choiceIndex?: number) => void): void;
   mountExternalGame(opts: { gameId: string; config?: unknown }, onDone: (r: ModeResult) => void): void;
   unmountExternalGame(): void;
 
@@ -70,7 +72,7 @@ export interface GameMode<Cfg = unknown> {
   update?(time: number, delta: number): void;
   /** Restore the scene to story state (remove sprites, listeners, UI). */
   teardown(): void;
-  /** Optional beat hooks */
-  onDialogue?(beat: any): void;
-  onCameraPan?(beat: any): void;
+  /** Optional beat hooks — called when a dialogue or cameraPan beat fires while this mode is active. */
+  onDialogue?(beat: Extract<Beat, { type: 'dialogue' }>): void;
+  onCameraPan?(beat: Extract<Beat, { type: 'cameraPan' }>): void;
 }

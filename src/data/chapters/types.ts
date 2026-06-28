@@ -73,8 +73,6 @@ export interface MapRect {
   solid?: boolean;
   /** Solid rects with invisible:true get physics but no visual (background image handles the look). */
   invisible?: boolean;
-  /** @deprecated Legacy label field — ignored by renderer since Phase B. Use propType instead. */
-  tag?: string;
 }
 
 export interface RoomLabel {
