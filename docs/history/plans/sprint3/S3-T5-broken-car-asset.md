@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical sprint plan. Verify against current code before acting on any item.
+
 # S3-T5 — Broken car asset on the I-95 highway (and Florida cars)
 
 > Fresh agent: read **Global House Rules** in `plans/sprint3/MASTER_PLAN_S3.md` first. Surgical diff only.

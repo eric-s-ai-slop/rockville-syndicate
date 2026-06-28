@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical sprint plan. Verify against current code before acting on any item.
+
 # TASK-S2-03 — Chapter passes: Ch1 (Apartment 1522) + Ch7 (Commons 1522)
 
 ## Goal

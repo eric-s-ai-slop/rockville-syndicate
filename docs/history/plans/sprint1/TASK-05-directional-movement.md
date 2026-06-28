@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical sprint plan. Verify against current code before acting on any item.
+
 # TASK-05 — Directional movement: fix Nick F side-to-side, implement front/back facing for all characters
 
 ## Goal

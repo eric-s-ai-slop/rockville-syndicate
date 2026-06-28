@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical sprint plan. Verify against current code before acting on any item.
+
 # QA Report — red_pee_bladder (The Red Pee Bladder Strike) — lens: visual
 Agent: jules  |  Date: 2024-06-13  |  Build: da02370
 

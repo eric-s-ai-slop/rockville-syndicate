@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical sprint plan. Verify against current code before acting on any item.
+
 # QA Report — Full Game — lens: freeplay
 Agent: 1  |  Date: 2024-06-14  |  Build: current
 

@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical sprint plan. Verify against current code before acting on any item.
+
 # QA Report — nyc_1am_drive (Operation Inertia) — lens: audio
 Agent: jules  |  Date: 2026-06-13  |  Build: da02370
 

@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical sprint plan. Verify against current code before acting on any item.
+
 # QA Report — spain_betrayal (The Spain Betrayal) — lens: console
 Agent: jules  |  Date: 2024-06-13  |  Build: 0cfcc14
 

@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical sprint plan. Verify against current code before acting on any item.
+
 # S3-T6 — Broken boss / Audrey sprites (regression from the directional-movement task)
 
 > Fresh agent: read **Global House Rules** in `plans/sprint3/MASTER_PLAN_S3.md` first. This is the hardest task and

@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical sprint plan. Verify against current code before acting on any item.
+
 # TASK-07 — UI sounds (selection / click / hover)
 
 ## Goal

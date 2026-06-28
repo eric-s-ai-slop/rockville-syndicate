@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical sprint plan. Verify against current code before acting on any item.
+
 # S3-T1 — Mission-select screen: visible selection feedback
 
 > You are a fresh agent. Everything you need is in this file. Read the **Global House Rules** in

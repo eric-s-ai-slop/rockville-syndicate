@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical sprint plan. Verify against current code before acting on any item.
+
 # Sprint 3 QA Bug Fixes
 
 Date: 2026-06-14 | Fixed by: Claude (claude-sonnet-4-6)

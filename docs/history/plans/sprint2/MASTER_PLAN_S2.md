@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical sprint plan. Verify against current code before acting on any item.
+
 # SPRINT 2 MASTER PLAN — Complete asset overhaul (kill the primitive props)
 
 **Audience:** the human integrator coordinating an isolated agent swarm. Hand each agent **only its

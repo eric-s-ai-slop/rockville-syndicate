@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical sprint plan. Verify against current code before acting on any item.
+
 # Sprint 3 — Bug-Fix Master Plan (Architect's Brief)
 
 **Author:** Architect agent (knows the whole codebase).

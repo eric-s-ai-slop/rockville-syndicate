@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical sprint plan. Verify against current code before acting on any item.
+
 # QA Report — jungle_gym_gambit (The Jungle Gym Gambit) — lens: audio
 Agent: Jules  |  Date: 2024-05-18  |  Build: (latest)
 

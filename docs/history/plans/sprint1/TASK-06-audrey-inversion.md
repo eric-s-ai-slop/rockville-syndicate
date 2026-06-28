@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical sprint plan. Verify against current code before acting on any item.
+
 # TASK-06 — Audrey fight: controls inverted from the start, always inverted
 
 ## Goal

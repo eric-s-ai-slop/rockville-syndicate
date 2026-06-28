@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical sprint plan. Verify against current code before acting on any item.
+
 # S3-T7 — Per-chapter QA sweep (fan-out across the agent fleet)
 
 > This is how "get rid of EVERY single bug" is executed with ~50 non-communicating agents **without** them trampling

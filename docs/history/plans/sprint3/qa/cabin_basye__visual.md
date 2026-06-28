@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical sprint plan. Verify against current code before acting on any item.
+
 # QA Report — cabin_basye (The Cabin) — lens: visual
 Agent: jules  |  Date: 2024-06-13  |  Build: HEAD
 

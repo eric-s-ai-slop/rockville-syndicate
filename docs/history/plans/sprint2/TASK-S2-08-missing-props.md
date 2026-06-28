@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical sprint plan. Verify against current code before acting on any item.
+
 # TASK-S2-08 — Wire the new asset packs: toll booth, guardrail, hot tub, arcade (+ optional cars)
 
 ## Status: ✅ UNBLOCKED — assets are on disk and coordinates are pinned

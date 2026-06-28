@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical sprint plan. Verify against current code before acting on any item.
+
 # RUN 1 — Furniture pipeline + renderer (FOUNDATION)
 
 You are building the furniture-sprite system for a Phaser 3.88 + React + Vite + TS game. Today every couch/TV/desk/

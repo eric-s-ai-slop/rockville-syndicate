@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical sprint plan. Verify against current code before acting on any item.
+
 # TASK-02 — Sprint 1: damage flash uses `shield.jpg`
 
 ## Goal

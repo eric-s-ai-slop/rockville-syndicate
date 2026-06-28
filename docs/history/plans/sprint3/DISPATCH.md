@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical sprint plan. Verify against current code before acting on any item.
+
 # Sprint 3 — Agent Dispatch Sheet (copy → paste → run, 46 times)
 
 Every task below uses the **same setup** in Jules:

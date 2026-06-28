@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical sprint plan. Verify against current code before acting on any item.
+
 # TASK-S2-06 — Chapter passes: Ch2 (NYC 1AM Drive) + Ch5 (Florida Highway Duel)
 
 ## Goal

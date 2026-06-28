@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical sprint plan. Verify against current code before acting on any item.
+
 # QA Flow Sweep: Ding Dong Ditch Ben (Chapter 6)
 
 ## Overview

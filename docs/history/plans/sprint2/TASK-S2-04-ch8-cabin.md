@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical sprint plan. Verify against current code before acting on any item.
+
 # TASK-S2-04 — Chapter pass: Ch8 (The Cabin, Basye VA)
 
 ## Goal

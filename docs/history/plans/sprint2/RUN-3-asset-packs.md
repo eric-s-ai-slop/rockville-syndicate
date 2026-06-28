@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical sprint plan. Verify against current code before acting on any item.
+
 # RUN 3 — Wire the new asset packs (toll booth, guardrail, hot tub, arcade)
 
 The furniture system + chapter passes are done (RUN 1 & 2). This run wires the 5 owner-added asset packs for the

@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical sprint plan. Verify against current code before acting on any item.
+
 # QA Report — spotify_insurgency (The Spotify Family Insurgency) — lens: visual
 Agent: Jules  |  Date: 2024-06-13  |  Build: da02370
 

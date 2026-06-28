@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical sprint plan. Verify against current code before acting on any item.
+
 # QA Report — nyc_1am_drive (I-95 Northbound) — lens: visual
 Agent: jules  |  Date: 2024-05-24  |  Build: main
 

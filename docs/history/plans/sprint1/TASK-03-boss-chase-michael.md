@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical sprint plan. Verify against current code before acting on any item.
+
 # TASK-03 — Boss animations + Michael chase: correct anims, door-on-RUN, knock SFX, catch = instant fight
 
 ## Goal (Chapter 6 `ding_dong_ditch_ben`, plus all boss fights)

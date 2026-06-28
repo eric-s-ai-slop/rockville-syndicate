@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical sprint plan. Verify against current code before acting on any item.
+
 # TASK-S2-07 — Chapter passes: Ch4 (Jungle Gym Gambit) + Ch6 (Ding Dong Ditch Ben)
 
 ## Goal

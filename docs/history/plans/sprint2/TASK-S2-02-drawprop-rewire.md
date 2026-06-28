@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical sprint plan. Verify against current code before acting on any item.
+
 # TASK-S2-02 — Renderer rewire: drawPropShape consumes the furniture catalog
 
 ## Goal

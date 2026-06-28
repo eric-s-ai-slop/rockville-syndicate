@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical sprint plan. Verify against current code before acting on any item.
+
 # RUN 2 — All chapter prop passes (data-only)
 
 The furniture sprite system is live (RUN 1): `drawPropShape` renders a real LimeZu sprite for any rect whose

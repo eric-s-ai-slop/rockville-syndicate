@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical sprint plan. Verify against current code before acting on any item.
+
 # TASK-S2-05 — Chapter pass: Ch3 (Shepherd University Hospital)
 
 ## Goal

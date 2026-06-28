@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical sprint plan. Verify against current code before acting on any item.
+
 # TASK-04 — Dash bug: pressing Space to advance dialogue must not trigger a dash
 
 ## Goal

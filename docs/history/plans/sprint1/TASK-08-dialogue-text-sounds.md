@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical sprint plan. Verify against current code before acting on any item.
+
 # TASK-08 — Dialogue text sounds (`dialog_sound.mp3`, cadence/punctuation-aware)
 
 ## Goal

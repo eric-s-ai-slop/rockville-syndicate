@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical sprint plan. Verify against current code before acting on any item.
+
 # TASK-01 — Prop & vehicle asset extraction (cars, jungle gym, hospital, stretched toilet)
 
 ## Goal
