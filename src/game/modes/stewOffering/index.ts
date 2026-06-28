@@ -11,7 +11,8 @@ export class StewOfferingMode implements GameMode {
   private offersCompleted = 0;
   private isMoving = false;
   
-  private uiText: Phaser.GameObjects.Text | null = null;
+  private uiContainer: Phaser.GameObjects.Container | null = null;
+  private uiProgressText: Phaser.GameObjects.Text | null = null;
 
   preload(ctx: ModeContext): void {}
 
@@ -51,19 +52,18 @@ export class StewOfferingMode implements GameMode {
     const targetX = cx;
     const targetY = (80 - cy) / zoom + cy;
 
-    this.uiText = ctx.add.container(targetX, targetY, [bg, txt])
+    this.uiContainer = ctx.add.container(targetX, targetY, [bg, txt])
       .setScrollFactor(0)
       .setDepth(15000)
-      .setScale(1 / zoom) as any;
+      .setScale(1 / zoom);
 
-    // Use txt as the updatable element
-    (this.uiText as any)._txt = txt;
+    this.uiProgressText = txt;
 
     if (ben) {
       ben.setInteractive({ useHandCursor: true });
       ben.on('pointerdown', () => {
         if (!this.isMoving) {
-          ctx.showBubbleText(ben as any, "I should offer the stew to the others.", "#facc15");
+          ctx.showBubbleText(ben, "I should offer the stew to the others.", "#facc15");
         }
       });
     }
@@ -94,9 +94,10 @@ export class StewOfferingMode implements GameMode {
 
   teardown(): void {
     this.ctx.physics.scene.input.off('pointerdown', this.handleFloorClick, this);
-    if (this.uiText) {
-      this.uiText.destroy();
-      this.uiText = null;
+    if (this.uiContainer) {
+      this.uiContainer.destroy();
+      this.uiContainer = null;
+      this.uiProgressText = null;
     }
     this.targetNpcs.forEach(id => {
       const sprite = this.getSprite(id);
@@ -104,7 +105,7 @@ export class StewOfferingMode implements GameMode {
         sprite.disableInteractive();
         sprite.off('pointerdown');
         this.ctx.tweens.killTweensOf(sprite); // stop pulsing
-        (sprite as any).setAlpha?.(1);
+        sprite.setAlpha(1);
       }
     });
     const ben = this.getSprite('ben');
@@ -130,15 +131,15 @@ export class StewOfferingMode implements GameMode {
     const targetX = pointer.worldX;
     const targetY = pointer.worldY;
 
-    const dist = Phaser.Math.Distance.Between(ben.x as number, ben.y as number, targetX, targetY);
+    const dist = Phaser.Math.Distance.Between(ben.x, ben.y, targetX, targetY);
     const duration = Math.max(300, Math.min(dist * 6, 1500));
 
-    if ((ben as Phaser.GameObjects.Sprite).setFlipX) {
-      (ben as Phaser.GameObjects.Sprite).setFlipX(targetX < (ben.x as number));
+    if (ben.setFlipX) {
+      ben.setFlipX(targetX < (ben.x));
     }
 
-    const benNameplate = this.ctx.actorSprites['ben']?.[1];
-    const benShadow = this.ctx.actorSprites['ben']?.[2];
+    const benNameplate = this.ctx.actorSprites['ben']?.[1] as Phaser.GameObjects.Text | undefined;
+    const benShadow = this.ctx.actorSprites['ben']?.[2] as Phaser.GameObjects.Image | undefined;
 
     this.ctx.tweens.add({
       targets: ben,
@@ -147,15 +148,15 @@ export class StewOfferingMode implements GameMode {
       duration,
       ease: 'Sine.easeInOut',
       onUpdate: () => {
-        const s = ben as any;
-        s.setDepth?.(s.y);
+        const s = ben as Phaser.GameObjects.Sprite;
+        s.setDepth(s.y);
         if (benNameplate) {
-          (benNameplate as any).setPosition?.(s.x, s.y - 38);
-          (benNameplate as any).setDepth?.(s.y + 200);
+          benNameplate?.setPosition(s.x, s.y - 38);
+          benNameplate?.setDepth(s.y + 200);
         }
         if (benShadow) {
-          (benShadow as any).setPosition?.(s.x, s.y + 18);
-          (benShadow as any).setDepth?.(s.y - 1);
+          benShadow?.setPosition(s.x, s.y + 18);
+          benShadow?.setDepth(s.y - 1);
         }
       },
       onComplete: () => {
@@ -175,36 +176,36 @@ export class StewOfferingMode implements GameMode {
       return;
     }
 
-    const dist = Phaser.Math.Distance.Between(ben.x as number, ben.y as number, target.x as number, target.y as number);
+    const dist = Phaser.Math.Distance.Between(ben.x, ben.y, target.x, target.y);
     const duration = Math.max(300, Math.min(dist * 6, 1500)); // Ensure duration is at least 300ms
 
     this.ctx.tweens.killTweensOf(target); // stop the pulse
-    (target as any).setAlpha?.(1);
+    target.setAlpha(1);
 
     // Flip Ben towards target
-    if ((ben as Phaser.GameObjects.Sprite).setFlipX) {
-      (ben as Phaser.GameObjects.Sprite).setFlipX((target.x as number) < (ben.x as number));
+    if (ben.setFlipX) {
+      ben.setFlipX((target.x) < (ben.x));
     }
 
-    const benNameplate = this.ctx.actorSprites['ben']?.[1];
-    const benShadow = this.ctx.actorSprites['ben']?.[2];
+    const benNameplate = this.ctx.actorSprites['ben']?.[1] as Phaser.GameObjects.Text | undefined;
+    const benShadow = this.ctx.actorSprites['ben']?.[2] as Phaser.GameObjects.Image | undefined;
 
     this.ctx.tweens.add({
       targets: ben,
-      x: (target.x as number) + ((target.x as number) > (ben.x as number) ? -40 : 40),
+      x: (target.x) + ((target.x) > (ben.x) ? -40 : 40),
       y: target.y,
       duration,
       ease: 'Sine.easeInOut',
       onUpdate: () => {
-        const s = ben as any;
-        s.setDepth?.(s.y);
+        const s = ben as Phaser.GameObjects.Sprite;
+        s.setDepth(s.y);
         if (benNameplate) {
-          (benNameplate as any).setPosition?.(s.x, s.y - 38);
-          (benNameplate as any).setDepth?.(s.y + 200);
+          benNameplate?.setPosition(s.x, s.y - 38);
+          benNameplate?.setDepth(s.y + 200);
         }
         if (benShadow) {
-          (benShadow as any).setPosition?.(s.x, s.y + 18);
-          (benShadow as any).setDepth?.(s.y - 1);
+          benShadow?.setPosition(s.x, s.y + 18);
+          benShadow?.setDepth(s.y - 1);
         }
       },
       onComplete: () => {
@@ -213,29 +214,29 @@ export class StewOfferingMode implements GameMode {
     });
   }
 
-  private offerStew(npcId: string, target: Phaser.GameObjects.GameObject) {
+  private offerStew(npcId: string, target: Phaser.GameObjects.Sprite) {
     const ben = this.getSprite('ben');
     this.interacted.add(npcId);
     
     // Bubble dialogue and audio
     if (ben) {
-      this.ctx.showBubbleText(ben as any, "You're next.", '#ffffff');
+      this.ctx.showBubbleText(ben, "You're next.", '#ffffff');
       this.ctx.sound.play('sfx_ben_youre_next');
     }
     
     this.ctx.time.delayedCall(800, () => {
-      this.ctx.showBubbleText(target as any, '?', '#ef4444');
+      this.ctx.showBubbleText(target, '?', '#ef4444');
       
       // NPC walks away
-      const walkAwayX = (target as any).x + (Math.random() > 0.5 ? 150 : -150);
-      const walkAwayY = (target as any).y + (Math.random() > 0.5 ? 100 : -100);
+      const walkAwayX = target.x + (Math.random() > 0.5 ? 150 : -150);
+      const walkAwayY = target.y + (Math.random() > 0.5 ? 100 : -100);
       
-      if ((target as any).setFlipX) {
-        (target as any).setFlipX(walkAwayX < (target as any).x);
+      if (target.setFlipX) {
+        target.setFlipX(walkAwayX < target.x);
       }
       
-      const targetNameplate = this.ctx.actorSprites[npcId]?.[1];
-      const targetShadow = this.ctx.actorSprites[npcId]?.[2];
+      const targetNameplate = this.ctx.actorSprites[npcId]?.[1] as Phaser.GameObjects.Text | undefined;
+      const targetShadow = this.ctx.actorSprites[npcId]?.[2] as Phaser.GameObjects.Image | undefined;
 
       this.ctx.tweens.add({
         targets: target,
@@ -244,31 +245,32 @@ export class StewOfferingMode implements GameMode {
         duration: 2000,
         ease: 'Sine.easeOut',
         onUpdate: () => {
-          const s = target as any;
-          s.setDepth?.(s.y);
+          const s = target as Phaser.GameObjects.Sprite;
+          s.setDepth(s.y);
           if (targetNameplate) {
-            (targetNameplate as any).setPosition?.(s.x, s.y - 38);
-            (targetNameplate as any).setDepth?.(s.y + 200);
+            targetNameplate?.setPosition(s.x, s.y - 38);
+            targetNameplate?.setDepth(s.y + 200);
           }
           if (targetShadow) {
-            (targetShadow as any).setPosition?.(s.x, s.y + 18);
-            (targetShadow as any).setDepth?.(s.y - 1);
+            targetShadow?.setPosition(s.x, s.y + 18);
+            targetShadow?.setDepth(s.y - 1);
           }
         }
       });
       
       this.offersCompleted++;
-      if (this.uiText && (this.uiText as any)._txt) {
-        (this.uiText as any)._txt.setText(`OFFER STEW: ${this.offersCompleted} / 3\n(Click people to offer stew)`);
+      if (this.uiProgressText) {
+        this.uiProgressText.setText(`OFFER STEW: ${this.offersCompleted} / 3\n(Click people to offer stew)`);
       }
       
       this.isMoving = false;
       
       if (this.offersCompleted >= 3) {
-        if (this.uiText) {
-          this.uiText.destroy();
-          this.uiText = null;
-        }
+        if (this.uiContainer) {
+      this.uiContainer.destroy();
+      this.uiContainer = null;
+      this.uiProgressText = null;
+    }
         this.ctx.time.delayedCall(1500, () => {
           if (this.onCompleteCallback) this.onCompleteCallback({ outcome: 'win' });
         });
@@ -276,10 +278,10 @@ export class StewOfferingMode implements GameMode {
     });
   }
 
-  private getSprite(actorId: string): any {
+  private getSprite(actorId: string): Phaser.GameObjects.Sprite | undefined {
     const objs = this.ctx.actorSprites[actorId];
     if (!objs?.[0]) return undefined;
-    return objs[0];
+    return objs[0] as Phaser.GameObjects.Sprite;
   }
 }
 
