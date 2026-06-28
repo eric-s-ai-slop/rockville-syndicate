@@ -32,6 +32,8 @@ interface SpriteComponent {
   cy: number;
 }
 
+const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+
 export function preprocessShowcaseSheet(
   img: HTMLImageElement,
   characterId: string
@@ -102,12 +104,9 @@ export function preprocessShowcaseSheet(
         if (cy < minY) minY = cy;
         if (cy > maxY) maxY = cy;
 
-        const neighbors: [number, number][] = [
-          [cx + 1, cy], [cx - 1, cy],
-          [cx, cy + 1], [cx, cy - 1]
-        ];
-
-        for (const [nx, ny] of neighbors) {
+        for (let i = 0; i < 4; i++) {
+          const nx = cx + DIRS[i][0];
+          const ny = cy + DIRS[i][1];
           if (nx >= 0 && nx < width && ny >= topBuffer && ny < height) {
             const nidx = ny * width + nx;
             if (!visited[nidx]) {
@@ -361,11 +360,9 @@ export function preprocessShowcaseSheet(
       const curr = queue.shift();
       if (!curr) continue;
       const [lx, ly] = curr;
-      const neighbors: [number, number][] = [
-        [lx + 1, ly], [lx - 1, ly],
-        [lx, ly + 1], [lx, ly - 1]
-      ];
-      for (const [nx, ny] of neighbors) {
+      for (let i = 0; i < 4; i++) {
+        const nx = lx + DIRS[i][0];
+        const ny = ly + DIRS[i][1];
         if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
           const nIdx = ny * w + nx;
           if (!isBgMask[nIdx] && checkIsBackground(nx, ny)) {
@@ -685,7 +682,9 @@ export function preprocessColumnFirstSheet(
         if (cx < minX) minX = cx; if (cx > maxX) maxX = cx;
         if (cy < minY) minY = cy; if (cy > maxY) maxY = cy;
 
-        for (const [nx, ny] of [[cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]] as [number, number][]) {
+        for (let i = 0; i < 4; i++) {
+          const nx = cx + DIRS[i][0];
+          const ny = cy + DIRS[i][1];
           if (nx >= 0 && nx < width && ny >= topBuffer && ny < height) {
             const nidx = ny * width + nx;
             if (!visited[nidx]) {
@@ -832,7 +831,9 @@ export function preprocessColumnFirstSheet(
       const curr = queue.shift();
       if (!curr) continue;
       const [lx, ly] = curr;
-      for (const [nx, ny] of [[lx + 1, ly], [lx - 1, ly], [lx, ly + 1], [lx, ly - 1]]) {
+      for (let i = 0; i < 4; i++) {
+        const nx = lx + DIRS[i][0];
+        const ny = ly + DIRS[i][1];
         if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
           const nIdx = ny * w + nx;
           if (!isBgMask[nIdx] && checkIsBackground(nx, ny)) {
@@ -1063,7 +1064,9 @@ export function preprocessFemalePoolSheet(
       const curr = queue.shift();
       if (!curr) continue;
       const [lx, ly] = curr;
-      for (const [nx, ny] of [[lx + 1, ly], [lx - 1, ly], [lx, ly + 1], [lx, ly - 1]]) {
+      for (let i = 0; i < 4; i++) {
+        const nx = lx + DIRS[i][0];
+        const ny = ly + DIRS[i][1];
         if (nx >= 0 && nx < activeW && ny >= 0 && ny < activeH) {
           const nIdx = ny * activeW + nx;
           if (!isBgMask[nIdx] && checkActiveIsBackground(nx, ny)) {
