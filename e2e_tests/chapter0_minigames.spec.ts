@@ -19,8 +19,17 @@ test('chapter0: groupChat activates and complicityReport completes', async ({ pa
       return scene?.activeMode?.id ?? null;
     });
 
-  // Advance dialogue/walk beats until groupChat launches
-  await advanceUntil(page, async () => (await activeMode()) === 'groupChat', 90);
+  // Advance dialogue/walk beats until groupChat is fully started. activeMode.id
+  // flips to 'groupChat' while its intro dialogue is still showing, but the
+  // mode's onCompleteCallback isn't wired until start() runs after the intro is
+  // dismissed — so wait for the callback, not just the id, before firing it.
+  const groupChatReady = () =>
+    page.evaluate(() => {
+      const scene = (window as any).__OMEGA_GAME__?.scene.getScene('ChapterScene');
+      return scene?.activeMode?.id === 'groupChat' &&
+        typeof scene.activeMode.onCompleteCallback === 'function';
+    });
+  await advanceUntil(page, groupChatReady, { maxSeconds: 90 });
 
   // Skip the 90-second chat timeline by firing the completion callback directly.
   // TypeScript `private` is compile-time only — the property is accessible at runtime.
@@ -30,7 +39,7 @@ test('chapter0: groupChat activates and complicityReport completes', async ({ pa
   });
 
   // Advance remaining beats until complicityReport launches
-  await advanceUntil(page, async () => (await activeMode()) === 'complicityReport', 60);
+  await advanceUntil(page, async () => (await activeMode()) === 'complicityReport', { maxSeconds: 60 });
 
   // Dismiss the report with Space (matches the mode's keyListener)
   await page.keyboard.press('Space');

@@ -1,14 +1,15 @@
 import { test, expect } from '@playwright/test';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
-import { breakSeal } from './helpers';
+import { advanceUntil, breakSeal } from './helpers';
 
 // Screenshots are written next to this spec under a gitignored output folder.
 const ARTIFACT_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '__screenshots__');
 
 test('playtest UMBC chapter and capture screenshots', async ({ page }) => {
-  // Set a long timeout for the entire test
-  test.setTimeout(120000);
+  // Generous budget: this is the longest spec (boss fight + 4 flow advances +
+  // screenshots) and runs against a contended dev server in CI.
+  test.setTimeout(240000);
 
   // Set viewport to standard size
   await page.setViewportSize({ width: 1024, height: 768 });
@@ -48,50 +49,16 @@ test('playtest UMBC chapter and capture screenshots', async ({ page }) => {
   await page.waitForTimeout(2000);
   await expect(page.locator('canvas')).toBeVisible({ timeout: 10000 });
 
-  // Helper to advance game flow. Presses through dialogue, walks to markers by
-  // teleporting onto the walk target, and auto-completes the intermediate
-  // interactive minigames (stewOffering / fratAggro / silentDrive) that sit
-  // between the screenshots we care about by invoking their completion callback.
+  // Advance game flow to a browser-side target condition, auto-completing the
+  // intermediate interactive minigames (stewOffering / fratAggro / silentDrive)
+  // that sit between the screenshots we care about. Delegates to the shared
+  // single-round-trip advance loop (see helpers.advanceUntil).
   const SKIPPABLE_MODES = ['stewOffering', 'fratAggro', 'silentDrive'];
-  const advanceFlow = async (targetCondition: () => boolean, maxSeconds = 45) => {
-    let attempts = 0;
-    const maxAttempts = maxSeconds * 4; // 250ms check interval
-    while (attempts < maxAttempts) {
-      const isTarget = await page.evaluate(targetCondition);
-      if (isTarget) return true;
-
-      // Auto-complete any skippable foreground minigame that is blocking flow.
-      const skipped = await page.evaluate((skippable) => {
-        const scene = (window as any).__OMEGA_GAME__?.scene.getScene('ChapterScene');
-        const mode = scene?.activeMode;
-        if (mode && skippable.includes(mode.id) && typeof mode.onCompleteCallback === 'function') {
-          mode.onCompleteCallback({ outcome: 'win' });
-          return true;
-        }
-        return false;
-      }, SKIPPABLE_MODES);
-
-      if (!skipped) {
-        // Check if React dialogue box is visible in the DOM
-        const isDialogOpen = await page.locator('p.font-pixel').first().isVisible();
-
-        if (isDialogOpen) {
-          await page.keyboard.press('Space');
-        } else {
-          await page.evaluate(() => {
-            const scene = (window as any).__OMEGA_GAME__?.scene.getScene('ChapterScene');
-            if (scene && scene.walkTarget) {
-              scene.player.x = scene.walkTarget.x;
-              scene.player.y = scene.walkTarget.y;
-            }
-          });
-        }
-      }
-      await page.waitForTimeout(250);
-      attempts++;
-    }
-    throw new Error('Timeout waiting for target condition');
-  };
+  const advanceFlow = (targetCondition: () => boolean, maxSeconds = 90) =>
+    advanceUntil(page, () => page.evaluate(targetCondition), {
+      maxSeconds,
+      skipModes: SKIPPABLE_MODES,
+    });
 
   // 5. Play dialogue up to Ben's "try this stew" line (a voiced dialogue beat).
   console.log('Playing up to the "try this stew" line...');

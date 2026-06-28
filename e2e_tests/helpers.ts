@@ -40,31 +40,54 @@ export async function navigateToChapter(
 }
 
 /**
- * Advance game flow (dialogue + walk triggers) until `condition` returns true.
- * Presses Space to dismiss visible dialogue and teleports the player onto any
- * active walk target when no dialogue is showing. Throws on timeout.
+ * Advance game flow until `condition` returns true. Each tick performs ALL of
+ * its game interaction inside a single page.evaluate — dismissing dialogue (via
+ * a synthetic Space keydown), answering choice beats (which ignore Space — the
+ * first option is clicked), auto-completing any `skipModes` minigame blocking
+ * the flow, and otherwise teleporting the player onto the active walk target.
+ *
+ * Collapsing the per-tick work to one round-trip (rather than separate
+ * isVisible()/keyboard/evaluate calls) keeps wall-clock low on contended CI
+ * runners, where CDP round-trips dominate and the old 3-calls-per-tick loop
+ * blew the test timeout before reaching the target. Throws on timeout.
  */
 export async function advanceUntil(
   page: Page,
   condition: () => Promise<boolean>,
-  maxSeconds = 60,
+  options: { maxSeconds?: number; skipModes?: string[] } = {},
 ): Promise<void> {
-  const maxTicks = maxSeconds * 4;
+  const { maxSeconds = 90, skipModes = [] } = options;
+  const maxTicks = Math.ceil((maxSeconds * 1000) / 150);
   for (let i = 0; i < maxTicks; i++) {
     if (await condition()) return;
-    const isDialog = await page.locator('p.font-pixel').first().isVisible();
-    if (isDialog) {
-      await page.keyboard.press('Space');
-    } else {
-      await page.evaluate(() => {
-        const scene = (window as any).__OMEGA_GAME__?.scene.getScene('ChapterScene');
-        if (scene?.walkTarget) {
-          scene.player.x = scene.walkTarget.x;
-          scene.player.y = scene.walkTarget.y;
-        }
-      });
-    }
-    await page.waitForTimeout(250);
+    await page.evaluate((skip) => {
+      const scene = (window as any).__OMEGA_GAME__?.scene.getScene('ChapterScene');
+
+      // Auto-complete a foreground minigame that is blocking the flow.
+      const mode = scene?.activeMode;
+      if (mode && skip.includes(mode.id) && typeof mode.onCompleteCallback === 'function') {
+        mode.onCompleteCallback({ outcome: 'win' });
+        return;
+      }
+
+      // Choice beats can't be dismissed with Space — pick the first option.
+      const choice = document.querySelector('[data-testid="dialogue-choice"]') as HTMLElement | null;
+      if (choice) { choice.click(); return; }
+
+      // A normal dialogue line: advance it (skips the typewriter, then proceeds).
+      const line = document.querySelector('p.font-pixel') as HTMLElement | null;
+      if (line && line.offsetParent !== null) {
+        window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space', key: ' ' }));
+        return;
+      }
+
+      // Nothing to read: walk to the active marker by teleporting onto it.
+      if (scene?.walkTarget) {
+        scene.player.x = scene.walkTarget.x;
+        scene.player.y = scene.walkTarget.y;
+      }
+    }, skipModes);
+    await page.waitForTimeout(150);
   }
   throw new Error(`advanceUntil: timed out after ${maxSeconds}s`);
 }

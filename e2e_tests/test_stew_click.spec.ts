@@ -1,8 +1,8 @@
 import { test, expect } from '@playwright/test';
-import { breakSeal } from './helpers';
+import { advanceUntil, breakSeal } from './helpers';
 
 test('test stewOffering minigame by clicking', async ({ page }) => {
-  test.setTimeout(120000);
+  test.setTimeout(240000);
   await page.goto('/');
 
   // Select Eric
@@ -11,39 +11,20 @@ test('test stewOffering minigame by clicking', async ({ page }) => {
   await page.getByText('FREE PLAY').click();
   await breakSeal(page);
   await page.getByText('The UMBC Incident').first().click();
-  
+
   await page.waitForTimeout(2000);
-  
-  // Advance to stewOffering mode
-  const advanceToStewOffering = async () => {
-    let attempts = 0;
-    while (attempts < 100) {
-      const isStewOffering = await page.evaluate(() => {
+
+  // Advance through the opening beats until the stewOffering minigame starts.
+  // This beat has no intro lines, so the id flipping means the mode is live.
+  await advanceUntil(
+    page,
+    () =>
+      page.evaluate(() => {
         const scene = (window as any).__OMEGA_GAME__?.scene.getScene('ChapterScene');
         return scene?.activeMode?.id === 'stewOffering';
-      });
-      if (isStewOffering) return true;
-
-      const isDialogOpen = await page.locator('p.font-pixel').first().isVisible();
-      if (isDialogOpen) {
-        await page.keyboard.press('Space');
-      } else {
-        await page.evaluate(() => {
-          const scene = (window as any).__OMEGA_GAME__?.scene.getScene('ChapterScene');
-          if (scene && scene.walkTarget) {
-            scene.player.x = scene.walkTarget.x;
-            scene.player.y = scene.walkTarget.y;
-          }
-        });
-      }
-      await page.waitForTimeout(250);
-      attempts++;
-    }
-    return false;
-  };
-
-  const reached = await advanceToStewOffering();
-  expect(reached).toBe(true);
+      }),
+    { maxSeconds: 120 },
+  );
   console.log('Reached stewOffering minigame!');
 
   await page.waitForTimeout(1000);
