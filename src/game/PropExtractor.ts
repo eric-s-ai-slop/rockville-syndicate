@@ -186,11 +186,5 @@ export function extractPropSubject(
   const subjectHeight = maxY - minY + 1;
   const aspect = subjectWidth / subjectHeight;
 
-  // We could also optionally crop the texture here, but just preserving the alpha is enough
-  // as the visual bounding box will be correct, and we have the true aspect ratio.
-  // Actually, calculating aspect ratio based on the whole canvas is what the game uses
-  // for drawing, but the subject might be off-center or smaller. Let's return the aspect
-  // of the actual subject content.
-
   return aspect;
 }
