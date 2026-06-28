@@ -426,7 +426,14 @@ export class GroupChatMode implements GameMode {
     const wrapped = this.wrapText(opts.body, maxChars);
 
     // Width fits the longest line (or the name), capped at maxBubbleW
-    const longest = Math.max(opts.name.length * 6.2, ...wrapped.map(l => l.length * 6.2));
+    let longest = opts.name.length * 6.2;
+    for (let i = 0; i < wrapped.length; i++) {
+      const len = wrapped[i].length * 6.2;
+      if (len > longest) {
+        longest = len;
+      }
+    }
+
     const bubbleW = Math.min(maxBubbleW, Math.max(70, Math.round(longest) + padX * 2));
     const bubbleH = padTop + nameGap + wrapped.length * lineH + padBottom;
 
