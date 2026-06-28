@@ -7,10 +7,6 @@ import { navigateToChapter, advanceUntil } from './helpers';
 // verifies the complicityReport summary screen appears and dismisses cleanly.
 
 test('chapter0: groupChat activates and complicityReport completes', async ({ page }) => {
-  // Full-Phaser playthrough: passes locally but too slow/flaky against the dev
-  // server on contended CI runners. Skip on CI; still runs locally. See the
-  // E2E perf follow-up (serve a prod preview build instead of `npm run dev`).
-  test.skip(!!process.env.CI, 'Flaky on slow CI runners (full playthrough vs dev server)');
   test.setTimeout(120000);
 
   await navigateToChapter(page, 'Maria Brooke');

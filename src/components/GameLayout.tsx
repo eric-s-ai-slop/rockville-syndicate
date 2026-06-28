@@ -200,7 +200,12 @@ export default function GameLayout() {
               game.canvas.focus();
               game.sound.mute = getSettings().muted;
               game.sound.volume = getSettings().masterVolume;
-              if (import.meta.env.DEV) (window as unknown as { __OMEGA_GAME__?: Phaser.Game }).__OMEGA_GAME__ = game;
+              // Exposed in dev for console inspection, and in E2E builds
+              // (VITE_E2E=true) so Playwright can drive the live scene. Stays
+              // out of real production builds, which set neither flag.
+              if (import.meta.env.DEV || import.meta.env.VITE_E2E === 'true') {
+                (window as unknown as { __OMEGA_GAME__?: Phaser.Game }).__OMEGA_GAME__ = game;
+              }
               game.scene.add('ChapterScene', ChapterScene, true, {
                 hero: selectedHero,
                 chapter,

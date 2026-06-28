@@ -2,10 +2,6 @@ import { test, expect } from '@playwright/test';
 import { advanceUntil, breakSeal } from './helpers';
 
 test('test stewOffering minigame', async ({ page }) => {
-  // Full-Phaser playthrough: passes locally but too slow/flaky against the dev
-  // server on contended CI runners. Skip on CI; still runs locally. See the
-  // E2E perf follow-up (serve a prod preview build instead of `npm run dev`).
-  test.skip(!!process.env.CI, 'Flaky on slow CI runners (full playthrough vs dev server)');
   test.setTimeout(240000);
   await page.goto('/');
 

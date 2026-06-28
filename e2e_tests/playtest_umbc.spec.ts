@@ -7,12 +7,8 @@ import { advanceUntil, breakSeal } from './helpers';
 const ARTIFACT_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '__screenshots__');
 
 test('playtest UMBC chapter and capture screenshots', async ({ page }) => {
-  // Full-Phaser playthrough: passes locally but too slow/flaky against the dev
-  // server on contended CI runners. Skip on CI; still runs locally. See the
-  // E2E perf follow-up (serve a prod preview build instead of `npm run dev`).
-  test.skip(!!process.env.CI, 'Flaky on slow CI runners (full playthrough vs dev server)');
   // Generous budget: this is the longest spec (boss fight + 4 flow advances +
-  // screenshots) and runs against a contended dev server in CI.
+  // screenshots).
   test.setTimeout(240000);
 
   // Set viewport to standard size
