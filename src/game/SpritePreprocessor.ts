@@ -361,17 +361,40 @@ export function preprocessShowcaseSheet(
       const curr = queue.shift();
       if (!curr) continue;
       const [lx, ly] = curr;
-      const neighbors: [number, number][] = [
-        [lx + 1, ly], [lx - 1, ly],
-        [lx, ly + 1], [lx, ly - 1]
-      ];
-      for (const [nx, ny] of neighbors) {
-        if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
-          const nIdx = ny * w + nx;
-          if (!isBgMask[nIdx] && checkIsBackground(nx, ny)) {
-            isBgMask[nIdx] = 1;
-            queue.push([nx, ny]);
-          }
+
+      let nx = lx + 1, ny = ly;
+      if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+        const nIdx = ny * w + nx;
+        if (!isBgMask[nIdx] && checkIsBackground(nx, ny)) {
+          isBgMask[nIdx] = 1;
+          queue.push([nx, ny]);
+        }
+      }
+
+      nx = lx - 1; ny = ly;
+      if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+        const nIdx = ny * w + nx;
+        if (!isBgMask[nIdx] && checkIsBackground(nx, ny)) {
+          isBgMask[nIdx] = 1;
+          queue.push([nx, ny]);
+        }
+      }
+
+      nx = lx; ny = ly + 1;
+      if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+        const nIdx = ny * w + nx;
+        if (!isBgMask[nIdx] && checkIsBackground(nx, ny)) {
+          isBgMask[nIdx] = 1;
+          queue.push([nx, ny]);
+        }
+      }
+
+      nx = lx; ny = ly - 1;
+      if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+        const nIdx = ny * w + nx;
+        if (!isBgMask[nIdx] && checkIsBackground(nx, ny)) {
+          isBgMask[nIdx] = 1;
+          queue.push([nx, ny]);
         }
       }
     }
