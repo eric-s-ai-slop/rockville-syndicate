@@ -1,14 +1,15 @@
 import { test, expect } from '@playwright/test';
+import { breakSeal } from './helpers';
 
 test('test stewOffering minigame', async ({ page }) => {
-  await page.goto('http://localhost:3000');
-  
+  test.setTimeout(120000);
+  await page.goto('/');
+
   // Select Eric
   await page.getByRole('button', { name: /Eric/i }).first().click();
   await page.getByRole('button', { name: /Begin the Story/i }).click();
   await page.getByText('FREE PLAY').click();
-  await page.getByText('CLICK TO BREAK SEAL').click();
-  await page.waitForTimeout(800);
+  await breakSeal(page);
   await page.getByText('The UMBC Incident').first().click();
   
   await page.waitForTimeout(2000);
@@ -23,7 +24,7 @@ test('test stewOffering minigame', async ({ page }) => {
       });
       if (isStewOffering) return true;
 
-      const isDialogOpen = await page.locator('p.font-pixel').isVisible();
+      const isDialogOpen = await page.locator('p.font-pixel').first().isVisible();
       if (isDialogOpen) {
         await page.keyboard.press('Space');
       } else {
@@ -45,41 +46,38 @@ test('test stewOffering minigame', async ({ page }) => {
   expect(reached).toBe(true);
   console.log('Reached stewOffering minigame!');
 
-  // Now let's try to click the girls programmatically
-  await page.evaluate(() => {
-    const scene = (window as any).__OMEGA_GAME__.scene.getScene('ChapterScene');
-    const stewMode = scene.activeMode;
-    stewMode.handleNpcClick('girl1');
-  });
+  // Offer stew to each girl. Each offer plays a walk tween + a delayed callback
+  // before `offersCompleted` ticks up, so click then poll until it registers
+  // (the mode ignores clicks while `isMoving` is true).
+  const offerTo = async (npcId: string, expectedCount: number) => {
+    await page.evaluate((id) => {
+      const scene = (window as any).__OMEGA_GAME__.scene.getScene('ChapterScene');
+      scene.activeMode.handleNpcClick(id);
+    }, npcId);
 
-  await page.waitForTimeout(3000);
+    await expect.poll(
+      () => page.evaluate(() => {
+        const scene = (window as any).__OMEGA_GAME__.scene.getScene('ChapterScene');
+        return scene.activeMode?.offersCompleted ?? -1;
+      }),
+      { timeout: 15000, intervals: [250] },
+    ).toBeGreaterThanOrEqual(expectedCount);
+    console.log(`Offer to ${npcId} completed.`);
+  };
 
-  const offersCompleted = await page.evaluate(() => {
-    const scene = (window as any).__OMEGA_GAME__.scene.getScene('ChapterScene');
-    return scene.activeMode.offersCompleted;
-  });
+  await offerTo('girl1', 1);
+  await offerTo('girl2', 2);
+  await offerTo('girl3', 3);
 
-  console.log('Offers completed after girl1:', offersCompleted);
+  // After the third offer the mode resolves on a delayed callback and hands
+  // control back to the chapter beats — poll until it is no longer active.
+  await expect.poll(
+    () => page.evaluate(() => {
+      const scene = (window as any).__OMEGA_GAME__.scene.getScene('ChapterScene');
+      return scene.activeMode?.id !== 'stewOffering';
+    }),
+    { timeout: 15000, intervals: [250] },
+  ).toBe(true);
 
-  await page.evaluate(() => {
-    const scene = (window as any).__OMEGA_GAME__.scene.getScene('ChapterScene');
-    scene.activeMode.handleNpcClick('girl2');
-  });
-
-  await page.waitForTimeout(3000);
-
-  await page.evaluate(() => {
-    const scene = (window as any).__OMEGA_GAME__.scene.getScene('ChapterScene');
-    scene.activeMode.handleNpcClick('girl3');
-  });
-
-  await page.waitForTimeout(3000);
-
-  const isModeOver = await page.evaluate(() => {
-    const scene = (window as any).__OMEGA_GAME__.scene.getScene('ChapterScene');
-    return scene.activeMode?.id !== 'stewOffering'; // Should have moved to next beat
-  });
-
-  console.log('Mode is over:', isModeOver);
-  expect(isModeOver).toBe(true);
+  console.log('stewOffering minigame completed.');
 });

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test('game loads and basic flow works', async ({ page }) => {
-  await page.goto('http://localhost:3000');
+  await page.goto('/');
   await expect(page).toHaveTitle(/Project Omega/);
 
   // Wait for the hero select screen to be visible
@@ -17,8 +17,12 @@ test('game loads and basic flow works', async ({ page }) => {
   // Should navigate to chapter select
   await expect(page.getByText('LINEAR')).toBeVisible();
 
-  // Begin the prologue
-  await page.getByText(/The Extortion Crisis/).first().click();
+  // Unlock all chapters so a known, non-classified chapter is clickable
+  // (in LINEAR mode only the first flashback is unlocked initially).
+  await page.getByText('FREE PLAY').click();
+
+  // Begin Act I — "The Spotify Family Insurgency" / The Extortion Crisis
+  await page.getByText(/The Spotify Family Insurgency/).first().click();
 
   // Wait a short time for the canvas to boot
   await page.waitForTimeout(1000);

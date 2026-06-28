@@ -1,17 +1,15 @@
 import { test, expect } from '@playwright/test';
+import { breakSeal } from './helpers';
 
 test('test stewOffering minigame by clicking', async ({ page }) => {
-  await page.goto('http://localhost:3000');
-  
+  test.setTimeout(120000);
+  await page.goto('/');
+
   // Select Eric
   await page.getByRole('button', { name: /Eric/i }).first().click();
   await page.getByRole('button', { name: /Begin the Story/i }).click();
   await page.getByText('FREE PLAY').click();
-  const breakSeal = page.getByText('CLICK TO BREAK SEAL');
-  if (await breakSeal.isVisible()) {
-    await breakSeal.click();
-    await page.waitForTimeout(800);
-  }
+  await breakSeal(page);
   await page.getByText('The UMBC Incident').first().click();
   
   await page.waitForTimeout(2000);
@@ -26,7 +24,7 @@ test('test stewOffering minigame by clicking', async ({ page }) => {
       });
       if (isStewOffering) return true;
 
-      const isDialogOpen = await page.locator('p.font-pixel').isVisible();
+      const isDialogOpen = await page.locator('p.font-pixel').first().isVisible();
       if (isDialogOpen) {
         await page.keyboard.press('Space');
       } else {
@@ -50,40 +48,39 @@ test('test stewOffering minigame by clicking', async ({ page }) => {
 
   await page.waitForTimeout(1000);
 
-  // Click the girls by their coordinates in the game
-  // girl1 is at (100, 100). The canvas might be scaled.
-  // We can just click the center of the bounding box of the sprites.
-  await page.evaluate(() => {
-    const scene = (window as any).__OMEGA_GAME__.scene.getScene('ChapterScene');
-    
-    // Simulate a pointerdown event on girl1
-    const girl1 = scene.actorSprites['girl1'][0];
-    girl1.emit('pointerdown');
-  });
+  // Drive the minigame by firing the sprites' own 'pointerdown' handlers, the
+  // same path a real click takes. Each offer plays a walk tween + a delayed
+  // callback before `offersCompleted` ticks up, and the mode ignores input
+  // while `isMoving` is true — so click then poll until the offer registers.
+  const clickGirl = async (npcId: string, expectedCount: number) => {
+    await page.evaluate((id) => {
+      const scene = (window as any).__OMEGA_GAME__.scene.getScene('ChapterScene');
+      scene.actorSprites[id][0].emit('pointerdown');
+    }, npcId);
 
-  await page.waitForTimeout(4000);
+    await expect.poll(
+      () => page.evaluate(() => {
+        const scene = (window as any).__OMEGA_GAME__.scene.getScene('ChapterScene');
+        return scene.activeMode?.offersCompleted ?? -1;
+      }),
+      { timeout: 15000, intervals: [250] },
+    ).toBeGreaterThanOrEqual(expectedCount);
+    console.log(`Offer to ${npcId} completed.`);
+  };
 
-  await page.evaluate(() => {
-    const scene = (window as any).__OMEGA_GAME__.scene.getScene('ChapterScene');
-    const girl2 = scene.actorSprites['girl2'][0];
-    girl2.emit('pointerdown');
-  });
+  await clickGirl('girl1', 1);
+  await clickGirl('girl2', 2);
+  await clickGirl('girl3', 3);
 
-  await page.waitForTimeout(4000);
+  // After the third offer the mode resolves on a delayed callback and hands
+  // control back to the chapter beats — poll until it is no longer active.
+  await expect.poll(
+    () => page.evaluate(() => {
+      const scene = (window as any).__OMEGA_GAME__.scene.getScene('ChapterScene');
+      return scene.activeMode?.id !== 'stewOffering';
+    }),
+    { timeout: 15000, intervals: [250] },
+  ).toBe(true);
 
-  await page.evaluate(() => {
-    const scene = (window as any).__OMEGA_GAME__.scene.getScene('ChapterScene');
-    const girl3 = scene.actorSprites['girl3'][0];
-    girl3.emit('pointerdown');
-  });
-
-  await page.waitForTimeout(4000);
-
-  const isModeOver = await page.evaluate(() => {
-    const scene = (window as any).__OMEGA_GAME__.scene.getScene('ChapterScene');
-    return scene.activeMode?.id !== 'stewOffering'; 
-  });
-
-  console.log('Mode is over:', isModeOver);
-  expect(isModeOver).toBe(true);
+  console.log('stewOffering minigame completed.');
 });

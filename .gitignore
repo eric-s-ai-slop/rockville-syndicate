@@ -13,3 +13,4 @@ test-results/
 playwright-report/
 db_data/
 test_preprocess*.js
+e2e_tests/__screenshots__/
