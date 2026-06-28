@@ -9,6 +9,22 @@ vi.mock('../data/chapters', () => ({
   ]
 }));
 
+describe('loadProgress', () => {
+  it('returns fallback empty state when localStorage.getItem throws', async () => {
+    const spy = vi.spyOn(window.localStorage, 'getItem').mockImplementation(() => {
+      throw new Error('Access denied');
+    });
+
+    vi.resetModules();
+    const { loadProgress: dynamicLoadProgress } = await import('./progress');
+    const progress = dynamicLoadProgress();
+
+    expect(progress.completedChapters).toEqual([]);
+
+    spy.mockRestore();
+  });
+});
+
 describe('isChapterUnlocked', () => {
   it('returns true if freePlay is true, regardless of completion', () => {
     expect(isChapterUnlocked('chapter3', [], true)).toBe(true);
