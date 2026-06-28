@@ -2,7 +2,7 @@
 
 A top-down pixel RPG that dramatizes the real-life adventures of a Maryland friend group — told through boss fights, dialogue trees, interactive minigames, and escalating interpersonal chaos.
 
-Built with **React 19 + Phaser 3.88 + TypeScript + Vite + Tailwind v4**, served by a tiny **Express** backend that hosts the production bundle and a JSON file–based global leaderboard.
+Built with **React 19 + Phaser 3.88 + TypeScript + Vite + Tailwind v4**, served by a lightweight **Express** backend that hosts the production bundle.
 
 > The events are real. The stats are canon.
 
@@ -88,34 +88,36 @@ Chapters are declarative config files in [`src/data/chapters/`](src/data/chapter
 
 - **Explore**: Move with WASD or arrow keys. Walk up to NPCs to trigger dialogue.
 - **Dialogue**: Space/Enter/E advances text. Number keys (1–9) select choices.
-- **Combat**: Boss fights are rhythm-timed exchanges — dodge projectiles, land hits during windows.
+- **Combat**: Boss fights are rhythm-timed exchanges — dodge projectiles (SPACE to dash), land hits during windows.
+- **Difficulty**: Easy / Normal / Hard at the start. Hard mode scores 1.5× — it's the intended experience.
+- **Power-ups**: Shards drop power-ups randomly — invincibility, heal, speed boost, defense buff, poison aura.
 - **Minigames**: Chapters can hand control to sandboxed game modes (group chats, silent drives, stew offerings, frat aggro, etc.) that run inline or in the background.
-- **Progression**: Each chapter ends with a narrative beat and contributes to your Aura score.
-- **Leaderboard**: Post your final score to the global leaderboard with 3-letter initials.
+- **Hall of Records**: Each chapter run is scored (`shards × 200 + hp × 10 + ledger × 5 × difficulty`). Beat the crew's ghost targets and set personal bests, all stored locally.
 
 ---
 
 ## Architecture at a Glance
 
-React 19 manages the overlay UI (dialogue, choices, QTE prompts, difficulty settings) while Phaser 3.88 owns the physical world (camera, physics, sprites, collisions). The main scene is a thin controller that delegates to specialized subsystems.
+React 19 manages the overlay UI (dialogue, choices, QTE prompts, difficulty settings, Hall of Records) while Phaser 3.88 owns the physical world (camera, physics, sprites, collisions). The main scene is a thin controller that delegates to specialized subsystems.
 
 ```
 GameLayout.tsx  <-- event bridge / callbacks -->  ChapterScene.ts
                                                         |
-        +-----------------+----------------+------------+------------+
-        |                 |                |            |            |
-   MapBuilder.ts      Actors.ts     AudioController  BeatEngine   GameMode
-   (floors, props)  (spawn/anim)    (music/SFX)     (narrative)   registry
-                                                        |
-                                                  ModeContext façade
-                                                  (safe API for minigames)
+   +----------------+----------------+------------+-----+----------+
+   |                |                |            |               |
+MapBuilder.ts   Actors.ts   AudioController  BeatEngine   PlayerController
+(floors,props) (spawn/anim)  (music/SFX)   (narrative)  (dash/fire/steps)
+                                                  |
+                                            ModeContext façade
+                                            (safe API for minigames)
 ```
 
 - **`ChapterScene.ts`** — Phaser scene orchestrator. Preloads textures, sets up physics/collision groups, instantiates subsystems, and forwards per-frame ticks.
 - **`scene/MapBuilder.ts`** — Interprets a chapter's `MapConfig` to draw floors, scattered nature, collision walls, and interactive props.
 - **`scene/Actors.ts`** — Spawns actor sprites, resolves class stats, applies directional walk animations, and processes understudy substitutions.
-- **`scene/AudioController.ts`** — Manages stage music crossfades, boss loops, and SFX stings.
+- **`scene/AudioController.ts`** — Manages stage music crossfades, boss loops, and SFX stings. Volume is settings-driven (live subscription to the save store).
 - **`scene/BeatEngine.ts`** — Dispatches story beats: `dialogue`, `choice`, `walkTo`, `cameraPan`, and `minigame`.
+- **`scene/PlayerController.ts`** — Owns player movement, dash i-frames, auto-fire, and footsteps. Extracted from ChapterScene to keep the scene thin.
 - **`SpritePreprocessor.ts` / `PropExtractor.ts` / `packSpriteAtlas.ts`** — Boot-time, in-browser asset pipeline: background color-keying of JPG props, tight bounding-box crops, and atlas packing to cut GPU draw calls.
 
 For the full design narrative, diagrams, and gotchas, see [`ARCHITECTURE.md`](ARCHITECTURE.md) and [`CLAUDE.md`](CLAUDE.md).
@@ -144,12 +146,12 @@ The [`modes/_template/`](src/game/modes/_template/) directory is a copyable refe
 ## Tech Stack
 
 - **Frontend**: React 19 + Phaser 3.88.2 (**not Phaser 4**) + TypeScript + Vite 6 + Tailwind v4
-- **Backend**: Express 4 (`server.ts`) serving the built bundle + a JSON file–based leaderboard
+- **Backend**: Express 4 (`server.ts`) — static bundle host + Vite dev middleware only
 - **Animation/UI libs**: `motion`, `lucide-react`
 - **Assets**: LimeZu Interiors tileset, Kenney impact SFX pack, original artwork, generated voice lines
 - **Build/tooling**: Vite (client) + esbuild (server bundle), `tsx` for dev/server execution
-- **Tests**: Vitest (unit) + Playwright (E2E)
-- **Save system**: `localStorage` key `omega-progress-v1`
+- **Tests**: Vitest (unit, 140+ tests) + Playwright (E2E)
+- **Save system**: `localStorage` key `omega-save-v2` — unified blob: settings + progress + Hall of Records
 
 ---
 
@@ -160,76 +162,69 @@ Heavy binary asset directories (audio `.ogg/.mp3`, sprite sheets, `node_modules`
 ```
 project-omega_-the-rockville-syndicate/
 ├── index.html                       # Vite entry HTML
-├── server.ts                        # Express server: serves dist/ + leaderboard API
+├── server.ts                        # Express: static bundle host + Vite dev middleware
 ├── package.json                     # Scripts & dependencies
 ├── tsconfig.json
 ├── vite.config.ts                   # Vite client build config
 ├── vitest.config.ts                 # Vitest unit-test config
 ├── vitest.setup.ts                  # Test environment setup
 ├── playwright.config.ts             # Playwright E2E config
+├── eslint.config.js                 # ESLint 9 config (typescript-eslint, react-hooks)
 ├── Dockerfile                       # Production container image
-├── docker-compose.yml               # Container + db_data volume
-├── .env.example                     # Sample environment variables
+├── docker-compose.yml               # Container definition
 ├── metadata.json
 │
 ├── README.md                        # You are here
 ├── ARCHITECTURE.md                  # Deep technical design guide
 ├── CLAUDE.md                        # Developer reference + hard-won gotchas
+├── CONTRIBUTING.md                  # Conventions, green bar, parallel-work rules
 │
 ├── src/
 │   ├── main.tsx                     # React root (StrictMode)
 │   ├── App.tsx                      # Top-level app component
 │   ├── index.css                    # Global styles (Tailwind v4)
-│   ├── vite-env.d.ts
-│   ├── setupTests.ts
 │   │
 │   ├── components/
-│   │   ├── GameLayout.tsx           # React<->Phaser bridge & overlay host
+│   │   ├── GameLayout.tsx           # React<->Phaser bridge, overlay host, Hall of Records
 │   │   ├── ChapterSelect.tsx        # Chapter-select map UI
 │   │   ├── DialogueBox.tsx          # Dialogue/choice overlay
 │   │   └── DialogueBox.test.tsx
 │   │
 │   ├── data/
-│   │   ├── entities.ts              # Hero/boss stats, weapons, loot metadata
+│   │   ├── entities.ts              # Hero/boss stats, weapons, power-ups, loot metadata
 │   │   ├── chapters.test.ts
 │   │   └── chapters/
 │   │       ├── index.ts             # CHAPTERS barrel + getChapter() lookup
 │   │       ├── types.ts             # Config types (Speaker, MapRect, Beat, ...)
 │   │       ├── palette.ts           # Shared color palette
-│   │       ├── chapter0.maria-brooke.ts
-│   │       ├── chapter1.spotify-insurgency.ts
-│   │       ├── chapter2.operation-inertia.ts
-│   │       ├── chapter3.red-pee-bladder-strike.ts
-│   │       ├── chapter3b.umbc-incident.ts
-│   │       ├── chapter4.jungle-gym-gambit.ts
-│   │       ├── chapter5.florida-highway-duel.ts
-│   │       ├── chapter6.ding-dong-ditch-ben.ts
-│   │       ├── chapter7.spain-betrayal.ts
-│   │       ├── chapter8.the-cabin.ts
-│   │       └── chapter9.pool-party.ts
+│   │       └── chapter0–9.*.ts      # Per-chapter configs
 │   │
 │   ├── game/
-│   │   ├── ChapterScene.ts          # Phaser scene orchestrator
+│   │   ├── ChapterScene.ts          # Phaser scene orchestrator (~2,700 lines)
+│   │   ├── settings.ts              # Unified save store (save-schema-v2): settings + progress + HoR
+│   │   ├── settings.test.ts
+│   │   ├── scoring.ts               # Run score formula, ghost targets, Hall of Records types
+│   │   ├── progress.ts              # Chapter unlock helpers (delegates to settings.ts)
 │   │   ├── audio.ts                 # Music key registry / CHAPTER_MUSIC_KEY
 │   │   ├── uiSound.ts               # UI sound helpers
-│   │   ├── progress.ts              # localStorage save/unlock logic
-│   │   ├── progress.test.ts
-│   │   ├── furnitureCatalog.ts      # Prop -> atlas frame catalog
+│   │   ├── uiSound.test.ts
+│   │   ├── furnitureCatalog.ts      # Prop → atlas frame catalog
 │   │   ├── SpritePreprocessor.ts    # Background color-keying & cropping
 │   │   ├── SpritePreprocessor.test.ts
 │   │   ├── PropExtractor.ts         # Prop texture extraction
 │   │   ├── packSpriteAtlas.ts       # Boot-time atlas packing
-│   │   ├── stewOffering.test.ts
 │   │   ├── scene/
 │   │   │   ├── MapBuilder.ts        # Floors, nature, props, collision walls
 │   │   │   ├── Actors.ts            # Sprite spawning + animation + understudies
-│   │   │   ├── AudioController.ts   # Music crossfades, boss loops, SFX
-│   │   │   └── BeatEngine.ts        # Narrative beat dispatcher
+│   │   │   ├── AudioController.ts   # Music crossfades, boss loops, SFX (settings-driven)
+│   │   │   ├── BeatEngine.ts        # Narrative beat dispatcher
+│   │   │   ├── BeatEngine.test.ts
+│   │   │   └── PlayerController.ts  # Dash, i-frames, auto-fire, footsteps
 │   │   └── modes/
 │   │       ├── types.ts             # GameMode interface + ModeContext façade
 │   │       ├── index.ts             # Mode registry: registerMode/getMode
 │   │       ├── _template/           # Copyable reference mode
-│   │       ├── bossFight/           # Combat minigame
+│   │       ├── bossFight/           # Combat minigame + bossFight.test.ts
 │   │       ├── poolParty/           # Ch9 pool entrance
 │   │       ├── basementScene/
 │   │       ├── storyFractures/
@@ -237,6 +232,7 @@ project-omega_-the-rockville-syndicate/
 │   │       ├── fratAggro/
 │   │       ├── silentDrive/
 │   │       ├── groupChat/           # parser.ts, reactions.ts, timeline.ts
+│   │       ├── carRide/
 │   │       └── mariaBrookeStats.ts
 │   │
 │   └── assets/                      # [binaries] audio (Kenney SFX, boss music), sprites
@@ -246,6 +242,7 @@ project-omega_-the-rockville-syndicate/
 │   └── voice/                       # [binaries] generated voice-line audio
 │
 ├── scripts/
+│   ├── dev/                         # Throwaway inspection/debug scripts (not production)
 │   └── voicegen/                    # TTS voice-line pipeline (Python + tsx)
 │       ├── extract-lines.ts         # `npm run voice:extract`
 │       ├── generate.py / gen_*.py   # Voice generation scripts
@@ -260,16 +257,19 @@ project-omega_-the-rockville-syndicate/
 │
 ├── docs/
 │   ├── ADDING_A_MINIGAME.md         # Minigame implementation guide
-│   ├── EXTERNAL_GAME_PIPELINE_PLAN.md
-│   ├── NARRATION_PLAN.md
-│   ├── TURN_BATTLE_GAMEMODE_PLAN.md
+│   ├── ARCHITECTURE_AND_MAINTAINABILITY.md  # Track G spec: G1–G4 work items + conventions
+│   ├── TEAM_COORDINATION_PLAN.md    # Lane ownership, phases, dependency graph
+│   ├── TRACK_B_CONTENT_VISUAL.md
+│   ├── TRACK_C_SYSTEMS_UI.md
+│   ├── TRACK_D_AUDIO.md
+│   ├── TRACK_E_TECHDEBT_PERF.md
+│   ├── TRACK_F_SIGNATURE_FEATURE.md
 │   ├── chapter-pipeline/            # Multi-stage chapter authoring pipeline + working drafts
-│   └── history/                     # Handoffs, sprint plans, changelogs, scratchpads
+│   └── history/                     # ARCHIVED: handoffs, sprint plans, QA reports
 │
-├── battleiq/                        # Standalone legacy JS battle prototype (game.js, battle.js, ...)
+├── battleiq/                        # Legacy standalone JS prototype (payload for `external` mode)
 ├── storyboard/                      # Canonical lore source: storyboard_0..8.txt + briefs
-├── assets/                          # Source art workspace (.aistudio)
-└── db_data/                         # [runtime] persisted leaderboard JSON (Docker volume)
+└── assets/                          # Source art workspace (.aistudio)
 ```
 
 ---
@@ -297,6 +297,9 @@ The dev server (`tsx server.ts`) runs at **`http://localhost:3324`**.
 | `npm run build` | Build client assets with Vite **and** bundle the server to `dist/server.cjs` (esbuild) |
 | `npm start` | Run the built production server (`node dist/server.cjs`) |
 | `npm run lint` | Typecheck the project (`tsc --noEmit`) |
+| `npm run lint:es` | Run ESLint (style/quality gate) |
+| `npm run lint:fix` | Auto-fix ESLint issues |
+| `npm run ci` | Full gate: typecheck + eslint + tests + build |
 | `npm test` | Run the Vitest unit-test suite |
 | `npm run e2e` | Run the Playwright E2E suite |
 | `npm run clean` | Remove `dist/` and stray `server.js` |
@@ -306,40 +309,28 @@ The dev server (`tsx server.ts`) runs at **`http://localhost:3324`**.
 
 ## Testing
 
-- **Unit tests** (Vitest) live alongside source as `*.test.ts(x)` — e.g. `DialogueBox.test.tsx`, `chapters.test.ts`, `progress.test.ts`, `SpritePreprocessor.test.ts`, `stewOffering.test.ts`. Run with `npm test`.
+- **Unit tests** (Vitest, 140+) live alongside source as `*.test.ts(x)` — covering settings/save, scoring, boss fight logic, beat engine routing, UI sound, sprite preprocessing, and more. Run with `npm test`.
 - **E2E tests** (Playwright) live in [`e2e_tests/`](e2e_tests/) and exercise full gameplay flows. Run with `npm run e2e`.
-- **Typecheck** the whole project with `npm run lint` before committing.
+- **CI** (GitHub Actions) runs `lint → lint:es → test → build` on every push and PR to `main`.
+- Run the full gate locally with `npm run ci` before pushing.
 
 ---
 
 ## Docker Deployment (VPS)
 
-### 1. Clone & Set Up Directory Permissions
-
-Clone the repository to your VPS and make sure the leaderboard database volume has the correct write permissions:
+### 1. Clone & Build
 
 ```bash
 git clone git@github.com:eric-s-ai-slop/rockville-syndicate.git ./rockville-syndicate
-mkdir -p db_data && chmod 777 db_data
-```
-
-### 2. Build & Run with Docker Compose
-
-By default the container listens on port `3324` and maps it to `localhost:3324`. Build the production image and start the container:
-
-```bash
+cd rockville-syndicate
 docker compose up -d --build
 ```
 
-#### Running on a Custom Port
-
-To use a custom host port (e.g. `8080`), set the `APP_PORT` environment variable:
+By default the container listens on port `3324`. To use a custom host port:
 
 ```bash
 APP_PORT=8080 docker compose up -d --build
 ```
-
-Leaderboard submissions are persisted inside the `./db_data/` directory.
 
 ---
 
@@ -348,8 +339,6 @@ Leaderboard submissions are persisted inside the `./db_data/` directory.
 Place a reverse proxy in front of the container to handle traffic and SSL termination.
 
 ### Option A: Nginx
-
-Create a config file (e.g., `/etc/nginx/sites-available/your-domain.com`):
 
 ```nginx
 server {
@@ -377,15 +366,11 @@ certbot --nginx -d your-domain.com
 
 ### Option B: Caddy (Recommended)
 
-Caddy automatically provisions SSL certificates. Add the following to `/etc/caddy/Caddyfile`:
-
 ```caddy
 your-domain.com {
     reverse_proxy localhost:3324
 }
 ```
-
-Then reload Caddy:
 
 ```bash
 systemctl reload caddy
@@ -395,8 +380,18 @@ systemctl reload caddy
 
 ## Save Data & Persistence
 
-- **Player progress** is stored client-side in `localStorage` under the key `omega-progress-v1` (managed by [`src/game/progress.ts`](src/game/progress.ts)). Clearing site data resets chapter unlocks.
-- **Leaderboard scores** are persisted server-side as JSON in the `db_data/` directory (mounted as a Docker volume in production) and served by [`server.ts`](server.ts).
+All game state lives in a single versioned `localStorage` blob under the key **`omega-save-v2`**, managed by [`src/game/settings.ts`](src/game/settings.ts). The blob contains three sections:
+
+| Section | Contents |
+|---------|----------|
+| `settings` | Volume, difficulty, text scale, colorblind, reduce-motion |
+| `progress` | Completed chapters, selected hero, story flags (`rose_silence`, `freePlay`) |
+| `progress.runRecords` | Up to 100 most-recent scored runs (newest first) |
+| `progress.chapterBests` | Per-chapter personal best score |
+
+On first load with no `omega-save-v2` key, the module migrates the four legacy v1 keys (`omega-progress-v1`, `omega-muted`, `omega-colorblind`, `omega-textscale`) and writes the unified blob. Corrupt JSON falls back to defaults without throwing. **Never write a new ad-hoc `localStorage` key** — all persistence goes through `settings.ts`.
+
+Clearing site data resets everything.
 
 ---
 
@@ -432,9 +427,9 @@ Character voice lines are generated offline via the TTS pipeline in [`scripts/vo
 
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — Full technical design guide, subsystem responsibilities, and development recipes.
 - [`CLAUDE.md`](CLAUDE.md) — Developer quick reference and the canonical list of hard-won gotchas.
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — Green bar requirements, hard rules, architecture conventions.
 - [`docs/ADDING_A_MINIGAME.md`](docs/ADDING_A_MINIGAME.md) — Step-by-step guide to building and registering a new minigame mode.
 - [`docs/chapter-pipeline/`](docs/chapter-pipeline/) — The multi-stage pipeline for authoring new chapters.
 - [`storyboard/`](storyboard/) — Canonical lore: character sheets, boss strategies, and chapter briefs (`storyboard_0.txt` through `storyboard_8.txt`).
 
 The events are real. The stats are canon.
-```
