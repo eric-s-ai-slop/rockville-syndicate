@@ -15,7 +15,7 @@ export class StewOfferingMode implements GameMode {
 
   preload(ctx: ModeContext): void {}
 
-  start(ctx: ModeContext, config: any, onComplete: (result: ModeResult) => void): void {
+  start(ctx: ModeContext, config: unknown, onComplete: (result: ModeResult) => void): void {
     this.ctx = ctx;
     this.onCompleteCallback = onComplete;
     this.interacted.clear();
