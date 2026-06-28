@@ -954,12 +954,29 @@ class BattleController {
         // 2026-06-11 FIX: Look up the act in the CURRENT ACTOR's acts first,
         // not just the boss's preset. Each member has their own moves.
         const actor = game.party[this.currentActor];
-        const actorActs = (actor && actor.acts) ? actor.acts : [];
-        let act = actorActs.find(a => a.id === actId);
-        // Fallback to boss's preset acts (in case actor has no acts)
-        if (!act) {
-            act = this.activeEnemy.acts.find(a => a.id === actId);
+
+        let act = undefined;
+        if (actor && actor.acts) {
+            // Inline mapping is safer as acts arrays might change dynamically during gameplay
+            // And benchmark shows a simple inline loop optimization is faster than .find() anyway.
+            for (let i = 0; i < actor.acts.length; i++) {
+                if (actor.acts[i].id === actId) {
+                    act = actor.acts[i];
+                    break;
+                }
+            }
         }
+
+        // Fallback to boss's preset acts (in case actor has no acts)
+        if (!act && this.activeEnemy && this.activeEnemy.acts) {
+            for (let i = 0; i < this.activeEnemy.acts.length; i++) {
+                if (this.activeEnemy.acts[i].id === actId) {
+                    act = this.activeEnemy.acts[i];
+                    break;
+                }
+            }
+        }
+
         if (!act) {
             console.warn(`[BattleIQ:Act] Act id="${actId}" not found in actor or boss acts.`);
             return;
