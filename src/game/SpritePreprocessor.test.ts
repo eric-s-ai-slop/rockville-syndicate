@@ -38,8 +38,19 @@ describe('SpritePreprocessor', () => {
     const result = preprocessShowcaseSheet(img, 'test-character');
 
     expect(result).toBeDefined();
-    // It should have fallbacks
+    // It should have fallbacks for all animation arrays
     expect(result.idleFrontFrames[0]).toBe(0);
+    expect(result.idleSideFrames[0]).toBe(0);
+    expect(result.idleBackFrames[0]).toBe(0);
+    expect(result.walkFrames[0]).toBe(0);
+    expect(result.walkFrontFrames[0]).toBe(0);
+    expect(result.walkSideFrames[0]).toBe(0);
+    expect(result.walkBackFrames[0]).toBe(0);
+    expect(result.runFrames[0]).toBe(0);
+    expect(result.attackFrames[0]).toBe(0);
+    expect(result.hurtFrames[0]).toBe(0);
+    expect(result.victoryFrames[0]).toBe(0);
+    expect(result.defeatFrames[0]).toBe(0);
   });
 
   it('should throw error if canvas context cannot be created', () => {
