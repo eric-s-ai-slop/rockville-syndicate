@@ -27,6 +27,11 @@ export class BeatEngine {
       case 'cameraPan': return this.runCameraPanBeat(beat);
       case 'bossFight': return this.runBossFightAsMinigame(beat);
       case 'chase': return this.scene.runChaseBeat(beat);
+      case 'sfx': {
+        const { key, volume = 0.7, seek = 0 } = beat;
+        try { if (this.scene.cache.audio.exists(key)) this.scene.sound.play(key, { volume, seek }); } catch {}
+        return this.advanceBeat();
+      }
       case 'wait': return this.scene.time.delayedCall(beat.ms, () => this.advanceBeat());
       case 'ledger': this.scene.applyLedger(beat.delta, beat.note); return this.advanceBeat();
       case 'minigame': return this.runMinigameBeat(beat);
