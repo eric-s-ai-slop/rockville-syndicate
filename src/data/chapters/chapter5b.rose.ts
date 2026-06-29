@@ -9,8 +9,8 @@ import { C } from './palette';
 // The player is alongside the group in real time as Maharko feeds a 16-year-old
 // alcohol and makes out with her in a moving car. The player's agency is a single
 // lose-lose choice after the makeout. The chapter uses a new carRide minigame mode
-// for the confrontation (Options A and C). Option B (silence) skips the fight and
-// carries heavier consequences.
+// during the confrontation (Options A and C). Option B (silence) skips the fight
+// and carries heavier consequences.
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // ─── carRide minigame configs ─────────────────────────────────────────────────
