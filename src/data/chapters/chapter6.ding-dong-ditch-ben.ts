@@ -108,6 +108,7 @@ const chapter6: ChapterConfig = {
         "THE SYNDICATE SENDS ITS REGARDS.",
       ]
     },
+    { type: 'sfx', key: 'sfx_door_open', volume: 0.8 },
     {
       type: 'dialogue',
       speaker: 'narrator',

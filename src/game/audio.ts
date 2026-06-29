@@ -123,3 +123,8 @@ export const DIALOG_BLIP_URL = dialogBlipUrl;
 // Light wood rap for the Ch6 door approach, played 3x in quick succession = knocking.
 import knockUrl from '../assets/audio/kenney_impact-sounds/Audio/impactPlank_medium_001.ogg?url';
 export const KNOCK_URL = knockUrl;
+
+// ── DOOR OPEN ──
+// Creaky door swing for the Ch6 "The door opens." story beat.
+import doorOpenUrl from '../assets/audio/kenney_rpg-audio/Audio/doorOpen_1.ogg?url';
+export const DOOR_OPEN_URL = doorOpenUrl;

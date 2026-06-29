@@ -314,8 +314,8 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
                       <div className="h-2.5" style={{ width: '44%', background: '#000', opacity: 0.7 }} />
                     </div>
                     <span
-                      className="shrink-0 text-[10px] font-mono tracking-wider px-2 py-1 border"
-                      style={{ color: '#ef4444', borderColor: '#ef444466' }}
+                      className="shrink-0 text-[10px] font-mono tracking-wider px-2 py-1"
+                      style={{ color: '#ef4444', borderWidth: '1px', borderStyle: 'solid', borderColor: '#ef444466' }}
                     >
                       {cracked ? 'SHATTER SEAL' : 'CLICK TO CRACK SEAL'}
                     </span>
@@ -403,8 +403,8 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
                       )}
                       {isClassified && !sealed && (
                         <span
-                          className="flex items-center gap-1 text-[9px] font-mono border px-1"
-                          style={{ color: '#ef4444', borderColor: '#ef444440', marginLeft: 'auto' }}
+                          className="flex items-center gap-1 text-[9px] font-mono px-1"
+                          style={{ color: '#ef4444', borderWidth: '1px', borderStyle: 'solid', borderColor: '#ef444440', marginLeft: 'auto' }}
                         >
                           <EyeOff size={10} /> CLASSIFIED
                         </span>

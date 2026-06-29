@@ -146,6 +146,7 @@ export type Beat = { id?: string } & (
   | { type: 'minigame'; modeId: string; config?: unknown; introLines?: string[]; background?: boolean; loseGoto?: string }
   | { type: 'routeOnMinigame'; cases: Record<string, string>; default?: string }
   | { type: 'chase'; pursuerId: string; durationMs: number }
+  | { type: 'sfx'; key: string; volume?: number; seek?: number }
   | { type: 'wait'; ms: number }
   | { type: 'ledger'; delta: number; note: string }
   | { type: 'stopAllAudio'; fadeMs?: number }
