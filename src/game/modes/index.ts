@@ -9,6 +9,7 @@ import { silentDriveMode } from './silentDrive';
 import { groupChatMode } from './groupChat';
 import { carRideMode } from './carRide';
 import { complicityReportMode } from './complicityReport';
+import { benTriviaMode } from './benTrivia';
 import { createExternalGameMode } from './external';
 
 const registry = new Map<string, GameMode>();
@@ -23,6 +24,7 @@ registerMode(silentDriveMode);
 registerMode(groupChatMode);
 registerMode(carRideMode);
 registerMode(complicityReportMode);
+registerMode(benTriviaMode);
 registerMode(createExternalGameMode({ id: 'battleiq-battle', gameId: 'battleiq' }));
 
 export function registerMode(m: GameMode) {

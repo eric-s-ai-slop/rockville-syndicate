@@ -51,11 +51,68 @@ Add a `minigame` beat to the desired chapter file in `src/data/chapters/`:
   modeId: 'myNewMinigame',
   config: { someParam: 123 },       // Passed to mode.start as the second argument
   introLines: ['Get ready!'],        // Optional dialogue prefix before mode.start
-  background: false                  // true = run concurrently, don't block story beats
+  background: false,                 // true = run concurrently, don't block story beats
+  loseGoto: 'some-beat-id'           // Optional: on outcome:'lose', jump here instead of advancing
 }
 ```
 
-## 5. Verify
+## 5. The Result Contract (win/lose + context)
+
+A mode reports its outcome by calling `onComplete(result)` **exactly once**. That
+is the *only* thing a mode does to end — do **not** call `teardown()` yourself; the
+host calls it (and unfreezes the scene) automatically right after `onComplete`.
+
+```typescript
+interface ModeResult {
+  outcome?: 'win' | 'lose' | 'skip';
+  data?: unknown;   // free-form context: score, streak, which choice, etc.
+}
+```
+
+- **`outcome`** drives narrative routing. On `'lose'`, if the beat set `loseGoto`,
+  the host jumps to that beat (e.g. restart a scene); otherwise it advances
+  normally. `'win'` / `'skip'` always advance.
+- **`data`** is your "little extra context" — carry a score, max streak, or the
+  option the player picked. It's stored on the scene as the last minigame result
+  for later beats/logic to read. Keep it a plain serializable object.
+
+Guard against double-resolution with a `modeEnded` flag (see `complicityReport`
+and `benTrivia`): flip it true in your resolve path and early-return if already set.
+
+```typescript
+private resolve(outcome: 'win' | 'lose') {
+  if (this.modeEnded) return;
+  this.modeEnded = true;
+  this.onComplete({ outcome, data: { score: this.score } });
+}
+```
+
+## 6. Gotchas Worth Knowing Up Front
+
+These bit the `benTrivia` build and aren't obvious from the interface:
+
+- **Blocking minigames freeze the player.** A non-`background` beat calls
+  `freeze()`, which sets `dialogueOpen=true` and zeroes player velocity — WASD
+  movement is dead for the mode's duration. If your minigame needs player-driven
+  motion, **don't** rely on the frozen player sprite: render your own avatar/token
+  and move it via tweens, and read input from a `window` `keydown` listener (remove
+  it in `teardown()`). See `benTrivia` for the pattern.
+- **`preload()` may run twice** — once during the scene's preload phase and again
+  at beat start. Phaser's keyed `load.*` calls are idempotent, so this is fine as
+  long as `preload` only registers assets and does no side effects.
+- **`teardown()` is called for you** on completion *and* on scene shutdown. It must
+  destroy every object/timer/tween/listener you created — track them in an array
+  and null your `onComplete` ref. Leaks here bleed into the next scene.
+- **Full-screen UI (takeover) conventions.** For a card/quiz/overlay mode, copy
+  `complicityReport`/`benTrivia`: depth ≥ `9600` (above the letterbox at 9500),
+  `setScrollFactor(0)` on everything, and lay out within the **zoom-visible**
+  extent `visW = camW / cam.zoom` (a `scrollFactor(0)` object renders at
+  `size * zoom`, so it spills off-screen if you use raw `camW`). Use an oversized
+  opaque bg rect so it covers the viewport at any scroll/zoom.
+- **Always use `ctx.label(...)`, never `add.text`** — `label()` applies the DPR
+  resolution fix; raw text renders blurry.
+
+## 7. Verify
 
 ```bash
 npm run lint        # tsc --noEmit
