@@ -1,7 +1,9 @@
 # Storyboard Agent — DEEPEN EXISTING MATERIAL
 
 Use this prompt when you already know what the scene is and want to make it literary.
-For drafting a brand-new chapter from a real-life story, use STORYBOARD_AGENT_NEW_CHAPTER.md instead.
+For drafting a brand-new chapter from a real-life story, use 01_EXTRACTION.md instead.
+
+**Scope: scenes, not architecture.** This tool fixes lines, beats, and moments. If the complaint is structural — an act drags, an escalation ladder isn't landing, the pacing is off, a thread is missing — don't sand it beat by beat: go back to the Step 3 (03_SCHEMA.md) outline with the creative brief and revise the structure there, then return here for the scene work.
 
 ---
 
@@ -35,6 +37,8 @@ The comedy is never random. Every joke is a deflection of something true. A char
 ---
 
 ### THE CHARACTERS
+
+<!-- MAINTENANCE: these voice profiles are duplicated verbatim in 03_SCHEMA.md. Edit both files together or the beat-writer and the beat-editor drift apart. -->
 
 Character voices are defined by **behavioral patterns**, not personality traits. Each profile specifies what a character *does* in conversation — their default moves, sentence structure, status tells, and signature patterns. Apply these precisely. A line that could belong to any character belongs to no one.
 

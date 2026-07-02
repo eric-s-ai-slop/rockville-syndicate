@@ -1,6 +1,6 @@
-# Chapter Pipeline — Step 3: Asset Specification
+# Chapter Pipeline — Step 4: Asset Specification
 
-Use this prompt after you have a completed `beats` array from Step 2 (SCHEMA).
+Use this prompt after you have a completed `beats` array from Step 3 (SCHEMA).
 Input: the full ChapterConfig (beats + map config + actors).
 Output: a complete asset spec — what the chapter needs, what already exists, and what needs to be made.
 
@@ -10,8 +10,9 @@ Output: a complete asset spec — what the chapter needs, what already exists, a
 
 Paste everything below the `---` line as your system prompt. Then in your first message, paste:
 
-1. **The completed ChapterConfig** from Step 2 — beats, map rects, actors, everything.
+1. **The completed ChapterConfig** from Step 3 — beats, map rects, actors, everything.
 2. **The creative brief** from Step 1 — especially the location description, chapter identity, and emotional arc. This informs music and visual tone recommendations.
+3. **The current inventories from the code** (recommended — the lists baked into this prompt go stale): paste `CHAPTER_MUSIC_KEY` and `STAGE_MUSIC_URL` from `src/game/audio.ts`, the boss `id:` lines from `src/data/entities.ts`, and the `safeLoadImage(...)` calls from `ChapterScene.ts` preload. Whatever you paste overrides the "what already exists" section below.
 
 ---
 
@@ -25,17 +26,20 @@ You output a document, not code. The document is a handoff to whoever is sourcin
 
 ### WHAT ALREADY EXISTS
 
-Do not request assets that are already in the project. The following are confirmed present:
+Do not request assets that are already in the project. The following are confirmed present — **verified against the code 2026-07**. `src/game/audio.ts`, `src/data/entities.ts`, and `ChapterScene.ts` preload are canonical; if this list and the code (or an inventory the user pasted) disagree, the code wins.
 
-**Stage music** (`src/assets/audio/stage_music/`):
-- `commons1522` → Chapters 1 and 7
-- `nightcall` → Chapter 2
-- `hospital` → Chapter 3
-- `jungle_gym` → Chapter 4
-- `Jordan_and_maharko` → Chapter 5
-- `ben_music` → Chapter 6
-- `PASTEL GHOST` → Chapter 7
-- No track assigned yet for Chapter 8+
+**Stage music** (`src/assets/audio/stage_music/`, wired in `src/game/audio.ts`):
+- `music_ch1` — commons1522 ("Coffee" — beabadoobee) → Ch1
+- `music_ch2` — night_highway ("Nightcall" — Kavinsky) → Ch2, and UMBC (Ch3b) scene 1
+- `music_ch3` — hospital ("Flight From the City") → Ch3
+- `music_ch4` — jungle_gym ("Borderline" — Tame Impala) → Ch4
+- `music_ch5` — Jordan_and_maharko → Ch5
+- `music_ch6` — ben_music ("In the Hall of the Mountain King") → Ch6
+- `music_ch7` — "Dark Beach" (Pastel Ghost) → **shared by Ch7 (Spain) and Ch8 (the cabin)**
+- `music_ch9` — "Heat Waves" (Glass Animals) → Ch9 (pool party)
+- `music_maria_brooke` — Craspore "Flashbacks (slowed)" → Ch0
+- `music_umbc_basement` — "Beauty and a Beat" → Ch3b scene 0 (per-scene key)
+- Ambient (loaded via ChapterScene, not stage music): crowd murmur, summer-night crickets, iPhone notification ding
 
 **Boss music** (`src/assets/audio/boss_music/`):
 - `Prowler Sound Effect.mp3` — plays as sting at boss intro
@@ -47,18 +51,21 @@ Do not request assets that are already in the project. The following are confirm
 - `kenney_rpg` — doors, books, ambient
 - `kenney_music-jingles` — short stings
 
-**Location art** (`src/assets/images/game_decor/stages/`):
-- `hospital` (Ch3), `beall_jungle_gym` (Ch4), `watchwater_house` (Ch6, open + closed door versions)
+**Location art** (loaded texture keys — see `ChapterScene.ts` preload):
+- `stage_car_interior`, `stage_florida_house_night`, `stage_parking_lot_night`, `stage_umbc_basement`, `stage_wj_classroom`, `stage_wj_track`
+- `prop_jungle_gym` (Ch4), `prop_watchwater` / `prop_watchwater_open` (Ch6), `prop_pool_map_day` / `prop_pool_map_night` (Ch9), hospital props (`prop_hospital_bed`, `prop_iv_drip`, `prop_cabinet`, `prop_red_toilet`)
 
 **Interior props** (`src/assets/images/game_decor/Interiors_free/`):
-- LimeZu Modern Interiors free pack — 16/32/48px room builder tiles and interior furniture sprites
+- LimeZu Modern Interiors free pack — 16/32/48px room builder tiles and interior furniture sprites (`furn_*` keys)
 
 **Cars** (`src/assets/images/game_decor/special/cars/`):
-- Jordan's Mustang, Maharko's Camaro, Nick F's Corolla — all wired
+- `prop_jordan_mustang`, `prop_maharko_camero`, `prop_nick_f_corolla` — all wired
 
 **Character art**:
-- All main cast have processed sprite sheets
-- `micheal_bersofsky.jpg` exists for Ben/boss_ben (Ch6)
+- Main cast hero sheets: eric, jacob, nick_f, nick_h, jordan, maharko
+- NPC sheets: `npc_alex_sheet`, `npc_benji_sheet`, `npc_rose_sheet`, `npc_rose_sister_sheet`; pool-variant sprites for Ch9 cast
+- `leo` has a speaker entry but **no sprite sheet yet** — placing him as an actor requires a stand-in or a new sheet (Step 5, Section 6)
+- `micheal_bersofsky.jpg` exists for Ben/boss_ben (Ch6); boss images exist for `boss_eric`, `boss_audrey`, `boss_florida`, `boss_ben`, `boss_ben_umbc`, `boss_nick_f`
 
 **Fonts**:
 - `Public Pixel` wired as `--font-pixel` / `font-pixel` Tailwind class

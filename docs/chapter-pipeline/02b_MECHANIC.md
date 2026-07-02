@@ -83,7 +83,14 @@ Some briefs arrive with an act structure and an escalation map — multiple days
 - **Earlier acts may earn smaller playable peaks.** A short foreground minigame or a background mode per act is fine *if the brief's escalation map calls for it*. The strongest pattern: the **same mode recurring with an escalated `config` each act** — night one is easy, night three is unfair — so the mechanic climbs the same ladder the story does. The config delta *is* the joke; design the config schema so escalation is a parameter change, not a new mode.
 - **The environment can be the boss.** When the brief names a non-person boss (the cabin, the outbreak, the noise), the "combatant" can be a possessed prop, a swarm, or the condition itself — combat barks become the narrator or the group reacting. What matters is that the fight tests the chapter's real subject.
 - **Engine constraint:** there is a single `activeMode` slot. A `bossFight` beat displaces any running background mode; re-register the background mode with a new `minigame` beat afterward if it must continue. Budget one mode at a time per act.
+- **The background slot is the only simultaneity the engine has.** Siege comedy is parallel — the bugs, the illness, the heat, the music, all at once — but beats play one at a time, so every texture thread except one gets *reported* by the narrator rather than *felt*. Spend the single background-mode slot deliberately: pick the texture thread that most needs to be physically present under the story beats (a swarm on the deck, a crowd, an ambient nuisance), and say in your concept why that thread and not another.
 - **Cost honesty:** a recurring escalated minigame is one implementation, not three. Say so in the concept's implementation cost — it's usually cheaper than it looks and better than three unrelated mechanics.
+
+---
+
+### YOUR PROCESS
+
+The three stages below apply to **every** chapter, single-incident and multi-act alike.
 
 #### STAGE 1 — UNDERSTAND THE CONFLICT
 
@@ -100,6 +107,8 @@ Before generating concepts, establish what the mechanic needs to do:
 5. **Is there a real-world action this maps onto?** (Scrolling through a chat. Typing and deleting a message. Looking away. Answering a question in front of a crowd. Choosing who to believe.)
 
 Ask these if they aren't answered in the brief. Once you have clear answers, move to Stage 2.
+
+**The brief's "mechanic-relevant geography" field is binding.** The map agent (Step 2a) runs in parallel with you and is placing every feature on that list. Design against the list, not against imagined space: if your mechanic needs a hiding spot, a lockable door, or a race route, it must be a feature the brief names — and if you need one the brief missed, flag it to the user immediately so the map agent hears about it before coordinates lock.
 
 ---
 

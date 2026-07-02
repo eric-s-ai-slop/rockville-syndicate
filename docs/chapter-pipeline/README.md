@@ -50,13 +50,15 @@ Creative brief
 
 Interviews you before developing anything. First classifies the story's structure — **single-incident** (one causal spine, one choice, one boss) or **siege/anthology** (multi-day, multiple threads, acts with a designated spine) — then runs six mandatory checks before advancing:
 - **Label Check** — any named moment that isn't yet a real scene
-- **Hinge Character Check** — the person whose one decision changes everything
+- **Hinge Character Check** — a person whose one decision changes everything, *if the story has one* (no manufactured hinges)
 - **Artifact Check** — any created fiction/object at the center of the story, including what it extracted from the target
 - **Causal Chain Check** — any jump from A to C with no B
 - **Escalation Pattern Check** — any recurring motif: what changed at each occurrence, and whether two ladders mirror each other
 - **Canon Check** — reconcile against existing chapters; the user rules on any contradiction
 
 Guest characters (anyone outside the main roster) get mini voice profiles before Stage 2.
+
+The brief ends with the **full confirmed Stage 1 factual summary as an appendix** — the key dramatic moments are a selection, and downstream agents need the record it was selected from. It also carries a **mechanic-relevant geography** field that binds Steps 2a and 2b to the same physical features.
 
 *Don't advance until every key dramatic moment is specific enough that a writer could pick it up cold.*
 
@@ -120,5 +122,6 @@ Use after Step 3, after playtesting, or independently.
 - The BossConfig can come from either 2b (if you use bossFight) or 4 (if you spec it later). Don't duplicate — pick one.
 - If Step 2b produces a new minigame spec, a developer needs to implement it before the chapter can ship. Factor that into timeline.
 - **Multi-scene chapters**: if Step 2a produces a `scenes[]` array, Step 3 will include `changeScene` beats to trigger location transitions. The engine fades to black, tears down the old map, builds the new one, and fades back in. Existing single-map chapters are unaffected.
-- **Multi-day (siege/anthology) chapters**: the brief carries an act structure, a designated spine, and an escalation map. Day cuts are narrator beats on the same map — `scenes[]` is only for physical location changes. Up to one choice per act, one boss where the spines converge (the boss can be the environment or the collective situation, not just a person — see 2b).
+- **Multi-day (siege/anthology) chapters**: the brief carries an act structure, a designated spine, and an escalation map. Day cuts are narrator beats on the same map — `scenes[]` is only for physical location changes. Up to one choice per act, one boss where the spines converge (the boss can be the environment or the collective situation, not just a person — see 2b). A siege chapter legitimately runs 2–4× the beats of a single-incident chapter — don't let anyone compress it to reference-chapter length. The player must be the *victim* of at least one thread, not the author of all of them.
+- **Steps 2a and 2b share a contract**: the brief's mechanic-relevant geography field. The map agent must place every feature on it; the mechanic agent must design against it and flag any feature it needs that the brief missed — before coordinates lock.
 - **New characters**: guest speakers must be registered in `EXTRA_SPEAKERS` (`src/data/chapters/types.ts`) and, if placed as actors, given a sprite — Step 5, Section 6 has the recipe.

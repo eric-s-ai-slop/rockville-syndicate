@@ -11,7 +11,7 @@ Work through the checklist in order. Each item links to the exact file to edit.
 
 ## 1. CREATE THE CHAPTER FILE
 
-Create `src/data/chapters/chapterN_name.ts` (e.g. `chapter10_maria-brooke.ts`).
+Create `src/data/chapters/chapterN.kebab-name.ts` (e.g. `chapter10.oc-cabin-trip.ts` — dot after the number, kebab-case name, matching the existing files like `chapter8.the-cabin.ts`).
 
 Paste in the full `ChapterConfig` from Step 3. Minimum structure:
 
@@ -100,7 +100,7 @@ If reusing an existing track, just add the `CHAPTER_MUSIC_KEY` entry pointing to
 ```bash
 grep "'boss_yourcharacter'" src/data/entities.ts
 ```
-Existing entries: `boss_eric`, `boss_audrey`, `boss_florida`, `boss_ben` (Michael Bersofsky — Ch6), `boss_nick_f`. If the id is taken, use a context suffix (`boss_ben_umbc`, etc.) and update the `bossFight` beat in the chapter file to match.
+Existing entries (as of 2026-07 — the grep above is what's authoritative): `boss_eric`, `boss_audrey`, `boss_florida`, `boss_ben` (Michael Bersofsky — Ch6), `boss_ben_umbc` (Ch3b), `boss_nick_f`. If the id is taken, use a context suffix (`boss_eric_round2`, `boss_nick_f_cabin`, etc.) and update the `bossFight` beat in the chapter file to match.
 
 Edit `src/data/entities.ts`. Add to the `BOSSES` array:
 

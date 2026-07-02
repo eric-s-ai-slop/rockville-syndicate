@@ -1,8 +1,8 @@
 # Storyboard Agent — SCHEMA TRANSLATION
 
 Use this prompt to convert a finished creative brief into production-ready TypeScript beats.
-Input comes from STORYBOARD_AGENT_NEW_CHAPTER.md. Do not use this prompt without a completed brief.
-For refining beats after the fact, use STORYBOARD_AGENT_DEEPEN.md.
+Input comes from 01_EXTRACTION.md (the brief) plus 02a_MAP_DESIGN.md (coordinates) and 02b_MECHANIC.md (the mechanic spec). Do not use this prompt without a completed brief.
+For refining beats after the fact, use DEEPEN.md.
 
 ---
 
@@ -27,6 +27,8 @@ You do not invent story. The creative decisions are already made. Your job is pr
 ---
 
 ### THE CHARACTERS
+
+<!-- MAINTENANCE: these voice profiles are duplicated verbatim in DEEPEN.md. Edit both files together or the beat-writer and the beat-editor drift apart. -->
 
 Character voices are defined by **behavioral patterns**, not personality traits. Each profile specifies what a character *does* in conversation — their default moves, sentence structure, status tells, and signature patterns. Apply these precisely when writing dialogue. A line that could belong to any character belongs to no one.
 
@@ -225,7 +227,7 @@ Speaker ids: `'narrator'` `'eric'` `'jordan'` `'nick_h'` `'nick_f'` `'maharko'` 
 **`bossFight`**
 - `introLines` name what's actually at stake, not just who you're fighting. Two lines max.
 - `arena` should fit inside the map bounds with breathing room. Typical: `{ x: mapW/2, y: mapH/2, w: mapW*0.85, h: mapH*0.8 }`.
-- **`bossId` naming:** use `boss_[actorId]` (e.g. `boss_eric`, `boss_ben`). Before naming, check `src/data/entities.ts` — some ids are already taken. `boss_ben` is Michael Bersofsky (Ch6). If a character already has a boss entry, use a context suffix: `boss_ben_umbc`, `boss_eric_round2`, etc. The Step 5 integration checklist covers adding the `BossConfig` to `entities.ts`.
+- **`bossId` naming:** use `boss_[actorId]` (e.g. `boss_eric`, `boss_ben`). Before naming, check `src/data/entities.ts` — some ids are already taken (as of 2026-07: `boss_eric`, `boss_audrey`, `boss_florida`, `boss_ben`, `boss_ben_umbc`, `boss_nick_f` — the code wins). If a character already has a boss entry, use a context suffix: `boss_eric_round2`, `boss_nick_f_cabin`, etc. The Step 5 integration checklist covers adding the `BossConfig` to `entities.ts`.
 - **Background modes are replaced by bossFight.** The engine has a single `activeMode` slot. When a `bossFight` beat runs it displaces any active background minigame. If you have a background mode driving NPC movement that needs to continue *after* the boss fight, add a second `{ type: 'minigame', modeId: 'yourMode', background: true }` beat immediately after the `bossFight` beat to re-register it before the next dialogue fires.
 
 **`narrator` dialogue**
@@ -268,6 +270,8 @@ Write a numbered plain-English outline — not code, just a sequence:
 For each beat, note what it's doing narratively in 5 words or fewer.
 
 **If the brief is multi-act (siege/anthology structure):** organize the outline under act headings. Additional obligations:
+- **Do not compress to match the reference chapters' length.** The example chapters and the sample outline above are single-incident scale (11–20 beats). A siege chapter legitimately runs 2–4× that — 40–60 beats across its acts is normal, not bloat. Match the reference chapters' *register*, never their *size*. If you find yourself cutting scenes to get near 20 beats, stop — the count bends, the story doesn't.
+- **Read the brief's Stage 1 appendix before outlining.** The key dramatic moments are a selection from a fuller factual record; the appendix is that record. Pull texture, connective scenes, and verbatim details from it, and when the beat budget forces a cut, cut knowing what you're cutting — name any appendix scene you chose to drop when you present the outline.
 - **Open each act with a narrator time-cut.** Day and status in the narrator's voice — "Day two. The water is out. Maharko has not left the room." — not a location card. The narrator carries the passage of time; `changeScene` only carries physical location changes.
 - **Advance every escalation ladder in every act it appears.** The brief's escalation map tells you what changed at each occurrence — the beat must show the *delta*, never replay the previous occurrence. If night two's beat could be swapped with night one's, it's wrong.
 - **Keep the mirror visible.** If the brief names mirrored spines, alternate them so they comment on each other — the illness beat lands next to the prank beat, and the narrator is allowed to notice the symmetry once, near the end, not before.
@@ -318,9 +322,6 @@ const chapterN: ChapterConfig = {
 ```
 
 **Do not import map/actors from a separate file.** The map agent may output to `docs/chapter-pipeline/working/` as a `.md` file — that can't be imported. Always paste the `MapConfig` and `ActorPlacement[]` inline into the chapter file. The working directory is for reference only; `src/data/chapters/` is where the chapter lives.
-
-```typescript
-```
 
 Flag every field that needs real values from the user.
 
