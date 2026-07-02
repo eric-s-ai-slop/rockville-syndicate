@@ -18,7 +18,7 @@ build a new mode, copy [_template/](_template/) and follow `docs/ADDING_A_MINIGA
 | `storyFractures` | Ch3b | inline in chapter3b | blocking |
 | `battleiq-battle` | Ch5b ×2 | `{ enemyId }` → iframe (`external` factory) | blocking, suspends Omega |
 | `poolParty` | Ch9 | none | background |
-| `benTrivia` | — unwired (planned: Ch8) | `BenTriviaConfig` ([benTrivia/index.ts](benTrivia/index.ts)): `count?`, `perPromptMs?`, `minPromptMs?`, `strikesAllowed?`, `seed?` (defaults 16/3500/1800/3) | blocking |
+| `benTrivia` | — unwired | `BenTriviaConfig` ([benTrivia/index.ts](benTrivia/index.ts)): `count?`, `perPromptMs?`, `minPromptMs?`, `strikesAllowed?`, `seed?` (defaults 16/3500/1800/3) | blocking |
 | `carRide` | — unwired (planned: Ch2) | `CarRideConfig` ([carRide/carRide.ts](carRide/carRide.ts)): boss name, timed phases, responses, barks | blocking |
 
 `classroomAmbience/` exists on disk but is NOT registered — dead code, slated for deletion.
