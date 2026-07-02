@@ -97,7 +97,7 @@ benTrivia remains unwired for now.
   "[MINIGAME — carRide]" comments in chapter5b.rose.ts (it uses battleiq; Ch2 is carRide's
   home).
 
-### ⬜ 5. Split entities.ts into domain modules + delete dead exports (M, mechanical)
+### ✅ 5. Split entities.ts into domain modules + delete dead exports (M, mechanical)
 
 **Files:** new `src/data/entities/` dir replacing `src/data/entities.ts`.
 
