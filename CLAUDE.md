@@ -17,6 +17,7 @@ src/
   data/
     entities.ts                      # Character class stats, bosses, weapons, loot metadata
     chapters/
+      CLAUDE.md                      # ★ Chapter-authoring cheat sheet (beat types, routing, speakers, audio)
       index.ts                       # Chapters barrel: CHAPTERS list, getChapter lookup
       types.ts                       # Config types (Speaker, MapRect, Beat, ChapterConfig, etc.)
       palette.ts                     # Shared colors palette (C)
@@ -35,8 +36,9 @@ src/
       PlayerController.ts            # Player movement input, collision, animation state
       SpriteLoader.ts                # Asset loading pipeline for character/prop sprites
     modes/
+      CLAUDE.md                      # ★ Mode registry cheat sheet (all modes, configs, lifecycle, traps)
       types.ts                       # GameMode interface, ModeContext facade, and ModeResult
-      index.ts                       # Mode registry: registerMode() & getMode()
+      index.ts                       # Mode registry: registerMode(), getMode() & listModeIds()
       bossFight/                     # Combat minigame mode (boss movement, attack AI, HP overlays)
       poolParty/                     # Background minigame mode (Chapter 9 pool entrance script)
       benTrivia/                     # "CAN BEN…?" slam-sorting trivia minigame

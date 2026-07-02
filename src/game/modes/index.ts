@@ -34,3 +34,7 @@ export function registerMode(m: GameMode) {
 export function getMode(id: string): GameMode | undefined {
   return registry.get(id);
 }
+
+export function listModeIds(): string[] {
+  return [...registry.keys()];
+}

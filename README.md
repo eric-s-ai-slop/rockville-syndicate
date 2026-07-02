@@ -60,6 +60,7 @@ Each chapter is a self-contained story beat ripped from real events and lore-ifi
 - **Jordan Divband** (`boss_florida`) — Shadow admin, Meat Market regular, owns a 5.0 Mustang
 - **Ben Bersofsky** (`boss_ben`) — 12 Watchwater Way. The Pariah Zone.
 - **Nick Farrar** (`boss_nick_f`) — The Spain Betrayal. Cabin fund thief. Do not invite to crypto.
+- **Maharko** (`boss_maharko`) — The Florida Wildcard. The Closed System (Rose). Do not let him drive.
 
 ---
 
@@ -76,7 +77,7 @@ Chapters are declarative config files in [`src/data/chapters/`](src/data/chapter
 | 3b | The UMBC Incident *(Act III — The Pariah Event)* | UMBC | Ben | `chapter3b.umbc-incident.ts` |
 | 4 | The Jungle Gym Gambit *(Interlude)* | 1202 Princeton Place | — | `chapter4.jungle-gym-gambit.ts` |
 | 5 | The Florida Highway Duel | Boca Raton highway | Jordan | `chapter5.florida-highway-duel.ts` |
-| 5b | The Closed System | Florida, July 4th | Maharko | `chapter5b.rose.ts` |
+| 5b | Rose *(The Closed System)* | Florida, July 4th | Maharko | `chapter5b.rose.ts` |
 | 6 | Operation Ding Dong Ditch Ben | 12 Watchwater Way | Ben | `chapter6.ding-dong-ditch-ben.ts` |
 | 7 | The Spain Betrayal | Commons 1522 | Nick F | `chapter7.spain-betrayal.ts` |
 | 8 | The Cabin *(Epilogue)* | Basye, VA | — | `chapter8.the-cabin.ts` |
@@ -414,6 +415,7 @@ Character voice lines are generated offline via the TTS pipeline in [`scripts/vo
 | **Sub-Zero** | Jacob's combat persona |
 | **Bedtime Protocol** | Eric's passive ability: converts Aura drain to XP after midnight |
 | **Infinite Deferral** | Maharko's signature move: never arriving, always en route |
+| **Rose** | The 16-year-old at the center of the July 4th Closed System incident |
 | **The Spain Betrayal** | Ch7 event: cabin fund redirected to a Europe trip |
 | **Sybau** | Shut Your Bitch Ass Up — a full boss ability |
 | **D1 Consumerism** | Nick F's economic worldview |

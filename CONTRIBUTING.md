@@ -57,7 +57,8 @@ CI runs automatically on every push and PR to `main` (see `.github/workflows/ci.
 - **New logic ships with a test** — especially anything in `modes/` or `BeatEngine`.
 - **Update the living docs in the same PR** as the behavior change. Drift is how the old
   handoffs became unreliable. Living docs: `CLAUDE.md`, `ARCHITECTURE.md`, `CONTRIBUTING.md`,
-  `README.md`, and `ROADMAP.md`.
+  `README.md`, `ROADMAP.md`, and the directory cheat sheets `src/data/chapters/CLAUDE.md`
+  and `src/game/modes/CLAUDE.md` (the mode table is enforced by `modesDoc.test.ts`).
 
 ---
 
