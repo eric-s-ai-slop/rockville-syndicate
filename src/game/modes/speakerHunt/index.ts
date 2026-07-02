@@ -333,10 +333,19 @@ export class SpeakerHuntMode implements GameMode {
     this.resolved = true;
     this.timerEvent?.remove();
     this.ctx.audioController.resumeStageMusic();
-    if (this.loopSound) {
+    // Hand the sound off to the tween's closure and clear the field immediately —
+    // `cb?.()` below synchronously triggers BeatEngine's completion callback, which
+    // calls teardown() before this tween finishes. teardown() only destroys
+    // `this.loopSound` if it's still set, so clearing it here prevents teardown()
+    // from destroying the same sound object the in-flight tween is still targeting
+    // (which previously threw when the tween's next tick set .volume on a
+    // destroyed WebAudioSound, breaking the RAF loop).
+    const loop = this.loopSound;
+    this.loopSound = null;
+    if (loop) {
       this.ctx.tweens.add({
-        targets: this.loopSound, volume: 0, duration: 500,
-        onComplete: () => { this.loopSound?.stop(); this.loopSound?.destroy(); this.loopSound = null; },
+        targets: loop, volume: 0, duration: 500,
+        onComplete: () => { loop.stop(); loop.destroy(); },
       });
     }
     const cb = this.onCompleteCallback;

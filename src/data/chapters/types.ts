@@ -94,6 +94,13 @@ export interface MapConfig {
   theme?: MapTheme;
   /** Shown as a fading area-title toast when the chapter starts (replaces permanent room signs). */
   areaTitle?: string;
+  /**
+   * Suppress the procedural nature scatter (flowers/bushes) that outdoor themes
+   * (park/cabin/florida/etc.) normally get. Set this on an indoor scene that
+   * reuses an outdoor-flavored theme (e.g. 'cabin' for lighting/floor grade)
+   * purely for its ambience, so wild flora doesn't render inside a building.
+   */
+  noNatureScatter?: boolean;
   rects: MapRect[];
   labels: RoomLabel[];
   playerSpawn: { x: number; y: number };

@@ -54,7 +54,7 @@ export const CHAPTER_MUSIC_KEY: Record<string, string> = {
   // cabin_from_hell_2025: no chapter-level key — per-scene music handles it via scenes[].music.
   //   Scene 0: 'music_ch11_spins' ("The Spins" — Mac Miller), crossfades to
   //   'music_ch11_space_song' ("Space Song" — Beach House) mid-scene via a
-  //   `changeMusic` beat at the Act 1 turn. Scenes 1 & 2: 'music_ch7' (Dark Beach).
+  //   `changeMusic` beat at the Act 1 turn. Scenes 1 & 2 continue on 'music_ch11_space_song'.
 };
 
 // Phaser audio key → URL, for preloading only this chapter's track

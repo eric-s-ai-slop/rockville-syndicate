@@ -218,6 +218,7 @@ export class MapBuilder {
   }
 
   public scatterNature(map: MapConfig) {
+    if (map.noNatureScatter) return;
     const theme = (map as any).theme as string | undefined;
     if (!theme) return;
 

@@ -328,7 +328,6 @@ export class BeatEngine {
     }
 
     this.freeze();
-    this.scene.activeMode = mode;
 
     const launchMode = () => {
       if (mode.preload) {
@@ -338,6 +337,13 @@ export class BeatEngine {
           console.error(`[BeatEngine] Preload failed for mode ${beat.modeId}:`, err);
         }
       }
+      // Only now — not before intro-lines dialogue gates on the player's click —
+      // does the mode become `activeMode`. ChapterScene.update() calls
+      // `activeMode.update()` unconditionally every frame; setting this before
+      // mode.start() runs let it call update() on an uninitialized mode (ctx
+      // unset, zones empty) during the intro card, throwing every frame and
+      // wedging the game loop.
+      this.scene.activeMode = mode;
       mode.start(context, beat.config, (result) => {
         this.lastMinigameResult = result;
         try {

@@ -42,24 +42,24 @@ const chapter11: ChapterConfig = {
         theme: 'suburb_night',
         areaTitle: 'The Balcony — One Floor Up',
         rects: [
-          { x: 350, y: 8, w: 700, h: 16, fill: C.wall, solid: true },
-          { x: 350, y: 652, w: 700, h: 16, fill: C.wall, solid: true },
-          { x: 8, y: 330, w: 16, h: 660, fill: C.wall, solid: true },
-          { x: 692, y: 330, w: 16, h: 660, fill: C.wall, solid: true },
+          { x: 350, y: 8, w: 700, h: 16, fill: C.wall, solid: true, invisible: true },
+          { x: 350, y: 652, w: 700, h: 16, fill: C.wall, solid: true, invisible: true },
+          { x: 8, y: 330, w: 16, h: 660, fill: C.wall, solid: true, invisible: true },
+          { x: 692, y: 330, w: 16, h: 660, fill: C.wall, solid: true, invisible: true },
           { x: 350, y: 330, w: 700, h: 660, fill: 0x000000, propKey: 'stage_oc_balcony_night', invisible: true },
-          { x: 350, y: 622, w: 700, h: 40, fill: C.wall, propType: 'wall', solid: true },
-          { x: 350, y: 48, w: 700, h: 16, fill: 0x64748b, propType: 'guardrail', solid: true },
-          { x: 550, y: 500, w: 80, h: 60, fill: C.desk, propType: 'desk', invisible: true },
+          { x: 350, y: 622, w: 700, h: 40, fill: C.wall, propType: 'wall', solid: true, invisible: true },
+          { x: 350, y: 48, w: 700, h: 16, fill: 0x64748b, propType: 'guardrail', solid: true, invisible: true },
+          { x: 550, y: 500, w: 80, h: 60, fill: C.desk, propType: 'desk', invisible: true, solid: true },
         ],
         labels: [],
         playerSpawn: { x: 350, y: 590 },
       },
       music: 'music_ch11_spins', // "The Spins" — Mac Miller; crossfades to music_ch11_space_song at the turn
       actors: [
-        { id: 'benji', x: 250, y: 560, nameOverride: 'Benji' },
+        { id: 'benji', x: 250, y: 560, nameOverride: 'Benji', spriteKey: 'npc_benji_sheet' },
         { id: 'maharko', x: 400, y: 320 },
-        { id: 'girl_chopped', x: 460, y: 160, nameOverride: 'the chopped girl', spriteKey: 'hero_girl1_raw_jpg' },
-        { id: 'girl_nonchopped', x: 260, y: 150, nameOverride: 'the other girl', spriteKey: 'hero_girl2_raw_jpg' },
+        { id: 'girl_chopped', x: 460, y: 160, nameOverride: 'the chopped girl', spriteKey: 'npc_girl_sheet' },
+        { id: 'girl_nonchopped', x: 260, y: 150, nameOverride: 'the other girl', spriteKey: 'npc_girl_sheet' },
       ],
     },
     {
@@ -69,51 +69,74 @@ const chapter11: ChapterConfig = {
         height: 800,
         backdrop: C.floorWood,
         theme: 'cabin',
+        noNatureScatter: true, // indoor scene — 'cabin' theme is otherwise treated as outdoor
         areaTitle: 'The Shenandoah Cabin',
+        // All furniture/wall rects below are collision-only (invisible: true) — the
+        // stage_cabin_interior backdrop already paints the full furnished floorplan
+        // (dining table, couches, TV, kitchen, bathroom, both bedrooms). Duplicate
+        // visible props here would double-render on top of the painted art.
+        //
+        // Wall coordinates below were measured directly from the backdrop art (pixel
+        // edge-detection on stage_cabin_interior.jpg, not eyeballed) — the previous
+        // rects were unaligned placeholders, which is why the player could walk
+        // through painted walls and get blocked by invisible ones in open floor.
         rects: [
-          { x: 600, y: 8, w: 1200, h: 16, fill: C.wall, solid: true },
-          { x: 310, y: 792, w: 580, h: 16, fill: C.wall, solid: true },
-          { x: 940, y: 792, w: 460, h: 16, fill: C.wall, solid: true },
-          { x: 8, y: 195, w: 16, h: 330, fill: C.wall, solid: true },
-          { x: 8, y: 615, w: 16, h: 310, fill: C.wall, solid: true },
-          { x: 1192, y: 400, w: 16, h: 800, fill: C.wall, solid: true },
+          { x: 600, y: 8, w: 1200, h: 16, fill: C.wall, solid: true, invisible: true },
+          { x: 176, y: 792, w: 312, h: 16, fill: C.wall, solid: true, invisible: true },
+          { x: 803, y: 792, w: 753, h: 16, fill: C.wall, solid: true, invisible: true },
+          { x: 13, y: 400, w: 26, h: 800, fill: C.wall, solid: true, invisible: true },
+          { x: 1188, y: 400, w: 25, h: 800, fill: C.wall, solid: true, invisible: true },
           { x: 600, y: 400, w: 1200, h: 800, fill: 0x000000, propKey: 'stage_cabin_interior', invisible: true },
-          { x: 820, y: 290, w: 16, h: 520, fill: C.wall, solid: true },
-          { x: 950, y: 65, w: 16, h: 70, fill: C.wall, solid: true },
-          { x: 950, y: 275, w: 16, h: 190, fill: C.wall, solid: true },
-          { x: 950, y: 545, w: 16, h: 210, fill: C.wall, solid: true },
-          { x: 950, y: 750, w: 16, h: 40, fill: C.wall, solid: true },
-          { x: 1060, y: 280, w: 220, h: 16, fill: C.wall, solid: true },
-          { x: 1060, y: 520, w: 220, h: 16, fill: C.wall, solid: true },
-          { x: 1060, y: 150, w: 90, h: 70, fill: C.desk, propType: 'bed', propKey: 'furn_bed_double', solid: true },
-          { x: 1130, y: 80, w: 30, h: 40, fill: C.desk, propType: 'desk', propKey: 'furn_nightstand', solid: true },
-          { x: 1000, y: 400, w: 50, h: 70, fill: 0xffffff, propKey: 'prop_red_toilet', solid: true },
-          { x: 1120, y: 340, w: 40, h: 40, fill: 0xe2e8f0, propType: 'sink', solid: true },
-          { x: 1000, y: 640, w: 40, h: 60, fill: C.desk, propType: 'bed', propKey: 'furn_bed_single', solid: true },
-          { x: 1120, y: 640, w: 40, h: 60, fill: C.desk, propType: 'bed', propKey: 'furn_bed_single', solid: true },
-          { x: 650, y: 650, w: 260, h: 40, fill: C.counter, propType: 'counter', solid: true },
-          { x: 780, y: 600, w: 50, h: 70, fill: C.fridge, propType: 'fridge', solid: true },
-          { x: 550, y: 600, w: 50, h: 40, fill: C.sink, propType: 'sink', solid: true },
-          { x: 150, y: 110, w: 70, h: 50, fill: C.desk, propType: 'desk', solid: true },
-          { x: 130, y: 90, w: 20, h: 60, fill: 0x3b2a1a, propType: 'desk', solid: true },
-          { x: 280, y: 350, w: 90, h: 80, fill: 0x8b1a1a, propType: 'couch', solid: true },
-          { x: 190, y: 520, w: 220, h: 70, fill: C.couch, propType: 'couch', propKey: 'furn_couch_long', solid: true },
-          { x: 60, y: 300, w: 20, h: 60, fill: C.tv, propType: 'tv', solid: true },
-          { x: 250, y: 650, w: 260, h: 120, fill: C.rug, propType: 'rug' },
+          // North wall — the clock/window/TV band is a wall, not floor.
+          { x: 370, y: 174, w: 692, h: 21, fill: C.wall, solid: true, invisible: true },
+          // Hallway (corridor) left wall, 3 segments — gaps are the living-room-open
+          // threshold and two doorways into the kitchen/entry room.
+          { x: 730, y: 197, w: 19, h: 342, fill: C.wall, solid: true, invisible: true },
+          { x: 730, y: 535, w: 19, h: 119, fill: C.wall, solid: true, invisible: true },
+          { x: 730, y: 741, w: 19, h: 111, fill: C.wall, solid: true, invisible: true },
+          // Hallway right wall, 4 segments — gaps are the 3 bedroom/bathroom doors.
+          { x: 863, y: 117, w: 23, h: 182, fill: C.wall, solid: true, invisible: true },
+          { x: 863, y: 335, w: 23, h: 70, fill: C.wall, solid: true, invisible: true },
+          { x: 863, y: 505, w: 23, h: 90, fill: C.wall, solid: true, invisible: true },
+          { x: 863, y: 716, w: 23, h: 161, fill: C.wall, solid: true, invisible: true },
+          // Top bedroom / bathroom divider, and bathroom / bottom bedroom divider.
+          { x: 1025, y: 312, w: 300, h: 17, fill: C.wall, solid: true, invisible: true },
+          { x: 1025, y: 472, w: 300, h: 16, fill: C.wall, solid: true, invisible: true },
+          // Top bedroom furniture
+          { x: 1002, y: 180, w: 120, h: 160, fill: C.desk, propType: 'bed', solid: true, invisible: true },
+          { x: 905, y: 150, w: 59, h: 66, fill: C.desk, propType: 'desk', solid: true, invisible: true },
+          { x: 1105, y: 150, w: 59, h: 66, fill: C.desk, propType: 'desk', solid: true, invisible: true },
+          // Bathroom fixtures
+          { x: 1002, y: 378, w: 43, h: 83, fill: 0xffffff, solid: true, invisible: true },
+          { x: 1062, y: 372, w: 45, h: 71, fill: 0xe2e8f0, propType: 'sink', solid: true, invisible: true },
+          { x: 1140, y: 400, w: 71, h: 125, fill: 0xe2e8f0, solid: true, invisible: true },
+          // Bottom bedroom furniture (Eric & Alex's room)
+          { x: 1087, y: 581, w: 148, h: 83, fill: C.desk, propType: 'bed', solid: true, invisible: true },
+          { x: 1087, y: 726, w: 148, h: 81, fill: C.desk, propType: 'bed', solid: true, invisible: true },
+          { x: 914, y: 521, w: 76, h: 71, fill: C.desk, propType: 'desk', solid: true, invisible: true },
+          { x: 1132, y: 655, w: 57, h: 54, fill: C.desk, propType: 'desk', solid: true, invisible: true },
+          // Kitchen
+          { x: 580, y: 650, w: 220, h: 40, fill: C.counter, propType: 'counter', solid: true, invisible: true },
+          { x: 690, y: 600, w: 50, h: 70, fill: C.fridge, propType: 'fridge', solid: true, invisible: true },
+          { x: 470, y: 600, w: 50, h: 40, fill: C.sink, propType: 'sink', solid: true, invisible: true },
+          // Living / dining room seating
+          { x: 198, y: 295, w: 112, h: 194, fill: C.desk, propType: 'desk', solid: true, invisible: true },
+          { x: 360, y: 430, w: 133, h: 110, fill: 0x8b1a1a, propType: 'couch', solid: true, invisible: true },
+          { x: 605, y: 271, w: 119, h: 165, fill: C.couch, propType: 'couch', solid: true, invisible: true },
         ],
         labels: [],
         playerSpawn: { x: 650, y: 740 },
       },
-      music: 'music_ch7', // Dark Beach — Pastel Ghost, shared with Ch7/Ch8's cabin
+      music: 'music_ch11_space_song', // "Space Song" — Beach House; continues from the Act 1 turn
       actors: [
         { id: 'eric', x: 1000, y: 690 },
-        { id: 'alex', x: 1120, y: 690 },
+        { id: 'alex', x: 1120, y: 690, spriteKey: 'npc_alex_sheet' },
         { id: 'jordan', x: 1000, y: 180 },
         { id: 'maharko', x: 1120, y: 180, nameOverride: 'Maharko (bed-bound)' },
         { id: 'nick_h', x: 200, y: 560 },
         { id: 'nick_f', x: 350, y: 600 },
         { id: 'leo', x: 420, y: 650, spriteKey: 'npc_benji_sheet' }, // TEMP STAND-IN — no Leo sheet exists yet, see order sheet
-        { id: 'benji', x: 550, y: 550, nameOverride: 'Benji (smoking)' },
+        { id: 'benji', x: 550, y: 550, nameOverride: 'Benji (smoking)', spriteKey: 'npc_benji_sheet' },
       ],
     },
     {
@@ -124,25 +147,27 @@ const chapter11: ChapterConfig = {
         backdrop: C.floorWood,
         theme: 'cabin',
         areaTitle: 'The Deck — Blue Ridge Overlook',
+        // Collision-only — stage_cabin_deck backdrop already paints the gazebo
+        // table/chairs, the Adirondack chair, and the grill.
         rects: [
-          { x: 400, y: 8, w: 800, h: 16, fill: 0x64748b, propType: 'guardrail', solid: true },
-          { x: 8, y: 300, w: 16, h: 600, fill: 0x64748b, propType: 'guardrail', solid: true },
-          { x: 400, y: 592, w: 800, h: 16, fill: 0x64748b, propType: 'guardrail', solid: true },
-          { x: 792, y: 139, w: 16, h: 262, fill: C.wall, solid: true },
-          { x: 792, y: 481, w: 16, h: 222, fill: C.wall, solid: true },
+          { x: 400, y: 8, w: 800, h: 16, fill: 0x64748b, propType: 'guardrail', solid: true, invisible: true },
+          { x: 8, y: 300, w: 16, h: 600, fill: 0x64748b, propType: 'guardrail', solid: true, invisible: true },
+          { x: 400, y: 592, w: 800, h: 16, fill: 0x64748b, propType: 'guardrail', solid: true, invisible: true },
+          { x: 792, y: 139, w: 16, h: 262, fill: C.wall, solid: true, invisible: true },
+          { x: 792, y: 481, w: 16, h: 222, fill: C.wall, solid: true, invisible: true },
           { x: 400, y: 300, w: 800, h: 600, fill: 0x000000, propKey: 'stage_cabin_deck', invisible: true },
-          { x: 150, y: 100, w: 20, h: 20, fill: 0x1e293b, solid: true },
-          { x: 450, y: 100, w: 20, h: 20, fill: 0x1e293b, solid: true },
-          { x: 150, y: 380, w: 20, h: 20, fill: 0x1e293b, solid: true },
-          { x: 450, y: 380, w: 20, h: 20, fill: 0x1e293b, solid: true },
-          { x: 300, y: 240, w: 60, h: 60, fill: C.desk, propType: 'desk', solid: true },
-          { x: 680, y: 120, w: 60, h: 50, fill: 0x1a1a1a, propType: 'firepit', solid: true },
-          { x: 150, y: 500, w: 40, h: 40, fill: 0x8b1a1a, propType: 'bench', invisible: true },
+          { x: 150, y: 100, w: 20, h: 20, fill: 0x1e293b, solid: true, invisible: true },
+          { x: 450, y: 100, w: 20, h: 20, fill: 0x1e293b, solid: true, invisible: true },
+          { x: 150, y: 380, w: 20, h: 20, fill: 0x1e293b, solid: true, invisible: true },
+          { x: 450, y: 380, w: 20, h: 20, fill: 0x1e293b, solid: true, invisible: true },
+          { x: 300, y: 240, w: 60, h: 60, fill: C.desk, propType: 'desk', solid: true, invisible: true },
+          { x: 680, y: 120, w: 60, h: 50, fill: 0x1a1a1a, propType: 'firepit', solid: true, invisible: true },
+          { x: 150, y: 500, w: 40, h: 40, fill: 0x8b1a1a, propType: 'bench', solid: true, invisible: true },
         ],
         labels: [],
         playerSpawn: { x: 740, y: 320 },
       },
-      music: 'music_ch7',
+      music: 'music_ch11_space_song',
       actors: [],
     },
   ],
@@ -155,23 +180,23 @@ const chapter11: ChapterConfig = {
     theme: 'suburb_night',
     areaTitle: 'The Balcony — One Floor Up',
     rects: [
-      { x: 350, y: 8, w: 700, h: 16, fill: C.wall, solid: true },
-      { x: 350, y: 652, w: 700, h: 16, fill: C.wall, solid: true },
-      { x: 8, y: 330, w: 16, h: 660, fill: C.wall, solid: true },
-      { x: 692, y: 330, w: 16, h: 660, fill: C.wall, solid: true },
+      { x: 350, y: 8, w: 700, h: 16, fill: C.wall, solid: true, invisible: true },
+      { x: 350, y: 652, w: 700, h: 16, fill: C.wall, solid: true, invisible: true },
+      { x: 8, y: 330, w: 16, h: 660, fill: C.wall, solid: true, invisible: true },
+      { x: 692, y: 330, w: 16, h: 660, fill: C.wall, solid: true, invisible: true },
       { x: 350, y: 330, w: 700, h: 660, fill: 0x000000, propKey: 'stage_oc_balcony_night', invisible: true },
-      { x: 350, y: 622, w: 700, h: 40, fill: C.wall, propType: 'wall', solid: true },
-      { x: 350, y: 48, w: 700, h: 16, fill: 0x64748b, propType: 'guardrail', solid: true },
-      { x: 550, y: 500, w: 80, h: 60, fill: C.desk, propType: 'desk', invisible: true },
+      { x: 350, y: 622, w: 700, h: 40, fill: C.wall, propType: 'wall', solid: true, invisible: true },
+      { x: 350, y: 48, w: 700, h: 16, fill: 0x64748b, propType: 'guardrail', solid: true, invisible: true },
+      { x: 550, y: 500, w: 80, h: 60, fill: C.desk, propType: 'desk', invisible: true, solid: true },
     ],
     labels: [],
     playerSpawn: { x: 350, y: 590 },
   },
   actors: [
-    { id: 'benji', x: 250, y: 560, nameOverride: 'Benji' },
+    { id: 'benji', x: 250, y: 560, nameOverride: 'Benji', spriteKey: 'npc_benji_sheet' },
     { id: 'maharko', x: 400, y: 320 },
-    { id: 'girl_chopped', x: 460, y: 160, nameOverride: 'the chopped girl', spriteKey: 'hero_girl1_raw_jpg' },
-    { id: 'girl_nonchopped', x: 260, y: 150, nameOverride: 'the other girl', spriteKey: 'hero_girl2_raw_jpg' },
+    { id: 'girl_chopped', x: 460, y: 160, nameOverride: 'the chopped girl', spriteKey: 'npc_girl_sheet' },
+    { id: 'girl_nonchopped', x: 260, y: 150, nameOverride: 'the other girl', spriteKey: 'npc_girl_sheet' },
   ],
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -330,10 +355,10 @@ const chapter11: ChapterConfig = {
       speakers: [{ x: 100, y: 350, id: 'rung1_tv' }],
       redHerrings: [
         { x: 250, y: 650, bark: 'Nick H checks under the rug. Nothing.' },
-        { x: 130, y: 90, bark: 'Someone checks behind the grandfather clock. Nothing.' },
+        { x: 130, y: 210, bark: 'Someone checks behind the grandfather clock. Nothing.' },
         { x: 280, y: 350, bark: 'Someone checks the recliner. Nothing.' },
       ],
-      barricade: { doorX: 950, doorY: 690 },
+      barricade: { doorX: 863, doorY: 593 },
       timeLimitMs: 60000,
     }, introLines: ["Eric and Alex flip the switch.", "Somewhere in the living room, Ultraphonk starts blasting."], background: false, loseGoto: 'night1_found_it_late' },
 
@@ -378,7 +403,7 @@ const chapter11: ChapterConfig = {
         { x: 190, y: 520, id: 'rung2_pullout', requiresExtract: true },
         { x: 80, y: 720, id: 'rung2_corner', requiresExtract: true },
       ],
-      barricade: { doorX: 950, doorY: 690 },
+      barricade: { doorX: 863, doorY: 593 },
       timeLimitMs: 90000,
     }, introLines: ["Night two.", "It's under someone this time."], background: false, loseGoto: 'night2_found_it_late' },
 
@@ -426,8 +451,8 @@ const chapter11: ChapterConfig = {
     { id: 'night3_hunt', type: 'minigame', modeId: 'speakerHunt', config: {
       night: 3,
       speakers: [{ x: 1000, y: 400, id: 'rung3_bathroom' }],
-      locked: { doorX: 950, doorY: 405 },
-      barricade: { doorX: 950, doorY: 690 },
+      locked: { doorX: 863, doorY: 415 },
+      barricade: { doorX: 863, doorY: 593 },
       timeLimitMs: 180000,
     }, introLines: ["Night three.", "This time, it's behind a locked door."], background: false },
 
