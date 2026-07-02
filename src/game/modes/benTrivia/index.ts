@@ -16,6 +16,12 @@ const COLOR_CAN = 0x16a34a;
 const COLOR_CANT = 0xdc2626;
 const COLOR_BG = 0x0b1208;
 
+// Claim card auto-shrinks between these sizes to keep long claims from
+// overflowing their fixed slot (see cardTopY in start()).
+const CARD_FONT_MAX = 22;
+const CARD_FONT_MIN = 13;
+const CARD_MAX_LINES = 3;
+
 /** Chapter-tunable knobs; everything falls back to DEFAULT_ROUND. */
 export interface BenTriviaConfig {
   count?: number;
@@ -58,6 +64,7 @@ export class BenTriviaMode implements GameMode<BenTriviaConfig> {
 
   // Layout anchors resolved in start().
   private cx = 0;
+  private cardTopY = 0;
   private barLeft = 0;
   private barW = 0;
   private canX = 0;
@@ -131,24 +138,29 @@ export class BenTriviaMode implements GameMode<BenTriviaConfig> {
       fontSize: '12px', color: '#f87171', fontStyle: 'bold',
     }).setOrigin(1, 0.5).setScrollFactor(0).setDepth(D + 2)) as Phaser.GameObjects.Text;
 
-    // Claim card.
-    const wrapW = Math.min(visW * 0.82, 440);
-    this.cardText = this.track(ctx.label(this.cx, cy - visH * 0.12, '', {
-      fontSize: '22px', color: '#f8fafc', fontStyle: 'bold', align: 'center',
+    // Claim card. Top-anchored (origin y=0) at a fixed slot so long, multi-line
+    // claims ("pretend to be drunk at home alone on parents alc (Embarrassing)")
+    // grow downward only — a center anchor would expand upward into the HUD row
+    // and downward into the timer bar/token for long text. showCard() also
+    // shrinks the font for long claims to keep the whole card in its slot.
+    const wrapW = Math.min(visW * 0.9, 480);
+    this.cardTopY = cy - visH * 0.24;
+    this.cardText = this.track(ctx.label(this.cx, this.cardTopY, '', {
+      fontSize: `${CARD_FONT_MAX}px`, color: '#f8fafc', fontStyle: 'bold', align: 'center',
       wordWrap: { width: wrapW },
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(D + 2)) as Phaser.GameObjects.Text;
+    }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(D + 2)) as Phaser.GameObjects.Text;
 
     // Timer bar (background track + shrinking fill).
     this.barW = Math.min(visW * 0.6, 320);
     this.barLeft = this.cx - this.barW / 2;
-    const barY = cy + visH * 0.02;
+    const barY = cy + visH * 0.08;
     this.track(ctx.add.rectangle(this.cx, barY, this.barW, 8, 0x1e293b)
       .setScrollFactor(0).setDepth(D + 1));
     this.timerBar = this.track(ctx.add.rectangle(this.barLeft, barY, this.barW, 8, 0xfacc15)
       .setOrigin(0, 0.5).setScrollFactor(0).setDepth(D + 2)) as Phaser.GameObjects.Rectangle;
 
     // Pads.
-    this.padY = cy + visH * 0.24;
+    this.padY = cy + visH * 0.28;
     const padW = Math.min(visW * 0.34, 150);
     const padH = 48;
     this.canX = this.cx - visW * 0.24;
@@ -164,7 +176,7 @@ export class BenTriviaMode implements GameMode<BenTriviaConfig> {
     }).setOrigin(0.5).setScrollFactor(0).setDepth(D + 4)) as Phaser.GameObjects.Text;
 
     // Feedback line (per-answer flash).
-    this.feedbackText = this.track(ctx.label(this.cx, cy + visH * 0.1, '', {
+    this.feedbackText = this.track(ctx.label(this.cx, cy + visH * 0.16, '', {
       fontSize: '16px', color: '#facc15', fontStyle: 'bold',
       stroke: '#000000', strokeThickness: 3,
     }).setOrigin(0.5).setScrollFactor(0).setDepth(D + 4)) as Phaser.GameObjects.Text;
@@ -222,7 +234,7 @@ export class BenTriviaMode implements GameMode<BenTriviaConfig> {
       return;
     }
     const claim = this.deck[this.index];
-    this.cardText?.setText(claim.text);
+    this.setCardText(claim.text);
     this.feedbackText?.setText('');
 
     // Reset the token to center-above-pads.
@@ -293,6 +305,17 @@ export class BenTriviaMode implements GameMode<BenTriviaConfig> {
         this.showCard();
       }
     });
+  }
+
+  /** Sets the card copy, shrinking the font until it fits CARD_MAX_LINES. */
+  private setCardText(text: string): void {
+    if (!this.cardText) return;
+    this.cardText.setFontSize(CARD_FONT_MAX).setText(text);
+    let size = CARD_FONT_MAX;
+    while (this.cardText.getWrappedText().length > CARD_MAX_LINES && size > CARD_FONT_MIN) {
+      size -= 2;
+      this.cardText.setFontSize(size);
+    }
   }
 
   private flingToken(toward: Verdict, correct: boolean): void {

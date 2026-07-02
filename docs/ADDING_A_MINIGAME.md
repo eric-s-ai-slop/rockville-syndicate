@@ -111,8 +111,43 @@ These bit the `benTrivia` build and aren't obvious from the interface:
   opaque bg rect so it covers the viewport at any scroll/zoom.
 - **Always use `ctx.label(...)`, never `add.text`** — `label()` applies the DPR
   resolution fix; raw text renders blurry.
+- **Variable-length text (CSV/data-driven copy) needs top-anchoring + auto-shrink,
+  not a fixed center anchor.** If your card/prompt text length varies (e.g. a
+  quiz drawing from a content file), a `setOrigin(0.5)` block wraps to N lines and
+  grows both up *and* down from its anchor — a long line silently collides with
+  whatever's below it (timer bar, buttons, token). `benTrivia`'s longest claim
+  ("pretend to be drunk at home alone on parents alc (Embarrassing)") wrapped to 5
+  lines and overlapped the pads until fixed. The pattern: `setOrigin(0.5, 0)` at a
+  fixed top-Y so it only grows downward, plus shrink the font size in a loop until
+  `text.getWrappedText().length` fits a line cap. See `setCardText()` in
+  `benTrivia/index.ts`.
 
-## 7. Verify
+## 7. Playtest Before You Wire It Into a Chapter
+
+You don't need to commit to a host chapter to try a mode out. `getMode()` /
+`registerMode()` make it reachable the moment it's registered — the chapter beat
+is just *one* entry point.
+
+Fastest loop, no permanent chapter edits:
+
+1. Temporarily insert a `minigame` beat as the **first** beat of any chapter you
+   can already reach in dev (e.g. `src/data/chapters/chapter0.maria-brooke.ts`).
+2. `npm run dev`, click through character select into that chapter. Since the
+   scene reloads chapter data on each full page load, edits to the beat/config
+   take effect on refresh — no dev-server restart needed for beat changes (do
+   restart if you touched non-chapter source, per the CLAUDE.md caching note).
+3. In the browser devtools console, `window.__OMEGA_GAME__` (dev-only global) lets
+   you introspect live state without guessing from the screen:
+   ```js
+   const scene = window.__OMEGA_GAME__.scene.getScene('ChapterScene');
+   scene.beatIndex;        // which beat is active
+   scene.activeMode?.id;   // the running mode's id, or null
+   ```
+4. **Revert the temporary beat** once you're done — `git diff --stat` on the
+   chapter file should show no changes before you move on to picking its real
+   home (or wiring it there for real).
+
+## 8. Verify
 
 ```bash
 npm run lint        # tsc --noEmit
