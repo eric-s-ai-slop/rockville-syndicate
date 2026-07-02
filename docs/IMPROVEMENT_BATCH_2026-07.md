@@ -112,7 +112,7 @@ benTrivia remains unwired for now.
   `modes/index.ts`, zero references).
 - Sequence after item 3 (both touch bossFight's import surface).
 
-### ⬜ 6. Extract SettingsModal, HallOfRecords, ChapterCompleteScreen from GameLayout (M)
+### ✅ 6. Extract SettingsModal, HallOfRecords, ChapterCompleteScreen from GameLayout (M)
 
 **Files:** `src/components/GameLayout.tsx` → new `src/components/SettingsModal.tsx`,
 `HallOfRecords.tsx`, `ChapterCompleteScreen.tsx`.
