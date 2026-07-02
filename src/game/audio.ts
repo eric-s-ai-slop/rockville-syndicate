@@ -13,9 +13,12 @@ import ch6Url   from '../assets/audio/stage_music/ben_music(in the hall of the m
 import ch7Url          from '../assets/audio/stage_music/chapter7PASTEL GHOST  DARK BEACH.mp3?url';
 import ch7MariaBrookeUrl from '../assets/audio/stage_music/Craspore - Flashbacks (slowed).mp3?url';
 import ch9Url   from '../assets/audio/stage_music/SUMMER2026_FIRSTPOOLPARTY(Glass Animals - Heat Waves).mp3?url';
+import ch11SpinsUrl from '../assets/audio/stage_music/chapter11 the spins (mac miller).mp3?url';
+import ch11SpaceSongUrl from '../assets/audio/stage_music/chapter11 space song (beach house).mp3?url';
 import sfxMessageDingUrl from '../assets/audio/IPHONE NOTIFICATION SOUND EFFECT (PINGDING).mp3?url';
 import bossUrl  from '../assets/audio/boss_music/Prowler Sound Effect.mp3?url';
 import bossTetrisUrl from '../assets/audio/boss_music/Techno - Tetris (Remix).mp3?url';
+import ultraphonkUrl from '../assets/audio/ultraphonk (phonk).mp3?url';
 
 import fc0 from '../assets/audio/kenney_impact-sounds/Audio/footstep_carpet_000.ogg?url';
 import fc1 from '../assets/audio/kenney_impact-sounds/Audio/footstep_carpet_001.ogg?url';
@@ -48,6 +51,10 @@ export const CHAPTER_MUSIC_KEY: Record<string, string> = {
   spain_betrayal:       'music_ch7',
   cabin_basye:          'music_ch7',  // Dark Beach (Pastel Ghost) — moody night-cabin atmosphere
   suds_and_soles_pool_party: 'music_ch9',
+  // cabin_from_hell_2025: no chapter-level key — per-scene music handles it via scenes[].music.
+  //   Scene 0: 'music_ch11_spins' ("The Spins" — Mac Miller), crossfades to
+  //   'music_ch11_space_song' ("Space Song" — Beach House) mid-scene via a
+  //   `changeMusic` beat at the Act 1 turn. Scenes 1 & 2: 'music_ch7' (Dark Beach).
 };
 
 // Phaser audio key → URL, for preloading only this chapter's track
@@ -62,6 +69,8 @@ export const STAGE_MUSIC_URL: Record<string, string> = {
   music_maria_brooke:  ch7MariaBrookeUrl,
   music_ch9:           ch9Url,
   music_umbc_basement: umbcBasementUrl,
+  music_ch11_spins:      ch11SpinsUrl,
+  music_ch11_space_song: ch11SpaceSongUrl,
 };
 
 // Ambient SFX (not stage music — loaded via ChapterScene preload)
@@ -69,6 +78,7 @@ export const CROWD_MURMUR_URL    = crowdMurmurUrl;    // sfx_crowd_murmur: basem
 export const CRICKET_AMBIENT_URL = cricketAmbientUrl;  // sfx_parking_ambient: storyFractures mode
 
 export const SFX_MESSAGE_DING_URL = sfxMessageDingUrl;  // groupChat minigame — DM notification
+export const ULTRAPHONK_URL = ultraphonkUrl;  // speakerHunt minigame — diegetic Nights 1-3 loop
 
 export const BOSS_MUSIC_URL = bossUrl;   // Prowler sting (plays once on boss intro)
 export const BOSS_LOOP_URL = bossTetrisUrl; // Techno-Tetris loop (plays after sting)

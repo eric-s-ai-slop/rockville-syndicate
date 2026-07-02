@@ -153,6 +153,7 @@ export type Beat = { id?: string } & (
   | { type: 'ledger'; delta: number; note: string }
   | { type: 'stopAllAudio'; fadeMs?: number }
   | { type: 'changeScene'; sceneIndex: number; transitionMs?: number }
+  | { type: 'changeMusic'; key: string; fadeMs?: number }
   | { type: 'endChapter' }
 );
 

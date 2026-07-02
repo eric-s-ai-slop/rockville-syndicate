@@ -42,6 +42,7 @@ export class BeatEngine {
       case 'routeOnMinigame': return this.runRouteOnMinigame(beat);
       case 'stopAllAudio': this.scene.stopAllAudio(beat.fadeMs); return this.advanceBeat();
       case 'changeScene': return this.scene.transitionToScene(beat.sceneIndex, beat.transitionMs, () => this.advanceBeat());
+      case 'changeMusic': this.scene.audioController.crossfadeToMusic(beat.key); return this.advanceBeat();
       case 'endChapter': return this.scene.runEndChapter();
     }
   }

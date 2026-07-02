@@ -14,12 +14,14 @@ build a new mode, copy [_template/](_template/) and follow `docs/ADDING_A_MINIGA
 | `basementScene` | Ch3b ×2 | none | background |
 | `stewOffering` | Ch3b | none | blocking |
 | `fratAggro` | Ch3b | none | blocking |
-| `silentDrive` | Ch3b | none | blocking |
-| `storyFractures` | Ch3b | inline in chapter3b | blocking |
+| `silentDrive` | Ch3b, Ch11 | optional — `title?`, `askerId?/askerLabel?/askerColor?`, `responderId?/responderLabel?/responderColor?`, `promptOptions?`, `responsePool?`, `rounds?` (all fall back to Ch3b's original Maharko/Ben content) | blocking |
+| `storyFractures` | Ch3b, Ch11 | inline `storySegments[]` per call site — see [storyFractures/index.ts](storyFractures/index.ts) | blocking |
 | `battleiq-battle` | Ch5b ×2 | `{ enemyId }` → iframe (`external` factory) | blocking, suspends Omega |
 | `poolParty` | Ch9 | none | background |
 | `benTrivia` | — unwired | `BenTriviaConfig` ([benTrivia/index.ts](benTrivia/index.ts)): `count?`, `perPromptMs?`, `minPromptMs?`, `strikesAllowed?`, `seed?` (defaults 16/3500/1800/3) | blocking |
 | `carRide` | — unwired (planned: Ch2) | `CarRideConfig` ([carRide/carRide.ts](carRide/carRide.ts)): boss name, timed phases, responses, barks | blocking |
+| `speakerHunt` | Ch11 ×3 (Nights 1-3) | `SpeakerHuntConfig` ([speakerHunt/index.ts](speakerHunt/index.ts)): `night`, `speakers[]`, `redHerrings?`, `locked?`, `barricade`, `timeLimitMs` | blocking |
+| `cabinCollapse` | Ch11, re-registered ~6x | `CabinCollapseConfig` ([cabinCollapse/index.ts](cabinCollapse/index.ts)): `startDay`, `meters{water,ac,bugs,illness}` | background, unwinnable by design |
 
 `classroomAmbience/` exists on disk but is NOT registered — dead code, slated for deletion.
 
@@ -32,6 +34,10 @@ build a new mode, copy [_template/](_template/) and follow `docs/ADDING_A_MINIGA
   other modes.
 - `background: true` modes run concurrently with story beats (react via `onDialogue()`),
   and must not freeze the player.
+- `activeMode` is torn down on **every** `changeScene` transition, not just when another
+  mode displaces it (`ChapterScene.transitionToScene`). A background mode that must
+  survive a scene change needs a fresh `minigame` beat re-registering it after the
+  `changeScene` beat.
 - `external` modes mount an iframe (`ExternalGameFrame.tsx`, postMessage handshake
   ready→start→complete) and duck the music. Payloads live in `public/minigames/<gameId>/`.
 

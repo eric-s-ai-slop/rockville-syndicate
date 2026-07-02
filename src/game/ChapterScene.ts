@@ -57,7 +57,7 @@ import {
   THEME_FOOTSTEP, FOOTSTEP_URLS,
   UI_SELECT_URL, VICTORY_JINGLE_URL, KNOCK_URL,
   CROWD_MURMUR_URL, CRICKET_AMBIENT_URL,
-  SFX_MESSAGE_DING_URL,
+  SFX_MESSAGE_DING_URL, ULTRAPHONK_URL,
 } from './audio';
 
 // ─── R1/R2: Stage & car prop images (Vite ?url for special-char filenames) ──────
@@ -99,6 +99,11 @@ import sophiaPoolUrl     from '../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/soph
 import samPoolUrl        from '../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/sam_f(pool).jpg?url';
 import poolMapDayUrl     from '../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/pool_map(day).jpg?url';
 import poolMapNightUrl   from '../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/pool_map(night).jpg?url';
+
+// Ch11: Cabin From Hell — OC balcony + Shenandoah cabin stage images
+import stageOcBalconyNightUrl from '../assets/images/game_decor/stages/stage_oc_balcony_night.jpg?url';
+import stageCabinInteriorUrl  from '../assets/images/game_decor/stages/stage_cabin_interior.jpg?url';
+import stageCabinDeckUrl      from '../assets/images/game_decor/stages/stage_cabin_deck.jpg?url';
 
 // RUN-3: owner-added asset-pack JPGs (gray bg, extracted at runtime via packSpriteAtlas)
 import packTollboothUrl from '../assets/images/game_decor/special/toolbooth.jpg?url';
@@ -396,6 +401,11 @@ export default class ChapterScene extends Phaser.Scene {
     this.safeLoadImage('prop_jordan_mustang', propJordanMustangUrl);
     this.safeLoadImage('prop_maharko_camero', propMaharkoCameroUrl);
     this.safeLoadImage('prop_nick_f_corolla', propNickFCorollaUrl);
+    // Ch11: Cabin From Hell
+    this.safeLoadImage('stage_oc_balcony_night', stageOcBalconyNightUrl);
+    this.safeLoadImage('stage_cabin_interior', stageCabinInteriorUrl);
+    this.safeLoadImage('stage_cabin_deck', stageCabinDeckUrl);
+    this.audioController.safeLoadAudio('sfx_ultraphonk', ULTRAPHONK_URL);
 
     // R16: Nature flora
     this.safeLoadImage('nature_flower_1', natureFlower1Url);
@@ -452,6 +462,15 @@ export default class ChapterScene extends Phaser.Scene {
       if (scene.music && scene.music !== musicKey) {
         const url = STAGE_MUSIC_URL[scene.music];
         if (url) this.safeLoadAudio(scene.music, url);
+      }
+    }
+
+    // Pre-load music for every `changeMusic` beat's target key so a mid-scene
+    // crossfade has the track ready (crossfadeToMusic no-ops on an unloaded key).
+    for (const beat of this.chapter.beats ?? []) {
+      if (beat.type === 'changeMusic') {
+        const url = STAGE_MUSIC_URL[beat.key];
+        if (url) this.safeLoadAudio(beat.key, url);
       }
     }
     this.safeLoadAudio('boss_sting', BOSS_MUSIC_URL);

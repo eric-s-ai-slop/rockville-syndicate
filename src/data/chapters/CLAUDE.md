@@ -22,7 +22,8 @@ to the next unless a jump redirects.
 | `wait` | `ms` | |
 | `ledger` | `delta`, `note` | The running money gag |
 | `stopAllAudio` | `fadeMs?` | |
-| `changeScene` | `sceneIndex`, `transitionMs?` | Multi-scene chapters only (`scenes[]`) |
+| `changeScene` | `sceneIndex`, `transitionMs?` | Multi-scene chapters only (`scenes[]`); tears down `activeMode` unconditionally |
+| `changeMusic` | `key`, `fadeMs?` | Crossfades stage music mid-scene (no `changeScene` needed). `key` must already be loaded (`STAGE_MUSIC_URL`) |
 | `endChapter` | — | |
 
 ## Routing patterns
