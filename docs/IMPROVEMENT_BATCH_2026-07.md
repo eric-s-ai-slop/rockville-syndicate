@@ -145,9 +145,9 @@ benTrivia remains unwired for now.
 ## Verification
 
 1. `npm run lint` (tsc) + `npm run lint:es` after every item — items 5/6 live or die by tsc.
-2. `npm test` — extend `src/data/chapters.test.ts` content linter to validate `loseGoto`
-   and choice-`goto` targets against beat ids if not already covered; add unit test for
-   the extracted phase-threshold function (item 3).
+2. `npm test` — the `src/data/chapters.test.ts` content linter already validates
+   choice-`goto`, `loseGoto`, and `routeOnMinigame` targets (verified 2026-07-02, no
+   extension needed); add a unit test for the extracted phase-threshold function (item 3).
 3. `npm run e2e` locally (some full-playthrough specs are CI-skipped).
 4. Manual playtest on `npm run dev` (port 3324) with **full server restart** after edits
    (Vite transform cache gotcha): Ch8 each of the three endings
