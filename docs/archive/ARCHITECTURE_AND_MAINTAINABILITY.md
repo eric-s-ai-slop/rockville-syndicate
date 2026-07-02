@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical planning/handoff doc. May not reflect current code; verify against the source before acting on any item.
+
 # Track G — Architecture, Best Practices & Maintainability (Execution Spec)
 
 **Budget:** ~12h, split across engineers · **Phase:** 0 (tooling/docs) + 2 (refactors).

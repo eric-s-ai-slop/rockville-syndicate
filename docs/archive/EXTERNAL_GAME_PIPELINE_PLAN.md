@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical planning/handoff doc. May not reflect current code; verify against the source before acting on any item.
+
 # Handoff: `ExternalGameMode` — an iframe pipeline for ingesting standalone games as minigames
 
 > **For an AI agent (Gemini) executing cold.** Read fully before starting. This builds a **reusable pipeline** so that a standalone web game (vanilla JS/HTML/CSS — e.g. the `battleiq/` project) can be dropped into Omega and played as a self-contained **minigame**, sandboxed in an iframe, with near-zero per-game work. The Undertale battle is the **first ingest**, used to prove the pipeline.

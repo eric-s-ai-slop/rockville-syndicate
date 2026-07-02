@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical planning/handoff doc. May not reflect current code; verify against the source before acting on any item.
+
 # SCRATCHPAD — Project Omega: The Rockville Syndicate
 
 This file is the working notepad for the current agent session. Updated as work progresses.

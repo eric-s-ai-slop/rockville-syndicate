@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical planning/handoff doc. May not reflect current code; verify against the source before acting on any item.
+
 # Battlefield Report: The Rockville Syndicate vs. BattleIQ
 
 **Classification:** Architectural Intelligence / Dev War Dossier

@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical planning/handoff doc. May not reflect current code; verify against the source before acting on any item.
+
 # Handoff: Restructure Project Omega for an Agent-Maintainable Minigame Architecture
 
 > **This document is written for an AI coding agent (Gemini) executing cold, with no prior session context.** Read the whole thing before starting. Follow the Ground Rules at every step. Do the phases in order; each is an independently shippable PR that leaves the game fully playable.

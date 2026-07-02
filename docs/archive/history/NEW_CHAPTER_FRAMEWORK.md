@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical planning/handoff doc. May not reflect current code; verify against the source before acting on any item.
+
 # New Chapter Implementation Framework
 
 **Purpose:** Step-by-step recipe for adding a chapter. Follow in order. Do not skip steps. Each step names the exact file, exact location, and exact code to write.

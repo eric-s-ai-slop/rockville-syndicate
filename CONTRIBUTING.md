@@ -3,7 +3,7 @@
 Conventions that keep the codebase maintainable and parallel work from colliding.
 The technical design lives in [`ARCHITECTURE.md`](ARCHITECTURE.md); the hard-won gotchas are in [`CLAUDE.md`](CLAUDE.md).
 
-> **Rule zero: verify against the code, never the docs.** Files under `docs/history/` are archived
+> **Rule zero: verify against the code, never the docs.** Files under `docs/archive/` are archived
 > and describe earlier builds — many "TODO" items there are already done. Trust the source.
 
 ---
@@ -57,7 +57,7 @@ CI runs automatically on every push and PR to `main` (see `.github/workflows/ci.
 - **New logic ships with a test** — especially anything in `modes/` or `BeatEngine`.
 - **Update the living docs in the same PR** as the behavior change. Drift is how the old
   handoffs became unreliable. Living docs: `CLAUDE.md`, `ARCHITECTURE.md`, `CONTRIBUTING.md`,
-  and the `docs/TRACK_*.md` specs.
+  `README.md`, and `ROADMAP.md`.
 
 ---
 

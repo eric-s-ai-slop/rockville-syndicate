@@ -24,25 +24,34 @@ src/
       ...                            # Per-chapter configs (Chapters 1 to 9)
   game/
     ChapterScene.ts                  # Phaser Scene orchestrator (creates and wires subsystems)
+    SpritePreprocessor.ts            # Sprite atlasing and frame extraction pipeline
+    settings.ts                      # THE persistence layer (omega-save-v2 blob)
     scene/
       Actors.ts                      # Spawns actor sprites, updates animations, processes understudies
+      Atmosphere.ts                  # Per-theme lighting, floor patterns, ambient visuals
       AudioController.ts             # Manages stage music tracks, boss loops, and sound effects
       BeatEngine.ts                  # Dispatches and executes story beats (dialogue, choices, pans)
       MapBuilder.ts                  # Draws floor layouts, scattered nature, and interactive props
+      PlayerController.ts            # Player movement input, collision, animation state
+      SpriteLoader.ts                # Asset loading pipeline for character/prop sprites
     modes/
       types.ts                       # GameMode interface, ModeContext facade, and ModeResult
       index.ts                       # Mode registry: registerMode() & getMode()
       bossFight/                     # Combat minigame mode (boss movement, attack AI, HP overlays)
       poolParty/                     # Background minigame mode (Chapter 9 pool entrance script)
+      benTrivia/                     # "CAN BEN…?" slam-sorting trivia minigame
+      ...                            # 12 registered modes total — see modes/index.ts
       _template/                     # Reference template for implementing new minigames
 docs/
   ADDING_A_MINIGAME.md               # Guide for implementing and registering new minigame modes
+  IMPROVEMENT_BATCH_2026-07.md       # Active improvement plan (gameplay + structure batch)
+  archive/                           # Historical planning docs — do not act on without verifying
 ```
 
 ## 4. Hard-Won Gotchas (Do NOT Violate)
-- **Verify against code, not docs.** `docs/history/HANDOFF.md` and `plans/sprint3/qa/` describe an earlier build — many items listed as TODO are already done. The living references are `CLAUDE.md`, `docs/ARCHITECTURE_AND_MAINTAINABILITY.md`, and the `docs/TRACK_*.md` specs. Never act on a handoff or QA report without checking the current source first.
+- **Verify against code, not docs.** Everything under `docs/archive/` (the old TRACK_* specs, `HANDOFF.md`, sprint plans, QA reports) describes earlier builds — many items listed as TODO are already done. The living references are `CLAUDE.md`, `ARCHITECTURE.md`, `ROADMAP.md`, and `docs/IMPROVEMENT_BATCH_2026-07.md`. Never act on an archived doc without checking the current source first.
 - **Persisted state goes through `src/game/settings.ts` only.** No new ad-hoc `localStorage` keys. All settings + progress + Hall of Records live in the `omega-save-v2` blob.
-- **`battleiq/`** is the legacy standalone JS prototype that predates the React/Phaser rewrite. It is referenced as the payload for the `external` game mode but is otherwise out of scope. Do not edit it.
+- **`battleiq/`** is the legacy standalone JS prototype that predates the React/Phaser rewrite. The copy the game actually serves is `public/minigames/battleiq/` (adapted with `index.html` + `omega-bridge.js` for the `external` mode's iframe bridge); the root `battleiq/` is the original source for reference only. Do not edit either. See `battleiq/README.md`.
 - **Never call a side effect inside a React `setState` updater.** The app is wrapped in `<StrictMode>` (`src/main.tsx`), which double-invokes updater functions in dev. A past bug: calling `done()`/`advanceBeat()` inside `setActiveStory(prev => …)` fired the beat advance twice and skipped every other beat. Pattern to keep: mirror state into a ref, read the ref, then run `setState(...)` and the side effect **outside** the updater. Any React→Phaser bridge callback must follow this. (See `src/components/GameLayout.tsx`.)
 - **Canvas sizing is driven from the scene's `update()` loop** (`syncCanvasToParent()` every RAF frame), NOT from React. Phaser `Scale.RESIZE`, `ResizeObserver`, and `setInterval` all proved unreliable in headless/embedded contexts. Keep `syncCanvasToParent()` running every frame. The React-side ResizeObserver in `GameLayout.tsx` is a redundant backup — leave it.
 - **Do NOT call `cameras.main.setBounds(0,0,1000,1000)`.** Black bars on wide viewports were fixed with `setBackgroundColor(0x16331a)` + an oversized grass rect + scattered trees beyond bounds. The player is confined by physics world bounds + perimeter walls, not camera bounds. Re-adding camera bounds reintroduces the framing bug.

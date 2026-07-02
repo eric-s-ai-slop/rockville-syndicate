@@ -17,7 +17,6 @@ export default tseslint.config(
     ignores: [
       'dist/**',
       'node_modules/**',
-      'db_data/**',
       'test-results/**',
       'public/**',
       'battleiq/**', // legacy standalone JS prototype — out of scope

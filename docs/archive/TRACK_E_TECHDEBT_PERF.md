@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical planning/handoff doc. May not reflect current code; verify against the source before acting on any item.
+
 # Track E — Tech Debt, Performance & Test Coverage (Execution Spec)
 
 **Lane:** split — E1 → 🟦 Engineer C (their files); E2/E3 → 🟥 Engineer A (hot path + combat).

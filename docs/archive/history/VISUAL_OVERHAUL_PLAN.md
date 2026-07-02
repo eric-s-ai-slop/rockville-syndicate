@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical planning/handoff doc. May not reflect current code; verify against the source before acting on any item.
+
 # Project Omega — Visual Overhaul Plan ("Stop Looking Like AI Slop")
 
 This document is a self-contained work order. Any agent picking up a phase should read this file, the listed source files, and nothing else to get started. Phases are ordered by visual impact per hour of work. **Do each phase in its own session/branch and verify in the browser before moving on.**

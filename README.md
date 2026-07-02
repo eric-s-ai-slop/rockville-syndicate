@@ -136,7 +136,9 @@ Interactive segments implement the `GameMode` contract in [`src/game/modes/types
 | `fratAggro` | `modes/fratAggro/` | Frat aggression encounter |
 | `silentDrive` | `modes/silentDrive/` | Quiet driving interlude |
 | `groupChat` | `modes/groupChat/` | Simulated group-chat timeline (parser, reactions, timeline) |
-| `carRide` | `modes/carRide/` | Car ride sequence (Maharko boss fight) |
+| `complicityReport` | `modes/complicityReport/` | Full-screen complicity report card takeover (Chapter 0) |
+| `benTrivia` | `modes/benTrivia/` | "CAN BEN…?" slam-sorting trivia under a timer |
+| `carRide` | `modes/carRide/` | Timed in-car dialogue battle (config-driven phases) |
 | `external` | `modes/external/` | Loads external minigames (e.g. BattleIQ) |
 
 The [`modes/_template/`](src/game/modes/_template/) directory is a copyable reference. To build a new one, follow [`docs/ADDING_A_MINIGAME.md`](docs/ADDING_A_MINIGAME.md).
@@ -250,6 +252,9 @@ project-omega_-the-rockville-syndicate/
 │       └── refs/                    # Reference voice samples
 │
 ├── e2e_tests/
+│   ├── chapters_smoke.spec.ts       # Full-playthrough smoke test per chapter
+│   ├── chapter0_minigames.spec.ts
+│   ├── chapter9_pool_party.spec.ts
 │   ├── game.spec.ts
 │   ├── playtest_umbc.spec.ts
 │   ├── test_stew.spec.ts
@@ -257,18 +262,12 @@ project-omega_-the-rockville-syndicate/
 │
 ├── docs/
 │   ├── ADDING_A_MINIGAME.md         # Minigame implementation guide
-│   ├── ARCHITECTURE_AND_MAINTAINABILITY.md  # Track G spec: G1–G4 work items + conventions
-│   ├── TEAM_COORDINATION_PLAN.md    # Lane ownership, phases, dependency graph
-│   ├── TRACK_B_CONTENT_VISUAL.md
-│   ├── TRACK_C_SYSTEMS_UI.md
-│   ├── TRACK_D_AUDIO.md
-│   ├── TRACK_E_TECHDEBT_PERF.md
-│   ├── TRACK_F_SIGNATURE_FEATURE.md
+│   ├── IMPROVEMENT_BATCH_2026-07.md # Active improvement plan (gameplay + structure)
 │   ├── chapter-pipeline/            # Multi-stage chapter authoring pipeline + working drafts
-│   └── history/                     # ARCHIVED: handoffs, sprint plans, QA reports
+│   └── archive/                     # ARCHIVED: old planning specs, handoffs, sprint plans, QA reports
 │
-├── battleiq/                        # Legacy standalone JS prototype (payload for `external` mode)
-├── storyboard/                      # Canonical lore source: storyboard_0..8.txt + briefs
+├── battleiq/                        # Legacy standalone JS prototype — original source; the served
+│                                    # copy lives in public/minigames/battleiq/ (see battleiq/README.md)
 └── assets/                          # Source art workspace (.aistudio)
 ```
 
@@ -430,6 +429,7 @@ Character voice lines are generated offline via the TTS pipeline in [`scripts/vo
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — Green bar requirements, hard rules, architecture conventions.
 - [`docs/ADDING_A_MINIGAME.md`](docs/ADDING_A_MINIGAME.md) — Step-by-step guide to building and registering a new minigame mode.
 - [`docs/chapter-pipeline/`](docs/chapter-pipeline/) — The multi-stage pipeline for authoring new chapters.
-- [`storyboard/`](storyboard/) — Canonical lore: character sheets, boss strategies, and chapter briefs (`storyboard_0.txt` through `storyboard_8.txt`).
+- [`ROADMAP.md`](ROADMAP.md) — Prioritized tech debt and feature index, verified against current source.
+- [`docs/IMPROVEMENT_BATCH_2026-07.md`](docs/IMPROVEMENT_BATCH_2026-07.md) — The active improvement batch.
 
 The events are real. The stats are canon.

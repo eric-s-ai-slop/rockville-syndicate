@@ -1,8 +1,9 @@
 # Roadmap
 
 Forward-looking tech debt and feature work. Items here are **verified against current
-source**, not copied from stale handoff docs. For the detailed execution specs see the
-`docs/TRACK_*.md` set; this file is the lightweight, prioritized index.
+source**, not copied from stale handoff docs. The 100h planning pass's execution specs are
+archived under `docs/archive/`; the active plan is `docs/IMPROVEMENT_BATCH_2026-07.md`.
+This file is the lightweight, prioritized index.
 
 Legend: 🔴 player-visible bug · 🟠 real debt · 🟡 nice-to-have · ⚪ speculative
 
@@ -36,7 +37,7 @@ theme. Acceptable for a solo project with a closed chapter list. Refactor to cha
 config **only** when adding a new theme starts to feel painful — it's a ~20-minute job at
 that point, premature now.
 
-### 🟡 ESLint warnings (~108)
+### 🟡 ESLint warnings (~164)
 Mostly `@typescript-eslint/no-explicit-any` (often honest types in Phaser callbacks) and
 `no-unused-vars` (Phaser callback signatures). Low value. If addressed, batch the unused-arg
 ones with a `_` prefix; don't force types where `any` is genuinely correct. One worth a real
@@ -48,8 +49,8 @@ Further extraction only if a coherent subsystem emerges — don't split for line
 
 ### ⚪ Boot-time asset pipeline cost
 In-browser BFS slicing / atlas baking during `create()` causes first-paint jank and GPU
-readback stalls. Detailed in `docs/TRACK_E_TECHDEBT_PERF.md` (E2). Largest perf lever but
-also the largest effort; defer until first-load time is an actual complaint.
+readback stalls. Detailed in `docs/archive/TRACK_E_TECHDEBT_PERF.md` (E2). Largest perf
+lever but also the largest effort; defer until first-load time is an actual complaint.
 
 ---
 
@@ -57,14 +58,18 @@ also the largest effort; defer until first-load time is an actual complaint.
 
 (Existing detailed specs — pull into active work as capacity allows.)
 
-- **Combat depth** — `docs/COMBAT_DEPTH_PLAN.md`
-- **Turn-based battle mode** — `docs/TURN_BATTLE_GAMEMODE_PLAN.md`
-- **Narration system** — `docs/NARRATION_PLAN.md`
-- **External-game pipeline** — `docs/EXTERNAL_GAME_PIPELINE_PLAN.md`
-- **Signature feature** — `docs/TRACK_F_SIGNATURE_FEATURE.md`
-- **Content / visual track** — `docs/TRACK_B_CONTENT_VISUAL.md`
-- **Systems / UI track** — `docs/TRACK_C_SYSTEMS_UI.md`
-- **Audio track** — `docs/TRACK_D_AUDIO.md`
+- **July 2026 improvement batch (ACTIVE)** — `docs/IMPROVEMENT_BATCH_2026-07.md`:
+  benTrivia→Ch8 + endings bug fix, ledger/sfx audio pass, mid-fight power-up drops,
+  carRide→Ch2, entities.ts split, GameLayout extraction
+
+- **Combat depth** — `docs/archive/COMBAT_DEPTH_PLAN.md`
+- **Turn-based battle mode** — `docs/archive/TURN_BATTLE_GAMEMODE_PLAN.md`
+- **Narration system** — `docs/archive/NARRATION_PLAN.md`
+- **External-game pipeline** — `docs/archive/EXTERNAL_GAME_PIPELINE_PLAN.md`
+- **Signature feature** — `docs/archive/TRACK_F_SIGNATURE_FEATURE.md` (Hall of Records shipped; see Done)
+- **Content / visual track** — `docs/archive/TRACK_B_CONTENT_VISUAL.md`
+- **Systems / UI track** — `docs/archive/TRACK_C_SYSTEMS_UI.md` (settings panel + save v2 shipped; see Done)
+- **Audio track** — `docs/archive/TRACK_D_AUDIO.md`
 
 ---
 
@@ -80,7 +85,7 @@ also the largest effort; defer until first-load time is an actual complaint.
 
 - ✅ Decomposed `ChapterScene` god object into `scene/` subsystems (Actors, AudioController,
   BeatEngine, MapBuilder, Atmosphere, SpriteLoader)
-- ✅ Expanded Playwright E2E suite (4 → 16 specs); E2E gate now required in CI
+- ✅ Expanded Playwright E2E suite (4 → 18 specs); E2E gate now required in CI
 - ✅ Fixed loot collection bug surfaced during the decomposition
 - ✅ Save schema v2 + unified settings store (`settings.ts`) with migration + corruption guard
 - ✅ Settings panel with music/SFX/master volume sliders, reduce-motion, colorblind, difficulty

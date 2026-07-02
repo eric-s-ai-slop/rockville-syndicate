@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical planning/handoff doc. May not reflect current code; verify against the source before acting on any item.
+
 # Track F — Signature Feature (Execution Spec)
 
 **Lane:** 🟦 Engineer C · **Budget:** ~10–16h depending on option · **Phase:** 2

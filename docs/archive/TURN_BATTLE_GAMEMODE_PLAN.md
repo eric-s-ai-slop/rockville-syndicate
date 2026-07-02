@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical planning/handoff doc. May not reflect current code; verify against the source before acting on any item.
+
 # Handoff: `turnBattle` GameMode — Undertale-style Battle (full BattleIQ depth)
 
 > **For an AI agent (Gemini) executing cold.** Read fully before starting. This adds an Undertale/EarthBound-style turn-based battle as a new **minigame GameMode**, porting the mechanics from the standalone `battleiq/` project into Omega's React+Phaser+TS stack. Do the phases in order; each leaves the game playable and tests green.

@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical planning/handoff doc. May not reflect current code; verify against the source before acting on any item.
+
 # Project Omega — Improvement Plan Index
 
 This folder holds the **100-hour, 3-engineer improvement plan**. If you're the lead agent

@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical planning/handoff doc. May not reflect current code; verify against the source before acting on any item.
+
 # Project Omega — 100-Hour Improvement Plan (3-Engineer Coordination Doc)
 
 **This is the doc the team lead runs the project from.** It assigns lanes, sequences the

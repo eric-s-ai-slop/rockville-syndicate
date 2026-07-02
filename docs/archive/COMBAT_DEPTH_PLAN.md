@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical planning/handoff doc. May not reflect current code; verify against the source before acting on any item.
+
 # Track A — Combat Depth & Game Feel (Execution Spec)
 
 **Budget:** ~16 engineering hours (part of a 50h improvement pass).

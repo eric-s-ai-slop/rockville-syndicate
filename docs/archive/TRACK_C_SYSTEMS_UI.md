@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical planning/handoff doc. May not reflect current code; verify against the source before acting on any item.
+
 # Track C — Systems, UI, Settings & Accessibility (Execution Spec)
 
 **Lane:** 🟦 Engineer C · **Budget:** ~14h (foundation 4 + build 10) · **Phase:** 0 then 1

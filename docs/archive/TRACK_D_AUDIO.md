@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical planning/handoff doc. May not reflect current code; verify against the source before acting on any item.
+
 # Track D — Audio Completeness (Execution Spec)
 
 **Lane:** 🟩 Engineer B (audio is content-adjacent, low contention) · **Budget:** ~5h · **Phase:** 1

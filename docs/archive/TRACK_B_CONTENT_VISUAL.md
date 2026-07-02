@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical planning/handoff doc. May not reflect current code; verify against the source before acting on any item.
+
 # Track B — Content, Visuals & Audio-adjacent Polish (Execution Spec)
 
 **Lane:** 🟩 Engineer B · **Budget:** ~18h (+ Track D audio, speced separately) · **Phase:** 1 (+ QA in Phase 2)

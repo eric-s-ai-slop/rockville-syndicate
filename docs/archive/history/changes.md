@@ -1,3 +1,5 @@
+> **ARCHIVED** — Historical planning/handoff doc. May not reflect current code; verify against the source before acting on any item.
+
 # Rockville Syndicate Refactor Changes
 
 This document details the complete architectural refactoring of the React 19 + Phaser 3.88 RPG, executed across multiple phases to make the codebase maintainable by AI agents and prepare it for modular minigame extensions.
