@@ -804,6 +804,7 @@ export default class ChapterScene extends Phaser.Scene {
     text: string,
     style: Phaser.Types.GameObjects.Text.TextStyle = {}
   ): Phaser.GameObjects.Text {
+    // eslint-disable-next-line no-restricted-syntax -- the one sanctioned raw add.text: this IS the label() helper
     return this.add.text(x, y, text, {
       fontFamily: 'Yoster, monospace',
       resolution: this.textRes,

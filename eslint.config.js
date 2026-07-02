@@ -52,6 +52,36 @@ export default tseslint.config(
       // console.warn/error are the project's logging convention; ban only console.log.
       'no-console': ['warn', { allow: ['warn', 'error'] }],
 
+      // ── Mechanized CLAUDE.md gotchas (errors) ──
+      // These encode hard rules from CLAUDE.md so violations fail lint instead of
+      // relying on every contributor (human or agent) remembering them.
+      'no-restricted-globals': [
+        'error',
+        {
+          name: 'localStorage',
+          message:
+            'All persistence goes through src/game/settings.ts (the omega-save-v2 blob). No ad-hoc localStorage keys.',
+        },
+      ],
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'MemberExpression[object.name="window"][property.name="localStorage"]',
+          message:
+            'All persistence goes through src/game/settings.ts (the omega-save-v2 blob). No ad-hoc localStorage keys.',
+        },
+        {
+          selector: 'CallExpression[callee.property.name="text"][callee.object.property.name="add"]',
+          message:
+            'Raw add.text renders blurry. Use the scene label() helper (applies resolution + default font).',
+        },
+        {
+          selector: 'CallExpression[callee.property.name="setBounds"][callee.object.property.name="main"]',
+          message:
+            'Never set camera bounds — it reintroduces the black-bars framing bug. Confine the player with physics world bounds + perimeter walls (see CLAUDE.md).',
+        },
+      ],
+
       // ── Quality nudges (warnings — don't block the green bar) ──
       '@typescript-eslint/no-explicit-any': 'warn', // Track G4 drives this toward 0
       '@typescript-eslint/no-unused-vars': [
@@ -72,6 +102,17 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
       'no-console': 'off',
+      'no-restricted-globals': 'off', // tests reset localStorage directly
+      'no-restricted-syntax': 'off',
+    },
+  },
+
+  // settings.ts IS the sanctioned persistence layer.
+  {
+    files: ['src/game/settings.ts'],
+    rules: {
+      'no-restricted-globals': 'off',
+      'no-restricted-syntax': 'off',
     },
   },
 );

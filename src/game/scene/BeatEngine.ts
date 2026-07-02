@@ -125,7 +125,7 @@ export class BeatEngine {
     // Create the persistent HUD task popup
     let taskUi: Phaser.GameObjects.Container | undefined;
     if (beat.markerLabel) {
-      const txt = this.scene.add.text(15, 10, `Task: ${beat.markerLabel}`, {
+      const txt = this.scene.label(15, 10, `Task: ${beat.markerLabel}`, {
         fontFamily: 'monospace',
         fontSize: '14px',
         color: '#facc15',
