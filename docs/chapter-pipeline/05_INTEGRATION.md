@@ -142,7 +142,25 @@ Place the asset file in the appropriate directory:
 
 ---
 
-## 6. REGISTER A NEW MINIGAME MODE (if Step 2b produced one)
+## 6. REGISTER NEW CHARACTERS (if the chapter introduces any)
+
+A speaker id that isn't registered still renders (generic 🗨️ bubble, id as the display name) — no crash, but it looks broken. If the brief added guest characters:
+
+**Speaker entry** — add to `EXTRA_SPEAKERS` in `src/data/chapters/types.ts`:
+```typescript
+{ id: 'your_id', name: 'Display Name', emoji: '🎯', color: '#hexcolor' },
+```
+Update the speaker list in `src/data/chapters/CLAUDE.md` in the same change (that file's rule).
+
+**Actor sprite** — if the character stands in the world (an `ActorPlacement`), pick one:
+- *Stand-in*: reuse an existing sprite with `nameOverride` — fine for one-scene characters.
+- *Real sheet*: place the image in `src/assets/images/`, add the import + `safeLoadImage('<key>_raw_jpg', url)` in `ChapterScene.ts` preload (follow the `npc_alex_sheet` pattern), and register the frame config (`{ key, cols, frontCol }`) in `src/game/scene/SpriteLoader.ts`.
+
+Already wired: `npc_alex_sheet`, `npc_benji_sheet`. `leo` has a speaker entry but no sprite sheet yet — needs one of the two options above the first time he's placed as an actor.
+
+---
+
+## 7. REGISTER A NEW MINIGAME MODE (if Step 2b produced one)
 
 If the chapter has a `{ type: 'minigame', modeId: '...' }` beat whose mode is **new**
 (not `bossFight`/`poolParty`/an existing mode), that mode must be registered or the
@@ -166,7 +184,7 @@ Notes:
 
 ---
 
-## 7. TYPECHECK
+## 8. TYPECHECK
 
 ```bash
 npm run lint
@@ -176,17 +194,17 @@ Fix any type errors before testing. Common ones:
 - Missing required `ChapterConfig` fields
 - `bossId` in a `bossFight` beat that doesn't exist in `BOSSES`
 - Invalid speaker id in a `dialogue` beat
-- A `minigame` beat whose `modeId` was never registered (Section 6)
+- A `minigame` beat whose `modeId` was never registered (Section 7)
 
 ---
 
-## 8. RUN AND TEST
+## 9. RUN AND TEST
 
 ```bash
 npm run dev
 ```
 
-Open `localhost:3000`. Play through the chapter. Check:
+Open `localhost:3324`. Play through the chapter. Check:
 
 - [ ] Stage music starts and fades in correctly
 - [ ] Player spawns in the right place
@@ -194,7 +212,9 @@ Open `localhost:3000`. Play through the chapter. Check:
 - [ ] All `dialogue` beats fire in order, no skips
 - [ ] `choice` beat shows all options; reactions play correctly
 - [ ] `ledger` ticks display correctly
-- [ ] If using `changeScene`: location transition fades cleanly, new map loads, player respawns at new `playerSpawn`
+- [ ] If using `changeScene`: location transition fades cleanly, new map loads, player respawns at new `playerSpawn`; per-scene `music:` crossfades if set
+- [ ] Any `sfx` beats actually fire (unloaded keys skip silently — check the key spelling if you hear nothing)
+- [ ] New guest speakers show their name/emoji, not the generic 🗨️ bubble (Section 6)
 - [ ] Boss fight triggers, boss id resolves, QTE works
 - [ ] Chapter ends cleanly (`endChapter` fires)
 - [ ] No console errors
@@ -203,7 +223,7 @@ Use `window.__OMEGA_GAME__` in the browser console to inspect live scene state i
 
 ---
 
-## 9. REFINE
+## 10. REFINE
 
 Use `DEEPEN.md` for any beats that felt flat during playtesting.
 Targeted changes only — don't rewrite the whole chapter, find the one moment that isn't landing.

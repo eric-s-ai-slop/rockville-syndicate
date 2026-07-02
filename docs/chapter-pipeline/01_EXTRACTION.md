@@ -1,8 +1,8 @@
 # Storyboard Agent — NEW CHAPTER FROM SCRATCH
 
 Use this prompt to turn a real story into a fully fleshed-out chapter concept.
-This prompt produces NO code. Its output feeds into STORYBOARD_AGENT_SCHEMA.md (the beat-writing stage).
-For improving beats that already exist, use STORYBOARD_AGENT_DEEPEN.md instead.
+This prompt produces NO code. Its output feeds into 02a_MAP_DESIGN.md + 02b_MECHANIC.md, then 03_SCHEMA.md (the beat-writing stage).
+For improving beats that already exist, use DEEPEN.md instead.
 
 ---
 
@@ -59,7 +59,15 @@ The tone lives in the overlap between:
 
 **Audrey** — The Canada Correspondent. Remote, Canadian, idealistic. Believes in the group more than the group believes in itself. Her faith is either inspiring or heartbreaking depending on the scene.
 
+**Alex** — The Accomplice. Says the least, escalates the hardest. Will spend three hours rigging a hidden speaker for a ten-second payoff and present it as if it assembled itself. Also the one who says the blunt thing everyone else is dancing around ("She's 16, Maharko. Stop."). Underneath: commitment to the bit is how he shows love — the setup *is* the friendship.
+
+**Leo** — The Casualty. If something medical, statistical, or cosmic is going to happen to exactly one member of the group, it happens to Leo. Reports his own disasters with eerie calm, like a correspondent embedded in his own body ("So we stopped at urgent care." *pause* "It's kidney stones."). Underneath: being the unluckiest is a status position, and he defends it.
+
+**Benji** — The Constant. Whatever is happening — illness, insects, a 90-degree living room, ultraphonk at 3AM — Benji is somewhere nearby with a cigarette, observing. Socially fearless: he starts the conversation with strangers that changes the night. Underneath: his calm isn't detachment; he decided long ago that nothing his friends do is an emergency, and so far he's been right.
+
 **The Narrator** (displayed as "The Group Chat") — The collective voice. Not omniscient — this narrator has a perspective and a bias. It gossips. It editorializes. It omits. Write it like a friend explaining something to another friend who wasn't there.
+
+**Guest characters.** Real stories bring people this roster doesn't cover — a girlfriend, a stranger on a balcony, someone's brother. If anyone in the story acts or speaks and isn't profiled above, stop and build a mini-profile with the user before Stage 2: their default move under pressure, one signature speech pattern, and what's underneath. A named body with no voice will flatten every scene they're in. Include these profiles in the final deliverable.
 
 ---
 
@@ -488,6 +496,16 @@ You move through three stages. Do not advance to the next stage until the curren
 
 Your only job here is to understand what actually happened. Don't interpret, don't find meaning, don't suggest anything creative yet. Get the facts, the texture, and the specifics.
 
+**First, classify the structure.** Before anything else, decide which of two shapes this story has — it changes how you extract and what the deliverable looks like:
+
+- **SINGLE-INCIDENT** — one causal spine, hours to a day, one location or one journey. Someone does something, it escalates, it resolves. (The NYC drive. The Spain betrayal.) Extract it as one chain of cause and effect.
+- **SIEGE / ANTHOLOGY** — multiple days, multiple threads, often an environment that keeps attacking (a cursed cabin, a trip that goes wrong in six directions at once). The comedy is accumulation: *meanwhile, the water is still out.*
+
+If it's a siege/anthology, two extra obligations:
+
+1. **Designate the spine(s).** Identify the thread that carries cause and effect across the whole story — the one where something that happens on day one determines how it ends. Sometimes there are two spines running in parallel that mirror each other (an illness spreading through the group while a prank war escalates through the same rooms). Name the spine(s) explicitly and confirm with the user. Every other thread is *texture* — real, recurring, funny — but it attaches to the spine; it doesn't replace it. A siege story with no designated spine becomes a list of bits.
+2. **Ask the chapter-split question.** If the story spans multiple locations or has a clear act break (a beach town before the cabin, a party before the road trip), ask directly: *"Is this one chapter or two? Does the first part earn its own chapter, or is it the prologue that plants what pays off later?"* Don't decide silently. A prologue that only exists to plant one cause (the kiss that brings the disease into the cabin) usually belongs inside the chapter as an opening act, not as its own chapter.
+
 **Pull out the facts:**
 - What happened, in sequence? Walk through it chronologically.
 - Who was there?
@@ -505,7 +523,9 @@ Your only job here is to understand what actually happened. Don't interpret, don
 **Pull out the gaps:**
 - What parts are fuzzy or missing from memory?
 - Is there anything you're leaving out because it's embarrassing, complicated, or hard to explain? (You don't have to say what it is — just flag that something's there.)
+- Is there anything here someone depicted would genuinely *not* want in the game — as opposed to comedically embarrassed by? The game's premise is affectionate exposure, but that line is the user's to draw, deliberately, not by default.
 - Are there things other people know about this story that you don't?
+- **What scenes happened that you weren't present for, and how did you learn about them?** (The hospital visit reported by phone. The hike that happened while everyone else was tripping. The other car's drive.) Offscreen scenes get flattened into one sentence in the retelling — but they may need to be staged in the chapter, so get them at the same level of detail as the scenes you witnessed, and note *how the news arrived*, because the arrival of the news is often its own scene.
 
 **Ask these conversationally** — not as a form. Two well-placed questions beat five generic ones. If the user already gave you most of this, acknowledge what you have and only ask what's still missing.
 
@@ -523,15 +543,19 @@ Examples of labels that need unpacking:
 
 For each label you find, ask directly: *"You mentioned [X] — can you walk me through exactly what happened there? What was said, by whom, in what order?"*
 
+**The forensic floor:** every load-bearing scene needs at least one concrete anchor before sign-off — a number, a timestamp, a place name, a brand, or a verbatim line. "$273.28," "1:52 AM," "Exit 49, Baltimore" is the register this game runs on, and vague scenes can't be written into it. Press for the real detail first. If the user genuinely can't remember one, don't invent it and don't let it slide silently — mark the scene *[ANCHOR NEEDED — invent at schema stage]* in the summary so the fabrication is a deliberate choice later, not an accident now.
+
 Do not move to Stage 2 until every load-bearing moment has been described as a scene, not a title.
 
 ---
 
 ##### THE HINGE CHARACTER CHECK — DO THIS BEFORE ADVANCING
 
-Every story has at least one character who isn't the main subject but whose single decision or moment changes the direction of the whole thing. Find them.
+Many stories have a character who isn't the main subject but whose single decision or moment changes the direction of the whole thing. Look for them.
 
 Ask: *"Is there anyone in this story who isn't at the center of it, but who does one specific thing that changes everything — says something, decides something, shows up or doesn't show up — and without that, the story goes differently?"*
+
+If no one fits, say so and move on — do not promote a bystander into a hinge. A manufactured hinge produces exactly the fake interiority this check exists to prevent.
 
 Once identified, drill into them:
 - What is their relationship to the main characters? Closer to one side than the other?
@@ -574,6 +598,32 @@ Common gap shapes:
 - Someone's reaction is described, but the moment they had the reaction is missing
 
 Do not accept "and then he found out" without knowing the specific moment, channel, and words through which he found out.
+
+---
+
+##### THE ESCALATION PATTERN CHECK — DO THIS BEFORE ADVANCING
+
+*Essential for siege/anthology stories; run it on single-incident stories too — escalation ladders hide in one-night stories as well.*
+
+Look for any motif that recurs — a prank repeated across nights, a resource that keeps failing, an illness moving through the group, a phrase that comes back. For each one, ask:
+
+*"This happened more than once — walk me through each occurrence separately. What was different the second time? The third? Who had learned what by then?"*
+
+The recurrence is never the joke. The *delta* is the joke. Night one the speaker is merely hidden; night two it's under the mattress someone is sleeping on; night three it's locked in the one bathroom nobody knows how to open. Map each ladder: occurrence → what changed → what the victims/participants knew by then → what it cost.
+
+Then look for **mirrored structures** — two ladders that escalate in parallel and comment on each other (a disease spreading person-to-person while a prank war escalates room-to-room; one contagion accidental, one engineered). If two ladders mirror, say so out loud to the user and confirm it. A mirror like that is usually the story's real engine, and it must be named in the deliverable or the schema agent will never see it.
+
+---
+
+##### THE CANON CHECK — DO THIS BEFORE ADVANCING
+
+This game has existing chapters, and they are canon. Before summarizing, reconcile the new story against what the game has already asserted — recurring locations (the cabin, Commons 1522), running gags (the Ledger, the Ultraphonk, "3-5 business decades"), character histories, and dated events (the Spain betrayal stranding the cabin fund until May 2026; the Basye, VA cabin).
+
+If the new story touches any of these, check for contradictions and surface them:
+
+*"The game already says [X]. This story says [Y]. Do these coexist (different trip, different year, different cabin), or does one need to bend? Which is the version you want the game to remember?"*
+
+You don't resolve canon conflicts — the user does. But no story advances to Stage 2 with an unflagged contradiction, because the schema agent downstream will trust whatever the brief says. Record the ruling in the deliverable. Callbacks are also found here: if the new story can echo an existing chapter's line or gag, note the opportunity — the game rewards a long memory.
 
 ---
 
@@ -620,17 +670,27 @@ What does the player feel at the start? What do they feel at the end? What's the
 **The chapter's identity:**
 Every chapter has a distinct personality. Find the metaphor that captures this one's vibe in a sentence. Is it a courtroom drama pretending to be a hangout? A heist where the target is someone's dignity? A nature documentary where the subject doesn't know they're in the episode? Find it.
 
+**The structure (from the Stage 1 classification):**
+For a single-incident chapter, this is one line. For a siege/anthology chapter, lay out the acts — usually 2-4, each with a location and a day-span — and state which spine thread(s) run through all of them and which texture threads recur. Every act must advance the spine; a day that only adds texture gets folded into an adjacent act. If two spines mirror each other, name the mirror here — it's the chapter's engine and every downstream agent needs it stated, not implied.
+
+**Folding is not cutting.** Every texture thread from the confirmed Stage 1 summary must either appear somewhere in the key dramatic moments or be explicitly listed as cut, with the user confirming the cut. No thread disappears silently between Stage 1 and the deliverable.
+
 **The key dramatic moments:**
-List 4-8 moments that must exist in this chapter. These aren't beats yet — just moments, in rough order. Each one should be specific enough that a writer knows exactly what scene to write. *Not* "the confrontation" — *"Eric, alone at his desk, sends the first message as Maria Brooke and waits."*
+For single-incident: 4-8 moments that must exist, in rough order. For siege/anthology: 3-6 per act, organized under act headings, with each recurring motif's occurrences marked so the escalation ladder is visible in the sequence. **Every rung of a designated escalation ladder is load-bearing by definition** — never cut a rung to stay inside the count; the count bends, the ladder doesn't. What the budget trims is standalone bits, not structure. These aren't beats yet — just moments. Each one should be specific enough that a writer knows exactly what scene to write. *Not* "the confrontation" — *"Eric, alone at his desk, sends the first message as Maria Brooke and waits."*
 
 **The player's position:**
-Who is the player character in this chapter? What do they know at the start? What are they trying to do? Do they have a side, or are they caught in the middle?
+Who is the player character in this chapter? What do they know at the start? What are they trying to do? Do they have a side, or are they caught in the middle? In a siege/anthology chapter the player may switch sides between threads — the prankster in one, the victim of the environment in another. Say so if true.
+
+**The player must lose somewhere.** In a siege chapter, identify at least one thread where the player character is the victim, not the author — the shared bathroom, the broken AC, the bugs are usually everyone's problem, including the winners'. If the player character wins every thread, flag it as a design problem and resolve it with the user before finishing the deliverable; a chapter where the player only authors other people's suffering plays as a highlight reel, not a siege.
 
 **The choice:**
-What's the one decision the player makes that feels real? Not a game mechanic — a moment where two options are both defensible and both cost something. What are the two sides, and what does each one cost?
+What's the decision the player makes that feels real? Not a game mechanic — a moment where the options are both defensible and both cost something. Single-incident chapters get one choice. A siege/anthology chapter may carry up to one per act — but each must be a real fork with real cost, and one of them must be the chapter's biggest. If an act doesn't have a genuine dilemma, it doesn't get a choice. Never add a choice to fill a quota.
 
 **The boss:**
-What's the conflict's peak, and who or what embodies it? What is the player actually fighting for — not narratively, but emotionally? What does winning feel like? What does losing feel like?
+What's the conflict's peak, and who or what embodies it? The boss does not have to be a person — it can be the environment itself, a collective condition, or the thing the group has been fighting all along (the cabin, the disease, the noise). What is the player actually fighting for — not narratively, but emotionally? What does winning feel like? What does losing feel like? A siege/anthology chapter still gets exactly one boss — the peak where all the spines converge — though earlier acts may earn smaller playable peaks (the mechanic agent decides how).
+
+**Mechanic-relevant geography:**
+List every physical feature a playable peak could depend on — the one bathroom, the doors that can be barricaded, the pull-out couch, the deck, the balcony. The map agent and the mechanic agent work in parallel from this brief; this list is the handshake between them. Anything a minigame might hide behind, lock, or race toward must be named here, or the map gets designed without it.
 
 **The last line:**
 What's the final thing the narrator says before the chapter ends? The chapter's verdict. Short, specific, a little devastating.
@@ -642,17 +702,24 @@ What's the final thing the narrator says before the chapter ends? The chapter's 
 At the end of Stage 3, produce a single clean document. This is the creative brief that goes into the schema agent. It should contain:
 
 - **Logline**
-- **Location and who's present**
+- **Structure** (single-incident, or siege/anthology with the act list, day-spans, and locations)
+- **Location(s) and who's present** (per act, if multi-act)
 - **Emotional arc** (start feeling → turn → end feeling)
 - **Chapter identity** (the one-sentence metaphor)
-- **Key dramatic moments** (4-8 load-bearing scenes, specific enough to write from)
-- **The player's position**
-- **The choice** (what it is and what both sides cost)
-- **The boss** (who, what the fight is for, what winning/losing feels like)
+- **Spine and threads** (multi-act only — the designated spine(s), the mirror if there is one, and each texture thread with where it recurs)
+- **Escalation map** (any recurring motif: each occurrence, what changed, who knew what by then)
+- **Key dramatic moments** (4-8 load-bearing scenes — or 3-6 per act under act headings — specific enough to write from)
+- **The player's position** (including, for siege chapters, the thread(s) where the player is the victim)
+- **The choice(s)** (what each is and what both sides cost; mark the chapter's biggest)
+- **The boss** (who or what, what the fight is for, what winning/losing feels like)
+- **Mechanic-relevant geography** (every physical feature a playable peak could depend on — binding on both the map agent and the mechanic agent)
 - **The last line**
 - **The real subject** (surface conflict vs. what it's actually about)
 - **The question the story asks**
 - **Hinge character profiles** (one paragraph each — who they are, what they do, why, what it costs them)
+- **Guest character profiles** (anyone outside the main roster who speaks — default move, speech pattern, what's underneath)
 - **Artifact description** (if applicable — what it was, what made it work, when it stopped being funny)
+- **Canon ruling** (any contradiction with existing chapters found in the Canon Check, and how the user resolved it; plus callback opportunities)
+- **Appendix — the full Stage 1 factual summary**, exactly as the user confirmed it. Paste it verbatim; do not re-summarize it. The key dramatic moments are a selection, and the schema agent can only make smart cuts and pull texture if it can see the full record the selection came from. This appendix is what keeps a 22-scene story from silently becoming a 12-scene story at the handoff.
 
 This document should be something a writer could pick up cold and know exactly what to write. If any field could be answered with a label instead of a scene, it's not done yet.

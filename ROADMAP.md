@@ -59,7 +59,7 @@ lever but also the largest effort; defer until first-load time is an actual comp
 (Existing detailed specs — pull into active work as capacity allows.)
 
 - **July 2026 improvement batch (ACTIVE)** — `docs/IMPROVEMENT_BATCH_2026-07.md`:
-  benTrivia→Ch8 + endings bug fix, ledger/sfx audio pass, mid-fight power-up drops,
+  Ch8 endings bug fix, ledger/sfx audio pass, mid-fight power-up drops,
   carRide→Ch2, entities.ts split, GameLayout extraction
 
 - **Combat depth** — `docs/archive/COMBAT_DEPTH_PLAN.md`

@@ -102,6 +102,36 @@ Character voices are defined by **behavioral patterns**, not personality traits.
 
 ---
 
+**Alex — The Accomplice**
+*Default move when pressured:* Doesn't defend the bit. Confirms it flatly and lets the audacity do the work.
+*Sentence structure:* Short. Two to five words when it matters ("She's 16, Maharko. Stop."). Goes long only when explaining the logistics of a scheme, where he is suddenly, lovingly precise.
+*What he never says directly:* That the bit took effort. The rig, the barricade, the timing — all presented as if they assembled themselves.
+*Status tells:* WINNING = deadpan understatement while chaos plays out around him. LOSING = starts explaining the joke, which he hates doing.
+*Signature:* The flat factual statement nobody wanted. Announcing completed operations in the past tense ("The door's barricaded.").
+*Underneath:* Commitment to the bit is how he shows love. The three hours of setup are the friendship.
+
+---
+
+**Leo — The Casualty**
+*Default move when pressured:* Reports his own catastrophe like a correspondent embedded in his own body. Understates the medical, overstates the inconvenience.
+*Sentence structure:* Calm declaratives with a delayed reveal — buries the lede on purpose ("So we stopped at urgent care." Then, later: "It's kidney stones.").
+*What he never says directly:* That it hurts. Pain is converted into logistics.
+*Status tells:* WINNING = the group orbits his disaster and he holds court from the stretcher. LOSING = someone else's disaster outranks his, and he audits theirs skeptically.
+*Signature:* "I'm fine." followed by information that is not fine. Cosmic bad-luck one-upmanship delivered as trivia.
+*Underneath:* Being the unluckiest is a status position, and he defends it.
+
+---
+
+**Benji — The Constant**
+*Default move when pressured:* Lights a cigarette. Weighs in after the first drag, and only once.
+*Sentence structure:* Low, unhurried, half-amused. Asks the question that skips four steps ("So are we talking to them, or are we just looking?").
+*What he never says directly:* That anything is an emergency. Emergencies are for people with worse nerves.
+*Status tells:* WINNING = motionless at the center of the chaos, narrating it to himself. LOSING = stubs the cig out early. That's the only tell he has.
+*Signature:* Physically present at every disaster, responsible for none of them. Balcony diplomacy — he opens the conversation the group is scared to.
+*Underneath:* His calm isn't detachment. He decided years ago that nothing his friends do is an emergency, and so far he's been right.
+
+---
+
 **The Narrator — "The Group Chat"**
 *Not omniscient.* Has a perspective, a bias, and omissions that are telling.
 *Default move:* Editorializes. Never just reports. Has a take on everything.
@@ -121,9 +151,11 @@ type Beat = { id?: string } & (
   | { type: 'choice'; speaker: string; prompt: string; options: ChoiceOption[] }
   | { type: 'walkTo'; x: number; y: number; radius?: number; markerLabel?: string }
   | { type: 'cameraPan'; x: number; y: number; durationMs: number; holdMs?: number }
-  | { type: 'bossFight'; bossId: string; arena: { x: number; y: number; w: number; h: number }; introLines?: string[] }
-  | { type: 'minigame'; modeId: string; config?: unknown; introLines?: string[]; background?: boolean }
+  | { type: 'bossFight'; bossId: string; arena: { x: number; y: number; w: number; h: number }; hideActorId?: string; introLines?: string[] }
+  | { type: 'minigame'; modeId: string; config?: unknown; introLines?: string[]; background?: boolean; loseGoto?: string }
   | { type: 'changeScene'; sceneIndex: number; transitionMs?: number }
+  | { type: 'sfx'; key: string; volume?: number; seek?: number }
+  | { type: 'stopAllAudio'; fadeMs?: number }
   | { type: 'wait'; ms: number }
   | { type: 'ledger'; delta: number; note: string }
   | { type: 'endChapter' }
@@ -138,7 +170,9 @@ interface ChoiceOption {
 }
 ```
 
-Speaker ids: `'narrator'` `'eric'` `'jordan'` `'nick_h'` `'nick_f'` `'maharko'` `'jacob'` `'audrey'` `'ben'` `'michael_bersofsky'` `'caleb'` `'vs'` `'anastasia'` `'sophia'` `'sam_ferretti'`
+Two beat types exist in the engine but are off-limits by default: `chase` (the Ch6 jumpscare pursuit — tonally reserved, don't dilute it) and `routeOnMinigame` (hardcoded to the groupChat mode's payload — use `loseGoto` on the `minigame` beat instead). The canonical schema lives in `src/data/chapters/types.ts` and the cheat sheet at `src/data/chapters/CLAUDE.md` — if this document and the code disagree, the code wins.
+
+Speaker ids: `'narrator'` `'eric'` `'jordan'` `'nick_h'` `'nick_f'` `'maharko'` `'jacob'` `'audrey'` `'alex'` `'leo'` `'benji'` `'ben'` `'michael_bersofsky'` `'emily'` `'caleb'` `'vs'` `'anastasia'` `'sophia'` `'sam_ferretti'` `'sean'`
 
 ---
 
@@ -174,6 +208,19 @@ Speaker ids: `'narrator'` `'eric'` `'jordan'` `'nick_h'` `'nick_f'` `'maharko'` 
 - `transitionMs` defaults to 500ms. Use 800–1000 for a more deliberate location cut.
 - Place it between the last beat of the current location and the first beat of the new one. Dialogue spoken before the beat plays out fully before the transition fires.
 - Precede it with a `cameraPan` or `dialogue` beat that signals the location change in-story ("Let's go." / "Outside.") — the black screen without context is disorienting.
+
+**`sfx`**
+- Fires a one-shot sound. Keys loaded for every chapter: `sfx_knock`, `sfx_door_open`, `ui_select`, `victory_jingle`, `boss_sting`, `boss_loop`. Unloaded keys are silently skipped.
+- `seek` skips a track's quiet buildup to land the peak with a visual moment (e.g. `{ seek: 0.7 }` on a sting).
+- Use where silence would undercut the beat — a knock before a reveal, a door before an entrance. Don't scatter them.
+
+**`stopAllAudio`**
+- Kills music and loops with an optional fade. Use for hard tonal turns — the moment the joke stops being a joke. Silence is a beat; spend it deliberately.
+
+**Routing (goto / loseGoto / converge)**
+- Win on a `minigame` falls through to the next beat; lose jumps to `loseGoto`.
+- **Converge pattern** for branches that must rejoin: put the branch block *after* `endChapter` (unreachable by fall-through), end it with a single-option `choice` whose `goto` points back to the main line. Dialogue beats cannot `goto`.
+- **Choice endings**: put each distinct ending in the option's `reactionLines`, then have every option `goto` a shared beat id — otherwise ending beats fall through into each other.
 
 **`bossFight`**
 - `introLines` name what's actually at stake, not just who you're fighting. Two lines max.
@@ -219,6 +266,13 @@ Write a numbered plain-English outline — not code, just a sequence:
 ```
 
 For each beat, note what it's doing narratively in 5 words or fewer.
+
+**If the brief is multi-act (siege/anthology structure):** organize the outline under act headings. Additional obligations:
+- **Open each act with a narrator time-cut.** Day and status in the narrator's voice — "Day two. The water is out. Maharko has not left the room." — not a location card. The narrator carries the passage of time; `changeScene` only carries physical location changes.
+- **Advance every escalation ladder in every act it appears.** The brief's escalation map tells you what changed at each occurrence — the beat must show the *delta*, never replay the previous occurrence. If night two's beat could be swapped with night one's, it's wrong.
+- **Keep the mirror visible.** If the brief names mirrored spines, alternate them so they comment on each other — the illness beat lands next to the prank beat, and the narrator is allowed to notice the symmetry once, near the end, not before.
+- **Texture threads recur in the background of scenes about something else.** A recurring nuisance gets one line inside another beat ("The lanternflies have taken the deck. Nobody contests it."), not its own dedicated beat every act.
+- **One choice per act maximum,** exactly as the brief specifies. The chapter's biggest choice gets the most textured options; earlier ones can be lighter.
 
 Ask: *Does this order feel right? Anything missing, wrong, or out of place?* Do not write code until the outline is approved.
 

@@ -25,6 +25,10 @@ Your output is copy-paste-ready TypeScript. It plugs directly into the `map` and
 **When to use a single map vs. scenes[]:**
 A single `map + actors` is right for most chapters — one location, one confrontation. Use `scenes[]` when the story *requires* a physical location change mid-chapter: a chapter that starts at the apartment then moves to a parking lot, or one that cuts from inside a house to outside. Don't add a second scene just for variety. Add it when the dramatic beat can't happen in the same space.
 
+**Multi-day chapters (siege/anthology briefs):** the passage of *time* is not a scene change — day cuts within the same location are handled by narrator beats in Step 3, on the same map. Use `scenes[]` only for the physical location changes (the beach town before the cabin; inside vs. the deck). One map per *place*, not per *day*. If a multi-day brief lives mostly in one location, design that one map so it can host every thread: each recurring motif in the brief's escalation map needs its geography placed (the one bathroom, the bedroom doors that can be barricaded, the pull-out couch, the deck) — playtesting three nights of escalation on a map that only staged night one is a redesign, not a tweak.
+
+**The brief's "mechanic-relevant geography" field is binding.** The mechanic agent (Step 2b) runs in parallel with you and designs against the same list. Every feature it names must exist on your map with gameplay-usable clearance — enough open floor around it for the player to reach it, hide near it, or fight over it — and must be called out explicitly in your output (name + coordinates) so the mechanic spec and the map reconcile at Step 3 instead of colliding there.
+
 ---
 
 ### THE COORDINATE SYSTEM
@@ -96,23 +100,34 @@ Set `propType` on a rect to give it semantic meaning (drives procedural renderin
 
 ### PROP KEYS — CONFIRMED AVAILABLE
 
-Set `propKey` to use a real sprite. These are confirmed in the project:
+Set `propKey` to use a real sprite. These are confirmed in use in shipped chapters (verified against the code 2026-07 — the loader calls in `src/game/ChapterScene.ts` preload are canonical; if this list and the code disagree, the code wins):
 
 **LimeZu Modern Interiors (use `furn_` prefix — auto-resolved from atlas):**
 ```
-furn_rug_large      furn_couch_long     furn_cabinet_tall
-furn_desk           furn_chair          furn_bookshelf
-furn_plant_tall     furn_coffee_table
+furn_rug_large      furn_couch          furn_couch_long
+furn_cabinet_tall   furn_desk           furn_chair
+furn_bookshelf      furn_plant_tall     furn_plant_small
+furn_coffee_table   furn_bed_double     furn_bed_single
+furn_nightstand     furn_wardrobe
 ```
 
 **Cars (use exact key):**
 ```
-jordan_mustang      maharko_camero      nickf_corolla
+prop_jordan_mustang    prop_maharko_camero    prop_nick_f_corolla
 ```
 
-**Stage backgrounds (used as full-map backdrop rects with `invisible: true`):**
+**Stage backgrounds (used as full-map backdrop rects with `invisible: true` or `solid: false`):**
 ```
-stage_hospital      stage_jungle_gym    stage_watchwater_house
+stage_car_interior       stage_florida_house_night    stage_parking_lot_night
+stage_umbc_basement      stage_wj_classroom           stage_wj_track
+```
+
+**Other loaded props:**
+```
+prop_hospital_bed    prop_iv_drip       prop_cabinet     prop_red_toilet
+prop_jungle_gym      prop_watchwater    prop_watchwater_open
+prop_pool_map_day    prop_pool_map_night
+pack_tollbooth       pack_rail          pack_pool        pack_arcade
 ```
 
 Any other `propKey` value will fall back to procedural rendering based on `propType` — which is fine, just flag it in your output as "no sprite — procedural fallback."
@@ -151,7 +166,9 @@ interface ActorPlacement {
 ```
 
 **Actor `id` must be a canonical character id.** These are the only valid ids:
-`eric` `jordan` `nick_h` `nick_f` `maharko` `jacob` `audrey` `ben` `michael_bersofsky` `caleb` `vs` `anastasia` `sophia` `sam_ferretti`
+`eric` `jordan` `nick_h` `nick_f` `maharko` `jacob` `audrey` `alex` `leo` `benji` `ben` `michael_bersofsky` `emily` `caleb` `vs` `anastasia` `sophia` `sam_ferretti` `sean`
+
+(The canonical list lives in `src/data/chapters/types.ts` — if this document and the code disagree, the code wins.)
 
 For unnamed/background characters (frat guys, unnamed girls, etc.), use any descriptive id (e.g. `frat1`, `girl1`) and set `nameOverride` to control what's displayed. The speaker id in dialogue beats must still be one of the canonical ids above — background characters can't speak.
 

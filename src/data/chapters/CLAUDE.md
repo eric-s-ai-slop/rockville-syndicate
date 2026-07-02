@@ -38,7 +38,7 @@ to the next unless a jump redirects.
 
 `resolveSpeaker` (types.ts) checks, in order: heroes `eric | nick_f | nick_h | jacob` →
 NPC `jordan` → extras `narrator | audrey | maharko | ben | michael_bersofsky | emily |
-caleb | vs | anastasia | sophia | sam_ferretti | sean | alex`. Unknown ids still render
+caleb | vs | anastasia | sophia | sam_ferretti | sean | alex | leo | benji`. Unknown ids still render
 (generic 🗨️ bubble) — no crash, but check spelling.
 
 ## Map config

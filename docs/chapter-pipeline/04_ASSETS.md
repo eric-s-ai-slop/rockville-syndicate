@@ -77,6 +77,8 @@ Produce a spec document with these sections, in order:
 - **Recommended track**: name the existing track if one fits the chapter's tone, or flag that a new track is needed.
 - **Tone brief**: 2-3 sentences on what the music should feel like — tempo, energy, emotional register. Use the creative brief's chapter identity and arc.
 - **Cue notes**: any moments in the beats where the music should shift (boss intro automatically handles itself via existing boss music system).
+- **Per-scene music (multi-location chapters)**: if the chapter has `scenes[]`, each scene can carry its own `music:` key that crossfades in on the `changeScene` beat. Recommend a track per scene when the locations have different registers (a boardwalk before a cabin). For multi-*day* chapters on one map, one track usually carries the chapter — flag a mid-chapter shift only if the brief's emotional turn demands it (a `stopAllAudio` beat plus a cue is the schema agent's tool for that).
+- **Diegetic music**: if a specific track is part of the story itself (a playlist blasted as a prank, a song someone won't stop playing), it's an asset — name it, note the needed clip length, and flag licensing/soundalike concerns.
 
 ---
 

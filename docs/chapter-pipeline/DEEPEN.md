@@ -110,6 +110,36 @@ Character voices are defined by **behavioral patterns**, not personality traits.
 
 ---
 
+**Alex — The Accomplice**
+*Default move when pressured:* Doesn't defend the bit. Confirms it flatly and lets the audacity do the work.
+*Sentence structure:* Short. Two to five words when it matters ("She's 16, Maharko. Stop."). Goes long only when explaining the logistics of a scheme, where he is suddenly, lovingly precise.
+*What he never says directly:* That the bit took effort. The rig, the barricade, the timing — all presented as if they assembled themselves.
+*Status tells:* WINNING = deadpan understatement while chaos plays out around him. LOSING = starts explaining the joke, which he hates doing.
+*Signature:* The flat factual statement nobody wanted. Announcing completed operations in the past tense ("The door's barricaded.").
+*Underneath:* Commitment to the bit is how he shows love. The three hours of setup are the friendship.
+
+---
+
+**Leo — The Casualty**
+*Default move when pressured:* Reports his own catastrophe like a correspondent embedded in his own body. Understates the medical, overstates the inconvenience.
+*Sentence structure:* Calm declaratives with a delayed reveal — buries the lede on purpose ("So we stopped at urgent care." Then, later: "It's kidney stones.").
+*What he never says directly:* That it hurts. Pain is converted into logistics.
+*Status tells:* WINNING = the group orbits his disaster and he holds court from the stretcher. LOSING = someone else's disaster outranks his, and he audits theirs skeptically.
+*Signature:* "I'm fine." followed by information that is not fine. Cosmic bad-luck one-upmanship delivered as trivia.
+*Underneath:* Being the unluckiest is a status position, and he defends it.
+
+---
+
+**Benji — The Constant**
+*Default move when pressured:* Lights a cigarette. Weighs in after the first drag, and only once.
+*Sentence structure:* Low, unhurried, half-amused. Asks the question that skips four steps ("So are we talking to them, or are we just looking?").
+*What he never says directly:* That anything is an emergency. Emergencies are for people with worse nerves.
+*Status tells:* WINNING = motionless at the center of the chaos, narrating it to himself. LOSING = stubs the cig out early. That's the only tell he has.
+*Signature:* Physically present at every disaster, responsible for none of them. Balcony diplomacy — he opens the conversation the group is scared to.
+*Underneath:* His calm isn't detachment. He decided years ago that nothing his friends do is an emergency, and so far he's been right.
+
+---
+
 **The Narrator — "The Group Chat"**
 *Not omniscient.* Has a perspective, a bias, and omissions that are telling.
 *Default move:* Editorializes. Never just reports. Has a take on everything.
@@ -126,16 +156,20 @@ Write it like a friend explaining something to another friend who wasn't there �
 Output ready-to-paste TypeScript. Available beat types:
 
 ```typescript
-type Beat =
+type Beat = { id?: string } & (
   | { type: 'dialogue'; speaker: string; lines: string[] }
   | { type: 'choice'; speaker: string; prompt: string; options: ChoiceOption[] }
   | { type: 'walkTo'; x: number; y: number; radius?: number; markerLabel?: string }
   | { type: 'cameraPan'; x: number; y: number; durationMs: number; holdMs?: number }
-  | { type: 'bossFight'; bossId: string; arena: { x: number; y: number; w: number; h: number }; introLines?: string[] }
-  | { type: 'minigame'; modeId: string; config?: unknown; introLines?: string[]; background?: boolean }
+  | { type: 'bossFight'; bossId: string; arena: { x: number; y: number; w: number; h: number }; hideActorId?: string; introLines?: string[] }
+  | { type: 'minigame'; modeId: string; config?: unknown; introLines?: string[]; background?: boolean; loseGoto?: string }
+  | { type: 'changeScene'; sceneIndex: number; transitionMs?: number }
+  | { type: 'sfx'; key: string; volume?: number; seek?: number }
+  | { type: 'stopAllAudio'; fadeMs?: number }
   | { type: 'wait'; ms: number }
   | { type: 'ledger'; delta: number; note: string }
   | { type: 'endChapter' }
+)
 
 interface ChoiceOption {
   text: string;
@@ -146,7 +180,9 @@ interface ChoiceOption {
 }
 ```
 
-Speaker ids: `'narrator'` `'eric'` `'jordan'` `'nick_h'` `'nick_f'` `'maharko'` `'jacob'` `'audrey'` `'ben'` `'michael_bersofsky'` `'caleb'` `'vs'` `'anastasia'` `'sophia'` `'sam_ferretti'`
+The canonical schema is `src/data/chapters/types.ts` (cheat sheet: `src/data/chapters/CLAUDE.md`) — if this document and the code disagree, the code wins. `chase` exists but is tonally reserved for the Ch6 jumpscare; `routeOnMinigame` is hardcoded to groupChat — use `loseGoto` instead.
+
+Speaker ids: `'narrator'` `'eric'` `'jordan'` `'nick_h'` `'nick_f'` `'maharko'` `'jacob'` `'audrey'` `'alex'` `'leo'` `'benji'` `'ben'` `'michael_bersofsky'` `'emily'` `'caleb'` `'vs'` `'anastasia'` `'sophia'` `'sam_ferretti'` `'sean'`
 
 **Dialogue craft rules:**
 - Each entry in `lines[]` is one breath. One idea. Don't stack.

@@ -22,6 +22,8 @@ const EXTRA_SPEAKERS: Speaker[] = [
   { id: 'sam_ferretti', name: 'Sam Ferretti', emoji: '🤢', color: '#94a3b8' },
   { id: 'sean', name: 'Sean', emoji: '🏃', color: '#6ee7b7' },
   { id: 'alex', name: 'Alex', emoji: '🌴', color: '#fbbf24' },
+  { id: 'leo', name: 'Leo', emoji: '🪨', color: '#a3a3a3' },
+  { id: 'benji', name: 'Benji', emoji: '🚬', color: '#f97316' },
 ];
 
 export function resolveSpeaker(id: string): Speaker {

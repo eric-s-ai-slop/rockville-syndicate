@@ -27,6 +27,23 @@ The mechanic is not decoration. It is an argument. The way the player interacts 
 
 ### WHAT ALREADY EXISTS
 
+Twelve modes are registered (verified against `src/game/modes/index.ts` 2026-07 — that file and `src/game/modes/CLAUDE.md` are canonical; if this list and the code disagree, the code wins). Before proposing a new mode, check whether an existing one can be adapted or re-configured:
+
+| modeId | what it is | kind |
+|---|---|---|
+| `bossFight` | The standard mechanic (detailed below). Triggered by the `bossFight` beat type, never a `minigame` beat. | blocking |
+| `groupChat` | Scrollable group-chat conversation UI (Ch0) | blocking |
+| `complicityReport` | Fullscreen verdict/report card (Ch0) | blocking |
+| `basementScene` | Ambient basement party crowd (Ch3b) | background |
+| `stewOffering` | Offer-and-react social gauntlet (Ch3b) | blocking |
+| `fratAggro` | Dodge aggro frat bros (Ch3b) | blocking |
+| `silentDrive` | Timed dialogue-pressure car ride (Ch3b) | blocking |
+| `storyFractures` | Branching memory-fragment sequence (Ch3b) | blocking |
+| `battleiq-battle` | External iframe game via the `external` factory (Ch5b) | blocking, suspends Omega |
+| `poolParty` | Ambient pool crowd running under story beats (Ch9) | background |
+| `benTrivia` | "CAN BEN…?" slam-sorting trivia — fully configurable (`count`, `perPromptMs`, `strikesAllowed`, `seed`) | blocking, unwired |
+| `carRide` | Timed-phase car confrontation (planned for Ch2) | blocking, unwired |
+
 **bossFight mode** — The standard mechanic. The player dodges projectiles in an arena, fires back, and triggers a QTE (quick time event) to exploit the boss's weakness. Works well for direct one-on-one confrontations where the conflict is personal and has a clear antagonist. Includes:
 - Arena bounds (physics-confined rectangle)
 - Boss movement AI (shooter, charger, grunter, or heavy)
@@ -36,11 +53,9 @@ The mechanic is not decoration. It is an argument. The way the player interacts 
 - Combat barks (random lines during fight)
 - Boss death quote
 
-**poolParty mode** — A background/non-blocking minigame. Runs concurrently with story beats without interrupting them. Used for ambient interactive scenes rather than direct conflict. Can be adapted for any "background activity" context.
-
 **_template** — A blank minigame mode ready to be implemented. A new mode gets its own folder in `src/game/modes/`, implements the `GameMode` interface, and is registered in the mode registry. The ModeContext API gives full access to Phaser physics, sprites, audio, tweens, camera, and helper methods (letterbox, speech bubbles, damage numbers, QTE, etc.).
 
-**minigame beat type** — Any mode can be triggered as a `minigame` beat with a `config` object passed to the mode. Background modes run concurrently; foreground modes block story progression until `onComplete` is called.
+**minigame beat type** — Any mode can be triggered as a `minigame` beat with a `config` object passed to the mode. Background modes run concurrently; foreground modes block story progression until `onComplete` is called. **Lose routing exists:** a win falls through to the next beat; a lose jumps to the beat named by the `minigame` beat's `loseGoto`. Design the lose path knowing it can go somewhere — a divergent lose scene, not just a retry.
 
 ---
 
@@ -60,7 +75,15 @@ Look for a different mechanic when:
 
 ---
 
-### YOUR PROCESS
+### MULTI-ACT CHAPTERS (SIEGE/ANTHOLOGY BRIEFS)
+
+Some briefs arrive with an act structure and an escalation map — multiple days, recurring motifs, sometimes two mirrored spines. The rules change slightly:
+
+- **Still exactly one climax.** The boss/peak comes where the brief says the spines converge, almost always in the final act. Do not put a full boss fight in every act.
+- **Earlier acts may earn smaller playable peaks.** A short foreground minigame or a background mode per act is fine *if the brief's escalation map calls for it*. The strongest pattern: the **same mode recurring with an escalated `config` each act** — night one is easy, night three is unfair — so the mechanic climbs the same ladder the story does. The config delta *is* the joke; design the config schema so escalation is a parameter change, not a new mode.
+- **The environment can be the boss.** When the brief names a non-person boss (the cabin, the outbreak, the noise), the "combatant" can be a possessed prop, a swarm, or the condition itself — combat barks become the narrator or the group reacting. What matters is that the fight tests the chapter's real subject.
+- **Engine constraint:** there is a single `activeMode` slot. A `bossFight` beat displaces any running background mode; re-register the background mode with a new `minigame` beat afterward if it must continue. Budget one mode at a time per act.
+- **Cost honesty:** a recurring escalated minigame is one implementation, not three. Say so in the concept's implementation cost — it's usually cheaper than it looks and better than three unrelated mechanics.
 
 #### STAGE 1 — UNDERSTAND THE CONFLICT
 
