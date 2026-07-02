@@ -19,6 +19,8 @@ export interface CarRideConfig {
   phases: CarRidePhase[];
   combatBarks: string[];
   deathQuote: string;
+  /** Actor id whose sprite speaks the barks/defenses (defaults to 'maharko', the mode's original chapter5b use). */
+  actorId?: string;
 }
 
 export const carRideMode: GameMode<CarRideConfig> = {
@@ -27,31 +29,39 @@ export const carRideMode: GameMode<CarRideConfig> = {
   start(ctx: ModeContext, config: CarRideConfig, onComplete: (result: ModeResult) => void) {
     ctx.player.setVelocity(0, 0);
     ctx.showLetterbox();
-    
-    // Pan to back seat
-    ctx.cameras.main.pan(460, 360, 1000, 'Sine.easeInOut');
+
+    // Pan to wherever the player is when the beat fires ("back seat" framing) —
+    // derive from the player's current position, not a chapter-specific world
+    // coordinate, so this reads correctly on maps of any size.
+    ctx.cameras.main.pan(ctx.player.x, ctx.player.y, 1000, 'Sine.easeInOut');
 
     // Timer setup
     let timeRemaining = config.timer;
     let currentPhaseIndex = 0;
     let isWaitingForResponse = false;
     let isTransitioning = false;
-    
-    // UI elements
-    const timerBarBg = ctx.add.rectangle(460, 20, 400, 10, 0x000000).setScrollFactor(0).setDepth(20000);
-    const timerBar = ctx.add.rectangle(260, 20, 400, 10, 0x00ff00).setScrollFactor(0).setDepth(20001).setOrigin(0, 0.5);
-    const timerLabel = ctx.label(460, 35, 'DRIVE HOME', { fontSize: '10px', color: '#ffffff' }).setScrollFactor(0).setDepth(20000).setOrigin(0.5);
 
-    const maharkoActor = ctx.chapter.scenes?.[ctx.currentLevelIndex]?.actors?.find(a => a.id === 'maharko');
-    const maharkoSprite = ctx.actorSprites['maharko']?.[0] as Phaser.GameObjects.Sprite | undefined;
+    // UI elements — positioned from the camera viewport (benTrivia's pattern), not
+    // a hardcoded map-width-dependent x, so framing holds across chapters.
+    const cam = ctx.cameras.main;
+    const cx = cam.width / 2;
+    const cy = cam.height / 2;
+    const visH = cam.height / cam.zoom;
+
+    const timerBarBg = ctx.add.rectangle(cx, 20, 400, 10, 0x000000).setScrollFactor(0).setDepth(20000);
+    const timerBar = ctx.add.rectangle(cx - 200, 20, 400, 10, 0x00ff00).setScrollFactor(0).setDepth(20001).setOrigin(0, 0.5);
+    const timerLabel = ctx.label(cx, 35, 'DRIVE HOME', { fontSize: '10px', color: '#ffffff' }).setScrollFactor(0).setDepth(20000).setOrigin(0.5);
+
+    const opponentId = config.actorId ?? 'maharko';
+    const opponentSprite = ctx.actorSprites[opponentId]?.[0] as Phaser.GameObjects.Sprite | undefined;
 
     // Intro animation (simulate bossFight intro)
-    const overlayText = ctx.label(460, 330, config.bossName.toUpperCase(), { 
-      fontSize: '48px', color: '#ef4444', fontStyle: 'bold', stroke: '#000000', strokeThickness: 6 
+    const overlayText = ctx.label(cx, cy - visH * 0.05, config.bossName.toUpperCase(), {
+      fontSize: '48px', color: '#ef4444', fontStyle: 'bold', stroke: '#000000', strokeThickness: 6
     }).setScrollFactor(0).setDepth(20000).setAlpha(0).setOrigin(0.5).setScale(0.5);
-    
-    const subtitle = ctx.label(460, 370, config.bossTitle, { 
-      fontSize: '18px', color: '#ffffff', stroke: '#000000', strokeThickness: 3 
+
+    const subtitle = ctx.label(cx, cy + visH * 0.05, config.bossTitle, {
+      fontSize: '18px', color: '#ffffff', stroke: '#000000', strokeThickness: 3
     }).setScrollFactor(0).setDepth(20000).setAlpha(0).setOrigin(0.5);
 
     ctx.tweens.add({
@@ -88,9 +98,9 @@ export const carRideMode: GameMode<CarRideConfig> = {
       barksTimer = ctx.time.addEvent({
         delay: Phaser.Math.Between(5000, 8000),
         callback: () => {
-          if (!isWaitingForResponse && !isTransitioning && maharkoSprite) {
+          if (!isWaitingForResponse && !isTransitioning && opponentSprite) {
             const bark = Phaser.Utils.Array.GetRandom(config.combatBarks);
-            ctx.showBubbleText(maharkoSprite, bark, '#ffffff');
+            ctx.showBubbleText(opponentSprite, bark, '#ffffff');
           }
           scheduleBark();
         }
@@ -118,7 +128,7 @@ export const carRideMode: GameMode<CarRideConfig> = {
       if (currentPhaseIndex >= config.phases.length) {
         gameOverTriggered = true;
         if (barksTimer) barksTimer.remove();
-        if (maharkoSprite) ctx.showBubbleText(maharkoSprite, config.deathQuote, '#ef4444');
+        if (opponentSprite) ctx.showBubbleText(opponentSprite, config.deathQuote, '#ef4444');
         ctx.time.delayedCall(3000, () => {
           ctx.cameras.main.fadeOut(1000, 0, 0, 0);
           ctx.time.delayedCall(1200, () => {
@@ -133,8 +143,8 @@ export const carRideMode: GameMode<CarRideConfig> = {
       isWaitingForResponse = false;
       const phase = config.phases[currentPhaseIndex];
       
-      if (maharkoSprite) {
-        ctx.showBubbleText(maharkoSprite, phase.defense, '#ffffff');
+      if (opponentSprite) {
+        ctx.showBubbleText(opponentSprite, phase.defense, '#ffffff');
       }
 
       // Wait a moment before showing options
@@ -158,8 +168,8 @@ export const carRideMode: GameMode<CarRideConfig> = {
             ctx.cameras.main.flash(200, 100, 255, 100);
             ctx.cameras.main.shake(200, 0.01);
             ctx.logMessage(`Phase ${phase.id} broken!`);
-            if (maharkoSprite) {
-              ctx.showDamageNumber(maharkoSprite.x, maharkoSprite.y - 40, phase.id, '#00ff00');
+            if (opponentSprite) {
+              ctx.showDamageNumber(opponentSprite.x, opponentSprite.y - 40, phase.id, '#00ff00');
             }
             // Transition
             isTransitioning = true;
@@ -171,10 +181,10 @@ export const carRideMode: GameMode<CarRideConfig> = {
             // Fail
             ctx.cameras.main.flash(200, 255, 0, 0);
             ctx.damagePlayer(15, 'Wrong response');
-            ctx.logMessage("Wrong — Maharko doubles down");
-            if (maharkoSprite) {
+            ctx.logMessage(`Wrong — ${config.bossName} doubles down`);
+            if (opponentSprite) {
               const bark = Phaser.Utils.Array.GetRandom(config.combatBarks);
-              ctx.showBubbleText(maharkoSprite, bark, '#ef4444');
+              ctx.showBubbleText(opponentSprite, bark, '#ef4444');
             }
             
             // Re-show same phase after a delay

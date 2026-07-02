@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { GameMode, ModeContext, ModeResult } from '../types';
 import { BOSSES, BossConfig, WEAPONS, POWER_UPS, DIFFICULTY_MODS } from '../../../data/entities';
 import { getSettings } from '../../settings';
+import { BossPhase, getBossPhase, getPhaseAttackMultiplier } from './phaseLogic';
 
 export class BossFightMode implements GameMode<any> {
   public readonly id = 'bossFight';
@@ -20,6 +21,7 @@ export class BossFightMode implements GameMode<any> {
   private bossHitFlashing = false;
   private qteTimerEvent: Phaser.Time.TimerEvent | null = null;
   private isFightActive = false;
+  private lowestPhaseReached: BossPhase = 3;
 
   preload(_ctx: ModeContext) {
     // Assets are preloaded by ChapterScene
@@ -161,6 +163,7 @@ export class BossFightMode implements GameMode<any> {
     this.ctx.isBossActive = true;
     const config = BOSSES.find(b => b.id === bossConfigId) ?? BOSSES[this.ctx.currentLevelIndex % BOSSES.length];
     this.bossData = config;
+    this.lowestPhaseReached = 3;
 
     const mods = DIFFICULTY_MODS[getSettings().difficulty];
     this.currentBossHp = Math.round(config.maxHp * mods.bossHp);
@@ -278,7 +281,47 @@ export class BossFightMode implements GameMode<any> {
       this.ctx.spawnedBoss.setTintFill(0xffffff);
       this.ctx.time.delayedCall(80, () => { this.ctx.spawnedBoss?.clearTint(); this.bossHitFlashing = false; });
     }
+
+    const mods = DIFFICULTY_MODS[getSettings().difficulty];
+    const phase = getBossPhase(this.currentBossHp / (this.bossData.maxHp * mods.bossHp));
+    if (phase < this.lowestPhaseReached) {
+      this.lowestPhaseReached = phase;
+      this.onPhaseThresholdCrossed(phase);
+    }
+
     if (this.currentBossHp <= 0) this.defeatBossSuccess();
+  }
+
+  // Fires once per phase-threshold crossing (66%/33% HP): drops 1-2 loot shards and
+  // barks deterministically, replacing the old 0.5%/frame random phase-bark roll.
+  private onPhaseThresholdCrossed(phase: BossPhase) {
+    if (!this.ctx.spawnedBoss || !this.bossData) return;
+    const mods = DIFFICULTY_MODS[getSettings().difficulty];
+    this.spawnShards(this.ctx.spawnedBoss.x, this.ctx.spawnedBoss.y, Phaser.Math.Between(1, 2), mods.powerUpDropRate);
+    const phaseBark = this.bossData.phaseBarks[phase] ?? this.bossData.combatBarks[Math.floor(Math.random() * this.bossData.combatBarks.length)];
+    this.ctx.showBubbleText(this.ctx.spawnedBoss, phaseBark, '#ef4444');
+  }
+
+  private spawnShards(x: number, y: number, count: number, powerUpChance: number) {
+    for (let i = 0; i < count; i++) {
+      const sx = x + Phaser.Math.Between(-30, 30);
+      const sy = y + Phaser.Math.Between(-30, 30);
+      const shardTex = this.ctx.textures.exists('shard_sheet') ? 'shard_sheet' : 'loot_shard';
+      const shardFrame = this.ctx.textures.exists('shard_sheet') ? 0 : undefined;
+      const shard = this.ctx.physics.add.sprite(sx, sy, shardTex, shardFrame);
+      shard.setScale(this.ctx.textures.exists('shard_sheet') ? 0.18 : 1)
+        .setTint(0xfacc15)
+        .setVelocity(Phaser.Math.Between(-150, 150), Phaser.Math.Between(-150, 150))
+        .setDrag(100, 100);
+
+      if (Math.random() < powerUpChance) {
+        const pu = POWER_UPS[Math.floor(Math.random() * POWER_UPS.length)];
+        shard.setTint(0x8b5cf6).setData('powerUpId', pu.id);
+        this.ctx.showPassiveIconText(sx, sy - 24, pu.name, '#c4b5fd');
+      }
+
+      this.ctx.lootShards.add(shard);
+    }
   }
 
   private updateBossHpBar() {
@@ -352,26 +395,7 @@ export class BossFightMode implements GameMode<any> {
     this.ctx.time.delayedCall(1200, () => particles.destroy());
 
     const mods = DIFFICULTY_MODS[getSettings().difficulty];
-    for (let i = 0; i < 10; i++) {
-      const sx = this.ctx.spawnedBoss.x + Phaser.Math.Between(-30, 30);
-      const sy = this.ctx.spawnedBoss.y + Phaser.Math.Between(-30, 30);
-      const shardTex = this.ctx.textures.exists('shard_sheet') ? 'shard_sheet' : 'loot_shard';
-      const shardFrame = this.ctx.textures.exists('shard_sheet') ? 0 : undefined;
-      const shard = this.ctx.physics.add.sprite(sx, sy, shardTex, shardFrame);
-      shard.setScale(this.ctx.textures.exists('shard_sheet') ? 0.18 : 1)
-        .setTint(0xfacc15)
-        .setVelocity(Phaser.Math.Between(-150, 150), Phaser.Math.Between(-150, 150))
-        .setDrag(100, 100);
-
-      // Some shards become power-ups based on difficulty drop rate
-      if (Math.random() < mods.powerUpDropRate) {
-        const pu = POWER_UPS[Math.floor(Math.random() * POWER_UPS.length)];
-        shard.setTint(0x8b5cf6).setData('powerUpId', pu.id);
-        this.ctx.showPassiveIconText(sx, sy - 24, pu.name, '#c4b5fd');
-      }
-
-      this.ctx.lootShards.add(shard);
-    }
+    this.spawnShards(this.ctx.spawnedBoss.x, this.ctx.spawnedBoss.y, 10, mods.powerUpDropRate);
 
     this.destroyBossHpBar();
     this.bossShadow?.destroy();
@@ -440,7 +464,8 @@ export class BossFightMode implements GameMode<any> {
       this.ctx.applyDirectionalAnim(this.ctx.spawnedBoss, `boss_${bossIdForAnim}`, vx, vy, facesLeftByDefault);
     }
 
-    const attackInterval = 2000 * mods.attackInterval;
+    const phase = getBossPhase(this.currentBossHp / (this.bossData.maxHp * mods.bossHp));
+    const attackInterval = 2000 * mods.attackInterval * getPhaseAttackMultiplier(phase);
     if (time - this.lastBossAttackTime > attackInterval) {
       this.lastBossAttackTime = time;
       if (this.ctx.anims.exists(atkKey)) this.ctx.spawnedBoss.play(atkKey, true);
@@ -460,15 +485,6 @@ export class BossFightMode implements GameMode<any> {
           break;
         }
       }
-    }
-
-    // Phase barks
-    const hpRatio = this.currentBossHp / (this.bossData.maxHp * DIFFICULTY_MODS[getSettings().difficulty].bossHp);
-    const phase = hpRatio < 0.33 ? 1 : hpRatio < 0.66 ? 2 : 3;
-    if (Math.random() < 0.005) {
-      const phaseBarks = this.bossData.phaseBarks;
-      const phaseBark = phaseBarks[phase] ?? this.bossData.combatBarks[Math.floor(Math.random() * this.bossData.combatBarks.length)];
-      this.ctx.showBubbleText(this.ctx.spawnedBoss, phaseBark, '#ef4444');
     }
   }
 

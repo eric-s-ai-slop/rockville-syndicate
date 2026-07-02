@@ -66,6 +66,7 @@ const chapter1: ChapterConfig = {
         'Walk over to Jordan. He has something to show you.',
       ]
     },
+    { type: 'sfx', key: 'sfx_door_close' },
     { type: 'walkTo', x: 600, y: 460, radius: 70, markerLabel: 'Talk to Jordan' },
     {
       type: 'dialogue',

@@ -8,125 +8,10 @@ import { C } from './palette';
 // A three-scene chapter: party → lawn → car.
 // The player is alongside the group in real time as Maharko feeds a 16-year-old
 // alcohol and makes out with her in a moving car. The player's agency is a single
-// lose-lose choice after the makeout. The chapter uses a new carRide minigame mode
-// during the confrontation (Options A and C). Option B (silence) skips the fight
-// and carries heavier consequences.
+// lose-lose choice after the makeout. The confrontation runs on `battleiq-battle`
+// (Options A and C). Option B (silence) skips the fight and carries heavier
+// consequences. carRide's home is Chapter 2, not this chapter.
 // ═══════════════════════════════════════════════════════════════════════════════
-
-// ─── carRide minigame configs ─────────────────────────────────────────────────
-// The carRide mode is built by a developer from the mechanic spec (Step 2b).
-// The mode consumes this config object: four phases, each with a defense and three
-// responses (one correct). A 3-minute timer ticks down. Correct responses break
-// the defense and advance. Wrong responses cost time and HP. Timer expiry = lose.
-
-const carRideConfigA = {
-  bossName: 'Maharko',
-  bossTitle: 'The Florida Wildcard',
-  timer: 180000, // 3 minutes — the drive home
-  phases: [
-    {
-      id: 1,
-      defense: "I needed this. You don't understand what it's been like.",
-      responses: [
-        { text: "Need doesn't create right.", correct: true },
-        { text: "I get it. We've all been desperate.", correct: false },
-        { text: "Calm down, bro.", correct: false },
-      ],
-    },
-    {
-      id: 2,
-      defense: "She liked me, bro. I could tell.",
-      responses: [
-        { text: "A half-conscious 16-year-old can't like you in a way that means anything.", correct: true },
-        { text: "Maybe she did. Who knows.", correct: false },
-        { text: "That's between you and her.", correct: false },
-      ],
-    },
-    {
-      id: 3,
-      defense: "She's into it. Look at her. Look.",
-      responses: [
-        { text: "That's incapacitation, not consent.", correct: true },
-        { text: "She's drunk, not dead.", correct: false },
-        { text: "I'm not looking.", correct: false },
-      ],
-    },
-    {
-      id: 4,
-      defense: "Stop cockblocking me. I swear to god.",
-      responses: [
-        { text: "I'm not going to stop.", correct: true },
-        { text: "Fine. Do what you want.", correct: false },
-        { text: "Calm down, you're being aggressive.", correct: false },
-      ],
-    },
-  ],
-  combatBarks: [
-    "Bro you weren't even there when I met her.",
-    "Stop tripping. She's into it.",
-    "I haven't had a W in months, let me have this.",
-    "Why are you doing this in the car, bro? Read the room.",
-    "Alex already tried this. Look where it got him.",
-    "You don't get it. You're from Rockville.",
-  ],
-  deathQuote: "Whatever, bro. You said your piece. The car's still moving.",
-};
-
-// Config C is the same fight but Phase 1 is about Nick F's photos (the player just
-// confronted Nick F in Option C). The remaining phases shift down.
-const carRideConfigC = {
-  bossName: 'Maharko',
-  bossTitle: 'The Florida Wildcard',
-  timer: 180000,
-  phases: [
-    {
-      id: 1,
-      defense: "Bro, Nick F deleted the photos. It didn't happen. Why are you still on this?",
-      responses: [
-        { text: "Deleting the photos doesn't undo what happened.", correct: true },
-        { text: "You're right. If there's no photos, there's no proof.", correct: false },
-        { text: "I'm not the one you need to explain this to.", correct: false },
-      ],
-    },
-    {
-      id: 2,
-      defense: "I needed this. You don't understand what it's been like.",
-      responses: [
-        { text: "Need doesn't create right.", correct: true },
-        { text: "I get it. We've all been desperate.", correct: false },
-        { text: "Calm down, bro.", correct: false },
-      ],
-    },
-    {
-      id: 3,
-      defense: "She liked me, bro. I could tell.",
-      responses: [
-        { text: "A half-conscious 16-year-old can't like you in a way that means anything.", correct: true },
-        { text: "Maybe she did. Who knows.", correct: false },
-        { text: "That's between you and her.", correct: false },
-      ],
-    },
-    {
-      id: 4,
-      defense: "Stop cockblocking me. I swear to god.",
-      responses: [
-        { text: "I'm not going to stop.", correct: true },
-        { text: "Fine. Do what you want.", correct: false },
-        { text: "Calm down, you're being aggressive.", correct: false },
-      ],
-    },
-  ],
-  combatBarks: [
-    "Bro you weren't even there when I met her.",
-    "Stop tripping. She's into it.",
-    "I haven't had a W in months, let me have this.",
-    "Why are you doing this in the car, bro? Read the room.",
-    "Alex already tried this. Look where it got him.",
-    "You don't get it. You're from Rockville.",
-    "Nick F already deleted the pics. It's over. Let it go.",
-  ],
-  deathQuote: "Whatever, bro. You said your piece. The car's still moving.",
-};
 
 // ─── Chapter ──────────────────────────────────────────────────────────────────
 
@@ -537,7 +422,7 @@ const chapter5b: ChapterConfig = {
     // BRANCH A — Confront Maharko
     // ══════════════════════════════════════════════════════════════════════════
 
-    // 22a. [MINIGAME — carRide] The four-phase dialogue battle
+    // 22a. The four-phase dialogue battle
     {
       id: 'fight_a',
       type: 'minigame',
@@ -580,7 +465,7 @@ const chapter5b: ChapterConfig = {
     // BRANCH C — Turn on Nick F, then fight Maharko
     // ══════════════════════════════════════════════════════════════════════════
 
-    // 22c. [MINIGAME — carRide] Same fight, Phase 1 is about the photos
+    // 22c. Same fight, Phase 1 is about the photos
     {
       id: 'fight_c',
       type: 'minigame',

@@ -5,6 +5,7 @@ import {
   CHAPTER_MUSIC_KEY, STAGE_MUSIC_URL, BOSS_MUSIC_URL, BOSS_LOOP_URL,
   THEME_FOOTSTEP, FOOTSTEP_URLS,
   UI_SELECT_URL, VICTORY_JINGLE_URL, KNOCK_URL, DOOR_OPEN_URL,
+  SFX_LEDGER_URL, SFX_CREAK_URL, SFX_DOOR_CLOSE_URL, SFX_METAL_CLICK_URL,
 } from '../audio';
 import { subscribeSettings, getSettings } from '../../game/settings';
 
@@ -74,6 +75,10 @@ export class AudioController {
     this.safeLoadAudio('victory_jingle', VICTORY_JINGLE_URL);
     this.safeLoadAudio('sfx_knock', KNOCK_URL);
     this.safeLoadAudio('sfx_door_open', DOOR_OPEN_URL);
+    this.safeLoadAudio('sfx_ledger', SFX_LEDGER_URL);
+    this.safeLoadAudio('sfx_creak', SFX_CREAK_URL);
+    this.safeLoadAudio('sfx_door_close', SFX_DOOR_CLOSE_URL);
+    this.safeLoadAudio('sfx_metal_click', SFX_METAL_CLICK_URL);
   }
 
   public preloadNextChapterAudio() {

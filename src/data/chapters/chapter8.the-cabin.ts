@@ -149,6 +149,7 @@ const chapter8: ChapterConfig = {
       ]
     },
     { type: 'walkTo', x: 170, y: 160, radius: 80, markerLabel: '🏆 CLAIM BED A' },
+    { type: 'sfx', key: 'sfx_creak' },
     {
       type: 'dialogue',
       speaker: 'nick_f',
@@ -212,6 +213,7 @@ const chapter8: ChapterConfig = {
         "Also the hot tub hits different at 3AM.",
       ]
     },
+    { type: 'sfx', key: 'sfx_creak' },
     {
       type: 'choice',
       speaker: 'narrator',
@@ -224,8 +226,11 @@ const chapter8: ChapterConfig = {
             "The Syndicate gathered at the firepit at 4:17 AM.",
             "Nobody talked about girls. Nobody talked about money.",
             "They just existed. The Physics of Friendship — in equilibrium.",
+            "Rockville. UMD. Shepherd. Boca. Spain. The highway at 2AM.",
+            "The Spotify overcharge. The red pee. The $100 at Baltimore. The video Jordan sent to Ben.",
+            "All of it. All of them. Here. At the firepit. 4:17 AM. Basye, Virginia.",
           ],
-          goto: 'ending_good'
+          goto: 'finale'
         },
         {
           text: 'Jacob calls his $1,500 bet on Audrey. Audrey does not pick up.',
@@ -234,8 +239,11 @@ const chapter8: ChapterConfig = {
             "She'll text back. The 10-year plan is on track.",
             "Sub-Zero doesn't chase. Sub-Zero WAITS.",
             "...I'm going to text her again.",
+            "Jacob texted Audrey at 4:19 AM from the cabin hot tub.",
+            "She responded three months later with 'lol'.",
+            "The $1,500 contract remains active. 8 years, 3 months remain.",
           ],
-          goto: 'ending_subzero'
+          goto: 'finale'
         },
         {
           text: 'Deploy the Decades Schism. Where does the Syndicate go from here?',
@@ -244,42 +252,16 @@ const chapter8: ChapterConfig = {
           reactionLines: [
             "I can't. And I'm not going to decades. ts is buns.",
             "...I'm leaving the chat.",
+            "Eric left the chat at 4:22 AM.",
+            "He rejoined at 4:23 AM and said 'goodnight.'",
+            "The Syndicate endures.",
           ],
-          goto: 'ending_decades'
+          goto: 'finale'
         },
       ]
     },
     {
-      id: 'ending_good',
-      type: 'dialogue',
-      speaker: 'narrator',
-      lines: [
-        "Rockville. UMD. Shepherd. Boca. Spain. The highway at 2AM.",
-        "The Spotify overcharge. The red pee. The $100 at Baltimore. The video Jordan sent to Ben.",
-        "All of it. All of them. Here. At the firepit. 4:17 AM. Basye, Virginia.",
-      ]
-    },
-    {
-      id: 'ending_subzero',
-      type: 'dialogue',
-      speaker: 'narrator',
-      lines: [
-        "Jacob texted Audrey at 4:19 AM from the cabin hot tub.",
-        "She responded three months later with 'lol'.",
-        "The $1,500 contract remains active. 8 years, 3 months remain.",
-      ]
-    },
-    {
-      id: 'ending_decades',
-      type: 'dialogue',
-      speaker: 'narrator',
-      lines: [
-        "Eric left the chat at 4:22 AM.",
-        "He rejoined at 4:23 AM and said 'goodnight.'",
-        "The Syndicate endures.",
-      ]
-    },
-    {
+      id: 'finale',
       type: 'dialogue',
       speaker: 'narrator',
       lines: [

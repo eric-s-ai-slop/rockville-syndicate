@@ -128,3 +128,14 @@ export const KNOCK_URL = knockUrl;
 // Creaky door swing for the Ch6 "The door opens." story beat.
 import doorOpenUrl from '../assets/audio/kenney_rpg-audio/Audio/doorOpen_1.ogg?url';
 export const DOOR_OPEN_URL = doorOpenUrl;
+
+// ── GAME-WIDE ONE-SHOTS (July 2026 SFX pass) ──
+import handleCoinsUrl from '../assets/audio/kenney_rpg-audio/Audio/handleCoins.ogg?url';
+import creakUrl from '../assets/audio/kenney_rpg-audio/Audio/creak1.ogg?url';
+import doorCloseUrl from '../assets/audio/kenney_rpg-audio/Audio/doorClose_1.ogg?url';
+import metalClickUrl from '../assets/audio/kenney_rpg-audio/Audio/metalClick.ogg?url';
+
+export const SFX_LEDGER_URL = handleCoinsUrl;    // ledger beat auto-plays this
+export const SFX_CREAK_URL = creakUrl;
+export const SFX_DOOR_CLOSE_URL = doorCloseUrl;
+export const SFX_METAL_CLICK_URL = metalClickUrl;

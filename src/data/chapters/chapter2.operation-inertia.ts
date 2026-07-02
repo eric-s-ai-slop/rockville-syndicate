@@ -89,6 +89,7 @@ const chapter2: ChapterConfig = {
       ]
     },
     { type: 'cameraPan', x: 440, y: 200, durationMs: 1600, holdMs: 800 },
+    { type: 'sfx', key: 'sfx_metal_click' },
     {
       type: 'dialogue',
       speaker: 'nick_h',
@@ -110,7 +111,8 @@ const chapter2: ChapterConfig = {
           reactionLines: [
             "I JUST PUT IN A HUNDRED DOLLARS. WE'RE TWO HOURS FROM NYC.",
             "I'm getting hot now. I'm actually getting hot.",
-          ]
+          ],
+          goto: 'jacob_melt'
         },
         {
           text: 'Override Nick H. Push to NYC.',
@@ -118,6 +120,7 @@ const chapter2: ChapterConfig = {
           reactionLines: [
             "Absolutely not. I'm not doing this. The Tucson is going home.",
             'The Bedtime Veto is absolute. This conversation is over.',
+            "...Unless you can out-argue me. Try it. I dare you.",
           ]
         },
         {
@@ -126,11 +129,92 @@ const chapter2: ChapterConfig = {
           reactionLines: [
             'We have burned 90 minutes. Gas: $22. Jacob\'s "investment": $100. We are at Baltimore.',
             'The expected value of continuing is negative. The Bedtime Veto wins on forensic grounds.',
+            "...But if you want to relitigate it with Nick H directly, be my guest.",
           ]
         },
       ]
     },
     {
+      type: 'dialogue',
+      speaker: 'narrator',
+      lines: [
+        'One last shot. Nick H\'s thumb hovers over the hazards. Out-argue the Sleep Goblin before he pulls the U-turn.',
+      ]
+    },
+    {
+      type: 'minigame',
+      modeId: 'carRide',
+      config: {
+        bossName: 'Nick H',
+        bossTitle: 'The Sleep Goblin',
+        timer: 75000,
+        actorId: 'nick_h',
+        phases: [
+          {
+            id: 1,
+            defense: "The Bedtime Veto is absolute. I said it. It's law.",
+            responses: [
+              { text: "There's no veto. You're not even in Congress.", correct: true },
+              { text: 'I respect the veto.', correct: false },
+              { text: 'Can we compromise on 2 AM?', correct: false },
+            ],
+          },
+          {
+            id: 2,
+            defense: "I've been awake since 6 AM. My body is shutting down.",
+            responses: [
+              { text: 'Red Bull. Case closed. I bought four.', correct: true },
+              { text: "That's rough, man.", correct: false },
+              { text: 'Same, honestly. Let\'s just go home.', correct: false },
+            ],
+          },
+          {
+            id: 3,
+            defense: "Fine. FINE. But I'm calling it the second we hit the city. No negotiations.",
+            responses: [
+              { text: "Deal. Now move your seat back, we're doing this.", correct: true },
+              { text: 'Actually, never mind, let\'s turn around.', correct: false },
+              { text: 'I need to think about it.', correct: false },
+            ],
+          },
+        ],
+        combatBarks: [
+          'Loooove it here. Loooove being asleep.',
+          "The Tucson doesn't lie. I'm gone at 10:30.",
+          'I can feel my eyelids negotiating without me.',
+          'This is assault. Vehicular sleep assault.',
+        ],
+        deathQuote: "...Fine. FINE. NYC. But I'm sleeping through all of it.",
+      },
+      introLines: [
+        'NICK H — The Sleep Goblin',
+        'Out-argue the Bedtime Veto before the exit.',
+      ],
+      loseGoto: 'jacob_melt'
+    },
+    {
+      type: 'dialogue',
+      speaker: 'nick_h',
+      lines: [
+        "...Fine. FINE. NYC. But I'm sleeping through all of it.",
+        'He reclines the passenger seat 40 degrees and is unconscious within a mile.',
+      ]
+    },
+    {
+      type: 'dialogue',
+      speaker: 'narrator',
+      lines: [
+        'The C55 AMG blows past Exit 49. Baltimore recedes in the mirror.',
+        'Jacob\'s $100 "investment" is, for one exit, theoretically justified.',
+        "NYC by 4AM. The Bedtime Veto — overturned on appeal.",
+      ]
+    },
+    { type: 'endChapter' },
+
+    // ── LOSE / bribe-accepted branch — placed after endChapter (unreachable by
+    // fall-through), reached via choice goto or carRide's loseGoto. ─────────────
+    {
+      id: 'jacob_melt',
       type: 'dialogue',
       speaker: 'nick_h',
       lines: [

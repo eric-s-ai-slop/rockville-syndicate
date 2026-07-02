@@ -31,7 +31,7 @@ benTrivia remains unwired for now.
 
 ## Items (ordered by impact/effort)
 
-### ⬜ 1. Fix the Chapter 8 triple-ending bug (S/M)
+### ✅ 1. Fix the Chapter 8 triple-ending bug (S/M)
 
 **File:** `src/data/chapters/chapter8.the-cabin.ts` (only file required).
 
@@ -45,7 +45,7 @@ benTrivia remains unwired for now.
   Any beat can carry an `id`; only `ChoiceOption.goto` and minigame `loseGoto` can jump.
   **Dialogue beats cannot `goto`.**
 
-### ⬜ 2. Game-wide SFX pass via existing `sfx` beat + auto-ledger sound (S)
+### ✅ 2. Game-wide SFX pass via existing `sfx` beat + auto-ledger sound (S)
 
 **Files:** `src/game/audio.ts`, `src/game/scene/AudioController.ts`,
 `src/game/scene/BeatEngine.ts`, 3–4 chapter files.
@@ -62,7 +62,7 @@ benTrivia remains unwired for now.
 - **Rejected from stale TRACK_D:** "cabin epilogue track" — `cabin_basye` → `music_ch7`
   mapping is deliberate (comment at `src/game/audio.ts:49`), no unused asset exists.
 
-### ⬜ 3. Boss-fight depth: mid-fight power-up drops + phase escalation (S/M, playtest-gated)
+### ✅ 3. Boss-fight depth: mid-fight power-up drops + phase escalation (S/M, playtest-gated)
 
 **File:** `src/game/modes/bossFight/index.ts`.
 
@@ -78,7 +78,7 @@ benTrivia remains unwired for now.
 - Playtest Ch1 (Eric) and Ch6 on normal difficulty for feel. Extract the phase-threshold
   logic as a pure function and unit-test it.
 
-### ⬜ 4. De-formularize Chapter 2 with carRide + small Ch4 touches (M)
+### ✅ 4. De-formularize Chapter 2 with carRide + small Ch4 touches (M)
 
 **Files:** `src/data/chapters/chapter2.operation-inertia.ts`,
 `src/data/chapters/chapter4.jungle-gym-gambit.ts`, possibly

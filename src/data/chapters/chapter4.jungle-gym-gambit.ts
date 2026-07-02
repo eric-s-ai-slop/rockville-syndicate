@@ -87,6 +87,8 @@ const chapter4: ChapterConfig = {
         '🐔🐔🐔🐔🐔',
       ]
     },
+    { type: 'walkTo', x: 420, y: 290, radius: 60, markerLabel: 'Climb the jungle gym' },
+    { type: 'sfx', key: 'sfx_creak' },
     {
       type: 'choice',
       speaker: 'narrator',
@@ -107,7 +109,8 @@ const chapter4: ChapterConfig = {
           reactionLines: [
             '🐔🐔🐔🐔🐔🐔🐔🐔',
             "You drove here, Jacob. You're standing on the jungle gym.",
-          ]
+          ],
+          goto: 'jacob_stalls'
         },
         {
           text: '"Is Audrey going to be here?"',
@@ -120,6 +123,7 @@ const chapter4: ChapterConfig = {
       ]
     },
     {
+      id: 'converge',
       type: 'dialogue',
       speaker: 'jacob',
       lines: [
@@ -147,6 +151,33 @@ const chapter4: ChapterConfig = {
       ]
     },
     { type: 'endChapter' },
+
+    // ── "I'm 13x liquid" branch — placed after endChapter (unreachable by
+    // fall-through), reached via the choice's goto; converges back below. ──────
+    {
+      id: 'jacob_stalls',
+      type: 'dialogue',
+      speaker: 'jacob',
+      lines: [
+        "Actually, you know what, I'm walking back to my car.",
+      ]
+    },
+    {
+      type: 'dialogue',
+      speaker: 'nick_h',
+      lines: [
+        '🐔🐔🐔🐔🐔🐔🐔🐔🐔🐔🐔🐔',
+        "The car's locked. I have the keys. Sit.",
+      ]
+    },
+    {
+      type: 'choice',
+      speaker: 'narrator',
+      prompt: 'Jacob weighs his options.',
+      options: [
+        { text: '(Concede.)', goto: 'converge' }
+      ]
+    },
   ]
 };
 

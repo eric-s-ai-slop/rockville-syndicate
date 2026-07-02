@@ -33,7 +33,11 @@ export class BeatEngine {
         return this.advanceBeat();
       }
       case 'wait': return this.scene.time.delayedCall(beat.ms, () => this.advanceBeat());
-      case 'ledger': this.scene.applyLedger(beat.delta, beat.note); return this.advanceBeat();
+      case 'ledger': {
+        this.scene.applyLedger(beat.delta, beat.note);
+        try { if (this.scene.cache.audio.exists('sfx_ledger')) this.scene.sound.play('sfx_ledger', { volume: 0.7 }); } catch {}
+        return this.advanceBeat();
+      }
       case 'minigame': return this.runMinigameBeat(beat);
       case 'routeOnMinigame': return this.runRouteOnMinigame(beat);
       case 'stopAllAudio': this.scene.stopAllAudio(beat.fadeMs); return this.advanceBeat();
