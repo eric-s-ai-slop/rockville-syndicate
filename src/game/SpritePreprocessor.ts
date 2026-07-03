@@ -1363,30 +1363,44 @@ export function preprocessStandardSheet(img: HTMLImageElement, cols = 3): Sliced
   const pixels = imgData.data;
 
   // Strip background. These source sheets are JPGs (no alpha), so the intended
-  // transparent area was flattened into a two-tone gray checkerboard
-  // (~#787878 and ~#bdbdbd). A single bg-color sample at (0,0) only catches one of
-  // the two tones, leaving the other as visible checker squares in-game.
+  // transparent area was flattened into a two-tone gray checkerboard. The exact
+  // grays vary per sheet — benji/rose sit around ~#787878/#bdbdbd, but alex's are
+  // ~#6c6c6c/#9e9e9e (lum ~108/158). A previous version keyed two *hardcoded* tone
+  // bands, so alex's lighter tone fell in the gap between them and its checker
+  // squares survived (visible as a checkerboard behind the sprite in-game).
   //
-  // Earlier this keyed out the entire near-neutral band (lum 70–210), but that
-  // punched holes through legitimately-gray subject pixels (gray hair, denim,
-  // hoodies) that happen to land mid-band. Instead, match each checker tone
-  // within a tolerance: this clears both checker squares (plus JPEG ringing
-  // around them) while preserving mid-grays between the two tones, the white tank
-  // tops above them, and the dark outlines below — and it removes a strict subset
-  // of the old band, so it can never key out a pixel the old code would have kept.
-  const CHECKER_TONES = [120, 189]; // ~#787878 and ~#bdbdbd luminance
-  const CHECKER_TOLERANCE = 24;     // absorbs JPEG noise around each flat tone
-  for (let i = 0; i < pixels.length; i += 4) {
-    const r = pixels[i];
-    const g = pixels[i+1];
-    const b = pixels[i+2];
-    const mx = Math.max(r, g, b);
-    const mn = Math.min(r, g, b);
-    if (mx - mn >= 24) continue; // saturated → part of the subject, never bg
+  // Instead of guessing tones, flood-fill transparency inward from the image
+  // border. Every gap between/around the sprites is filled with checker that
+  // reaches the outer edge, so a border flood clears BOTH tones on any sheet. The
+  // flood only crosses near-neutral (desaturated, non-black) pixels, so it stops
+  // dead at each sprite's dark outline / saturated fill — interior subject grays
+  // (gray hair, denim, shoes) are never border-reachable and stay untouched. This
+  // is strictly safer than a global luminance band, which punched holes in those.
+  const isBgColor = (idx: number): boolean => {
+    const r = pixels[idx], g = pixels[idx + 1], b = pixels[idx + 2];
+    if (Math.max(r, g, b) - Math.min(r, g, b) >= 28) return false; // saturated → subject
     const lum = (r + g + b) / 3;
-    if (CHECKER_TONES.some((tone) => Math.abs(lum - tone) <= CHECKER_TOLERANCE)) {
-      pixels[i+3] = 0; // Transparent
-    }
+    return lum >= 78 && lum <= 205; // checker grays (+ JPEG ringing); excludes dark outlines & white tanks
+  };
+  const visited = new Uint8Array(width * height);
+  const stack: number[] = [];
+  const pushSeed = (x: number, y: number) => {
+    const p = y * width + x;
+    if (!visited[p]) { visited[p] = 1; stack.push(p); }
+  };
+  for (let x = 0; x < width; x++) { pushSeed(x, 0); pushSeed(x, height - 1); }
+  for (let y = 0; y < height; y++) { pushSeed(0, y); pushSeed(width - 1, y); }
+  while (stack.length) {
+    const p = stack.pop() as number;
+    const idx = p * 4;
+    if (!isBgColor(idx)) continue; // subject boundary — don't cross or clear
+    pixels[idx + 3] = 0;           // transparent
+    const x = p % width;
+    const y = (p - x) / width;
+    if (x > 0)          { const q = p - 1;     if (!visited[q]) { visited[q] = 1; stack.push(q); } }
+    if (x < width - 1)  { const q = p + 1;     if (!visited[q]) { visited[q] = 1; stack.push(q); } }
+    if (y > 0)          { const q = p - width; if (!visited[q]) { visited[q] = 1; stack.push(q); } }
+    if (y < height - 1) { const q = p + width; if (!visited[q]) { visited[q] = 1; stack.push(q); } }
   }
 
   const finalCanvas = document.createElement('canvas');

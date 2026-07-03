@@ -94,13 +94,21 @@ export class SwarmSurvivalMode implements GameMode {
   private overlay: Phaser.GameObjects.Rectangle | null = null;
   private hitFlash: Phaser.GameObjects.Rectangle | null = null;
   private titleText: Phaser.GameObjects.Text | null = null;
+  private hpLabel: Phaser.GameObjects.Text | null = null;
   private hpBarBg: Phaser.GameObjects.Rectangle | null = null;
   private hpBarFill: Phaser.GameObjects.Rectangle | null = null;
   private timerText: Phaser.GameObjects.Text | null = null;
   private burstText: Phaser.GameObjects.Text | null = null;
-  private hintText: Phaser.GameObjects.Text | null = null;
+  private burstBarBg: Phaser.GameObjects.Rectangle | null = null;
+  private burstBarFill: Phaser.GameObjects.Rectangle | null = null;
+  // All edge/corner HUD lives in this one container. It's anchored at the screen centre
+  // and scaled by 1/zoom so children placed at (screenX-cx, screenY-cy) land on true
+  // screen pixels regardless of the chapter's camera zoom (Ch11 runs at 2.0). A plain
+  // scrollFactor(0) object gets flung off-screen because camera zoom pivots on centre.
+  private hudContainer: Phaser.GameObjects.Container | null = null;
 
   private static readonly HP_BAR_W = 180;
+  private static readonly BURST_BAR_W = 150;
 
   preload(_ctx: ModeContext): void {}
 
@@ -143,38 +151,87 @@ export class SwarmSurvivalMode implements GameMode {
 
   private buildHud(): void {
     const cam = this.ctx.cameras.main;
+    const cx = cam.width / 2, cy = cam.height / 2;
+    const zoom = cam.zoom || 1;
     const color = this.config.theme.hudColor ?? '#facc15';
 
-    this.overlay = this.ctx.add.rectangle(cam.width / 2, cam.height / 2, cam.width, cam.height, 0x1a0d0d, 0.18)
+    // Full-screen tint & flash. Sized 2× and centred so camera zoom (which over-scales
+    // from the centre) still covers the whole viewport — a uniform tint over-covering is
+    // visually identical, so these don't need the container treatment.
+    this.overlay = this.ctx.add.rectangle(cx, cy, cam.width * 2, cam.height * 2, 0x1a0d0d, 0.18)
       .setScrollFactor(0).setDepth(9000);
-    this.hitFlash = this.ctx.add.rectangle(cam.width / 2, cam.height / 2, cam.width, cam.height, 0xef4444, 0)
+    this.hitFlash = this.ctx.add.rectangle(cx, cy, cam.width * 2, cam.height * 2, 0xef4444, 0)
       .setScrollFactor(0).setDepth(9600);
 
-    this.titleText = this.ctx.label(cam.width / 2, 30, this.config.theme.label, {
+    // Zoom-compensated HUD container (see field comment). Local coords = screen px - centre.
+    this.hudContainer = this.ctx.add.container(cx, cy).setScrollFactor(0).setScale(1 / zoom).setDepth(9001);
+
+    // title — top centre, ~78px down to clear the app's DOM banner.
+    this.titleText = this.ctx.label(cx - cx, 78 - cy, this.config.theme.label, {
       fontSize: '16px', color, fontStyle: 'bold', backgroundColor: '#0b0808d0',
       padding: { x: 10, y: 5 }, stroke: '#000000', strokeThickness: 2,
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(9001);
+    }).setOrigin(0.5);
 
+    // "HP" caption sits left of the bar so the meter reads as health, not a mystery gauge.
+    this.hpLabel = this.ctx.label(20 - cx, 72 - cy, 'HP', {
+      fontSize: '12px', color: '#e2e8f0', fontStyle: 'bold', stroke: '#000000', strokeThickness: 3,
+    }).setOrigin(0, 0.5);
     const W = SwarmSurvivalMode.HP_BAR_W;
-    this.hpBarBg = this.ctx.add.rectangle(20, 24, W, 16, 0x2a0a0a).setOrigin(0, 0.5)
-      .setStrokeStyle(2, 0x000000).setScrollFactor(0).setDepth(9001);
-    this.hpBarFill = this.ctx.add.rectangle(22, 24, W - 4, 12, 0x22c55e).setOrigin(0, 0.5)
-      .setScrollFactor(0).setDepth(9002);
+    const barX = 48; // clears the "HP" caption
+    this.hpBarBg = this.ctx.add.rectangle(barX - cx, 72 - cy, W, 16, 0x2a0a0a).setOrigin(0, 0.5)
+      .setStrokeStyle(2, 0x000000);
+    this.hpBarFill = this.ctx.add.rectangle((barX + 2) - cx, 72 - cy, W - 4, 12, 0x22c55e).setOrigin(0, 0.5);
 
-    this.timerText = this.ctx.label(cam.width - 20, 24, '', {
+    this.timerText = this.ctx.label((cam.width - 20) - cx, 72 - cy, '', {
       fontSize: '15px', color: '#e2e8f0', fontStyle: 'bold', stroke: '#000000', strokeThickness: 2,
-    }).setOrigin(1, 0.5).setScrollFactor(0).setDepth(9001);
+    }).setOrigin(1, 0.5);
 
-    this.burstText = this.ctx.label(20, 48, '', {
+    this.burstText = this.ctx.label(20 - cx, 96 - cy, '', {
       fontSize: '13px', color, fontStyle: 'bold', stroke: '#000000', strokeThickness: 2,
-    }).setOrigin(0, 0.5).setScrollFactor(0).setDepth(9001);
+    }).setOrigin(0, 0.5);
 
-    this.hintText = this.ctx.label(cam.width / 2, cam.height - 20,
-      `${this.config.theme.primaryLabel}   ·   ${this.config.theme.secondaryLabel}   ·   DODGE [SPACE]`, {
-      fontSize: '12px', color: '#9aa0a8', stroke: '#000000', strokeThickness: 2,
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(9001);
+    // Spray recharge bar — fills as the next charge cooks, so the scarce secondary reads
+    // as "coming back" instead of a silent number.
+    const BW = SwarmSurvivalMode.BURST_BAR_W;
+    this.burstBarBg = this.ctx.add.rectangle(20 - cx, 114 - cy, BW, 8, 0x1a1208).setOrigin(0, 0.5)
+      .setStrokeStyle(1, 0x000000);
+    this.burstBarFill = this.ctx.add.rectangle(21 - cx, 114 - cy, BW - 2, 6, 0xf59e0b).setOrigin(0, 0.5);
 
+    this.hudContainer.add([this.titleText, this.hpLabel, this.hpBarBg, this.hpBarFill, this.timerText, this.burstText, this.burstBarBg, this.burstBarFill]);
+    this.buildControls(cx, cy);
     this.refreshHud();
+  }
+
+  private buildControls(cx: number, cy: number): void {
+    const cam = this.ctx.cameras.main;
+    // Persistent on-screen control legend (key-caps + labels) along the bottom.
+    const items = [
+      { key: 'WASD', label: 'Move' },
+      { key: 'J', label: (this.config.theme.primaryLabel.split('[')[0].trim() || 'Swat') },
+      { key: 'K', label: (this.config.theme.secondaryLabel.split('[')[0].trim() || 'Bomb') },
+      { key: 'SPACE', label: 'Dodge' },
+    ];
+    const gap = 20;
+    // First pass: build the caps/labels and measure total width.
+    const parts = items.map(it => {
+      const capW = 12 + it.key.length * 9;
+      const cap = this.ctx.add.rectangle(0, 0, capW, 22, 0x0b0808, 0.9).setStrokeStyle(1, 0x9aa0a8);
+      const keyTxt = this.ctx.label(0, 0, it.key, { fontSize: '12px', color: '#e2e8f0', fontStyle: 'bold' }).setOrigin(0.5);
+      const lbl = this.ctx.label(0, 0, it.label, { fontSize: '12px', color: '#c9ced6' }).setOrigin(0, 0.5);
+      return { cap, keyTxt, lbl, capW, lblW: lbl.width };
+    });
+    const totalW = parts.reduce((w, p) => w + p.capW + 6 + p.lblW + gap, 0) - gap;
+    // Second pass: lay out centred along the bottom, converting screen px -> container-local.
+    const screenY = cam.height - 24;
+    let x = cx - totalW / 2;
+    for (const p of parts) {
+      p.cap.setPosition((x + p.capW / 2) - cx, screenY - cy);
+      p.keyTxt.setPosition((x + p.capW / 2) - cx, screenY - cy);
+      x += p.capW + 6;
+      p.lbl.setPosition(x - cx, screenY - cy);
+      x += p.lblW + gap;
+      this.hudContainer!.add([p.cap, p.keyTxt, p.lbl]);
+    }
   }
 
   private refreshHud(): void {
@@ -192,6 +249,14 @@ export class SwarmSurvivalMode implements GameMode {
       const full = '●'.repeat(this.burstCharges);
       const empty = '○'.repeat(Math.max(0, this.config.secondary.charges - this.burstCharges));
       this.burstText.setText(`${this.config.theme.secondaryLabel}  ${full}${empty}`);
+    }
+    if (this.burstBarFill) {
+      const BW = SwarmSurvivalMode.BURST_BAR_W - 2;
+      const atMax = this.burstCharges >= this.config.secondary.charges;
+      // At max: bar reads full & green ("ready"). Charging: amber fill toward next charge.
+      const frac = atMax ? 1 : Phaser.Math.Clamp(this.burstRechargeAccum / this.config.secondary.cooldownMs, 0, 1);
+      this.burstBarFill.width = Math.max(1, BW * frac);
+      this.burstBarFill.fillColor = atMax ? 0x22c55e : 0xf59e0b;
     }
   }
 
@@ -390,14 +455,24 @@ export class SwarmSurvivalMode implements GameMode {
 
     this.hp = Math.max(0, this.hp - e.spec.contactDamage);
     this.flashHit();
+    this.flashPlayerHurt();
     this.ctx.showDamageNumber((this.ctx.player.x as number) + Phaser.Math.Between(-14, 14), (this.ctx.player.y as number) - 28, e.spec.contactDamage, '#ef4444');
-    if (e.spec.contactDamage >= 8) this.ctx.cameras.main.shake(90, 0.006);
+    this.ctx.cameras.main.shake(90, 0.006);
     // Nudge the biting enemy off so it re-approaches instead of sitting on the player.
     const dx = (e.obj.x as number) - (this.ctx.player.x as number);
     const dy = (e.obj.y as number) - (this.ctx.player.y as number);
     const n = (Math.hypot(dx, dy) || 1);
     e.obj.x = (e.obj.x as number) + (dx / n) * KILL_KNOCKBACK;
     e.obj.y = (e.obj.y as number) + (dy / n) * KILL_KNOCKBACK;
+  }
+
+  private flashPlayerHurt(): void {
+    // Tint the character red for a beat — unmistakable "I got bitten" feedback in-world.
+    const p = this.ctx.player as Phaser.GameObjects.Sprite;
+    try {
+      p.setTint(0xff5555);
+      this.ctx.time.delayedCall(140, () => { try { p.clearTint(); } catch { /* torn down */ } });
+    } catch { /* player may not support tint */ }
   }
 
   private flashHit(): void {
@@ -431,12 +506,10 @@ export class SwarmSurvivalMode implements GameMode {
     this.enemies = [];
     this.overlay?.destroy(); this.overlay = null;
     this.hitFlash?.destroy(); this.hitFlash = null;
-    this.titleText?.destroy(); this.titleText = null;
-    this.hpBarBg?.destroy(); this.hpBarBg = null;
-    this.hpBarFill?.destroy(); this.hpBarFill = null;
-    this.timerText?.destroy(); this.timerText = null;
-    this.burstText?.destroy(); this.burstText = null;
-    this.hintText?.destroy(); this.hintText = null;
+    // Destroying the container destroys all HUD children (title/HP/timer/burst/controls).
+    this.hudContainer?.destroy(); this.hudContainer = null;
+    this.titleText = null; this.hpLabel = null; this.hpBarBg = null; this.hpBarFill = null;
+    this.timerText = null; this.burstText = null; this.burstBarBg = null; this.burstBarFill = null;
     this.swatKey?.reset(); this.swatKey = null;
     this.burstKey?.reset(); this.burstKey = null;
     this.onCompleteCallback = null;

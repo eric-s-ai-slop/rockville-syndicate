@@ -58,7 +58,7 @@ lever but also the largest effort; defer until first-load time is an actual comp
 
 (Existing detailed specs — pull into active work as capacity allows.)
 
-- **July 2026 improvement batch (ACTIVE)** — `docs/IMPROVEMENT_BATCH_2026-07.md`:
+- **July 2026 improvement batch (DONE)** — `docs/archive/IMPROVEMENT_BATCH_2026-07.md`:
   Ch8 endings bug fix, ledger/sfx audio pass, mid-fight power-up drops,
   carRide→Ch2, entities.ts split, GameLayout extraction
 
@@ -83,6 +83,8 @@ lever but also the largest effort; defer until first-load time is an actual comp
 
 ## Done (recent)
 
+- ✅ July 2026 Improvement Batch: Ch8 endings bug, ledger audio, power-up drops, carRide to Ch2, entities.ts split, GameLayout extraction
+- ✅ Chapter 11 expansion, swarmSurvival minigame, speakerHunt refactor, storyFractures extension
 - ✅ Decomposed `ChapterScene` god object into `scene/` subsystems (Actors, AudioController,
   BeatEngine, MapBuilder, Atmosphere, SpriteLoader)
 - ✅ Expanded Playwright E2E suite (4 → 18 specs); E2E gate now required in CI

@@ -133,14 +133,22 @@ const chapter11: ChapterConfig = {
       },
       music: 'music_ch11_space_song', // "Space Song" — Beach House; continues from the Act 1 turn
       actors: [
-        { id: 'eric', x: 1000, y: 690 },
-        { id: 'alex', x: 1120, y: 690, spriteKey: 'npc_alex_sheet' },
-        { id: 'jordan', x: 1000, y: 180 },
-        { id: 'maharko', x: 1120, y: 180, nameOverride: 'Maharko (bed-bound)' },
-        { id: 'nick_h', x: 200, y: 560 },
-        { id: 'nick_f', x: 350, y: 600 },
-        { id: 'leo', x: 420, y: 650, spriteKey: 'npc_benji_sheet' }, // TEMP STAND-IN — no Leo sheet exists yet, see order sheet
-        { id: 'benji', x: 550, y: 550, nameOverride: 'Benji (smoking)', spriteKey: 'npc_benji_sheet' },
+        // understudyId === own id: keep the whole roster present even when the player IS
+        // one of them (Day-4 grill task requires the player to walk up to Nick F — so if
+        // the player is Nick F there must still be a Nick F NPC in the cabin, i.e. two of
+        // them). Without this, Actors.placeActors() skips the slot the player occupies.
+        // Coords aligned to the painted furniture in stage_cabin_interior.jpg (1200×800):
+        // Eric & Alex sit on their two single beds (bottom-right room); Jordan & Maharko
+        // lie in the shared double bed (top-right room); the healthy crew is on the living-
+        // room seating and by the entry door — none of them float in the walkways anymore.
+        { id: 'eric', x: 1050, y: 590, understudyId: 'eric' },                              // upper single bed
+        { id: 'alex', x: 1050, y: 730, spriteKey: 'npc_alex_sheet' },                       // lower single bed
+        { id: 'jordan', x: 968, y: 195 },                                                   // double bed, left pillow
+        { id: 'maharko', x: 1035, y: 195, nameOverride: 'Maharko (bed-bound)' },            // double bed, right pillow
+        { id: 'nick_h', x: 610, y: 300, understudyId: 'nick_h' },                           // green couch
+        { id: 'nick_f', x: 330, y: 435, understudyId: 'nick_f' },                           // red armchair (sick — legs quit)
+        { id: 'leo', x: 405, y: 445, spriteKey: 'npc_benji_sheet' }, // TEMP STAND-IN — no Leo sheet exists yet; second red armchair
+        { id: 'benji', x: 335, y: 685, nameOverride: 'Benji (smoking)', spriteKey: 'npc_benji_sheet' }, // by the entry door
       ],
     },
     {
@@ -207,31 +215,6 @@ const chapter11: ChapterConfig = {
   // BEATS
   // ════════════════════════════════════════════════════════════════════════════
   beats: [
-    // ⚠️ TEMP PLAYTEST BEAT — swarmSurvival MVP feel-check. Remove before shipping;
-    // real placement is tied to the cabinCollapse bugs meter in Act 2. (ADDING_A_MINIGAME §7)
-    {
-      type: 'minigame',
-      modeId: 'swarmSurvival',
-      introLines: ['[PLAYTEST] The bugs found you. Swat with J, bug-bomb with K, dash to dodge.'],
-      loseGoto: 'act1_start',
-      config: {
-        theme: { label: 'BUG SWARM', primaryLabel: 'SWAT [J]', secondaryLabel: 'BUG BOMB [K]', hudColor: '#a3e635' },
-        survival: { durationMs: 60000, playerHp: 100 },
-        primary: { damage: 1, reach: 70, arcDeg: 110, cooldownMs: 300, knockback: 60 },
-        secondary: { charges: 2, damage: 3, radius: 140, cooldownMs: 12000 },
-        waves: [
-          { atMs: 0, enemyType: 'gnat', count: 6, spawnOverMs: 3000 },
-          { atMs: 12000, enemyType: 'gnat', count: 10, spawnOverMs: 4000 },
-          { atMs: 28000, enemyType: 'mosquito', count: 6, spawnOverMs: 3000 },
-          { atMs: 44000, enemyType: 'gnat', count: 14, spawnOverMs: 5000 },
-        ],
-        enemyTypes: {
-          gnat: { hp: 1, speed: 55, contactDamage: 6, behavior: 'zigzag', emoji: '🪰' },
-          mosquito: { hp: 2, speed: 85, contactDamage: 10, behavior: 'homing', emoji: '🦟' },
-        },
-      },
-    },
-
     // ─── ACT 1 — OCEAN CITY ─────────────────────────────────────────────────
 
     {
@@ -480,6 +463,59 @@ const chapter11: ChapterConfig = {
     // Day 4
     { type: 'dialogue', speaker: 'narrator', lines: ["Day four. Nick F is sick now. Maharko still down. Jordan still bed-bound.", "Water's out most of the day.", "Three bodies in. The house is doing the math faster than anyone left in it."] },
     { type: 'dialogue', speaker: 'nick_f', lines: ["Honestly though, it's probably nothing. I feel like it's just — the trip catching up. In a fun way."] },
+
+    // ── Day-4 GRILL RUN — the swarmSurvival ambush. Nick F (too sick to cook) hands off
+    //    grill duty; the player walks to the deck door, the map switches to the deck
+    //    (scene 2), and the swarm is revealed OUTSIDE. Because the fight is on scene 2, a
+    //    loss has to return to Nick F's order INSIDE (scene 1) — so the loseGoto anchor is
+    //    a changeScene(1) that rebuilds the cabin before re-giving the order. Jumping a
+    //    scene-1 dialogue over the deck map (or re-running the walkTos against deck coords)
+    //    would glitch. On the first pass the player is already in the cabin, so the anchor
+    //    fade just reads as a soft time-cut. Lose → loseGoto: 'day4_grill_orders'.
+    { type: 'dialogue', speaker: 'narrator', lines: ["Somebody still has to feed eight people. The chef rotation is down to whoever can stand upright — and the grill's already lit out on the deck."] },
+    { id: 'day4_grill_orders', type: 'changeScene', sceneIndex: 1, transitionMs: 600 },
+    { type: 'walkTo', x: 340, y: 520, radius: 90, markerLabel: 'Check on Nick F' },
+    { type: 'dialogue', speaker: 'nick_f', lines: [
+      "Oh thank god. Dude — the dogs are already on the grill out on the deck. I put 'em on, then my legs quit.",
+      "Go flip 'em before they turn into charcoal pucks. I'd do it myself but I physically cannot stand up right now.",
+    ] },
+    { type: 'walkTo', x: 120, y: 430, radius: 80, markerLabel: 'Head out to the deck' },
+    { type: 'changeScene', sceneIndex: 2, transitionMs: 700 },
+    { type: 'dialogue', speaker: 'narrator', lines: [
+      "The deck door swings open — and the deck is gone.",
+      "Where the railing used to be there's a living wall of wings, and every one of them just clocked you.",
+    ] },
+    { type: 'minigame', modeId: 'swarmSurvival',
+      introLines: ["Swat with J. Bug-bomb with K. Dash with SPACE. Hold the deck until the dogs are done."],
+      loseGoto: 'day4_grill_orders',
+      config: {
+        theme: { label: 'GRILL DUTY', primaryLabel: 'SWAT [J]', secondaryLabel: 'BUG BOMB [K]', hudColor: '#a3e635' },
+        survival: { durationMs: 60000, playerHp: 100 },
+        primary: { damage: 1, reach: 60, arcDeg: 100, cooldownMs: 340, knockback: 55 },
+        secondary: { charges: 2, damage: 3, radius: 120, cooldownMs: 10000 },
+        waves: [
+          { atMs: 0, enemyType: 'gnat', count: 8, spawnOverMs: 2500 },
+          { atMs: 8000, enemyType: 'gnat', count: 12, spawnOverMs: 3500 },
+          { atMs: 18000, enemyType: 'mosquito', count: 8, spawnOverMs: 3000 },
+          { atMs: 27000, enemyType: 'gnat', count: 12, spawnOverMs: 3500 },   // overlaps the mosquitoes
+          { atMs: 36000, enemyType: 'mosquito', count: 9, spawnOverMs: 3000 },
+          { atMs: 45000, enemyType: 'wasp', count: 5, spawnOverMs: 2500 },     // spike: fast, tanky
+          { atMs: 50000, enemyType: 'gnat', count: 18, spawnOverMs: 5000 },    // final crescendo
+        ],
+        enemyTypes: {
+          gnat: { hp: 1, speed: 80, contactDamage: 8, behavior: 'zigzag', emoji: '🪰' },
+          mosquito: { hp: 2, speed: 118, contactDamage: 14, behavior: 'homing', emoji: '🦟' },
+          wasp: { hp: 3, speed: 138, contactDamage: 18, behavior: 'homing', emoji: '🐝' },
+        },
+      },
+    },
+    { type: 'dialogue', speaker: 'narrator', lines: ["The dogs are... mostly hot dogs. You grab the tray and get back through the door before the swarm pours in after you."] },
+    { type: 'changeScene', sceneIndex: 1, transitionMs: 700 },
+    { type: 'dialogue', speaker: 'nick_f', lines: [
+      "My hero. Genuinely. That's going in the group chat.",
+      "(beat) ...I still feel like absolute garbage though.",
+    ] },
+
     { type: 'dialogue', speaker: 'narrator', lines: ["Eric notices the bathroom door can be forced open with a fork. It's hard. It's very hard. He files it anyway."] },
     { type: 'dialogue', speaker: 'eric', lines: ["Simply an infrastructure observation.", "The Bathroom Era starts tonight."] },
 
