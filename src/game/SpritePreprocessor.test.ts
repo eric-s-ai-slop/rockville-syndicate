@@ -341,19 +341,62 @@ describe('SpritePreprocessor', () => {
       return captured;
     };
 
+    // Full-grid builder: lets a test paint arbitrary pixels so we can exercise the
+    // border flood fill (which cares about spatial connectivity, not just tone).
+    const runKeyingGrid = (
+      w: number, h: number, fill: (x: number, y: number) => number[],
+    ): Uint8ClampedArray => {
+      let captured: Uint8ClampedArray | null = null;
+      HTMLCanvasElement.prototype.getContext = function (contextId: string): any {
+        if (contextId !== '2d') return null;
+        return {
+          fillRect: vi.fn(), clearRect: vi.fn(), drawImage: vi.fn(),
+          getImageData: () => {
+            const data = new Uint8ClampedArray(w * h * 4);
+            for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+              const [r, g, b] = fill(x, y);
+              const i = (y * w + x) * 4;
+              data[i] = r; data[i + 1] = g; data[i + 2] = b; data[i + 3] = 255;
+            }
+            return { data, width: w, height: h };
+          },
+          putImageData: (imgData: ImageData) => { captured = imgData.data; },
+          imageSmoothingEnabled: false,
+        };
+      } as any;
+      const img = document.createElement('img');
+      Object.defineProperty(img, 'naturalWidth', { value: w, configurable: true });
+      Object.defineProperty(img, 'naturalHeight', { value: h, configurable: true });
+      preprocessStandardSheet(img);
+      if (!captured) throw new Error('putImageData was never called');
+      return captured;
+    };
+
     it('keys out both flattened checker tones', () => {
-      // px0 ~#787878 (lum 120), px1 ~#bdbdbd (lum 189) — both checker tones.
+      // px0 ~#787878 (lum 120), px1 ~#bdbdbd (lum 189) — both checker tones, both on
+      // the top border, so the border flood reaches and clears each.
       const out = runKeying([[120, 120, 120], [189, 189, 189]]);
       expect(out[3]).toBe(0);  // tone 1 → transparent
       expect(out[7]).toBe(0);  // tone 2 → transparent
     });
 
-    it('preserves mid-gray subject pixels between the two checker tones', () => {
-      // px2 lum 155 sits in the gap between the tones — the old [70,210] band would
-      // have punched a hole here; the tolerance-based keying must keep it opaque.
-      const out = runKeying([[120, 120, 120], [189, 189, 189], [155, 155, 155]]);
-      expect(out[3]).toBe(0);    // checker still cleared
-      expect(out[11]).toBe(255); // mid-gray subject preserved
+    it('preserves an interior subject gray the flood cannot reach through the outline', () => {
+      // 8×8: checker background fills the border-reachable area; a dark outline ring
+      // encloses a mid-gray (lum 155) subject pixel dead center. The border flood
+      // clears the surrounding checker but is walled off by the outline, so the
+      // interior gray survives — this is the case a flat luminance band punched holes in.
+      const W = 8, H = 8;
+      const out = runKeyingGrid(W, H, (x, y) => {
+        const inCenter = x >= 3 && x <= 4 && y >= 3 && y <= 4;
+        const inRing = x >= 2 && x <= 5 && y >= 2 && y <= 5;
+        if (inCenter) return [155, 155, 155]; // mid-gray subject
+        if (inRing) return [30, 30, 30];       // dark outline wall
+        return [120, 120, 120];                // checker background
+      });
+      const alpha = (x: number, y: number) => out[(y * W + x) * 4 + 3];
+      expect(alpha(0, 0)).toBe(0);   // border checker cleared
+      expect(alpha(3, 3)).toBe(255); // interior mid-gray subject preserved
+      expect(alpha(2, 2)).toBe(255); // dark outline preserved
     });
 
     it('preserves dark outlines and saturated subject pixels', () => {

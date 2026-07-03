@@ -78,7 +78,6 @@ class BattleController {
         this.rollingHp = game.party.map(pm => pm.hp);
 
         const partyState = (game.party || []).map(p => `${p.name}(${p.hp}/${p.maxHp})`).join(", ");
-        console.log(`[BattleIQ:Battle] Start vs "${this.activeEnemy.name}" (HP ${this.activeEnemy.hp}/${this.activeEnemy.maxHp}, ATK ${this.activeEnemy.atk}). Act ${game.currentActIndex}. Party: [${partyState}] (${game.party.length})`);
 
         game.changeState("battle");
 
@@ -165,7 +164,6 @@ class BattleController {
         const arena = document.getElementById("arena-container");
         if (arena) arena.style.borderColor = "#ffffff";
 
-        console.log("[BattleIQ:Reset] Battle UI fully reset (popups cleared, action history reset, timing bar hidden, submenus hidden, bullet hell stopped).");
     }
 
 
@@ -210,7 +208,6 @@ class BattleController {
         this.currentActor = nextIdx;
         this.partyIndex = nextIdx;
         const newActor = game.party[nextIdx];
-        console.log(`[BattleIQ:Switch] Switched to "${newActor.name}" (HP ${newActor.hp}/${newActor.maxHp}, ATK ${newActor.atk}). Inventory: [${(newActor.inventory || []).join(", ")}]`);
         this.logMessage(`→ Switched to ${newActor.name}'s turn!`);
         game.showToast(`→ ${newActor.name}'s Turn`);
         this.updateActiveMemberIndicator();
@@ -388,7 +385,6 @@ class BattleController {
         const pm = game.party[this.currentActor];
         if (!pm) return;
         pm.locked = !pm.locked;
-        console.log(`[BattleIQ:Lock] Toggled lock on "${pm.name}": ${pm.locked ? "LOCKED 🔒" : "UNLOCKED 🔓"}`);
         this.logMessage(`${pm.name} is now ${pm.locked ? "LOCKED 🔒" : "UNLOCKED 🔓"} (won't be auto-removed).`);
         if (game.showToast) {
             game.showToast(`${pm.name}: ${pm.locked ? "🔒 LOCKED" : "🔓 UNLOCKED"}`);
@@ -412,7 +408,6 @@ class BattleController {
         // ============================================================================
         if (this.timingAttackActive && (key === " " || key === "spacebar" || key === "enter")) {
             e.preventDefault();
-            console.log("[BattleIQ:Timing] Player pressed SPACE to stop the cursor.");
             this.resolveTimingAttack();
             return;
         }
@@ -420,7 +415,6 @@ class BattleController {
         // Throttled log: only when key changes from previous
         if (key !== this._lastInputKey) {
             this._lastInputKey = key;
-            console.log(`[BattleIQ:Input] key=${key} | isSelectingAction=${this.isSelectingAction} | menuPath=${this.menuPath}`);
         }
 
         if (this.isSelectingAction) {
@@ -525,13 +519,11 @@ class BattleController {
             controlsHUD.updateControls("battle", "main");
         }
         audio.playSelect();
-        if (before !== "main") console.log(`[BattleIQ:Menu] ${before} → main (closed submenu)`);
     }
 
 
 
     executeMenuSelection(option) {
-        console.log(`[BattleIQ:Input] executeMenuSelection option=${option} | isProcessing=${this.isProcessing}`);
 
         // Guard against rapid-fire stacking: if we're already processing, ignore
         if (this.isProcessing) {
@@ -640,7 +632,6 @@ class BattleController {
         if (this.timingTimeoutId) clearTimeout(this.timingTimeoutId);
         this.timingTimeoutId = setTimeout(() => {
             if (this.timingAttackActive) {
-                console.log("[BattleIQ:Timing] Auto-stopped (timeout).");
                 this.resolveTimingAttack();
             }
         }, 4000);
@@ -749,7 +740,6 @@ class BattleController {
         const comboText = this.comboMultiplier > 1.0 ? ` (\u00d7${this.comboMultiplier.toFixed(1)} COMBO!)` : "";
         const timingText = ` (${tier.toUpperCase()} \u00d7${timingMult.toFixed(1)})`;
 
-        console.log(`[BattleIQ:Timing] Resolved: pos=${pos.toFixed(3)} tier=${tier} mult=${timingMult} baseDmg=${baseDmg.toFixed(1)} totalMult=${totalMult.toFixed(2)} finalDmg=${dmg}`);
 
         // Re-enable input briefly, then deal damage after result display
         setTimeout(() => {
@@ -1059,7 +1049,6 @@ class BattleController {
         // ============================================================================
         if (itemId === "intent" && item.debugMaxDamage) {
             const debugDmg = this.activeEnemy.maxHp;
-            console.log(`[BattleIQ:Debug] Intentional Game Design used. Dealt ${debugDmg} damage to "${this.activeEnemy.name}". (Item KEPT in inventory — infinite uses.)`);
             this.closeSubmenus();
             this.isSelectingAction = false;
             this.isProcessing = true;
@@ -1174,7 +1163,6 @@ class BattleController {
         const hpBefore = this.activeEnemy.hp;
         this.activeEnemy.hp = Math.max(0, this.activeEnemy.hp - dmg);
         this.logMessage(messageText);
-        console.log(`[BattleIQ:Battle] Damage ${this.activeEnemy.name}: ${hpBefore} → ${this.activeEnemy.hp} (-${dmg}) [${((this.activeEnemy.hp / this.activeEnemy.maxHp) * 100).toFixed(0)}% HP]`);
 
         // Update enemy HP bar
         this.updateEnemyHpBar();
@@ -1226,7 +1214,6 @@ class BattleController {
 
         // Display the "tell" line (player learns which attack is coming)
         this.logMessage(this.activeEnemy.name + ': "' + tellLine + '"');
-        console.log(`[BattleIQ:Turn] T${this.turnCount} | Pattern: ${patternId} | Tell: ${tellLine} | Party: [${(game.party || []).map(p => `${p.name}(${p.hp}/${p.maxHp})`).join(", ")}]`);
 
 
         // Visual cue: flash the enemy sprite briefly
@@ -1292,7 +1279,6 @@ class BattleController {
         const mainMenu = document.getElementById("main-battle-menu");
         const isVisible = mainMenu && !mainMenu.classList.contains("hidden");
         const btnCount = document.querySelectorAll("#main-battle-menu .battle-btn").length;
-        console.log(`[BattleIQ:Turn] ENDED → T${this.turnCount} | menuPath=main | mainMenuVisible=${isVisible} | buttons=${btnCount} | isSelectingAction=${this.isSelectingAction}`);
     }
 
 
@@ -1353,12 +1339,10 @@ class BattleController {
         audio.playHeal();
         if (audio.playBossDefeat) audio.playBossDefeat();
         this.logMessage(messageText);
-        console.log(`[BattleIQ:Battle] WON vs "${this.activeEnemy.name}" after ${this.turnCount} turns! (${this.actionHistory.length} actions in history)${wasSpared ? " [SPARED]" : ""}`);
 
         // 2026-06-11: Track this boss as SPARED (not defeated) for True Pacifist check
         if (wasSpared && game && game.sparedBosses && !game.sparedBosses.includes(this.activeEnemyId)) {
             game.sparedBosses.push(this.activeEnemyId);
-            console.log(`[BattleIQ:Ending] game.sparedBosses now = [${game.sparedBosses.join(", ")}]`);
         }
 
         // Cleanup the canvas we created
@@ -1383,18 +1367,15 @@ class BattleController {
         setTimeout(() => {
             // If this is the FINAL boss (Ben, Act 4 / index 3) -> show full Victory screen
             if (isFinalBoss) {
-                console.log("[BattleIQ:Battle] Final boss defeated! Showing VICTORY screen.");
                 game.showVictoryScreen();
                 return;
             }
 
             // Otherwise advance to the next act FIRST
-            console.log(`[BattleIQ:Battle] Advancing to next act...`);
             game.advanceAct();
 
             // Then auto-recruit the defeated boss (if they have a memberId)
             if (newMemberId && GAME_DATA.PLAYERS[newMemberId]) {
-                console.log(`[BattleIQ:Auto-Recruit] Triggering recruit for "${newMemberId}" after advancing to next act.`);
                 // Defer 200ms to let advanceAct() finish (sets up new map, party order)
                 setTimeout(() => {
                     if (typeof game.recruitMember === "function") {

@@ -1403,6 +1403,32 @@ export function preprocessStandardSheet(img: HTMLImageElement, cols = 3): Sliced
     if (y < height - 1) { const q = p + width; if (!visited[q]) { visited[q] = 1; stack.push(q); } }
   }
 
+  // Speck cleanup: JPEG ringing sometimes rings a tiny checker island with faintly
+  // saturated pixels, walling it off from the border flood so it survives as a
+  // stray gray dot in the transparent zone. Clear any remaining checker-gray pixel
+  // that is mostly surrounded by already-transparent background (≥3 of 4 orthogonal
+  // neighbors cleared). Solid subject pixels sit in a run of opaque neighbors, so
+  // this can only ever nibble isolated specks and 1px anti-alias fringe, never a
+  // hole in the character. Two passes catch 2–3px clusters.
+  for (let pass = 0; pass < 2; pass++) {
+    const toClear: number[] = [];
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const p = y * width + x;
+        const idx = p * 4;
+        if (pixels[idx + 3] === 0 || !isBgColor(idx)) continue;
+        let clearNbrs = 0;
+        if (x === 0 || pixels[(p - 1) * 4 + 3] === 0) clearNbrs++;
+        if (x === width - 1 || pixels[(p + 1) * 4 + 3] === 0) clearNbrs++;
+        if (y === 0 || pixels[(p - width) * 4 + 3] === 0) clearNbrs++;
+        if (y === height - 1 || pixels[(p + width) * 4 + 3] === 0) clearNbrs++;
+        if (clearNbrs >= 3) toClear.push(idx);
+      }
+    }
+    if (!toClear.length) break;
+    toClear.forEach((idx) => { pixels[idx + 3] = 0; });
+  }
+
   const finalCanvas = document.createElement('canvas');
   finalCanvas.width = width;
   finalCanvas.height = height;
