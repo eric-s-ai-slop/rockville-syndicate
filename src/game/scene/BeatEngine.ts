@@ -41,6 +41,10 @@ export class BeatEngine {
       case 'minigame': return this.runMinigameBeat(beat);
       case 'routeOnMinigame': return this.runRouteOnMinigame(beat);
       case 'stopAllAudio': this.scene.stopAllAudio(beat.fadeMs); return this.advanceBeat();
+      case 'screenTint': {
+        this.scene.setScreenTint(beat.color, beat.alpha, beat.durationMs, () => this.advanceBeat());
+        return;
+      }
       case 'changeScene': return this.scene.transitionToScene(beat.sceneIndex, beat.transitionMs, () => this.advanceBeat());
       case 'changeMusic': this.scene.audioController.crossfadeToMusic(beat.key); return this.advanceBeat();
       case 'endChapter': return this.scene.runEndChapter();
@@ -263,6 +267,7 @@ export class BeatEngine {
       showPassiveIconText: (x, y, text, color) => s.showPassiveIconText(x, y, text, color),
       showDamageNumber: (x, y, amount, color) => s.showDamageNumber(x, y, amount, color),
       setControlsInverted: (inverted) => s.setControlsInverted(inverted),
+      isPlayerInvuln: () => s.playerController.isInvuln(s.time.now),
       triggerQTE: (boss, cb) => s.onTriggerQTE(boss, cb),
       logMessage: (msg) => s.onMessageLog(msg),
       onStoryDialogue: (payload, done) => s.onStoryDialogue(payload, done),

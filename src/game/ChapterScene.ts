@@ -714,6 +714,7 @@ export default class ChapterScene extends Phaser.Scene {
 
     // Atmosphere tracked refs (also in mapObjects, but null them out)
     this.atmosphere.resetMapVisuals();
+    this.atmosphere.resetScreenTint();
     this.particleEmitters.forEach(e => { try { e.destroy(); } catch {} });
     this.particleEmitters = [];
     this.propSprites = new Map();
@@ -1423,6 +1424,11 @@ export default class ChapterScene extends Phaser.Scene {
 
   public hideLetterbox(durationMs = 350) {
     this.atmosphere.hideLetterbox(durationMs);
+  }
+
+  /** Tween a full-viewport dark overlay in/out — "night has fallen" cue for a beat sequence. */
+  public setScreenTint(color: number, alpha: number, durationMs = 500, onComplete?: () => void) {
+    this.atmosphere.setScreenTint(color, alpha, durationMs, onComplete);
   }
 
   /** Floating damage number rising from a world position. */

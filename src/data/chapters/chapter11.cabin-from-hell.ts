@@ -87,8 +87,12 @@ const chapter11: ChapterConfig = {
           { x: 13, y: 400, w: 26, h: 800, fill: C.wall, solid: true, invisible: true },
           { x: 1188, y: 400, w: 25, h: 800, fill: C.wall, solid: true, invisible: true },
           { x: 600, y: 400, w: 1200, h: 800, fill: 0x000000, propKey: 'stage_cabin_interior', invisible: true },
-          // North wall — the clock/window/TV band is a wall, not floor.
-          { x: 370, y: 174, w: 692, h: 21, fill: C.wall, solid: true, invisible: true },
+          // North wall — the clock/window/TV band is a wall, not floor. Sealed all the
+          // way up to the outer top wall (was only 21px thick down to y:163.5, leaving
+          // a ~147px unenclosed void between it and the top wall — a player who dashed
+          // through the thin strip landed in that void with no way back out). Also
+          // widened a few px past the corridor's left wall to close a seam gap there.
+          { x: 375, y: 99, w: 702, h: 171, fill: C.wall, solid: true, invisible: true },
           // Hallway (corridor) left wall, 3 segments — gaps are the living-room-open
           // threshold and two doorways into the kitchen/entry room.
           { x: 730, y: 197, w: 19, h: 342, fill: C.wall, solid: true, invisible: true },
@@ -203,9 +207,35 @@ const chapter11: ChapterConfig = {
   // BEATS
   // ════════════════════════════════════════════════════════════════════════════
   beats: [
+    // ⚠️ TEMP PLAYTEST BEAT — swarmSurvival MVP feel-check. Remove before shipping;
+    // real placement is tied to the cabinCollapse bugs meter in Act 2. (ADDING_A_MINIGAME §7)
+    {
+      type: 'minigame',
+      modeId: 'swarmSurvival',
+      introLines: ['[PLAYTEST] The bugs found you. Swat with J, bug-bomb with K, dash to dodge.'],
+      loseGoto: 'act1_start',
+      config: {
+        theme: { label: 'BUG SWARM', primaryLabel: 'SWAT [J]', secondaryLabel: 'BUG BOMB [K]', hudColor: '#a3e635' },
+        survival: { durationMs: 60000, playerHp: 100 },
+        primary: { damage: 1, reach: 70, arcDeg: 110, cooldownMs: 300, knockback: 60 },
+        secondary: { charges: 2, damage: 3, radius: 140, cooldownMs: 12000 },
+        waves: [
+          { atMs: 0, enemyType: 'gnat', count: 6, spawnOverMs: 3000 },
+          { atMs: 12000, enemyType: 'gnat', count: 10, spawnOverMs: 4000 },
+          { atMs: 28000, enemyType: 'mosquito', count: 6, spawnOverMs: 3000 },
+          { atMs: 44000, enemyType: 'gnat', count: 14, spawnOverMs: 5000 },
+        ],
+        enemyTypes: {
+          gnat: { hp: 1, speed: 55, contactDamage: 6, behavior: 'zigzag', emoji: '🪰' },
+          mosquito: { hp: 2, speed: 85, contactDamage: 10, behavior: 'homing', emoji: '🦟' },
+        },
+      },
+    },
+
     // ─── ACT 1 — OCEAN CITY ─────────────────────────────────────────────────
 
     {
+      id: 'act1_start',
       type: 'dialogue',
       speaker: 'narrator',
       lines: [
@@ -364,6 +394,22 @@ const chapter11: ChapterConfig = {
 
     { id: 'night1_aftermath', type: 'dialogue', speaker: 'nick_h', lines: ["I mean.", "It was in the ottoman. Of course it was in the ottoman."] },
     { type: 'dialogue', speaker: 'alex', lines: ["The door's barricaded."] },
+    { type: 'stopAllAudio', fadeMs: 200 },
+    { type: 'dialogue', speaker: 'narrator', lines: ["Everyone goes to bed."] },
+    { type: 'changeScene', sceneIndex: 1, transitionMs: 1800 },
+    { type: 'screenTint', color: 0x000000, alpha: 0.94, durationMs: 400 },
+    { type: 'sfx', key: 'sfx_ultraphonk', volume: 1.0 },
+    { type: 'dialogue', speaker: 'nick_h', lines: ["Somewhere, another one starts.", "Someone has to get up."] },
+
+    { type: 'minigame', modeId: 'speakerHunt', config: {
+      night: 1,
+      speakers: [{ x: 550, y: 550, id: 'rung1_second' }],
+      barricade: { doorX: 863, doorY: 593 },
+      timeLimitMs: 75000,
+    }, introLines: ["Half-asleep. It's close, though."], background: false, loseGoto: 'night1_second_found_late' },
+    { id: 'night1_after_second', type: 'dialogue', speaker: 'nick_h', lines: ["There.", "Back to bed."] },
+
+    { type: 'screenTint', color: 0x03050f, alpha: 0, durationMs: 900 },
 
     { type: 'minigame', modeId: 'cabinCollapse', config: { startDay: 3, meters: { water: 50, ac: 100, bugs: 20, illness: 1 } }, introLines: [], background: true },
 
@@ -386,6 +432,10 @@ const chapter11: ChapterConfig = {
       reviewWindow: 4000,
       allowReplay: true,
       maxAttempts: 3,
+      winTitle: 'Nick F believed all of it.',
+      winBody: 'The peed pants, the color-shifting hands, the bed that was actually the bathroom — none of it was real. '
+        + 'Nick H made it all up on the spot, and Nick F caught every lie anyway.',
+      loseBody: 'Whatever Nick F actually noticed, he never got the chance to say it. Nick H just kept talking.',
     }, introLines: ['Nick H is the trip setter.', 'Nick F is not doing great.'], background: false, loseGoto: 'nickf_freakout_believes_it' },
 
     { id: 'freakout_aftermath', type: 'dialogue', speaker: 'benji', lines: ["(back from the hike, lights one) I go away for two hours."] },
@@ -408,6 +458,22 @@ const chapter11: ChapterConfig = {
     }, introLines: ["Night two.", "It's under someone this time."], background: false, loseGoto: 'night2_found_it_late' },
 
     { id: 'night2_aftermath', type: 'dialogue', speaker: 'leo', lines: ["I'm fine.", "I just found a speaker inside my own pillow. That's all that happened."] },
+    { type: 'stopAllAudio', fadeMs: 200 },
+    { type: 'dialogue', speaker: 'narrator', lines: ["Everyone goes to bed."] },
+    { type: 'changeScene', sceneIndex: 1, transitionMs: 1800 },
+    { type: 'screenTint', color: 0x000000, alpha: 0.94, durationMs: 400 },
+    { type: 'sfx', key: 'sfx_ultraphonk', volume: 1.0 },
+    { type: 'dialogue', speaker: 'leo', lines: ["It's already going again.", "Somebody has to get up."] },
+
+    { type: 'minigame', modeId: 'speakerHunt', config: {
+      night: 2,
+      speakers: [{ x: 500, y: 550, id: 'rung2_second' }],
+      barricade: { doorX: 863, doorY: 593 },
+      timeLimitMs: 75000,
+    }, introLines: ["Half-asleep. It's close, though."], background: false, loseGoto: 'night2_second_found_late' },
+    { id: 'night2_after_second', type: 'dialogue', speaker: 'leo', lines: ["Found it.", "I'm never sleeping again."] },
+
+    { type: 'screenTint', color: 0x03050f, alpha: 0, durationMs: 900 },
 
     { type: 'minigame', modeId: 'cabinCollapse', config: { startDay: 4, meters: { water: 25, ac: 40, bugs: 30, illness: 2 } }, introLines: [], background: true },
 
@@ -450,7 +516,7 @@ const chapter11: ChapterConfig = {
 
     { id: 'night3_hunt', type: 'minigame', modeId: 'speakerHunt', config: {
       night: 3,
-      speakers: [{ x: 1000, y: 400, id: 'rung3_bathroom' }],
+      speakers: [{ x: 895, y: 390, id: 'rung3_bathroom' }],
       locked: { doorX: 863, doorY: 415 },
       barricade: { doorX: 863, doorY: 593 },
       timeLimitMs: 180000,
@@ -458,6 +524,13 @@ const chapter11: ChapterConfig = {
 
     { type: 'dialogue', speaker: 'nick_h', lines: ["Fifteen minutes. Someone Googled how door locks work. We won."] },
     { type: 'dialogue', speaker: 'alex', lines: ["The door's barricaded.", "(beat) So's the bathroom, technically. We'll fix that."] },
+    { type: 'stopAllAudio', fadeMs: 200 },
+    { type: 'dialogue', speaker: 'narrator', lines: ["Everyone goes to bed. This one has to be the last one."] },
+    { type: 'changeScene', sceneIndex: 1, transitionMs: 1800 },
+    { type: 'screenTint', color: 0x000000, alpha: 0.94, durationMs: 400 },
+    { type: 'sfx', key: 'sfx_ultraphonk', volume: 1.0 },
+    { type: 'dialogue', speaker: 'eric', lines: ["(from the dark) We never actually found the first one, did we.", "Simply an oversight. The Cabin Era ends anyway."] },
+    { type: 'screenTint', color: 0x03050f, alpha: 0, durationMs: 900 },
 
     { type: 'minigame', modeId: 'cabinCollapse', config: { startDay: 4, meters: { water: 25, ac: 40, bugs: 30, illness: 3 } }, introLines: [], background: true },
 
@@ -502,6 +575,12 @@ const chapter11: ChapterConfig = {
 
     { id: 'night2_found_it_late', type: 'dialogue', speaker: 'leo', lines: ["Two speakers, way too long. Got 'em both eventually."] },
     { type: 'choice', speaker: 'narrator', prompt: '', options: [{ text: 'Continue', goto: 'night2_aftermath' }] },
+
+    { id: 'night1_second_found_late', type: 'dialogue', speaker: 'nick_h', lines: ["Took a while, half-asleep. Found it anyway."] },
+    { type: 'choice', speaker: 'narrator', prompt: '', options: [{ text: 'Continue', goto: 'night1_after_second' }] },
+
+    { id: 'night2_second_found_late', type: 'dialogue', speaker: 'leo', lines: ["Took forever this time. Found it anyway."] },
+    { type: 'choice', speaker: 'narrator', prompt: '', options: [{ text: 'Continue', goto: 'night2_after_second' }] },
 
     { id: 'nickf_freakout_believes_it', type: 'dialogue', speaker: 'nick_f', lines: ["(genuinely tries to use Jordan and Maharko's bed as the bathroom, is stopped)"] },
     { type: 'choice', speaker: 'narrator', prompt: '', options: [{ text: 'Continue', goto: 'freakout_aftermath' }] },

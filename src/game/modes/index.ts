@@ -13,6 +13,7 @@ import { benTriviaMode } from './benTrivia';
 import { createExternalGameMode } from './external';
 import { speakerHuntMode } from './speakerHunt';
 import { cabinCollapseMode } from './cabinCollapse';
+import { swarmSurvivalMode } from './swarmSurvival';
 
 const registry = new Map<string, GameMode>();
 
@@ -30,6 +31,7 @@ registerMode(benTriviaMode);
 registerMode(createExternalGameMode({ id: 'battleiq-battle', gameId: 'battleiq' }));
 registerMode(speakerHuntMode);
 registerMode(cabinCollapseMode);
+registerMode(swarmSurvivalMode);
 
 export function registerMode(m: GameMode) {
   registry.set(m.id, m);

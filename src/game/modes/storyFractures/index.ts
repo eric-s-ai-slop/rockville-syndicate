@@ -32,6 +32,11 @@ interface StoryFracturesConfig {
   reviewWindow?: number;
   allowReplay?: boolean;
   maxAttempts?: number;
+  /** Win overlay text. Defaults to the original UMBC/Maharko copy if omitted. */
+  winTitle?: string;
+  winBody?: string;
+  /** Lose overlay text. Defaults to the original UMBC/Maharko copy if omitted. */
+  loseBody?: string;
 }
 
 const DEPTH = {
@@ -423,9 +428,11 @@ export class StoryFracturesMode implements GameMode<StoryFracturesConfig> {
     if (this.ambient) this.ctx.tweens.add({ targets: this.ambient, volume: 0, duration: 600 });
 
     this.showOverlay(
-      'The story couldn’t hold.',
-      'Ben said “you’re next” to three girls. Maharko was close enough to hear it. '
-        + 'The frat guys pulled Ben off. Maharko knew right then.',
+      this.cfg.winTitle ?? 'The story couldn’t hold.',
+      this.cfg.winBody ?? (
+        'Ben said “you’re next” to three girls. Maharko was close enough to hear it. '
+        + 'The frat guys pulled Ben off. Maharko knew right then.'
+      ),
       GOLD,
     );
     this.addTimer(2800, () => this.finish('win'));
@@ -446,7 +453,7 @@ export class StoryFracturesMode implements GameMode<StoryFracturesConfig> {
 
     this.showOverlay(
       '',
-      'What Maharko saw — or didn’t see — was never asked again.',
+      this.cfg.loseBody ?? 'What Maharko saw — or didn’t see — was never asked again.',
       DIM,
     );
 

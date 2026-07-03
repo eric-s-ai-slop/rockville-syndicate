@@ -159,6 +159,7 @@ export type Beat = { id?: string } & (
   | { type: 'wait'; ms: number }
   | { type: 'ledger'; delta: number; note: string }
   | { type: 'stopAllAudio'; fadeMs?: number }
+  | { type: 'screenTint'; color: number; alpha: number; durationMs?: number }
   | { type: 'changeScene'; sceneIndex: number; transitionMs?: number }
   | { type: 'changeMusic'; key: string; fadeMs?: number }
   | { type: 'endChapter' }

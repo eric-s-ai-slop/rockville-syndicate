@@ -22,6 +22,7 @@ build a new mode, copy [_template/](_template/) and follow `docs/ADDING_A_MINIGA
 | `carRide` | — unwired (planned: Ch2) | `CarRideConfig` ([carRide/carRide.ts](carRide/carRide.ts)): boss name, timed phases, responses, barks | blocking |
 | `speakerHunt` | Ch11 ×3 (Nights 1-3) | `SpeakerHuntConfig` ([speakerHunt/index.ts](speakerHunt/index.ts)): `night`, `speakers[]`, `redHerrings?`, `locked?`, `barricade`, `timeLimitMs` | blocking |
 | `cabinCollapse` | Ch11, re-registered ~6x | `CabinCollapseConfig` ([cabinCollapse/index.ts](cabinCollapse/index.ts)): `startDay`, `meters{water,ac,bugs,illness}` | background, unwinnable by design |
+| `swarmSurvival` | Ch11 (temp playtest beat; real home = cabinCollapse bugs meter) | `SwarmSurvivalConfig` ([swarmSurvival/index.ts](swarmSurvival/index.ts)): `theme`, `survival{durationMs,playerHp}`, `primary`, `secondary`, `waves[]`, `enemyTypes{}` — theme-neutral wave-survival combat (SWAT [J] arc + BURST [K] radial + SPACE dodge); enemies are emoji Text, HP is mode-owned (lose→loseGoto) | blocking |
 
 `classroomAmbience/` exists on disk but is NOT registered — dead code, slated for deletion.
 

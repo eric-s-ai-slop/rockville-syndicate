@@ -38,6 +38,8 @@ export interface ModeContext {
   showPassiveIconText(x: number, y: number, text: string, color: string): void;
   showDamageNumber(x: number, y: number, amount: number, color: string): void;
   setControlsInverted(inverted: boolean): void;
+  /** True while the player is in dash i-frames — lets a mode treat the dash as a dodge. */
+  isPlayerInvuln(): boolean;
   triggerQTE(boss: BossConfig, callback: (success: boolean, damage: number) => void): void;
   logMessage(msg: string): void;
   onStoryDialogue(payload: StoryDialoguePayload, done: (choiceIndex?: number) => void): void;

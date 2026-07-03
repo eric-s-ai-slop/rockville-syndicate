@@ -4,7 +4,7 @@ import { createServer as createViteServer } from "vite";
 
 async function startServer() {
   const app = express();
-  const PORT = 3324;
+  const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3324;
 
   // Health check
   app.get("/api/health", (_req, res) => {

@@ -20,6 +20,7 @@ export class Atmosphere {
   private fakeLights: Phaser.GameObjects.Image[] = [];
   private letterboxTop: Phaser.GameObjects.Rectangle | null = null;
   private letterboxBottom: Phaser.GameObjects.Rectangle | null = null;
+  private screenTintOverlay: Phaser.GameObjects.Rectangle | null = null;
 
   constructor(scene: ChapterScene) {
     this.scene = scene;
@@ -275,6 +276,38 @@ export class Atmosphere {
         this.letterboxBottom?.destroy(); this.letterboxBottom = null;
       }
     });
+  }
+
+  /**
+   * Tween a full-viewport color overlay to the given alpha — a "night has fallen"
+   * cue on top of the theme's baseline ambient overlay. Persists across the tween
+   * (unlike the camera fade used by transitionToScene, which always returns to
+   * fully clear); call again with alpha 0 to lift it. Depth 850 — above the
+   * baseline ambient overlay (800) but below the vignette (6000) and dialogue UI.
+   */
+  setScreenTint(color: number, alpha: number, durationMs = 500, onComplete?: () => void) {
+    const cam = this.scene.cameras.main;
+    if (!this.screenTintOverlay) {
+      this.screenTintOverlay = this.scene.add.rectangle(cam.width / 2, cam.height / 2, cam.width, cam.height, color, 0)
+        .setScrollFactor(0).setDepth(850);
+    } else {
+      this.screenTintOverlay.setFillStyle(color);
+    }
+    this.scene.tweens.add({
+      targets: this.screenTintOverlay, alpha, duration: durationMs, ease: 'Sine.easeInOut',
+      onComplete: () => onComplete?.(),
+    });
+  }
+
+  /**
+   * Destroy the screen-tint overlay (screen-space, not tracked in mapObjects —
+   * unlike showLetterbox/hideLetterbox, this must actually destroy, not just null
+   * the ref, so a scene torn down mid-tint doesn't leave a dark rectangle stuck
+   * on screen forever).
+   */
+  resetScreenTint() {
+    this.screenTintOverlay?.destroy();
+    this.screenTintOverlay = null;
   }
 
   /** BotW-style area title toast — bottom-left, fades in then out. Screen-space. */
