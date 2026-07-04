@@ -3,6 +3,8 @@
 Forward-looking tech debt and feature work. Items here are **verified against current
 source**, not copied from stale handoff docs. The 100h planning pass's execution specs and
 the completed July 2026 improvement batch are archived under `docs/archive/`.
+**Active batch: [docs/IMPROVEMENT_BATCH_2026-07B.md](docs/IMPROVEMENT_BATCH_2026-07B.md)**
+(agent hygiene pass — E2E stability, zero-warning lint, screenSpace convergence).
 This file is the lightweight, prioritized index.
 
 Legend: 🔴 player-visible bug · 🟠 real debt · 🟡 nice-to-have · ⚪ speculative
