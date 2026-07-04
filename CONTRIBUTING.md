@@ -15,7 +15,7 @@ Run before opening a PR — CI enforces all four:
 ```bash
 npm run lint        # tsc --noEmit
 npm run lint:es     # eslint
-npm test            # vitest (140+ tests)
+npm test            # vitest (200+ tests)
 npm run build       # vite client + esbuild server bundle
 ```
 
@@ -52,7 +52,7 @@ CI runs automatically on every push and PR to `main` (see `.github/workflows/ci.
   `src/game/modes/` mode — not a new method on the scene.
 - **Minigames talk to the scene only through `ModeContext`** (`modes/types.ts`). Need something
   new? Extend the façade; don't reach into scene internals.
-- **Data over code.** Prefer extending chapter configs (`data/chapters/*.ts`) and `entities.ts`
+- **Data over code.** Prefer extending chapter configs (`data/chapters/*.ts`) and `data/entities/`
   to hardcoding. New chapters use the pipeline in [`docs/chapter-pipeline/`](docs/chapter-pipeline/).
 - **New logic ships with a test** — especially anything in `modes/` or `BeatEngine`.
 - **Update the living docs in the same PR** as the behavior change. Drift is how the old

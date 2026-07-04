@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import type { GameMode, ModeContext, ModeResult } from '../types';
+import { screenSpace } from '../screenSpace';
 
 export class TemplateMode implements GameMode {
   // Unique identifier for the mode, referenced by { type: 'minigame', modeId: 'template' } in chapter configuration.
@@ -29,16 +30,21 @@ export class TemplateMode implements GameMode {
     // Freeze regular movement while playing if blocking (this is a blocking minigame by default)
     // Note: If running in background (with background: true beat config), do not freeze or block.
     
-    // Set up a simple instruction text
-    const cx = ctx.cameras.main.width / 2;
-    const cy = ctx.cameras.main.height / 2;
-    
-    this.statusText = ctx.label(cx, cy - 80, 'PRESS SPACE WITHIN 3 SECONDS!', {
-      fontSize: '20px',
+    // Set up a simple instruction text.
+    // scrollFactor(0) HUD trap: the camera runs zoomed (~2.0), and scrollFactor(0) does
+    // NOT cancel zoom — anything off camera-center renders displaced and zoom-inflated.
+    // Always run screen coordinates through zx/zy and sizes/fonts through s().
+    const cam = ctx.cameras.main;
+    const { zx, zy, s } = screenSpace(cam);
+    const cx = cam.width / 2;
+    const cy = cam.height / 2;
+
+    this.statusText = ctx.label(zx(cx), zy(cy - 80), 'PRESS SPACE WITHIN 3 SECONDS!', {
+      fontSize: `${s(20)}px`,
       color: '#facc15',
       fontStyle: 'bold',
       stroke: '#000000',
-      strokeThickness: 4
+      strokeThickness: s(4)
     }).setOrigin(0.5).setScrollFactor(0).setDepth(10000);
 
     // Setup input listeners

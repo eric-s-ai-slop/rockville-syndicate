@@ -104,10 +104,11 @@ These bit the `benTrivia` build and aren't obvious from the interface:
   destroy every object/timer/tween/listener you created — track them in an array
   and null your `onComplete` ref. Leaks here bleed into the next scene.
 - **Full-screen UI (takeover) conventions.** For a card/quiz/overlay mode, copy
-  `complicityReport`/`benTrivia`: depth ≥ `9600` (above the letterbox at 9500),
-  `setScrollFactor(0)` on everything, and lay out within the **zoom-visible**
-  extent `visW = camW / cam.zoom` (a `scrollFactor(0)` object renders at
-  `size * zoom`, so it spills off-screen if you use raw `camW`). Use an oversized
+  `complicityReport`/`benTrivia`: depth ≥ `9600` (above the letterbox at 9500) and
+  `setScrollFactor(0)` on everything. `scrollFactor(0)` does NOT cancel camera zoom —
+  positions render displaced and sizes render at `size * zoom`. Import
+  **`screenSpace()` from `src/game/modes/screenSpace.ts`** and run coords through
+  `zx()/zy()` and sizes/fonts through `s()` (see `_template/`). Use an oversized
   opaque bg rect so it covers the viewport at any scroll/zoom.
 - **Always use `ctx.label(...)`, never `add.text`** — `label()` applies the DPR
   resolution fix; raw text renders blurry.

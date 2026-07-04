@@ -24,7 +24,7 @@ Project Omega is a story-driven pixel RPG where gameplay consists of linear narr
 - **Styling**: Tailwind CSS v4 + global custom CSS
 - **Build / Packaging**: Vite (client) + esbuild (server bundle)
 - **Save State**: `localStorage` key `omega-save-v2` — unified blob (settings + progress + Hall of Records)
-- **Tests**: Vitest (140+ unit tests) + Playwright (E2E)
+- **Tests**: Vitest (200+ unit tests) + Playwright (E2E)
 - **Quality gate**: ESLint 9 + typescript-eslint; GitHub Actions CI runs on every push/PR
 
 ---

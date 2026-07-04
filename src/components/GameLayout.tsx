@@ -193,6 +193,7 @@ export default function GameLayout() {
           parent: 'phaser-canvas-container',
           scale: { mode: Phaser.Scale.RESIZE, width: w, height: h },
           render: { antialias: true, roundPixels: false },
+          input: { gamepad: true },
           physics: { default: 'arcade', arcade: { gravity: { x: 0, y: 0 }, debug: false } },
           scene: [],
           callbacks: {

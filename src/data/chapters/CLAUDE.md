@@ -14,7 +14,7 @@ to the next unless a jump redirects.
 | `choice` | `speaker`, `prompt`, `options[]` | Option: `text`, `ledgerDelta?`, `reactionSpeaker?`, `reactionLines?`, `goto?`, `sideEffect?` |
 | `walkTo` | `x`, `y`, `radius?`, `markerLabel?` | Blocks until player reaches point |
 | `cameraPan` | `x`, `y`, `durationMs`, `holdMs?` | |
-| `bossFight` | `bossId`, `arena{x,y,w,h}`, `hideActorId?`, `introLines?` | Runs the bossFight mode — NOT via `minigame` beat. `bossId` from `BOSSES` in `src/data/entities.ts` |
+| `bossFight` | `bossId`, `arena{x,y,w,h}`, `hideActorId?`, `introLines?` | Runs the bossFight mode — NOT via `minigame` beat. `bossId` from `BOSSES` in `src/data/entities/` |
 | `minigame` | `modeId`, `config?`, `introLines?`, `background?`, `loseGoto?` | See `src/game/modes/CLAUDE.md` for the mode table |
 | `routeOnMinigame` | `cases{}`, `default?` | ⚠️ HARDCODED to groupChat's payload (`saidTrueThing`+`when`, BeatEngine `runRouteOnMinigame`). Do NOT use for other modes — use `loseGoto` |
 | `chase` | `pursuerId`, `durationMs` | Jumpscare chase (Ch6). Tonally reserved — don't dilute |
@@ -22,6 +22,7 @@ to the next unless a jump redirects.
 | `wait` | `ms` | |
 | `ledger` | `delta`, `note` | The running money gag |
 | `stopAllAudio` | `fadeMs?` | |
+| `screenTint` | `color`, `alpha`, `durationMs?` | Full-screen tint overlay (Atmosphere.setScreenTint) |
 | `changeScene` | `sceneIndex`, `transitionMs?` | Multi-scene chapters only (`scenes[]`); tears down `activeMode` unconditionally |
 | `changeMusic` | `key`, `fadeMs?` | Crossfades stage music mid-scene (no `changeScene` needed). `key` must already be loaded (`STAGE_MUSIC_URL`) |
 | `endChapter` | — | |

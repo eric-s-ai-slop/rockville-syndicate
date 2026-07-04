@@ -51,7 +51,7 @@ Each chapter is a self-contained story beat ripped from real events and lore-ifi
 | **Nick Hedgecock** | 🐔 | 83 | Chicken-barrage tactician |
 | **Jacob Lebby** | ❄️ | 130 | Sub-Zero energy specialist |
 
-**BIQ** (Behavioral Intelligence Quotient) determines starting stats and unlock progression. Class stats, weapons, and loot metadata live in [`src/data/entities.ts`](src/data/entities.ts).
+**BIQ** (Behavioral Intelligence Quotient) determines starting stats and unlock progression. Class stats, weapons, and loot metadata live in [`src/data/entities/`](src/data/entities/).
 
 ### Bosses & Antagonists
 
@@ -82,6 +82,7 @@ Chapters are declarative config files in [`src/data/chapters/`](src/data/chapter
 | 7 | The Spain Betrayal | Commons 1522 | Nick F | `chapter7.spain-betrayal.ts` |
 | 8 | The Cabin *(Epilogue)* | Basye, VA | — | `chapter8.the-cabin.ts` |
 | 9 | The Suds & Soles Pool Party | Nick F's Backyard | — | `chapter9.pool-party.ts` |
+| 11 | Cabin From Hell | Shenandoah cabin, July 4th | — | `chapter11.cabin-from-hell.ts` |
 
 ---
 
@@ -141,6 +142,9 @@ Interactive segments implement the `GameMode` contract in [`src/game/modes/types
 | `benTrivia` | `modes/benTrivia/` | "CAN BEN…?" slam-sorting trivia under a timer |
 | `carRide` | `modes/carRide/` | Timed in-car dialogue battle (config-driven phases) |
 | `external` | `modes/external/` | Loads external minigames (e.g. BattleIQ) |
+| `speakerHunt` | `modes/speakerHunt/` | Find-the-hidden-speaker night hunts (Chapter 11) |
+| `cabinCollapse` | `modes/cabinCollapse/` | Background cabin-degradation meters (Chapter 11) |
+| `swarmSurvival` | `modes/swarmSurvival/` | Theme-neutral wave-survival combat (Chapter 11 grill run) |
 
 The [`modes/_template/`](src/game/modes/_template/) directory is a copyable reference. To build a new one, follow [`docs/ADDING_A_MINIGAME.md`](docs/ADDING_A_MINIGAME.md).
 
@@ -153,7 +157,7 @@ The [`modes/_template/`](src/game/modes/_template/) directory is a copyable refe
 - **Animation/UI libs**: `motion`, `lucide-react`
 - **Assets**: LimeZu Interiors tileset, Kenney impact SFX pack, original artwork, generated voice lines
 - **Build/tooling**: Vite (client) + esbuild (server bundle), `tsx` for dev/server execution
-- **Tests**: Vitest (unit, 140+ tests) + Playwright (E2E)
+- **Tests**: Vitest (unit, 200+ tests) + Playwright (E2E)
 - **Save system**: `localStorage` key `omega-save-v2` — unified blob: settings + progress + Hall of Records
 
 ---
@@ -194,7 +198,7 @@ project-omega_-the-rockville-syndicate/
 │   │   └── DialogueBox.test.tsx
 │   │
 │   ├── data/
-│   │   ├── entities.ts              # Hero/boss stats, weapons, power-ups, loot metadata
+│   │   ├── entities/                # Hero/boss stats, weapons, power-ups, loot metadata (barrel index.ts)
 │   │   ├── chapters.test.ts
 │   │   └── chapters/
 │   │       ├── index.ts             # CHAPTERS barrel + getChapter() lookup
@@ -263,7 +267,6 @@ project-omega_-the-rockville-syndicate/
 │
 ├── docs/
 │   ├── ADDING_A_MINIGAME.md         # Minigame implementation guide
-│   ├── IMPROVEMENT_BATCH_2026-07.md # Active improvement plan (gameplay + structure)
 │   ├── chapter-pipeline/            # Multi-stage chapter authoring pipeline + working drafts
 │   └── archive/                     # ARCHIVED: old planning specs, handoffs, sprint plans, QA reports
 │
@@ -309,7 +312,7 @@ The dev server (`tsx server.ts`) runs at **`http://localhost:3324`**.
 
 ## Testing
 
-- **Unit tests** (Vitest, 140+) live alongside source as `*.test.ts(x)` — covering settings/save, scoring, boss fight logic, beat engine routing, UI sound, sprite preprocessing, and more. Run with `npm test`.
+- **Unit tests** (Vitest, 200+) live alongside source as `*.test.ts(x)` — covering settings/save, scoring, boss fight logic, beat engine routing, UI sound, sprite preprocessing, and more. Run with `npm test`.
 - **E2E tests** (Playwright) live in [`e2e_tests/`](e2e_tests/) and exercise full gameplay flows. Run with `npm run e2e`.
 - **CI** (GitHub Actions) runs `lint → lint:es → test → build` on every push and PR to `main`.
 - Run the full gate locally with `npm run ci` before pushing.
@@ -432,6 +435,5 @@ Character voice lines are generated offline via the TTS pipeline in [`scripts/vo
 - [`docs/ADDING_A_MINIGAME.md`](docs/ADDING_A_MINIGAME.md) — Step-by-step guide to building and registering a new minigame mode.
 - [`docs/chapter-pipeline/`](docs/chapter-pipeline/) — The multi-stage pipeline for authoring new chapters.
 - [`ROADMAP.md`](ROADMAP.md) — Prioritized tech debt and feature index, verified against current source.
-- [`docs/IMPROVEMENT_BATCH_2026-07.md`](docs/IMPROVEMENT_BATCH_2026-07.md) — The active improvement batch.
 
 The events are real. The stats are canon.

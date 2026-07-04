@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import type { GameMode, ModeContext, ModeResult } from '../types';
+import { FSM } from '../fsm';
 
 // ─── swarmSurvival ──────────────────────────────────────────────────────────────
 // Theme-neutral wave-survival combat mode. Bugs (Ch11) are the first skin, but the
@@ -51,17 +52,22 @@ export interface SwarmSurvivalConfig {
   enemyTypes: Record<string, EnemyTypeSpec>;
 }
 
+type EnemyState = 'CHASE' | 'STUNNED';
+
 interface Enemy {
   obj: Phaser.GameObjects.Text;
   spec: EnemyTypeSpec;
   hp: number;
   phase: number;          // per-enemy offset so zigzag/homing don't sync up
   contactCdUntil: number;
+  fsm: FSM<EnemyState>;
+  stunEndAt: number;
 }
 
 const CONTACT_RADIUS = 26;   // player-center to enemy-center for a contact tick
 const HIT_IFRAME_MS = 550;   // mode-owned i-frames after a landed hit (anti drain-lock)
 const KILL_KNOCKBACK = 40;
+const STUN_MS = 220;         // brief freeze on a landed non-lethal hit — replaces the old flinch-only tween
 
 export class SwarmSurvivalMode implements GameMode {
   id = 'swarmSurvival';
@@ -86,6 +92,7 @@ export class SwarmSurvivalMode implements GameMode {
   private swatReadyAt = 0;
   private burstCharges = 0;
   private burstRechargeAccum = 0;
+  private hitStopRemainingMs = 0;
 
   private timers: Phaser.Time.TimerEvent[] = [];
   private elapsed = 0;
@@ -286,7 +293,11 @@ export class SwarmSurvivalMode implements GameMode {
 
     const obj = this.ctx.label(x, y, spec.emoji, { fontSize: spec.fontSize ?? '20px' })
       .setOrigin(0.5).setDepth(50);
-    this.enemies.push({ obj, spec, hp: spec.hp, phase: Phaser.Math.FloatBetween(0, Math.PI * 2), contactCdUntil: 0 });
+    const fsm = new FSM<EnemyState>('CHASE', {
+      CHASE: { enter: () => obj.setAlpha(1) },
+      STUNNED: { enter: () => obj.setAlpha(0.55) },
+    });
+    this.enemies.push({ obj, spec, hp: spec.hp, phase: Phaser.Math.FloatBetween(0, Math.PI * 2), contactCdUntil: 0, fsm, stunEndAt: 0 });
   }
 
   // ── Per-frame ────────────────────────────────────────────────────────────────
@@ -297,9 +308,14 @@ export class SwarmSurvivalMode implements GameMode {
 
     this.updateFacing();
     if (this.swatKey && Phaser.Input.Keyboard.JustDown(this.swatKey)) this.trySwat(time);
-    if (this.burstKey && Phaser.Input.Keyboard.JustDown(this.burstKey)) this.tryBurst();
+    if (this.burstKey && Phaser.Input.Keyboard.JustDown(this.burstKey)) this.tryBurst(time);
     this.rechargeBurst(delta);
-    this.updateEnemies(time, delta);
+    // Enemy movement (not Arcade-physics-driven) gets its own hit-stop: scale its
+    // delta down briefly on a heavy hit rather than touching the real clock, so
+    // the survival timer/HUD keep ticking normally.
+    const enemyDelta = this.hitStopRemainingMs > 0 ? delta * 0.05 : delta;
+    this.hitStopRemainingMs = Math.max(0, this.hitStopRemainingMs - delta);
+    this.updateEnemies(time, enemyDelta);
     this.refreshHud();
 
     if (this.hp <= 0) this.resolve('lose');
@@ -348,11 +364,11 @@ export class SwarmSurvivalMode implements GameMode {
       const n = dist > 0.001 ? 1 / dist : 0;
       e.obj.x = (e.obj.x as number) + dx * n * p.knockback;
       e.obj.y = (e.obj.y as number) + dy * n * p.knockback;
-      this.damageEnemy(e, p.damage);
+      this.damageEnemy(e, p.damage, time);
     }
   }
 
-  private tryBurst(): void {
+  private tryBurst(time: number): void {
     if (this.burstCharges <= 0) return;
     this.burstCharges -= 1;
     const s = this.config.secondary;
@@ -371,17 +387,21 @@ export class SwarmSurvivalMode implements GameMode {
       const n = dist > 0.001 ? 1 / dist : 0;
       e.obj.x = (e.obj.x as number) + dx * n * s.radius * 0.5;
       e.obj.y = (e.obj.y as number) + dy * n * s.radius * 0.5;
-      this.damageEnemy(e, s.damage);
+      this.damageEnemy(e, s.damage, time);
     }
   }
 
-  private damageEnemy(e: Enemy, amount: number): void {
+  private damageEnemy(e: Enemy, amount: number, time: number): void {
     e.hp -= amount;
     if (e.hp <= 0) {
+      this.hitStopRemainingMs = 60;
       this.killEnemy(e);
     } else {
-      // brief flinch pop
+      // flinch pop + a real STUNNED state (frozen in place, no contact tick) —
+      // replaces the old tween-only flinch that had no gameplay effect.
       this.ctx.tweens.add({ targets: e.obj, scale: 1.4, duration: 70, yoyo: true });
+      e.stunEndAt = time + STUN_MS;
+      e.fsm.transition('STUNNED');
     }
   }
 
@@ -415,6 +435,11 @@ export class SwarmSurvivalMode implements GameMode {
     const py = this.ctx.player.y as number;
 
     for (const e of this.enemies) {
+      if (e.fsm.is('STUNNED')) {
+        if (time >= e.stunEndAt) e.fsm.transition('CHASE');
+        else continue; // frozen in place for the stun window — no movement, no contact tick
+      }
+
       const ex = e.obj.x as number;
       const ey = e.obj.y as number;
       let dx = px - ex;

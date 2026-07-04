@@ -24,8 +24,6 @@ build a new mode, copy [_template/](_template/) and follow `docs/ADDING_A_MINIGA
 | `cabinCollapse` | Ch11, re-registered ~6x | `CabinCollapseConfig` ([cabinCollapse/index.ts](cabinCollapse/index.ts)): `startDay`, `meters{water,ac,bugs,illness}` | background, unwinnable by design |
 | `swarmSurvival` | Ch11 Day-4 grill run (`day4_grill_orders`; lose→loseGoto that beat) | `SwarmSurvivalConfig` ([swarmSurvival/index.ts](swarmSurvival/index.ts)): `theme`, `survival{durationMs,playerHp}`, `primary`, `secondary`, `waves[]`, `enemyTypes{}` — theme-neutral wave-survival combat (SWAT [J] arc + BURST [K] radial + SPACE dodge); enemies are emoji Text, HP is mode-owned (lose→loseGoto) | blocking |
 
-`classroomAmbience/` exists on disk but is NOT registered — dead code, slated for deletion.
-
 ## Lifecycle & outcome
 
 - `start(ctx, config, onComplete)` → run → call `onComplete({ outcome, data? })` exactly once.
@@ -49,6 +47,11 @@ build a new mode, copy [_template/](_template/) and follow `docs/ADDING_A_MINIGA
   (`group.contains(a) ? a : b`), never argument position.
 - Derive layout from `ctx.cameras.main` center/size (benTrivia is the reference pattern);
   don't hardcode coordinates — maps vary 880–1000px wide.
+- Any `scrollFactor(0)` HUD element must compensate for camera zoom — position AND
+  size/font, or it renders displaced/off-screen. **Use `screenSpace()` from
+  [screenSpace.ts](screenSpace.ts)** (`zx`/`zy` for coords, `s` for sizes); `_template/`
+  shows the pattern. Don't hand-roll the math — hand-rolled versions bit
+  `complicityReport`, `speakerHunt`, and `Atmosphere.setScreenTint` independently.
 - Clean up everything in `end()`/teardown: tweens, timers, temporary depth-9000+ UI.
 - Playtest before wiring into a chapter: temporarily insert your `minigame` beat as the
   first beat of any chapter (`docs/ADDING_A_MINIGAME.md` §7), then revert.

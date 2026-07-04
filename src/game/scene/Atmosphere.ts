@@ -288,10 +288,13 @@ export class Atmosphere {
   setScreenTint(color: number, alpha: number, durationMs = 500, onComplete?: () => void) {
     const cam = this.scene.cameras.main;
     if (!this.screenTintOverlay) {
-      this.screenTintOverlay = this.scene.add.rectangle(cam.width / 2, cam.height / 2, cam.width, cam.height, color, 0)
-        .setScrollFactor(0).setDepth(850);
+      // fillAlpha must stay at 1 — the renderer multiplies fillAlpha * alpha, so the
+      // tween below (which animates `alpha`) would never show anything if fillAlpha
+      // were left at 0. Start fully transparent via `alpha`, not `fillAlpha`.
+      this.screenTintOverlay = this.scene.add.rectangle(cam.width / 2, cam.height / 2, cam.width, cam.height, color, 1)
+        .setScrollFactor(0).setDepth(850).setAlpha(0);
     } else {
-      this.screenTintOverlay.setFillStyle(color);
+      this.screenTintOverlay.setFillStyle(color, 1);
     }
     this.scene.tweens.add({
       targets: this.screenTintOverlay, alpha, duration: durationMs, ease: 'Sine.easeInOut',

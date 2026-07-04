@@ -8,6 +8,7 @@ import { Atmosphere } from './scene/Atmosphere';
 import { SpriteLoader } from './scene/SpriteLoader';
 import type { GameMode, ModeResult } from './modes/types';
 import { getMode } from './modes';
+import { hitStop } from './modes/hitStop';
 import { mariaBrookeStats } from './modes/mariaBrookeStats';
 import {
   CharacterClass,
@@ -149,6 +150,8 @@ export default class ChapterScene extends Phaser.Scene {
   public player!: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private controlsInverted: boolean = false;
+  /** Edge-detects the gamepad dash button — Phaser's gamepad plugin has no JustDown helper. */
+  private gamepadDashWasDown: boolean = false;
   public wasdKeys!: {
     W: Phaser.Input.Keyboard.Key;
     A: Phaser.Input.Keyboard.Key;
@@ -941,8 +944,29 @@ export default class ChapterScene extends Phaser.Scene {
     if (this.wasdKeys.A.isDown || this.cursors.left.isDown) vx = -speed;
     else if (this.wasdKeys.D.isDown || this.cursors.right.isDown) vx = speed;
 
+    // Gamepad: left stick (with deadzone) or D-pad drives movement, A button dashes.
+    let gamepadDashJustDown = false;
+    const pad = this.input.gamepad?.total ? this.input.gamepad.getPad(0) : null;
+    if (pad) {
+      const deadzone = 0.2;
+      const sx = pad.leftStick.x, sy = pad.leftStick.y;
+      if (vx === 0) {
+        if (pad.left) vx = -speed;
+        else if (pad.right) vx = speed;
+        else if (Math.abs(sx) > deadzone) vx = sx > 0 ? speed : -speed;
+      }
+      if (vy === 0) {
+        if (pad.up) vy = -speed;
+        else if (pad.down) vy = speed;
+        else if (Math.abs(sy) > deadzone) vy = sy > 0 ? speed : -speed;
+      }
+      const dashDown = pad.A;
+      gamepadDashJustDown = dashDown && !this.gamepadDashWasDown;
+      this.gamepadDashWasDown = dashDown;
+    }
+
     // Delegate movement → dash → footsteps → auto-fire to PlayerController
-    this.playerController.update(time, vx, vy, animId, this.dialogueOpen);
+    this.playerController.update(time, vx, vy, animId, this.dialogueOpen, gamepadDashJustDown);
 
     // walkTo beat: advance when the player reaches the marked spot.
     if (this.walkTarget) {
@@ -1246,6 +1270,7 @@ export default class ChapterScene extends Phaser.Scene {
     if (finalDmg > 12) {
       this.cameras.main.shake(150, 0.012);
       this.cameras.main.flash(80, 239, 68, 68, true);
+      hitStop(this, 70, 0.05);
     }
 
     this.showDamageNumber(this.player.x + Phaser.Math.Between(-18, 18), this.player.y - 30, finalDmg, '#ef4444');

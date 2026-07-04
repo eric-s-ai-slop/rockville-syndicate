@@ -1,53 +1,66 @@
 # Brainstorming: Future Improvements
 
-This document outlines potential improvements, new features, and architectural refactors for the game that are not yet covered in the main `ROADMAP.md`. 
+Triaged 2026-07-04 against the actual codebase. Items below are grouped by verdict; do not act on 'Rejected' items.
 
-## 🏗️ Architecture & Code Splitting
-
-### 1. Lazy-Loading Chapters (Dynamic Imports)
-**The Problem:** Currently, `src/data/chapters/index.ts` statically imports every single chapter file at boot (e.g. `import chapter11 from './chapter11.cabin-from-hell'`). As the game scales and more massive chapters are added, the initial Javascript bundle size will bloat significantly, leading to slower first-paint times.
-**The Solution:** Refactor the chapter registry to use dynamic imports (e.g., `const chapterData = await import('./chapter11')`). This allows Vite to code-split the chapters, meaning the browser only downloads a chapter's data and assets when the player actually routes to it.
+## ✅ Implemented (2026-07-04)
 
 ### 2. Boss AI Finite State Machine (FSM)
-**The Problem:** Minigame modes like `bossFight` or `swarmSurvival` can quickly become complex when handling multiple phases, attacks, and cooldowns. Managing this via nested `if/else` or `switch` statements inside the `update()` loop leads to brittle "spaghetti code".
-**The Solution:** Implement a lightweight, class-based Finite State Machine for enemy AI. This would neatly encapsulate states like `IDLE`, `CHASE`, `ATTACK_MELEE`, and `STUNNED`, making it much easier to design complex, multi-phase bosses.
-
-## 🎮 Gameplay & "Juice"
+**Done as:** `src/game/modes/fsm.ts` — generic `FSM<S>` class (enter/update/exit per state).
+Adopted in `bossFight/index.ts` (`CHASE | QTE | DEFEATED`, replacing scattered `ctx.qteActive`
+checks — the QTE state's enter/exit hooks still mirror `ctx.qteActive` since other
+subsystems read that flag directly) and in `swarmSurvival/index.ts` (`CHASE | STUNNED` per
+enemy — a landed non-lethal hit now genuinely freezes the enemy for `STUN_MS`, not just a
+cosmetic tween).
 
 ### 3. Gamepad / Controller Support
-**The Problem:** Browser action games heavily benefit from controller input, especially in combat modes, but currently only keyboard input is natively mapped.
-**The Solution:** Wire up Phaser's built-in Gamepad API to `PlayerController.ts`. Map movement to the left analog stick / D-pad, and actions (like shooting or dialogue progression) to the face buttons.
+**Done as:** `input: { gamepad: true }` in the `GameLayout.tsx` game config. Left
+stick/D-pad drives movement and the A button dashes, wired through
+`ChapterScene.update()` → `PlayerController.update()` (edge-detected via
+`gamepadDashWasDown`, alongside the existing keyboard path). Dialogue advance/choice
+selection polls the raw browser Gamepad API directly in `DialogueBox.tsx` (button 0 =
+advance, buttons 1-4 = choices), since that's a React overlay outside the Phaser scene.
 
-### 4. Screen Shake & Hit Stop (Combat Polish)
-**The Problem:** Combat impacts can feel "floaty" or lack weight.
-**The Solution:** Add classic action-game "juice":
-- **Screen Shake:** Trigger `this.cameras.main.shake(100, 0.01)` on heavy impacts.
-- **Hit Stop:** Briefly pause or drastically slow the game's time scale for ~50-100ms when a critical hit lands. This makes hits feel much more visceral.
+### 4. Hit Stop (Combat Polish)
+**Done as:** `src/game/modes/hitStop.ts` — slows `physics.world.timeScale` +
+`tweens.timeScale` (deliberately not `scene.time`, so delayedCall timers like tint-flash
+clears stay on schedule) for ~70ms, restored via a raw `setTimeout`. Paired with the
+existing heavy-hit shakes in `ChapterScene.damagePlayer` and `bossFight.damageBoss`.
+`swarmSurvival`'s enemies move by hand (not Arcade physics), so they get a local
+delta-scaling variant instead (`hitStopRemainingMs` in `update()`).
 
-### 5. Mobile Virtual Joystick
-**The Problem:** The game requires a physical keyboard to play, completely locking out mobile and tablet users.
-**The Solution:** Detect touch capabilities on boot and render a virtual D-Pad and action buttons over the Phaser canvas. Phaser's pointer events make mapping on-screen UI buttons to player velocity straightforward.
+### 6. Per-speaker Voice Blips
+**Done as:** `speakerBasePitch()` in `DialogueBox.tsx` — hashes `speakerName` (no
+`speakerId` is threaded down to this component, but the name is already unique per
+character) into a consistent 0.75x-1.25x base pitch, randomized ±6% per blip to avoid
+fatigue. No new audio assets — reuses the existing 12-voice `DIALOG_BLIP_URL` pool.
 
-## ✨ Narrative & UI Polish
-
-### 6. Animal-Crossing Style Voice Blips
-**The Problem:** Text-heavy story segments are currently silent.
-**The Solution:** Map each `speakerId` to a specific audio blip (e.g., a low grunt for the boss, a quick chirp for the protagonist). Play this sound at a randomized slightly varying pitch (to avoid audio fatigue) alongside a typewriter effect that reveals the text one character at a time.
+## 🕗 Deferred — maybe later
 
 ### 7. CRT / Vignette Post-Processing Shaders
 **The Problem:** The game uses standard pixel-art rendering, which looks great, but could use more atmosphere in dark or intense moments.
 **The Solution:** Implement a post-processing pipeline using Phaser 3's WebGL shaders. Adding a subtle CRT scanline effect, color aberration, or a dark vignette edge (especially for horror-themed chapters like the *Cabin from Hell*) would make the aesthetic feel extremely premium.
-
-## 💼 High-Value Structural & Commercial Upgrades
-
-### 8. State-Management Driven Architecture (Zustand/Redux Bridge)
-**The Problem:** Bridging React (UI) and Phaser (Engine) via `useEffect` refs and window object listeners is prone to race conditions and React StrictMode lifecycle double-fire bugs.
-**The Solution:** Implement a unidirectional data flow using a lightweight store like **Zustand**. Phaser only *writes* to the store (e.g., `store.setHealth(50)`). React only *reads* from the store (e.g., `const health = useStore(s => s.health)`). React components become pure UI layers that automatically re-render when Phaser updates the state, eliminating all sync bugs.
-
-### 9. Entity Component System (ECS) for Minigames
-**The Problem:** As you add more complex modes (`bossFight`, `swarmSurvival`), relying on massive `update()` loops and standard inheritance leads to monolithic "god classes" that are impossible to maintain.
-**The Solution:** Implement a lightweight ECS pattern (using a library like `bitecs`). Instead of a massive `Boss` class, you have basic Entities assigned Components (`Health`, `Velocity`, `AI_Pattern`). Systems iterate over components. This yields unprecedented code reusability (e.g., you can attach an `AI_Pattern` component to a projectile to make it behave like a mini-boss).
+**Status:** Scope to per-chapter vignette first; full CRT scanlines may conflict with DPR-scaled text rendering via `label()` helper. Revisit after shipping a prototype.
 
 ### 10. Telemetry & Analytics (The "Blind Spot" Fix)
 **The Problem:** You don't know where players are struggling or rage-quitting (e.g., if a boss is too hard or a puzzle is confusing).
 **The Solution:** Instrument lightweight, privacy-respecting telemetry (like PostHog or a custom backend endpoint). Track specific funnel events: `chapter_started`, `dialogue_skipped`, `boss_failed`, `minigame_won`. This data creates a dashboard showing exactly where your difficulty spikes are, allowing you to rebalance encounters based on actual player data rather than guessing.
+**Status:** Only worth pursuing if the game has real external players. Requires a privacy/consent decision first.
+
+### 5. Mobile Virtual Joystick
+**The Problem:** The game requires a physical keyboard to play, completely locking out mobile and tablet users.
+**The Solution:** Detect touch capabilities on boot and render a virtual D-Pad and action buttons over the Phaser canvas. Phaser's pointer events make mapping on-screen UI buttons to player velocity straightforward.
+**Status:** The joystick component itself is straightforward. The real cost: touch UI across all 12+ minigames, mobile-responsive React dialogue, and comprehensive mobile canvas-sizing testing across devices.
+
+## ❌ Rejected — do not implement
+
+### 1. Lazy-Loading Chapters (Dynamic Imports)
+**The Problem:** Currently, `src/data/chapters/index.ts` statically imports every single chapter file at boot (e.g. `import chapter11 from './chapter11.cabin-from-hell'`). As the game scales and more massive chapters are added, the initial Javascript bundle size will bloat significantly, leading to slower first-paint times.
+**Reason:** All chapter source combined is ~190 KB, negligible vs. the Phaser runtime. Dynamic imports would complicate the synchronous `getChapter()` lookup without meaningful performance gain.
+
+### 8. State-Management Driven Architecture (Zustand/Redux Bridge)
+**The Problem:** Bridging React (UI) and Phaser (Engine) via `useEffect` refs and window object listeners is prone to race conditions and React StrictMode lifecycle double-fire bugs.
+**Reason:** The React StrictMode double-fire bug cited here is already fixed and codified as the ref-mirroring pattern in `CLAUDE.md`. A full rewrite of a working, battle-tested bridge is not justified.
+
+### 9. Entity Component System (ECS) for Minigames
+**The Problem:** As you add more complex modes (`bossFight`, `swarmSurvival`), relying on massive `update()` loops and standard inheritance leads to monolithic "god classes" that are impossible to maintain.
+**Reason:** Conflicts with the approved agent-maintainable template-based GameMode direction. An ECS is overkill for ~12 small, independent minigame modes; the template pattern achieves the same decoupling at a fraction of the complexity.

@@ -3,6 +3,10 @@ import { GameMode, ModeContext, ModeResult } from '../types';
 import { BOSSES, BossConfig, WEAPONS, POWER_UPS, DIFFICULTY_MODS } from '../../../data/entities';
 import { getSettings } from '../../settings';
 import { BossPhase, getBossPhase, getPhaseAttackMultiplier } from './phaseLogic';
+import { hitStop } from '../hitStop';
+import { FSM } from '../fsm';
+
+type BossAIState = 'CHASE' | 'QTE' | 'DEFEATED';
 
 export class BossFightMode implements GameMode<any> {
   public readonly id = 'bossFight';
@@ -22,6 +26,11 @@ export class BossFightMode implements GameMode<any> {
   private qteTimerEvent: Phaser.Time.TimerEvent | null = null;
   private isFightActive = false;
   private lowestPhaseReached: BossPhase = 3;
+  // Formalizes what was previously scattered `ctx.qteActive`/`ctx.isBossActive` boolean
+  // checks in handleBossAI/triggerBossQTEQuest/defeatBossSuccess into named states. The
+  // QTE state's enter/exit hooks still mirror `ctx.qteActive` since PlayerController and
+  // other subsystems read that flag directly.
+  private fsm!: FSM<BossAIState>;
 
   preload(_ctx: ModeContext) {
     // Assets are preloaded by ChapterScene
@@ -161,6 +170,14 @@ export class BossFightMode implements GameMode<any> {
     if (this.bossShadow) { this.bossShadow.destroy(); this.bossShadow = null; }
 
     this.ctx.isBossActive = true;
+    this.fsm = new FSM<BossAIState>('CHASE', {
+      CHASE: {},
+      QTE: {
+        enter: () => { this.ctx.qteActive = true; },
+        exit: () => { this.ctx.qteActive = false; },
+      },
+      DEFEATED: {},
+    });
     const config = BOSSES.find(b => b.id === bossConfigId) ?? BOSSES[this.ctx.currentLevelIndex % BOSSES.length];
     this.bossData = config;
     this.lowestPhaseReached = 3;
@@ -282,6 +299,8 @@ export class BossFightMode implements GameMode<any> {
       this.ctx.time.delayedCall(80, () => { this.ctx.spawnedBoss?.clearTint(); this.bossHitFlashing = false; });
     }
 
+    if (amount >= 30) hitStop(this.ctx, 70, 0.05);
+
     const mods = DIFFICULTY_MODS[getSettings().difficulty];
     const phase = getBossPhase(this.currentBossHp / (this.bossData.maxHp * mods.bossHp));
     if (phase < this.lowestPhaseReached) {
@@ -355,13 +374,13 @@ export class BossFightMode implements GameMode<any> {
   }
 
   private triggerBossQTEQuest() {
-    if (!this.ctx.isBossActive || !this.bossData || !this.ctx.spawnedBoss || this.ctx.qteActive) return;
-    this.ctx.qteActive = true;
+    if (!this.ctx.isBossActive || !this.bossData || !this.ctx.spawnedBoss || this.fsm.is('QTE')) return;
+    this.fsm.transition('QTE');
     this.ctx.physics.pause();
     this.ctx.spawnedBoss.setVelocity(0, 0);
     this.ctx.logMessage(`⚡ [QTE]: Audit ${this.bossData.name} — choose your counter!`);
     this.ctx.triggerQTE(this.bossData, (success: boolean, damage: number) => {
-      this.ctx.qteActive = false;
+      this.fsm.transition('CHASE');
       this.ctx.physics.resume();
       this.lastBossAttackTime = this.ctx.time.now;
       if (success && this.ctx.spawnedBoss && this.bossData) {
@@ -381,6 +400,7 @@ export class BossFightMode implements GameMode<any> {
 
   private defeatBossSuccess() {
     if (!this.ctx.spawnedBoss || !this.bossData) return;
+    this.fsm.transition('DEFEATED');
     this.ctx.logMessage(`🏆 ${this.bossData.name} logged and archived in the group chat!`);
 
     const particles = this.ctx.add.particles(this.ctx.spawnedBoss.x, this.ctx.spawnedBoss.y, 'particle_dot', {
@@ -443,7 +463,7 @@ export class BossFightMode implements GameMode<any> {
   // ── Boss AI ─────────────────────────────────────────────────────────────────
 
   private handleBossAI(time: number) {
-    if (!this.ctx.spawnedBoss || !this.bossData || this.ctx.qteActive) return;
+    if (!this.ctx.spawnedBoss || !this.bossData || !this.fsm.is('CHASE')) return;
 
     const mods = DIFFICULTY_MODS[getSettings().difficulty];
     const targetAngle = Phaser.Math.Angle.Between(

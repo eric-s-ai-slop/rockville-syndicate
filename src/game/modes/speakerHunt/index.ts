@@ -51,7 +51,12 @@ export class SpeakerHuntMode implements GameMode {
   private resolved = false;
 
   private overlay: Phaser.GameObjects.Rectangle | null = null;
+  private panelBg: Phaser.GameObjects.Rectangle | null = null;
   private hudText: Phaser.GameObjects.Text | null = null;
+  private progressTrack: Phaser.GameObjects.Rectangle | null = null;
+  private progressFill: Phaser.GameObjects.Rectangle | null = null;
+  private progressTicks: Phaser.GameObjects.Rectangle[] = [];
+  private progressBarW = 200;
   private hintText: Phaser.GameObjects.Text | null = null;
   private arrowText: Phaser.GameObjects.Text | null = null;
   private tempText: Phaser.GameObjects.Text | null = null;
@@ -98,31 +103,67 @@ export class SpeakerHuntMode implements GameMode {
     this.lockpickSegmentsDone = 0;
 
     const cam = ctx.cameras.main;
+    // The main camera runs at a permanent ~2x zoom ("close, cozy camera" —
+    // ChapterScene.ts). `scrollFactor(0)` only cancels camera *scroll*, not zoom — Phaser
+    // still maps a scrollFactor(0) object's (x,y) through the zoom relative to camera
+    // center (screenPos = center + (objPos - center) * zoom). Left uncorrected, anything
+    // not already sitting exactly on center gets pushed off-screen. zx/zy convert an
+    // *intended screen position* into the (x,y) to actually pass to ctx.add/ctx.label so
+    // it lands where it visually looks like it should; sizes/font sizes need the same
+    // `/ z` treatment so they don't render zoom-inflated.
+    const z = cam.zoom || 1;
+    const cx = cam.width / 2;
+    const cy = cam.height / 2;
+    const zx = (screenX: number) => cx + (screenX - cx) / z;
+    const zy = (screenY: number) => cy + (screenY - cy) / z;
 
     // Dim the room — searching in the dark.
-    this.overlay = ctx.add.rectangle(cam.width / 2, cam.height / 2, cam.width, cam.height, 0x000010, 0.55)
+    this.overlay = ctx.add.rectangle(zx(cx), zy(cy), cam.width / z, cam.height / z, 0x000010, 0.55)
       .setScrollFactor(0).setDepth(9000);
 
-    this.hudText = ctx.label(cam.width / 2, 56, this.hudLabel(), {
-      fontSize: '14px', color: '#facc15', fontStyle: 'bold',
-      backgroundColor: '#0b1208d0', padding: { x: 10, y: 6 }, stroke: '#000000', strokeThickness: 2,
+    // Objective panel — a persistent "quest tracker" backing behind the title/progress/
+    // hint/compass block, so the hunt reads as one active task instead of loose floating
+    // text scattered over the dim room. Tall enough for the hint text to wrap to 2 lines.
+    this.panelBg = ctx.add.rectangle(zx(cx), zy(118), 300 / z, 170 / z, 0x0b1208, 0.88)
+      .setStrokeStyle(2 / z, 0x2a3d18).setScrollFactor(0).setDepth(9000.5);
+
+    this.hudText = ctx.label(zx(cx), zy(56), this.hudLabel(), {
+      fontSize: `${14 / z}px`, color: '#facc15', fontStyle: 'bold', stroke: '#000000', strokeThickness: 2 / z,
     }).setOrigin(0.5).setScrollFactor(0).setDepth(9001);
 
+    // Progress bar — one segment per speaker still to find, fills in as each is found.
+    const total = config.speakers.length;
+    const barW = 200 / z;
+    this.progressBarW = barW;
+    const barH = 10 / z;
+    this.progressTrack = ctx.add.rectangle(zx(cx), zy(80), barW, barH, 0x1f2933)
+      .setStrokeStyle(1 / z, 0x000000).setScrollFactor(0).setDepth(9001);
+    this.progressFill = ctx.add.rectangle(zx(cx) - barW / 2, zy(80), barW * (this.foundIds.size / total), barH, 0x4ade80)
+      .setOrigin(0, 0.5).setScrollFactor(0).setDepth(9001.1);
+    this.progressTicks = [];
+    for (let i = 1; i < total; i++) {
+      const tx = zx(cx) - barW / 2 + (barW / total) * i;
+      this.progressTicks.push(ctx.add.rectangle(tx, zy(80), 2 / z, barH, 0x0b1208).setScrollFactor(0).setDepth(9001.2));
+    }
+
     const needsExtract = config.speakers.some(s => s.requiresExtract);
-    this.hintText = ctx.label(cam.width / 2, 80, config.locked
+    // wordWrap keeps the longest hint ("...stand still — no button, just don't move.")
+    // inside the 300px (screen-space) panel instead of overflowing past its edges.
+    this.hintText = ctx.label(zx(cx), zy(108), config.locked
       ? 'Follow the arrow. Get close, then hold [SHIFT].'
       : needsExtract
         ? 'Follow the arrow. Get close, then stand still — no button, just don\'t move.'
         : 'Follow the arrow. Walk right up to it.', {
-      fontSize: '12px', color: '#9aa0a8', stroke: '#000000', strokeThickness: 2,
+      fontSize: `${12 / z}px`, color: '#9aa0a8', stroke: '#000000', strokeThickness: 2 / z,
+      align: 'center', wordWrap: { width: 260 / z, useAdvancedWrap: true },
     }).setOrigin(0.5).setScrollFactor(0).setDepth(9001);
 
     // Compass arrow + hot/cold readout — the clearest possible "which way do I go" signal.
-    this.arrowText = ctx.label(cam.width / 2, 118, '➤', {
-      fontSize: '30px', color: '#facc15', stroke: '#000000', strokeThickness: 3,
+    this.arrowText = ctx.label(zx(cx), zy(150), '➤', {
+      fontSize: `${30 / z}px`, color: '#facc15', stroke: '#000000', strokeThickness: 3 / z,
     }).setOrigin(0.5).setScrollFactor(0).setDepth(9001);
-    this.tempText = ctx.label(cam.width / 2, 150, 'COLD', {
-      fontSize: '13px', color: '#60a5fa', fontStyle: 'bold', stroke: '#000000', strokeThickness: 2,
+    this.tempText = ctx.label(zx(cx), zy(180), 'COLD', {
+      fontSize: `${13 / z}px`, color: '#60a5fa', fontStyle: 'bold', stroke: '#000000', strokeThickness: 2 / z,
     }).setOrigin(0.5).setScrollFactor(0).setDepth(9001);
 
     // Duck the stage track and start the diegetic loop. Kill any other instance of this
@@ -329,6 +370,10 @@ export class SpeakerHuntMode implements GameMode {
       try { this.ctx.sound.play('ui_select', { volume: 0.8 }); } catch {}
     }
     this.hudText?.setText(this.hudLabel());
+    if (this.progressFill) {
+      const total = this.speakerZones.length;
+      this.ctx.tweens.add({ targets: this.progressFill, width: this.progressBarW * (this.foundIds.size / total), duration: 300 });
+    }
 
     const allFound = this.speakerZones.every(z => this.foundIds.has(z.spot.id));
     if (allFound && !this.config.locked) this.resolve('win');
@@ -473,7 +518,12 @@ export class SpeakerHuntMode implements GameMode {
   teardown(): void {
     if (this.ctx.player.body) (this.ctx.player.body as Phaser.Physics.Arcade.Body).moves = true;
     this.overlay?.destroy(); this.overlay = null;
+    this.panelBg?.destroy(); this.panelBg = null;
     this.hudText?.destroy(); this.hudText = null;
+    this.progressTrack?.destroy(); this.progressTrack = null;
+    this.progressFill?.destroy(); this.progressFill = null;
+    this.progressTicks.forEach(t => t.destroy());
+    this.progressTicks = [];
     this.hintText?.destroy(); this.hintText = null;
     this.arrowText?.destroy(); this.arrowText = null;
     this.tempText?.destroy(); this.tempText = null;

@@ -66,8 +66,9 @@ export class PlayerController {
    * @param vy     Resolved vertical velocity
    * @param animId  Animation key for the current player sprite set
    * @param dialogueOpen  True while a dialogue beat is open (suppress dash key)
+   * @param gamepadDashJustDown  True the one frame the gamepad's A button was pressed
    */
-  update(time: number, vx: number, vy: number, animId: string, dialogueOpen: boolean): void {
+  update(time: number, vx: number, vy: number, animId: string, dialogueOpen: boolean, gamepadDashJustDown = false): void {
     const { scene } = this;
     const { player, playerClass } = scene;
 
@@ -85,7 +86,7 @@ export class PlayerController {
     if (dialogueOpen) {
       scene.wasdKeys.SPACE.reset();
     } else {
-      if (Phaser.Input.Keyboard.JustDown(scene.wasdKeys.SPACE)) {
+      if (Phaser.Input.Keyboard.JustDown(scene.wasdKeys.SPACE) || gamepadDashJustDown) {
         this.executeDash(vx, vy);
       }
     }

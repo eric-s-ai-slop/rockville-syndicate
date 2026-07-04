@@ -365,11 +365,14 @@ const chapter11: ChapterConfig = {
 
     { type: 'minigame', modeId: 'speakerHunt', config: {
       night: 1,
-      speakers: [{ x: 100, y: 350, id: 'rung1_tv' }],
+      // Spread across the living room's four corners (measured against the wall/
+      // furniture rects in scene 1's map) instead of clustered in one pocket near the
+      // kitchen — the real speaker sits opposite the entryway, herrings cover the rest.
+      speakers: [{ x: 650, y: 480, id: 'rung1_tv' }],
       redHerrings: [
-        { x: 250, y: 650, bark: 'Nick H checks under the rug. Nothing.' },
-        { x: 130, y: 210, bark: 'Someone checks behind the grandfather clock. Nothing.' },
-        { x: 280, y: 350, bark: 'Someone checks the recliner. Nothing.' },
+        { x: 90, y: 230, bark: 'Someone checks behind the grandfather clock. Nothing.' },
+        { x: 200, y: 650, bark: 'Nick H checks under the rug. Nothing.' },
+        { x: 550, y: 230, bark: 'Someone checks the recliner. Nothing.' },
       ],
       barricade: { doorX: 863, doorY: 593 },
       timeLimitMs: 60000,
@@ -384,15 +387,18 @@ const chapter11: ChapterConfig = {
     { type: 'sfx', key: 'sfx_ultraphonk', volume: 1.0 },
     { type: 'dialogue', speaker: 'nick_h', lines: ["Somewhere, another one starts.", "Someone has to get up."] },
 
+    // Pitch black for the "waking up" beat above; lift it back to normal before the
+    // hunt starts so the room reads as merely dim (speakerHunt's own 0.55 overlay
+    // handles the "searching in the dark" look) rather than unnavigably black.
+    { type: 'screenTint', color: 0x03050f, alpha: 0, durationMs: 500 },
+
     { type: 'minigame', modeId: 'speakerHunt', config: {
       night: 1,
-      speakers: [{ x: 550, y: 550, id: 'rung1_second' }],
+      speakers: [{ x: 150, y: 400, id: 'rung1_second' }],
       barricade: { doorX: 863, doorY: 593 },
       timeLimitMs: 75000,
     }, introLines: ["Half-asleep. It's close, though."], background: false, loseGoto: 'night1_second_found_late' },
     { id: 'night1_after_second', type: 'dialogue', speaker: 'nick_h', lines: ["There.", "Back to bed."] },
-
-    { type: 'screenTint', color: 0x03050f, alpha: 0, durationMs: 900 },
 
     { type: 'minigame', modeId: 'cabinCollapse', config: { startDay: 3, meters: { water: 50, ac: 100, bugs: 20, illness: 1 } }, introLines: [], background: true },
 
@@ -433,8 +439,8 @@ const chapter11: ChapterConfig = {
     { type: 'minigame', modeId: 'speakerHunt', config: {
       night: 2,
       speakers: [
-        { x: 190, y: 520, id: 'rung2_pullout', requiresExtract: true },
-        { x: 80, y: 720, id: 'rung2_corner', requiresExtract: true },
+        { x: 300, y: 220, id: 'rung2_pullout', requiresExtract: true },
+        { x: 600, y: 580, id: 'rung2_corner', requiresExtract: true },
       ],
       barricade: { doorX: 863, doorY: 593 },
       timeLimitMs: 90000,
@@ -448,15 +454,17 @@ const chapter11: ChapterConfig = {
     { type: 'sfx', key: 'sfx_ultraphonk', volume: 1.0 },
     { type: 'dialogue', speaker: 'leo', lines: ["It's already going again.", "Somebody has to get up."] },
 
+    // Same lift-before-hunt as Night 1 — pitch black for the wake-up beat, then back
+    // to normal so the room is merely dim during the searchable minigame.
+    { type: 'screenTint', color: 0x03050f, alpha: 0, durationMs: 500 },
+
     { type: 'minigame', modeId: 'speakerHunt', config: {
       night: 2,
-      speakers: [{ x: 500, y: 550, id: 'rung2_second' }],
+      speakers: [{ x: 420, y: 560, id: 'rung2_second' }],
       barricade: { doorX: 863, doorY: 593 },
       timeLimitMs: 75000,
     }, introLines: ["Half-asleep. It's close, though."], background: false, loseGoto: 'night2_second_found_late' },
     { id: 'night2_after_second', type: 'dialogue', speaker: 'leo', lines: ["Found it.", "I'm never sleeping again."] },
-
-    { type: 'screenTint', color: 0x03050f, alpha: 0, durationMs: 900 },
 
     { type: 'minigame', modeId: 'cabinCollapse', config: { startDay: 4, meters: { water: 25, ac: 40, bugs: 30, illness: 2 } }, introLines: [], background: true },
 

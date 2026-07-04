@@ -21,6 +21,16 @@ function stopAllBlips() {
   }
 }
 
+// Deterministic per-speaker pitch: no speakerId is threaded down to this component,
+// but speakerName is unique per character and already available, so hash it into a
+// consistent base pitch (e.g. a boss always sounds lower than Eric).
+function speakerBasePitch(speakerName: string): number {
+  let h = 0;
+  for (let i = 0; i < speakerName.length; i++) h = (h * 31 + speakerName.charCodeAt(i)) | 0;
+  const norm = (Math.abs(h) % 100) / 100; // 0..1
+  return 0.75 + norm * 0.5; // 0.75x - 1.25x
+}
+
 const isLetter = (c: string) => /[a-zA-Z0-9]/.test(c);
 
 const delayFor = (c: string) => {
@@ -82,7 +92,8 @@ export default function DialogueBox({
       setDisplayedText(fullText.slice(0, i));
 
       if (!muted && char && isLetter(char) && (i % 3 === 0)) {
-        playBlip(1.0, 0.4);
+        const basePitch = speakerBasePitch(speakerName);
+        playBlip(basePitch * (0.94 + Math.random() * 0.12), 0.4);
       }
 
       if (i >= fullText.length) {
@@ -140,6 +151,32 @@ export default function DialogueBox({
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
+  }, [handleAdvance, showChoices, choices, onChoose]);
+
+  // Gamepad: face button 0 (A/Cross) advances dialogue, buttons 1-4 pick a choice —
+  // same mapping intent as the keyboard's Space/Enter/E and number keys above.
+  // Polled directly via the browser Gamepad API (not Phaser's plugin) since this
+  // is a React overlay, not part of the Phaser scene.
+  useEffect(() => {
+    let raf = 0;
+    const wasDown: boolean[] = [];
+    const poll = () => {
+      const pads = navigator.getGamepads?.() ?? [];
+      for (const pad of pads) {
+        if (!pad) continue;
+        for (let i = 0; i < Math.min(pad.buttons.length, 5); i++) {
+          const down = pad.buttons[i].pressed;
+          if (down && !wasDown[i]) {
+            if (i === 0) handleAdvance();
+            else if (showChoices && i - 1 < (choices?.length ?? 0)) onChoose?.(i - 1);
+          }
+          wasDown[i] = down;
+        }
+      }
+      raf = requestAnimationFrame(poll);
+    };
+    raf = requestAnimationFrame(poll);
+    return () => cancelAnimationFrame(raf);
   }, [handleAdvance, showChoices, choices, onChoose]);
 
   const typingDone = displayedText.length >= fullText.length;

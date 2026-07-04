@@ -1,6 +1,6 @@
 ## What & why
 
-<!-- One or two sentences. Link the ROADMAP / docs/IMPROVEMENT_BATCH item if applicable. -->
+<!-- One or two sentences. Link the ROADMAP.md item if applicable. -->
 
 ## Green bar
 
