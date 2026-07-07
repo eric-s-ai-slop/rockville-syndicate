@@ -353,7 +353,8 @@ export class SwarmSurvivalMode implements GameMode {
     this.drawSwatArc(px, py, facingAng, p.reach, halfArc);
     try { this.ctx.sound.play('ui_select', { volume: 0.4 }); } catch {}
 
-    for (const e of [...this.enemies]) {
+    for (let i = this.enemies.length - 1; i >= 0; i--) {
+      const e = this.enemies[i];
       const dx = (e.obj.x as number) - px;
       const dy = (e.obj.y as number) - py;
       const dist = Math.hypot(dx, dy);
@@ -379,7 +380,8 @@ export class SwarmSurvivalMode implements GameMode {
     this.ctx.cameras.main.shake(120, 0.006);
     try { this.ctx.sound.play('ui_select', { volume: 0.7 }); } catch {}
 
-    for (const e of [...this.enemies]) {
+    for (let i = this.enemies.length - 1; i >= 0; i--) {
+      const e = this.enemies[i];
       const dx = (e.obj.x as number) - px;
       const dy = (e.obj.y as number) - py;
       const dist = Math.hypot(dx, dy);
