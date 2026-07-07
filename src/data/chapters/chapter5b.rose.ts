@@ -32,6 +32,7 @@ const chapter5b: ChapterConfig = {
   scenes: [
     // ── Scene 0 — The Party ────────────────────────────────────────────────
     {
+      music: 'music_ch5',
       map: {
         width: 920,
         height: 660,

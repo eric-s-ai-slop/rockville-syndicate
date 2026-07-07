@@ -20,10 +20,7 @@ import { CHAPTER_MUSIC_KEY } from '../game/audio';
 
 // Chapters that intentionally play no stage music. Keep this list short and
 // justified — it is the escape hatch for the music-coverage check below.
-// FIXME(rose_florida): silence is unconfirmed — it may be a deliberate tonal
-// choice for this chapter or an oversight. See ROADMAP.md "Open questions".
-// Remove from this set once a track is added (or the silence is confirmed).
-const INTENTIONALLY_SILENT = new Set<string>(['rose_florida']);
+const INTENTIONALLY_SILENT = new Set<string>();
 
 describe('chapters data', () => {
   it('should have chapters defined', () => {
