@@ -76,6 +76,7 @@ const chapter5b: ChapterConfig = {
         { id: 'party2',      x: 750, y: 390, nameOverride: 'Partygoer', spriteKey: 'enemy_frat_bro_sheet' },
         { id: 'party3',      x: 380, y: 510, nameOverride: 'Partygoer', spriteKey: 'enemy_frat_bro_sheet' },
       ],
+      music: 'music_ch5',
     },
 
     // ── Scene 1 — The Lawn ─────────────────────────────────────────────────
@@ -236,6 +237,7 @@ const chapter5b: ChapterConfig = {
     },
 
     // 7. [NARRATOR] Bridge to lawn
+    { type: 'stopAllAudio', fadeMs: 300 },
     {
       type: 'dialogue',
       speaker: 'narrator',
