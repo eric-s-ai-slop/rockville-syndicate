@@ -691,21 +691,42 @@ speaker refs) and **narrative diffing between commits** — "did this refactor
 change any player-visible text?" becomes `transcript | git diff`. Safe to
 import chapter data per lesson 1.
 
-### G6. Coverage Tracker — **P2**
-During a gauntlet run, record which beats, modes, and choice branches were
-actually exercised; emit `"chapter 8: choice branch 2/3 never taken"`.
-Branch-specific stalls (the historical Ch8 endings bug) live exactly in
-never-taken branches.
+### G6. Coverage Tracker — **shipped**
+`--gauntlet --coverage` records, per chapter, which beat indices and mode ids
+were exercised (sampled via `advanceUntil`'s existing per-tick `onTick` hook —
+no new polling loop), diffs that against the chapter's static beat list, and
+emits a `coverage` JSONL line plus `coverage.json` under the run's
+`agent-artifacts/gauntlet/` folder:
+`beatsVisited`/`beatsTotal`, `neverVisitedBeats`, `choiceGaps` (e.g. `"beat 5:
+choice branch 2/3 (\"...\") never taken"`), and `modesNeverEntered`. Branch-
+specific stalls (the historical Ch8 endings bug) live exactly in never-taken
+branches. Two known limits, documented in code: (1) since `advanceUntil`
+always clicks the first rendered choice option, every non-first branch reports
+as never-taken until G7's branch-matrix replay exists; (2) it's a ~150ms poll
+sample, so a non-blocking beat (`ledger`, `sfx`, …) that falls through inside
+one tick can be missed — blocking beats (dialogue/choice/walkTo/minigame/
+bossFight) are always reliably captured.
 
-### G7. Choice-Matrix Gauntlet (`--gauntlet --branches all`) — **P2**
-Replay chapters taking each choice permutation, bounded (e.g. vary the first
-divergence only, or cap total runs). Expensive; the only automated way to catch
-branch-specific breakage. Requires G6 to know what the branches are.
+### G7. Choice-Matrix Gauntlet (`--gauntlet --branches all`) — **shipped**
+`buildGauntletJobs()` in cli.ts turns each targeted chapter into one job per
+option of its **first** choice beat only (`all`, or a numeric cap to bound
+total runs) — "vary the first divergence only" per the original scope, since
+full permutation replay is combinatorial. A new `forceChoice` option on
+`advanceUntil` (helpers.ts) clicks that specific option index only when the
+live `beatIndex` matches the targeted beat; every other choice beat in the run
+still auto-picks the first option as before. Chapters with no choice beat get
+one unvaried job regardless of `--branches`. Each job's `chapter` field in the
+report is suffixed `[branch k/n]`. Verified against "Operation Inertia"
+(a `goto`-diverging choice): branch 1 visits a genuinely different beat path
+than branches 2/3, confirming the forced click actually lands.
 
-### G8. Parallel Gauntlet (`--gauntlet --parallel <n>`) — **P2**
-Chapters are independent; run N headless sessions concurrently. Only worth
-building once the gauntlet runs in CI and its wall-clock time actually annoys
-someone.
+### G8. Parallel Gauntlet (`--gauntlet --parallel <n>`) — **shipped**
+`runGauntlet` now builds a flat list of jobs (chapters, or chapter×branch jobs
+from G7) and runs them through a small bounded worker pool (`runPool()`), each
+job getting its own fresh `browser.newContext()`/page so concurrent runs don't
+share game/DOM state. Defaults to `--parallel 1` (sequential, matching prior
+behavior exactly). Purely a wall-clock optimization — doesn't change what's
+tested.
 
 ---
 
@@ -743,22 +764,43 @@ replace it. Revisit only if truly unattended overnight exploration (no human
 launching an agent session) becomes a real need — and even then, a scheduled
 Antigravity/Claude session driving the existing CLI is likely simpler.
 
-### I2. Fuzz Mode (`--fuzz <seconds>`) — **P2**
-Seeded random key-mashing, clicking, and mode launches with A1 watching for
-exceptions and A4 watching for stalls. Crash-finding for the cost of an
-overnight run. Pairs with `--record`: every crash yields a committed repro
-script (C3 + C2 = deterministic).
+### I2. Fuzz Mode (`--fuzz <seconds>`) — **shipped, scope note**
+`runFuzz()` in cli.ts: a Node-side Mulberry32 PRNG (seeded by `--seed` or
+`Date.now()`) drives random `press <dir>`/`click <x> <y>`/`winmode`-if-a-mode-
+is-active actions through the existing `runCommand()`, so `--record` captures
+every action for a deterministic repro (C3 + C2) with zero extra plumbing.
+Stops and reports on the first new console error (A1's existing hook via
+`agent.getConsoleLogs()`). **Scope note:** A4 stall-watching was dropped —
+this loop's own actions never block on game state, so there's nothing to
+detect a stall against; it either raises a new console error or it doesn't.
 
-### I3. Session-to-GIF (`--gif <file>`) — **P2**
-Capture frames during a scripted run, assemble a GIF/webm artifact. Turns "the
-boss fight feels wrong" into shareable evidence without a human screen
-recording.
+### I3. Session-to-GIF (`--gif <file>`) — **shipped, scope note**
+Captures raw (unstabilized — motion is the point) `page.screenshot()` frames
+to a temp dir every 200ms for the life of the session, then shells out to a
+system `ffmpeg` (`fps=8,scale=480:-1:lanczos`) to assemble the GIF, deleting
+the frames on success. **Scope note:** GIF only, not WebM — ffmpeg was chosen
+over a new JS dependency (jimp, already a dependency, has no animated-GIF
+writer) since this is a dev-only tool, not a CI or runtime path. Soft-fails
+with the frames left on disk (path in the error) if `ffmpeg` isn't on PATH or
+the encode fails.
 
-### I4. Transition-Graph Extraction — **P2**
-Instrument a run to record the observed beat/scene/mode transition graph; diff
-it against the graph implied by the chapter config. Divergence = routing bug
-(the `routeOnMinigame` gotcha is exactly this class). Builds on G6's
-instrumentation.
+### I4. Transition-Graph Extraction — **shipped**
+`--gauntlet --transitions` builds the graph of beat-index jumps a chapter's
+config could produce (`buildImpliedGraph()`, mirroring BeatEngine's own
+`runChoiceBeat`/`runRouteOnMinigame`/`runMinigameBeat` jump semantics: `i+1`
+fallthrough unless a `goto`/`loseGoto`/case target resolves by id), and diffs
+it against the observed beat-index transitions from the same onTick
+instrumentation as G6. `unexpectedTransitions` uses **multi-hop BFS
+reachability** against the implied graph, not single-edge-set membership —
+a naive single-edge diff produced false positives whenever the ~150ms poll
+skipped over an instantaneous beat (e.g. `ledger`), making a legitimate
+two-hop fallthrough look like an illegal jump; reachability correctly treats
+that as fine while still catching a jump to a beat with *no* path at all (the
+`routeOnMinigame` gotcha's failure class). `neverTakenEdges` is single-hop
+coverage, same G6 caveats. Verified: a naive version flagged `"1->3"` as
+unexpected on every run of a chapter with a `ledger` beat at index 2; the
+reachability fix reduced that to zero false positives while still passing
+cleanly on a chapter with a real minigame branch.
 
 ---
 
@@ -775,8 +817,8 @@ build an item when something in practice demands it, not because it's listed.
 | ~~3~~ | ~~N1 gauntlet-in-CI + `--shots`, N2 capture stabilization, N3 visual checkpoints/`--shot`/`--annotate`, N4 `diff`+`watch`~~ | **done** — the tester runs itself; the visual layer gets coverage; the driver gets cheaper |
 | 4 (next) | F1 (finish B3), D4 `modify`, D3 `choose`, D2 `settings`, A4/B1 warning fields | control ergonomics + honest transcripts |
 | 5 | B5 `cam fit/follow`, B6 CLI verbs, G3 audio asserts, B2 file-based save-state, G5 `transcript`, H1 validate-chapter | hardening + repro depth + authoring |
-| 6 | E1–E3, E8 sprites linter (only if N3 review proves noisy), G2 perf budgets, G6 coverage, D1 `walkto` (cheap), F2, F3 | deeper observability, on demand |
-| 7 | I2 fuzz, I3 gif, G7/G8 gauntlet variants, E4, E7, H2, H3, I4, D5 map | build when the need bites |
+| 6 | E1–E3, E8 sprites linter (only if N3 review proves noisy), G2 perf budgets, ~~G6 coverage~~, D1 `walkto` (cheap), F2, F3 | deeper observability, on demand |
+| 7 | ~~I2 fuzz~~, ~~I3 gif~~, ~~G7/G8 gauntlet variants~~, E4, E7, H2, H3, ~~I4~~, D5 map | build when the need bites |
 
 Removed from the plan entirely: I1 autonomous loop (superseded — Antigravity is
 the loop), G1 `agent:ci` wrapper (superseded by N1's direct CI wiring).

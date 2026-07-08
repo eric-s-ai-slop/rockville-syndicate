@@ -11,11 +11,14 @@
  */
 import { chromium, Browser, Page } from '@playwright/test';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import readline from 'node:readline';
+import { spawnSync } from 'node:child_process';
 import { GameAgent, MouseButton } from './GameAgent';
 import { navigateToChapter, advanceUntil } from '../helpers';
 import { CHAPTERS } from '../../src/data/chapters';
+import type { Beat } from '../../src/data/chapters/types';
 
 // ── Flags ────────────────────────────────────────────────────────────────────
 
@@ -37,6 +40,12 @@ interface Flags {
   shots: boolean;
   maxErrors: number | null;
   checkpoints: boolean;
+  coverage: boolean;
+  transitions: boolean;
+  branches: string | null; // 'all' or a numeric cap, with --gauntlet (G7)
+  parallel: number; // concurrent gauntlet workers (G8)
+  fuzz: number | null; // seconds of seeded fuzzing (I2)
+  gif: string | null; // output path for a session recording (I3)
 }
 
 function parseFlags(argv: string[]): Flags {
@@ -58,6 +67,12 @@ function parseFlags(argv: string[]): Flags {
     shots: false,
     maxErrors: null,
     checkpoints: false,
+    coverage: false,
+    transitions: false,
+    branches: null,
+    parallel: 1,
+    fuzz: null,
+    gif: null,
   };
   const positional: string[] = [];
   for (let i = 0; i < argv.length; i++) {
@@ -77,8 +92,14 @@ function parseFlags(argv: string[]): Flags {
       case '--gauntlet': f.gauntlet = true; break;
       case '--chapters': f.chapters = argv[++i]; break;
       case '--shots': f.shots = true; break;
+      case '--coverage': f.coverage = true; break;
       case '--max-errors': f.maxErrors = Number(argv[++i]); break;
       case '--checkpoints': f.checkpoints = true; break;
+      case '--transitions': f.transitions = true; break;
+      case '--branches': f.branches = argv[++i]; break;
+      case '--parallel': f.parallel = Math.max(1, Number(argv[++i]) || 1); break;
+      case '--fuzz': f.fuzz = Number(argv[++i]); break;
+      case '--gif': f.gif = argv[++i]; break;
       default:
         if (a.startsWith('--')) throw new Error(`Unknown flag: ${a}`);
         positional.push(a);
@@ -111,6 +132,23 @@ FLAGS
   --chapters "<list>"   Comma-separated chapter title/id filter for --gauntlet
   --shots               (with --gauntlet) capture a stabilized screenshot per scene + a contact-sheet index.html (N1)
   --max-errors <n>      (with --gauntlet) fail the run if any chapter's console error count exceeds <n>
+  --coverage            (with --gauntlet) record which beats/modes/choice branches were exercised;
+                         emit a 'coverage' line per chapter and a report under agent-artifacts/gauntlet (G6).
+                         Without --branches, choice beats only ever have their first option taken by
+                         advanceUntil's auto-driver, so every other branch reports as never-taken.
+  --transitions         (with --gauntlet) record the observed beat-index jump graph and diff it against
+                         the graph implied by the chapter config; 'unexpectedTransitions' is a routing-bug
+                         signal (e.g. the routeOnMinigame gotcha), 'neverTakenEdges' is graph-level coverage (I4)
+  --branches all|<n>    (with --gauntlet) replay each chapter once per option of its first choice beat
+                         (bounded to <n> options if given instead of 'all') — the only automated way to
+                         catch branch-specific breakage (e.g. the historical Ch8 endings bug) (G7)
+  --parallel <n>        (with --gauntlet) run up to <n> chapter/branch attempts concurrently, each in its
+                         own browser context — only reduces wall-clock, does not change what's tested (G8)
+  --fuzz <seconds>      Seeded random key/click/mode-launch mashing for <seconds>, watching console errors;
+                         stops and reports on the first new error. Pair with --record for a committed repro
+                         script of exactly the actions that crashed it (I2)
+  --gif <file>          Capture raw frames for the whole session and assemble them into a GIF at <file> via
+                         a system 'ffmpeg' (must be on PATH; soft-fails with frames kept if it's missing) (I3)
   --checkpoints         Auto-capture a stabilized screenshot + emit 'visual_checkpoint' on every
                         chapter/scene/mode transition during a normal (non-gauntlet) session (N3)
   -h, --help            Show this menu
@@ -284,6 +322,63 @@ async function maybeEmitCheckpoint(agent: GameAgent, page: Page, flags: Flags): 
   const file = path.resolve(flags.out, `checkpoint-${String(++checkpointCount).padStart(3, '0')}.png`);
   await agent.stabilizedScreenshot(file);
   emit({ cmd: 'visual_checkpoint', ok: true, path: file, reason });
+}
+
+// ── I3: session-to-GIF ────────────────────────────────────────────────────────
+// Captures raw (unstabilized — motion is the point) page.screenshot frames to a
+// temp directory for the life of the session, then shells out to a system
+// `ffmpeg` to assemble them into a GIF at --gif <file>. No new JS dependency:
+// ffmpeg is a much better encoder than anything in package.json (jimp has no
+// animated-GIF writer), and this is a dev-only tool, not a CI or runtime path.
+
+let gifFrameDir: string | null = null;
+let gifFrameCount = 0;
+let gifCapturing = false;
+let gifLoopPromise: Promise<void> | null = null;
+
+function startGifCapture(page: Page): void {
+  gifFrameDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-gif-'));
+  gifCapturing = true;
+  gifLoopPromise = (async () => {
+    while (gifCapturing) {
+      const file = path.join(gifFrameDir!, `frame-${String(++gifFrameCount).padStart(5, '0')}.png`);
+      await page.screenshot({ path: file }).catch(() => {});
+      await new Promise((r) => setTimeout(r, 200));
+    }
+  })();
+}
+
+async function finishGifCapture(outPath: string): Promise<void> {
+  gifCapturing = false;
+  if (gifLoopPromise) await gifLoopPromise.catch(() => {});
+  if (!gifFrameDir || gifFrameCount === 0) {
+    emit({ cmd: 'gif', ok: false, error: 'no frames captured' });
+    return;
+  }
+  const check = spawnSync('ffmpeg', ['-version']);
+  if (check.error || check.status !== 0) {
+    emit({ cmd: 'gif', ok: false, error: `ffmpeg not found on PATH — ${gifFrameCount} frames kept at ${gifFrameDir}` });
+    return;
+  }
+  const resolved = path.resolve(outPath);
+  fs.mkdirSync(path.dirname(resolved), { recursive: true });
+  const result = spawnSync('ffmpeg', [
+    '-y',
+    '-framerate', '5',
+    '-i', path.join(gifFrameDir, 'frame-%05d.png'),
+    '-vf', 'fps=8,scale=480:-1:flags=lanczos',
+    resolved,
+  ]);
+  if (result.status !== 0) {
+    emit({
+      cmd: 'gif',
+      ok: false,
+      error: `ffmpeg failed — ${gifFrameCount} frames kept at ${gifFrameDir}: ${result.stderr?.toString().slice(-500) ?? 'unknown error'}`,
+    });
+    return;
+  }
+  fs.rmSync(gifFrameDir, { recursive: true, force: true });
+  emit({ cmd: 'gif', ok: true, path: resolved, frames: gifFrameCount });
 }
 
 /** Execute one command line. Returns false to signal the session should end. */
@@ -752,6 +847,166 @@ interface GauntletResult {
   duration: number;
   stallInfo?: string;
   shots?: { sceneIndex: number; path: string }[];
+  coverage?: CoverageReport;
+  transitions?: TransitionReport;
+}
+
+interface CoverageReport {
+  chapter: string;
+  beatsTotal: number;
+  beatsVisited: number;
+  neverVisitedBeats: number[];
+  choiceGaps: string[];
+  modesTotal: string[];
+  modesVisited: string[];
+  modesNeverEntered: string[];
+}
+
+/**
+ * G6: compare what a gauntlet run actually exercised (visitedBeats/visitedModes,
+ * recorded live via advanceUntil's onTick) against the chapter's static config,
+ * so branch-specific stalls (the historical Ch8 endings bug) are surfaced as
+ * data instead of requiring someone to notice a bug report about an unplayed path.
+ * Sampled at the ~150ms poll interval, so a non-blocking beat (`ledger`, `sfx`,
+ * `changeMusic`, …) that executes and falls through inside one tick can be
+ * missed — this is a best-effort trace, not an exact one. Blocking beats
+ * (dialogue, choice, walkTo, minigame, bossFight) always hold the beatIndex
+ * across at least one tick and are reliably captured.
+ */
+function computeCoverage(
+  chapter: (typeof CHAPTERS)[number],
+  visitedBeats: Set<number>,
+  visitedModes: Set<string>,
+): CoverageReport {
+  const beats = chapter.beats;
+  const neverVisitedBeats = beats.map((_, i) => i).filter((i) => !visitedBeats.has(i));
+  const choiceGaps: string[] = [];
+  const modesTotal = new Set<string>();
+  beats.forEach((beat, i) => {
+    if (beat.type === 'choice' && visitedBeats.has(i)) {
+      // advanceUntil's auto-driver always clicks the first rendered option
+      // (see helpers.ts) — every other option is definitionally never taken
+      // until G7 (choice-matrix gauntlet) replays alternate branches.
+      beat.options.forEach((opt, optIdx) => {
+        if (optIdx !== 0) {
+          choiceGaps.push(`beat ${i}: choice branch ${optIdx + 1}/${beat.options.length} ("${opt.text}") never taken`);
+        }
+      });
+    }
+    if (beat.type === 'minigame') modesTotal.add(beat.modeId);
+    if (beat.type === 'bossFight') modesTotal.add('bossFight');
+  });
+  const modesNeverEntered = [...modesTotal].filter((m) => !visitedModes.has(m));
+  return {
+    chapter: chapter.title,
+    beatsTotal: beats.length,
+    beatsVisited: visitedBeats.size,
+    neverVisitedBeats,
+    choiceGaps,
+    modesTotal: [...modesTotal],
+    modesVisited: [...visitedModes],
+    modesNeverEntered,
+  };
+}
+
+interface TransitionReport {
+  chapter: string;
+  edgesImplied: number;
+  edgesObserved: number;
+  neverTakenEdges: string[];
+  unexpectedTransitions: string[];
+}
+
+/**
+ * I4: the graph of beat-index jumps a chapter's config *could* produce,
+ * derived from the same jump semantics BeatEngine itself implements
+ * (runChoiceBeat/runRouteOnMinigame/runMinigameBeat in BeatEngine.ts) —
+ * fallthrough to i+1 unless a beat resolves a `goto`/`loseGoto`/case target by
+ * id, in which case that's an additional (or, for routeOnMinigame with no
+ * matching case and no default, the only) edge. Returned as an adjacency list
+ * (not just a flat edge set) so multi-hop reachability can be checked —
+ * needed because the ~150ms poll can skip over an instantaneous beat (see
+ * computeCoverage's doc comment), which would otherwise make a legitimate
+ * two-hop fallthrough look like a single illegal jump.
+ */
+function buildImpliedGraph(beats: Beat[]): Map<number, number[]> {
+  const idIndex = (id: string): number | null => {
+    const i = beats.findIndex((b) => b.id === id);
+    return i === -1 ? null : i;
+  };
+  const graph = new Map<number, number[]>();
+  const addEdge = (from: number, to: number | null) => {
+    if (to === null) return;
+    const list = graph.get(from);
+    if (list) list.push(to);
+    else graph.set(from, [to]);
+  };
+  beats.forEach((beat, i) => {
+    if (beat.type === 'endChapter') return; // terminal — no outgoing edge
+    if (beat.type === 'choice') {
+      beat.options.forEach((opt) => addEdge(i, opt.goto ? idIndex(opt.goto) : i + 1));
+      return;
+    }
+    if (beat.type === 'routeOnMinigame') {
+      Object.values(beat.cases).forEach((target) => addEdge(i, idIndex(target)));
+      if (beat.default) addEdge(i, idIndex(beat.default));
+      // runRouteOnMinigame falls through to i+1 when no case matches and no
+      // default is set (or an id doesn't resolve) — always a possible edge.
+      addEdge(i, i + 1);
+      return;
+    }
+    addEdge(i, i + 1);
+    if (beat.type === 'minigame' && beat.loseGoto) addEdge(i, idIndex(beat.loseGoto));
+  });
+  return graph;
+}
+
+/** BFS reachability over the implied graph — used so a poll gap that skips a
+ * beat (see buildImpliedGraph's doc comment) doesn't register as a routing bug. */
+function reachableInGraph(graph: Map<number, number[]>, from: number, to: number): boolean {
+  if (from === to) return true;
+  const seen = new Set<number>([from]);
+  const queue = [from];
+  for (let qi = 0; qi < queue.length; qi++) {
+    for (const next of graph.get(queue[qi]) ?? []) {
+      if (next === to) return true;
+      if (!seen.has(next)) {
+        seen.add(next);
+        queue.push(next);
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * I4: diff the observed beat-index transitions (recorded live via
+ * advanceUntil's onTick, same instrumentation as G6) against the graph
+ * implied by the static config. `unexpectedTransitions` — an observed jump
+ * with no path at all in the implied graph — is the routing-bug signal (the
+ * `routeOnMinigame` gotcha in CLAUDE.md is exactly this class); everything
+ * else in `neverTakenEdges` is single-hop coverage, same caveats as G6
+ * (choice branches beyond the first are never taken without --branches).
+ */
+function computeTransitionReport(
+  chapter: (typeof CHAPTERS)[number],
+  observedEdges: Set<string>,
+): TransitionReport {
+  const graph = buildImpliedGraph(chapter.beats);
+  const impliedEdgeSet = new Set<string>();
+  graph.forEach((tos, from) => tos.forEach((to) => impliedEdgeSet.add(`${from}->${to}`)));
+  const neverTakenEdges = [...impliedEdgeSet].filter((e) => !observedEdges.has(e));
+  const unexpectedTransitions = [...observedEdges].filter((e) => {
+    const [from, to] = e.split('->').map(Number);
+    return !reachableInGraph(graph, from, to);
+  });
+  return {
+    chapter: chapter.title,
+    edgesImplied: impliedEdgeSet.size,
+    edgesObserved: observedEdges.size,
+    neverTakenEdges,
+    unexpectedTransitions,
+  };
 }
 
 /** Plain generated HTML contact sheet (N1) — chapter x scene thumbnail grid, no framework. */
@@ -799,135 +1054,228 @@ function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 }
 
-async function runGauntlet(flags: Flags): Promise<void> {
-  const browser = await chromium.launch({ headless: !flags.headed, slowMo: flags.slowmo });
+interface GauntletJob {
+  chapter: (typeof CHAPTERS)[number];
+  label: string;
+  forceChoice?: { beatIndex: number; optionIndex: number };
+}
+
+/**
+ * G7: one job per chapter normally; with --branches, one job per option of
+ * the chapter's *first* choice beat only ("vary the first divergence only"
+ * per the spec — full choice-permutation replay is combinatorially
+ * unbounded, this is the bounded approximation). Chapters with no choice
+ * beat get a single unvaried job regardless of --branches.
+ */
+function buildGauntletJobs(chapters: (typeof CHAPTERS)[number][], flags: Flags): GauntletJob[] {
+  const jobs: GauntletJob[] = [];
+  for (const chapter of chapters) {
+    const firstChoiceIdx = flags.branches ? chapter.beats.findIndex((b) => b.type === 'choice') : -1;
+    const firstChoice = firstChoiceIdx !== -1 ? chapter.beats[firstChoiceIdx] : null;
+    if (flags.branches && firstChoice && firstChoice.type === 'choice') {
+      const total = firstChoice.options.length;
+      const cap = flags.branches === 'all' ? total : Math.max(1, Math.min(total, Number(flags.branches) || total));
+      for (let k = 0; k < cap; k++) {
+        jobs.push({
+          chapter,
+          label: `${chapter.title} [branch ${k + 1}/${total}]`,
+          forceChoice: { beatIndex: firstChoiceIdx, optionIndex: k },
+        });
+      }
+    } else {
+      jobs.push({ chapter, label: chapter.title });
+    }
+  }
+  return jobs;
+}
+
+/** Run a simple bounded worker pool over `items`, preserving input order in the returned array. */
+async function runPool<T, R>(items: T[], concurrency: number, worker: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  const runOne = async () => {
+    for (;;) {
+      const i = next++;
+      if (i >= items.length) return;
+      results[i] = await worker(items[i]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, runOne));
+  return results;
+}
+
+/**
+ * Run one chapter (or, under --branches, one forced-choice variant of one
+ * chapter) to completion or stall, on its own fresh page — extracted from the
+ * pre-G7/G8 single-chapter loop body so --branches (G7) and --parallel (G8)
+ * can both reuse it without duplicating the advanceUntil wiring.
+ */
+async function runChapterAttempt(
+  browser: Browser,
+  flags: Flags,
+  runDir: string | null,
+  job: GauntletJob,
+): Promise<GauntletResult> {
+  const { chapter, label, forceChoice } = job;
+  process.stderr.write(`Gauntlet running: ${label}...\n`);
+
   const context = await browser.newContext({ baseURL: flags.url });
   const page = await context.newPage();
-
   let consoleErrors = 0;
   page.on('console', (msg) => {
     if (msg.type() === 'error') {
       consoleErrors++;
-      process.stderr.write(`[Browser Console Error] ${msg.text()}\n`);
+      process.stderr.write(`[${label}] [Browser Console Error] ${msg.text()}\n`);
     }
   });
   page.on('pageerror', (err) => {
     consoleErrors++;
-    process.stderr.write(`[Browser Page Error] ${err.stack || err.message}\n`);
+    process.stderr.write(`[${label}] [Browser Page Error] ${err.stack || err.message}\n`);
   });
+
+  const start = Date.now();
+  let status: 'completed' | 'stalled' = 'stalled';
+  let stallInfo = '';
+  const shots: { sceneIndex: number; path: string }[] = [];
+  const visitedBeats = new Set<number>();
+  const visitedModes = new Set<string>();
+  const observedEdges = new Set<string>();
+  let lastBeatIndex: number | null = null;
+
+  const chapterDir = runDir ? path.resolve(runDir, slugify(label)) : null;
+  if (chapterDir) fs.mkdirSync(chapterDir, { recursive: true });
+
+  const captureScene = async (agent: GameAgent, sceneIndex: number) => {
+    if (!chapterDir) return;
+    const shotPath = path.resolve(chapterDir, `scene-${sceneIndex}.png`);
+    await agent.stabilizedScreenshot(shotPath);
+    shots.push({ sceneIndex, path: shotPath });
+    emit({ cmd: 'visual_checkpoint', ok: true, path: shotPath, chapter: label, sceneIndex });
+  };
+
+  let agent: GameAgent | null = null;
+  try {
+    const isClassified = chapter.title.includes('Rose') || chapter.title.includes('UMBC');
+    await navigateToChapter(page, chapter.title, { classified: isClassified });
+    await page.waitForSelector('canvas', { timeout: 15000 });
+
+    agent = new GameAgent(page);
+    if (chapterDir) await captureScene(agent, 0); // one at chapter start (N1)
+    let lastSceneIndex = 0;
+    const tracking = flags.coverage || flags.transitions;
+
+    // Reuse the proven advanceUntil per-tick logic (dismiss dialogue via a
+    // trusted Space dispatch, click choices, auto-win skipModes, teleport onto
+    // walk targets) instead of a parallel loop that pokes BeatEngine directly —
+    // calling beatEngine.advanceBeat() out from under the React dialogue overlay
+    // desyncs UI from engine state (see CLAUDE.md's StrictMode gotcha).
+    try {
+      await advanceUntil(
+        page,
+        () =>
+          page.evaluate(() => {
+            const game = (window as unknown as { __OMEGA_GAME__?: any }).__OMEGA_GAME__;
+            if (!game) return true; // game unmounted — flow ended, back at chapter select
+            const scene = game.scene.getScene('ChapterScene');
+            if (!scene) return true;
+            const beats = scene.chapter?.beats;
+            if (!scene.levelStarted || !beats) return false;
+            if (scene.beatIndex >= beats.length) return true;
+            // runEndChapter() plays victory FX then calls onLevelCompleted via a
+            // React callback — it never advances beatIndex past this beat, so
+            // "beatIndex >= beats.length" alone can never fire once reached.
+            return beats[scene.beatIndex]?.type === 'endChapter';
+          }),
+        {
+          maxSeconds: 180,
+          skipModes: ['*'],
+          forceChoice,
+          onTick: chapterDir || tracking
+            ? async (info) => {
+                if (tracking && info.beatIndex !== null) {
+                  visitedBeats.add(info.beatIndex);
+                  if (flags.transitions && lastBeatIndex !== null && lastBeatIndex !== info.beatIndex) {
+                    observedEdges.add(`${lastBeatIndex}->${info.beatIndex}`);
+                  }
+                  lastBeatIndex = info.beatIndex;
+                }
+                if (tracking && info.mode) visitedModes.add(info.mode);
+                if (chapterDir && info.sceneIndex !== null && info.sceneIndex !== lastSceneIndex) {
+                  lastSceneIndex = info.sceneIndex;
+                  await captureScene(agent!, info.sceneIndex);
+                }
+              }
+            : undefined,
+        },
+      );
+      status = 'completed';
+      // advanceUntil's condition check runs before onTick each iteration, so
+      // the tick where beatIndex first reaches the terminal `endChapter` beat
+      // exits the loop before that beat is ever recorded as visited. H1's
+      // linter requires endChapter to be the chapter's last beat, so it's
+      // safe to credit it here on a completed run.
+      if (tracking) visitedBeats.add(chapter.beats.length - 1);
+    } catch (timeoutErr) {
+      status = 'stalled';
+      const beatInfo = await agent.inspectBeats().catch(() => null);
+      stallInfo = beatInfo
+        ? `Beat ${beatInfo.currentBeatIndex}/${beatInfo.totalBeats} (type: ${beatInfo.currentBeat?.type}, speaker: ${beatInfo.currentBeat?.speaker ?? 'n/a'})`
+        : timeoutErr instanceof Error
+          ? timeoutErr.message
+          : String(timeoutErr);
+    }
+  } catch (err) {
+    stallInfo = err instanceof Error ? err.message : String(err);
+  } finally {
+    if (agent) await agent.dispose().catch(() => {});
+    await context.close().catch(() => {});
+  }
+
+  const duration = Math.round((Date.now() - start) / 1000);
+  const coverage = flags.coverage ? computeCoverage(chapter, visitedBeats, visitedModes) : undefined;
+  const transitions = flags.transitions ? computeTransitionReport(chapter, observedEdges) : undefined;
+  const result: GauntletResult = {
+    chapter: label,
+    status,
+    errors: consoleErrors,
+    duration,
+    ...(status === 'stalled' ? { stallInfo } : {}),
+    ...(chapterDir ? { shots } : {}),
+    ...(coverage ? { coverage } : {}),
+    ...(transitions ? { transitions } : {}),
+  };
+  emit({ ...result });
+  if (coverage) emit({ cmd: 'coverage', ok: true, ...coverage });
+  if (transitions) emit({ cmd: 'transitions', ok: true, ...transitions });
+  return result;
+}
+
+async function runGauntlet(flags: Flags): Promise<void> {
+  const browser = await chromium.launch({ headless: !flags.headed, slowMo: flags.slowmo });
 
   const targetChapters = flags.chapters
     ? flags.chapters.split(',').map(s => s.trim())
     : [];
+  const chapters = CHAPTERS.filter((chapter) =>
+    targetChapters.length === 0 || targetChapters.some(t =>
+      chapter.title.toLowerCase().includes(t.toLowerCase()) ||
+      chapter.id.toLowerCase().includes(t.toLowerCase())
+    )
+  );
 
   // N1: --shots writes one timestamped run folder under agent-artifacts/gauntlet/,
-  // one subfolder per chapter, with a per-scene stabilized screenshot + a
-  // generated contact-sheet index.html at the end.
+  // one subfolder per chapter (or per-branch job), with a per-scene stabilized
+  // screenshot + a generated contact-sheet index.html at the end.
   const runDir = flags.shots
     ? path.resolve('agent-artifacts/gauntlet', new Date().toISOString().replace(/[:.]/g, '-'))
     : null;
   if (runDir) fs.mkdirSync(runDir, { recursive: true });
 
-  const results: GauntletResult[] = [];
-
-  for (const chapter of CHAPTERS) {
-    const titleMatch = targetChapters.length === 0 || targetChapters.some(t =>
-      chapter.title.toLowerCase().includes(t.toLowerCase()) ||
-      chapter.id.toLowerCase().includes(t.toLowerCase())
-    );
-    if (!titleMatch) continue;
-
-    process.stderr.write(`Gauntlet running chapter: ${chapter.title}...\n`);
-    consoleErrors = 0;
-    const start = Date.now();
-    let status: 'completed' | 'stalled' = 'stalled';
-    let stallInfo = '';
-    const shots: { sceneIndex: number; path: string }[] = [];
-
-    const chapterDir = runDir ? path.resolve(runDir, slugify(chapter.title)) : null;
-    if (chapterDir) fs.mkdirSync(chapterDir, { recursive: true });
-
-    const captureScene = async (agent: GameAgent, sceneIndex: number) => {
-      if (!chapterDir) return;
-      const shotPath = path.resolve(chapterDir, `scene-${sceneIndex}.png`);
-      await agent.stabilizedScreenshot(shotPath);
-      shots.push({ sceneIndex, path: shotPath });
-      emit({ cmd: 'visual_checkpoint', ok: true, path: shotPath, chapter: chapter.title, sceneIndex });
-    };
-
-    let agent: GameAgent | null = null;
-    try {
-      const isClassified = chapter.title.includes('Rose') || chapter.title.includes('UMBC');
-      await navigateToChapter(page, chapter.title, { classified: isClassified });
-      await page.waitForSelector('canvas', { timeout: 15000 });
-
-      agent = new GameAgent(page);
-      if (chapterDir) await captureScene(agent, 0); // one at chapter start (N1)
-      let lastSceneIndex = 0;
-
-      // Reuse the proven advanceUntil per-tick logic (dismiss dialogue via a
-      // trusted Space dispatch, click choices, auto-win skipModes, teleport onto
-      // walk targets) instead of a parallel loop that pokes BeatEngine directly —
-      // calling beatEngine.advanceBeat() out from under the React dialogue overlay
-      // desyncs UI from engine state (see CLAUDE.md's StrictMode gotcha).
-      try {
-        await advanceUntil(
-          page,
-          () =>
-            page.evaluate(() => {
-              const game = (window as unknown as { __OMEGA_GAME__?: any }).__OMEGA_GAME__;
-              if (!game) return true; // game unmounted — flow ended, back at chapter select
-              const scene = game.scene.getScene('ChapterScene');
-              if (!scene) return true;
-              const beats = scene.chapter?.beats;
-              if (!scene.levelStarted || !beats) return false;
-              if (scene.beatIndex >= beats.length) return true;
-              // runEndChapter() plays victory FX then calls onLevelCompleted via a
-              // React callback — it never advances beatIndex past this beat, so
-              // "beatIndex >= beats.length" alone can never fire once reached.
-              return beats[scene.beatIndex]?.type === 'endChapter';
-            }),
-          {
-            maxSeconds: 45,
-            skipModes: ['*'],
-            onTick: chapterDir
-              ? async (info) => {
-                  if (info.sceneIndex !== null && info.sceneIndex !== lastSceneIndex) {
-                    lastSceneIndex = info.sceneIndex;
-                    await captureScene(agent!, info.sceneIndex);
-                  }
-                }
-              : undefined,
-          },
-        );
-        status = 'completed';
-      } catch (timeoutErr) {
-        status = 'stalled';
-        const beatInfo = await agent.inspectBeats().catch(() => null);
-        stallInfo = beatInfo
-          ? `Beat ${beatInfo.currentBeatIndex}/${beatInfo.totalBeats} (type: ${beatInfo.currentBeat?.type}, speaker: ${beatInfo.currentBeat?.speaker ?? 'n/a'})`
-          : timeoutErr instanceof Error
-            ? timeoutErr.message
-            : String(timeoutErr);
-      }
-    } catch (err) {
-      stallInfo = err instanceof Error ? err.message : String(err);
-    } finally {
-      if (agent) await agent.dispose().catch(() => {});
-    }
-
-    const duration = Math.round((Date.now() - start) / 1000);
-    const chapterRes: GauntletResult = {
-      chapter: chapter.title,
-      status,
-      errors: consoleErrors,
-      duration,
-      ...(status === 'stalled' ? { stallInfo } : {}),
-      ...(chapterDir ? { shots } : {}),
-    };
-    results.push(chapterRes);
-    emit({ ...chapterRes });
-  }
+  const jobs = buildGauntletJobs(chapters, flags);
+  // G8: chapter/branch attempts are independent (each gets its own browser
+  // context), so --parallel just widens the worker pool below wall-clock;
+  // it changes nothing about what's tested. Defaults to 1 (sequential, as before).
+  const results = await runPool(jobs, flags.parallel, (job) => runChapterAttempt(browser, flags, runDir, job));
 
   await browser.close().catch(() => {});
 
@@ -936,20 +1284,115 @@ async function runGauntlet(flags: Flags): Promise<void> {
     process.stderr.write(`\nContact sheet: ${path.resolve(runDir, 'index.html')}\n`);
   }
 
+  if (flags.coverage || flags.transitions) {
+    const reportDir = runDir ?? path.resolve('agent-artifacts/gauntlet', new Date().toISOString().replace(/[:.]/g, '-'));
+    fs.mkdirSync(reportDir, { recursive: true });
+    if (flags.coverage) {
+      const coveragePath = path.resolve(reportDir, 'coverage.json');
+      fs.writeFileSync(coveragePath, JSON.stringify(results.map((r) => r.coverage), null, 2));
+      process.stderr.write(`Coverage report: ${coveragePath}\n`);
+    }
+    if (flags.transitions) {
+      const transitionsPath = path.resolve(reportDir, 'transitions.json');
+      fs.writeFileSync(transitionsPath, JSON.stringify(results.map((r) => r.transitions), null, 2));
+      process.stderr.write(`Transition report: ${transitionsPath}\n`);
+    }
+  }
+
   process.stderr.write('\n=== GAUNTLET SUMMARY ===\n');
-  console.table(results.map(({ shots, ...r }) => ({ ...r, shots: shots?.length ?? 0 })));
+  console.table(results.map(({ shots, coverage, transitions, ...r }) => ({
+    ...r,
+    shots: shots?.length ?? 0,
+    ...(coverage ? { beatsVisited: `${coverage.beatsVisited}/${coverage.beatsTotal}` } : {}),
+    ...(transitions ? { unexpectedTransitions: transitions.unexpectedTransitions.length } : {}),
+  })));
 
   const anyStalled = results.some(r => r.status === 'stalled');
   const overErrorBudget =
     flags.maxErrors !== null && !Number.isNaN(flags.maxErrors) && results.some(r => r.errors > flags.maxErrors!);
+  const anyUnexpectedTransition = results.some(r => (r.transitions?.unexpectedTransitions.length ?? 0) > 0);
   if (anyStalled || overErrorBudget) {
     if (anyStalled) process.stderr.write('Gauntlet failed! One or more chapters stalled.\n');
     if (overErrorBudget) process.stderr.write(`Gauntlet failed! A chapter exceeded --max-errors ${flags.maxErrors}.\n`);
     process.exit(1);
   } else {
+    if (anyUnexpectedTransition) {
+      process.stderr.write('Gauntlet passed, but --transitions found unexpected beat jumps — see transitions.json.\n');
+    }
     process.stderr.write('Gauntlet passed successfully!\n');
     process.exit(0);
   }
+}
+
+// ── I2: fuzz mode ──────────────────────────────────────────────────────────────
+// Seeded random key/click/mode-launch mashing, watching the console (A1's hook,
+// already wired into GameAgent) for a new error. Reuses runCommand for every
+// action it takes, so --record captures the exact action sequence — pairing
+// --fuzz with --record turns a crash into a committed, deterministic repro
+// script for free (C3 + C2), per the spec. Stall-finding (A4) is out of scope
+// here: this loop's own actions never block, so there's nothing to detect a
+// stall against — it either crashes or it doesn't.
+function makeMulberry32(seed: number): () => number {
+  let s = seed >>> 0;
+  return () => {
+    s = (s + 0x6d2b79f5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const FUZZ_KEYS = ['w', 'a', 's', 'd', 'Space', 'e', 'Escape'];
+
+async function runFuzz(agent: GameAgent, page: Page, flags: Flags, seconds: number): Promise<void> {
+  const seed = flags.seed ?? Date.now();
+  const rand = makeMulberry32(seed);
+  const endAt = Date.now() + seconds * 1000;
+  let priorErrors = agent.getConsoleLogs().filter((e) => e.type === 'error').length;
+  let actionCount = 0;
+  emit({ cmd: 'fuzz', ok: true, status: 'started', seed, seconds });
+
+  while (Date.now() < endAt) {
+    const roll = rand();
+    let cmd: string;
+    if (roll < 0.5) {
+      const key = FUZZ_KEYS[Math.floor(rand() * FUZZ_KEYS.length)];
+      const ms = 100 + Math.floor(rand() * 400);
+      cmd = `press ${key} ${ms}`;
+    } else if (roll < 0.85) {
+      const x = Math.floor(rand() * 800);
+      const y = Math.floor(rand() * 600);
+      cmd = `click ${x} ${y}`;
+    } else {
+      // Try to shake loose a foreground minigame if one launched; otherwise a
+      // harmless beat to keep the loop from spinning on nothing.
+      const modeId = await page
+        .evaluate(() => (window as any).__OMEGA_GAME__?.scene.getScene('ChapterScene')?.activeMode?.id ?? null)
+        .catch(() => null);
+      cmd = modeId ? 'winmode' : 'wait 200';
+    }
+
+    actionCount++;
+    const keepGoing = await runCommand(agent, page, flags, cmd);
+    if (!keepGoing) break;
+
+    const errors = agent.getConsoleLogs().filter((e) => e.type === 'error');
+    if (errors.length > priorErrors) {
+      emit({
+        cmd: 'fuzz',
+        ok: false,
+        status: 'crash',
+        actionCount,
+        seed,
+        newErrors: errors.slice(priorErrors).map((e) => e.text),
+      });
+      return;
+    }
+    priorErrors = errors.length;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  emit({ cmd: 'fuzz', ok: true, status: 'completed', actionCount, seed, seconds });
 }
 
 // ── Session bootstrap ─────────────────────────────────────────────────────────
@@ -1024,6 +1467,10 @@ async function main(): Promise<void> {
     emit({ cmd: 'ready', ok: true, url: flags.url, chapter: flags.chapter, seed: flags.seed });
     await maybeEmitCheckpoint(agent, page, flags); // chapter-load checkpoint (N3)
 
+    if (flags.gif) startGifCapture(page); // I3
+
+    if (flags.fuzz !== null) await runFuzz(agent, page, flags, flags.fuzz); // I2
+
     // Source of commands: --script file, inline positional, or stdin.
     let lines: string[] | null = null;
     if (flags.script) lines = fs.readFileSync(flags.script, 'utf8').split('\n');
@@ -1035,10 +1482,14 @@ async function main(): Promise<void> {
         await maybeEmitCheckpoint(agent, page, flags);
       }
       if (flags.keepOpen) await readStdin(agent, page, flags);
-    } else {
+    } else if (flags.fuzz === null || flags.keepOpen) {
+      // A --fuzz-only session (no --script/--inline/--keep-open) ends after
+      // fuzzing instead of hanging on stdin that will never arrive in an
+      // unattended overnight run.
       await readStdin(agent, page, flags);
     }
   } finally {
+    if (flags.gif) await finishGifCapture(flags.gif).catch(() => {});
     if (recordStream) {
       recordStream.end();
       recordStream = null;

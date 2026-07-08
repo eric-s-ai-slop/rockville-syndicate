@@ -86,6 +86,12 @@ the CLI just loads the URL and leaves you on the menu (drive it yourself with
 | `--shots` | (with `--gauntlet`) capture a stabilized screenshot per scene + generate a contact-sheet `index.html` (N1) |
 | `--max-errors <n>` | (with `--gauntlet`) fail the run if any chapter's console error count exceeds `<n>` |
 | `--checkpoints` | Auto-capture a stabilized screenshot + emit `visual_checkpoint` on every chapter/scene/mode transition during a normal session (N3) |
+| `--coverage` | (with `--gauntlet`) record which beats/modes/choice branches were exercised; emit a `coverage` line per chapter + write `coverage.json` (G6). Without `--branches`, choice beats only ever have their first option auto-clicked, so every other branch reports as never-taken |
+| `--transitions` | (with `--gauntlet`) record the observed beat-index jump graph and diff it against the graph implied by the chapter config; `unexpectedTransitions` is a routing-bug signal (e.g. the `routeOnMinigame` gotcha), `neverTakenEdges` is graph-level coverage; writes `transitions.json` (I4) |
+| `--branches all\|<n>` | (with `--gauntlet`) replay each chapter once per option of its **first** choice beat (capped at `<n>` options if given instead of `all`) — the only automated way to catch branch-specific breakage (G7) |
+| `--parallel <n>` | (with `--gauntlet`) run up to `<n>` chapter/branch attempts concurrently, each in its own browser context — wall-clock only, doesn't change what's tested (G8) |
+| `--fuzz <seconds>` | Seeded random key/click/mode-launch mashing for `<seconds>`, stopping and reporting on the first new console error. Pair with `--record` for a committed, deterministic repro script of exactly what crashed it (I2) |
+| `--gif <file>` | Capture raw frames for the whole session and assemble a GIF at `<file>` via a system `ffmpeg` (must be on PATH; soft-fails with frames kept on disk if missing) (I3) |
 | `-h`, `--help` | Print the usage menu |
 
 ### Commands (one per line; `;` also separates them inline)
@@ -305,6 +311,7 @@ npm run agent -- --chapter "The Spotify Family Insurgency" "advance; press d 100
 - **Timing-Preserved Playbacks.** By combining `--record <file>` with the `replay <file>` command, you can record a manual interaction path and replay it deterministic-style. The replayer parses the delay times between your commands and replicates them exactly.
 - **Visual Regression Checks.** The `golden save <name>` and `golden check <name>` commands let you capture PNG baselines and compare them on the fly. Diffing uses Jimp and fails if the pixel delta exceeds the specified threshold.
 - **Chapter Gauntlet Runner.** Running `npm run agent -- --gauntlet` runs a background gauntlet where dialogue is clicked through, and complex minigames are mocked out, verifying that all chapters run successfully to completion without stalling.
+  > **WARNING:** The gauntlet validates logic, NOT visuals. Agents MUST still use `screenshot` to manually verify rendering, sprite scaling, and UI layout.
 - **Static Asset Audit.** Running `npm run agent:audit` statically parses and audits all chapters to ensure that all speakers and audio assets mentioned in chapter definitions are correctly defined and exist as static files in the repository.
 - **Gauntlet runs in CI on every push to main** (the `gauntlet` job in
   `.github/workflows/ci.yml`) via `npm run agent -- --gauntlet --shots`. It

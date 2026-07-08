@@ -59,15 +59,26 @@ export async function advanceUntil(
     skipModes?: string[];
     /**
      * Called once per tick, before the interaction step, with the live
-     * ChapterScene's current scene index and active mode id (N1). Used by the
-     * gauntlet's `--shots` to detect scene-index changes and capture a
-     * screenshot on each new scene without hand-rolling a second polling loop
-     * (lesson 3: reuse this helper, don't parallel it).
+     * ChapterScene's current scene index, active mode id, and beat index (N1;
+     * beatIndex added for G6 coverage tracking). Used by the gauntlet's
+     * `--shots` to detect scene-index changes and capture a screenshot on each
+     * new scene, and by `--coverage` to record which beats/modes were
+     * exercised, without hand-rolling a second polling loop (lesson 3: reuse
+     * this helper, don't parallel it).
      */
-    onTick?: (info: { sceneIndex: number | null; mode: string | null }) => Promise<void>;
+    onTick?: (info: { sceneIndex: number | null; mode: string | null; beatIndex: number | null }) => Promise<void>;
+    /**
+     * G7: force a specific choice beat to click a specific option index
+     * instead of always the first. Only applies when the live beatIndex
+     * matches `beatIndex` and that many options are rendered — every other
+     * choice beat in the run still auto-picks the first option, matching the
+     * spec's "vary the first divergence only" scope for the choice-matrix
+     * gauntlet.
+     */
+    forceChoice?: { beatIndex: number; optionIndex: number };
   } = {},
 ): Promise<void> {
-  const { maxSeconds = 90, skipModes = [], onTick } = options;
+  const { maxSeconds = 90, skipModes = [], onTick, forceChoice = null } = options;
   const maxTicks = Math.ceil((maxSeconds * 1000) / 150);
   for (let i = 0; i < maxTicks; i++) {
     if (await condition()) return;
@@ -77,11 +88,12 @@ export async function advanceUntil(
         return {
           sceneIndex: typeof scene?.currentSceneIndex === 'number' ? scene.currentSceneIndex : null,
           mode: scene?.activeMode?.id ?? null,
+          beatIndex: typeof scene?.beatIndex === 'number' ? scene.beatIndex : null,
         };
       });
       await onTick(info);
     }
-    await page.evaluate((skip) => {
+    await page.evaluate(({ skip, forceChoice }) => {
       const scene = (window as any).__OMEGA_GAME__?.scene.getScene('ChapterScene');
 
       // Auto-complete a foreground minigame that is blocking the flow.
@@ -94,9 +106,18 @@ export async function advanceUntil(
         return;
       }
 
-      // Choice beats can't be dismissed with Space — pick the first option.
-      const choice = document.querySelector('[data-testid="dialogue-choice"]') as HTMLElement | null;
-      if (choice) { choice.click(); return; }
+      // Choice beats can't be dismissed with Space — pick an option. Default
+      // to the first rendered one; forceChoice overrides the pick only for
+      // its designated beatIndex (G7).
+      const choices = document.querySelectorAll('[data-testid="dialogue-choice"]');
+      if (choices.length) {
+        let pick = 0;
+        if (forceChoice && scene?.beatIndex === forceChoice.beatIndex && choices.length > forceChoice.optionIndex) {
+          pick = forceChoice.optionIndex;
+        }
+        (choices[pick] as HTMLElement).click();
+        return;
+      }
 
       // A normal dialogue line: advance it (skips the typewriter, then proceeds).
       const line = document.querySelector('p.font-pixel') as HTMLElement | null;
@@ -110,7 +131,7 @@ export async function advanceUntil(
         scene.player.x = scene.walkTarget.x;
         scene.player.y = scene.walkTarget.y;
       }
-    }, skipModes);
+    }, { skip: skipModes, forceChoice });
     await page.waitForTimeout(150);
   }
   throw new Error(`advanceUntil: timed out after ${maxSeconds}s`);
