@@ -208,6 +208,10 @@ export default function GameLayout() {
                 chapter,
                 playerHp: selectedHero.maxHp,
                 onHpChange: (hp: number) => setPlayerHp(hp),
+                clearStoryDialogue: () => {
+                  activeStoryRef.current = null;
+                  setActiveStory(null);
+                },
                 onTriggerQTE: (boss: BossConfig, callback: (success: boolean, damage: number) => void) => {
                   setQteTimer(8);
                   const shuffledBoss = { ...boss };

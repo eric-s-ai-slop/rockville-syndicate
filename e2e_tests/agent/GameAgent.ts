@@ -55,6 +55,8 @@ export class GameAgent {
   private heldMouseButton: MouseButton | null = null;
   /** Last known pointer position, so mouseUp/dragMouse can default to it. */
   private pointer = { x: 0, y: 0 };
+  /** Quick-save state slot. */
+  private quickSaveState: any = null;
 
   constructor(private readonly page: Page) {}
 
@@ -320,5 +322,318 @@ export class GameAgent {
       },
       { frames, delta: 1000 / fps },
     );
+  }
+
+  // ── C1 Physics Debug ─────────────────────────────────────────────────────
+
+  /** Toggle Phaser's Arcade physics debug rendering on or off. */
+  async setPhysicsDebug(enabled: boolean): Promise<void> {
+    await this.page.evaluate((en) => {
+      const game = (window as unknown as { __OMEGA_GAME__?: any }).__OMEGA_GAME__;
+      if (!game) return;
+      const scenes = game.scene.getScenes(true);
+      for (const scene of scenes) {
+        if (!scene.physics?.world) continue;
+        if (en) {
+          if (!scene.physics.world.debugGraphic) {
+            scene.physics.world.createDebugGraphic();
+          }
+          scene.physics.world.drawDebug = true;
+          scene.physics.world.debugGraphic.visible = true;
+          scene.physics.world.debugGraphic.setDepth(99999);
+          scene.physics.world.defaults.showBody = true;
+          scene.physics.world.defaults.showStaticBody = true;
+        } else {
+          scene.physics.world.drawDebug = false;
+          if (scene.physics.world.debugGraphic) {
+            scene.physics.world.debugGraphic.visible = false;
+            scene.physics.world.debugGraphic.clear();
+          }
+          scene.physics.world.defaults.showBody = false;
+          scene.physics.world.defaults.showStaticBody = false;
+        }
+      }
+    }, enabled);
+  }
+
+  /** Convert world coordinates (x, y) with scrollFactor to viewport CSS pixels relative to the page. */
+  async worldToViewport(worldX: number, worldY: number, scrollFactor = 1): Promise<{ x: number; y: number }> {
+    return this.page.evaluate(({ worldX, worldY, scrollFactor }) => {
+      const game = (window as unknown as { __OMEGA_GAME__?: any }).__OMEGA_GAME__;
+      if (!game) return { x: 0, y: 0 };
+      const chapter = game.scene.getScene('ChapterScene');
+      if (!chapter) return { x: 0, y: 0 };
+      const cam = chapter.cameras.main;
+      
+      const cx = cam.width / 2;
+      const cy = cam.height / 2;
+      
+      let screenX = worldX;
+      let screenY = worldY;
+      
+      if (scrollFactor !== 0) {
+        screenX = cx + (worldX - cam.scrollX - cx) * cam.zoom;
+        screenY = cy + (worldY - cam.scrollY - cy) * cam.zoom;
+      } else {
+        screenX = cx + (worldX - cx) * cam.zoom;
+        screenY = cy + (worldY - cy) * cam.zoom;
+      }
+
+      const canvas = game.canvas;
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: rect.left + screenX,
+        y: rect.top + screenY
+      };
+    }, { worldX, worldY, scrollFactor });
+  }
+
+  /** Extract all visible canvas text and active DOM dialogue/choices. */
+  async extractVisibleText(): Promise<{
+    canvas: { text: string; x: number; y: number; type: string }[];
+    dom: {
+      speaker: string | null;
+      dialogue: string | null;
+      choices: string[];
+      qte: string | null;
+    };
+  }> {
+    return this.page.evaluate(() => {
+      const canvasText: { text: string; x: number; y: number; type: string }[] = [];
+      const game = (window as unknown as { __OMEGA_GAME__?: any }).__OMEGA_GAME__;
+      if (game) {
+        const scenes = game.scene.getScenes(true);
+        for (let i = 0; i < scenes.length; i++) {
+          const scene = scenes[i];
+          const queue = [...scene.children.list];
+          let head = 0;
+          while (head < queue.length) {
+            const child = queue[head++];
+            if (!child.visible || child.alpha <= 0) continue;
+            if (child.type === 'Text' || child.type === 'BitmapText') {
+              canvasText.push({
+                text: child.text || child._text || '',
+                x: child.x,
+                y: child.y,
+                type: child.type
+              });
+            } else if (child.list && Array.isArray(child.list)) {
+              for (let j = 0; j < child.list.length; j++) {
+                queue.push(child.list[j]);
+              }
+            }
+          }
+        }
+      }
+
+      // DOM extraction
+      const speakerPop = document.querySelector('.portrait-pop');
+      let speaker: string | null = null;
+      if (speakerPop && speakerPop.parentElement) {
+        const nameEl = speakerPop.parentElement.querySelector('span.font-pixel');
+        if (nameEl) speaker = (nameEl as HTMLElement).innerText;
+      }
+
+      const dialogueEl = document.querySelector('p.font-pixel');
+      const choiceEls = document.querySelectorAll('[data-testid="dialogue-choice"]');
+      const qteEl = document.querySelector('span.font-pixel');
+
+      const choices: string[] = [];
+      const choiceArray = Array.from(choiceEls);
+      for (let i = 0; i < choiceArray.length; i++) {
+        const el = choiceArray[i];
+        const textSpan = el.querySelector('span:nth-child(2)');
+        choices.push(textSpan ? (textSpan as HTMLElement).innerText : (el as HTMLElement).innerText);
+      }
+
+      return {
+        canvas: canvasText,
+        dom: {
+          speaker,
+          dialogue: dialogueEl ? (dialogueEl as HTMLElement).innerText : null,
+          choices,
+          qte: qteEl ? (qteEl as HTMLElement).innerText : null
+        }
+      };
+    });
+  }
+
+  /** Dump active walk markers and active NPCs with world + screen viewport coordinates. */
+  async dumpWalkAndNpcTargets(): Promise<{
+    walkTarget: { x: number; y: number; radius: number; markerLabel: string; viewport: { x: number; y: number } } | null;
+    npcs: { id: string; name: string; x: number; y: number; viewport: { x: number; y: number } }[];
+  }> {
+    return this.page.evaluate(() => {
+      const game = (window as unknown as { __OMEGA_GAME__?: any }).__OMEGA_GAME__;
+      const empty = { walkTarget: null, npcs: [] };
+      if (!game) return empty;
+
+      const scene = game.scene.getScene('ChapterScene');
+      if (!scene) return empty;
+
+      const cam = scene.cameras.main;
+      const cx = cam.width / 2;
+      const cy = cam.height / 2;
+      const rect = game.canvas.getBoundingClientRect();
+
+      // 1. Walk target
+      let walkTarget = null;
+      if (scene.walkTarget) {
+        const screenX = cx + (scene.walkTarget.x - cam.scrollX - cx) * cam.zoom;
+        const screenY = cy + (scene.walkTarget.y - cam.scrollY - cy) * cam.zoom;
+        walkTarget = {
+          x: scene.walkTarget.x,
+          y: scene.walkTarget.y,
+          radius: scene.walkTarget.radius,
+          markerLabel: scene.walkTarget.markerLabel || '',
+          viewport: {
+            x: rect.left + screenX,
+            y: rect.top + screenY
+          }
+        };
+      }
+
+      // 2. NPCs
+      const npcs: any[] = [];
+      if (scene.actorSprites) {
+        const ids = Object.keys(scene.actorSprites);
+        for (let i = 0; i < ids.length; i++) {
+          const id = ids[i];
+          const entry = scene.actorSprites[id];
+          const sprite = entry?.[0];
+          if (sprite && sprite.visible) {
+            const screenX = cx + (sprite.x - cam.scrollX - cx) * cam.zoom;
+            const screenY = cy + (sprite.y - cam.scrollY - cy) * cam.zoom;
+            npcs.push({
+              id,
+              name: entry[1]?.text || id,
+              x: sprite.x,
+              y: sprite.y,
+              viewport: {
+                x: rect.left + screenX,
+                y: rect.top + screenY
+              }
+            });
+          }
+        }
+      }
+
+      return { walkTarget, npcs };
+    });
+  }
+
+  /** Force transition the Phaser Scene to a specific scene index, jumping the BeatEngine. */
+  async warpScene(sceneIndex: number): Promise<void> {
+    await this.page.evaluate((targetIndex) => {
+      const game = (window as unknown as { __OMEGA_GAME__?: any }).__OMEGA_GAME__;
+      if (!game) throw new Error('Game not initialized');
+
+      const scene = game.scene.getScene('ChapterScene');
+      if (!scene) throw new Error('ChapterScene not found');
+
+      const sceneCount = scene.chapter.scenes ? scene.chapter.scenes.length : 1;
+      if (targetIndex < 0 || targetIndex >= sceneCount) {
+        throw new Error(`Invalid scene index ${targetIndex}. Range is 0 to ${sceneCount - 1}`);
+      }
+
+      // Clean up active minigame if any
+      if (scene.activeMode) {
+        try { scene.activeMode.teardown(); } catch {}
+        scene.activeMode = null;
+      }
+
+      // Clear dialogue UI
+      if (typeof scene.clearStoryDialogue === 'function') {
+        scene.clearStoryDialogue();
+      }
+      scene.beatEngine.clearWalkTarget();
+
+      // Find the first beat of target scene
+      let beatIdx = 0;
+      if (targetIndex > 0) {
+        for (let i = 0; i < scene.chapter.beats.length; i++) {
+          const b = scene.chapter.beats[i];
+          if (b.type === 'changeScene' && b.sceneIndex === targetIndex) {
+            beatIdx = i;
+            break;
+          }
+        }
+      }
+
+      // Warp scene
+      scene.warpToScene(targetIndex);
+
+      // Start beat
+      scene.beatEngine.startBeat(beatIdx);
+    }, sceneIndex);
+  }
+
+  /** Quick-save the current state in-memory. */
+  async saveQuickState(): Promise<void> {
+    this.quickSaveState = await this.page.evaluate(() => {
+      const game = (window as unknown as { __OMEGA_GAME__?: any }).__OMEGA_GAME__;
+      if (!game) throw new Error('Game not initialized');
+      const scene = game.scene.getScene('ChapterScene');
+      if (!scene) throw new Error('ChapterScene not found');
+
+      return {
+        sceneIndex: scene.currentSceneIndex,
+        beatIndex: scene.beatIndex,
+        beatActive: scene.beatActive,
+        playerX: scene.player ? scene.player.x : 0,
+        playerY: scene.player ? scene.player.y : 0,
+        hp: scene.activeHp,
+        ledgerTotal: scene.ledgerTotal
+      };
+    });
+  }
+
+  /** Quick-load the saved state. */
+  async loadQuickState(): Promise<void> {
+    if (!this.quickSaveState) {
+      throw new Error('No quick-save state exists. Run "savestate" first.');
+    }
+
+    await this.page.evaluate((saved) => {
+      const game = (window as unknown as { __OMEGA_GAME__?: any }).__OMEGA_GAME__;
+      if (!game) throw new Error('Game not initialized');
+      const scene = game.scene.getScene('ChapterScene');
+      if (!scene) throw new Error('ChapterScene not found');
+
+      // Clean up active modes and overlays
+      if (scene.activeMode) {
+        try { scene.activeMode.teardown(); } catch {}
+        scene.activeMode = null;
+      }
+      if (typeof scene.clearStoryDialogue === 'function') {
+        scene.clearStoryDialogue();
+      }
+      scene.beatEngine.clearWalkTarget();
+
+      // Warp to correct scene index
+      scene.warpToScene(saved.sceneIndex);
+
+      // Set player position and restore physics
+      if (scene.player) {
+        scene.player.setPosition(saved.playerX, saved.playerY);
+        if (scene.player.body) {
+          scene.player.body.setVelocity(0, 0);
+        }
+      }
+
+      // Restore HP & Ledger
+      scene.activeHp = saved.hp;
+      scene.onHpChange(saved.hp);
+
+      scene.ledgerTotal = saved.ledgerTotal;
+      scene.onLedgerChange(saved.ledgerTotal, 'Restore Quick Save');
+
+      // Restore Beat index
+      scene.beatIndex = saved.beatIndex;
+      scene.beatActive = saved.beatActive;
+
+      // Start beat
+      scene.beatEngine.startBeat(saved.beatIndex);
+    }, this.quickSaveState);
   }
 }

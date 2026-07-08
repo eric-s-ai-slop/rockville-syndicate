@@ -100,12 +100,19 @@ COMMANDS (one per line; ';' also separates them on a single line)
     drag <sx> <sy> <ex> <ey> [ms]   smooth click-drag (e.g. drag 200 300 500 300 400)
   State / bridge (§3)
     state                      print snapshotGameState() JSON (scene, player, velocity, hp, mode, loop)
+    text                       extract visible text from Phaser canvas and DOM (A2)
+    targets                    dump active walk target and NPCs with screen/world coordinates (A3)
+    goto <sceneIndex>          jump to a specific scene index instantly (B1)
+    savestate                  quick-save current game state in-memory (B2)
+    loadstate                  quick-restore saved game state (B2)
     eval <js>                  run JS in the page, print the result (e.g. eval window.__OMEGA_GAME__.scene.keys.length)
     screenshot [name]          save a PNG to --out, print its path
   Time (§4)
     pause | resume             sleep / wake the Phaser loop
     loop                       print whether the loop is running
     step <frames> [fps]        advance exactly <frames> fixed-timestep frames (loop auto-pauses)
+  Debug (C1)
+    debug on | off             toggle physics debug graphics
   Flow / misc
     advance [maxSeconds]       skip dialogue/intro until the player has free walk control (default 60)
     wait <ms>                  sleep <ms> of real time
@@ -231,6 +238,38 @@ async function runCommand(
       case 'step': {
         const frames = await agent.stepFrames(num(0), args[1] ? num(1) : 60);
         emit({ cmd: 'step', ok: true, frames });
+        break;
+      }
+      case 'debug': {
+        const on = args[0] === 'on';
+        await agent.setPhysicsDebug(on);
+        emit({ cmd: 'debug', ok: true, enabled: on, mutates: true });
+        break;
+      }
+      case 'text': {
+        const res = await agent.extractVisibleText();
+        emit({ cmd: 'text', ok: true, ...res });
+        break;
+      }
+      case 'targets': {
+        const res = await agent.dumpWalkAndNpcTargets();
+        emit({ cmd: 'targets', ok: true, ...res });
+        break;
+      }
+      case 'goto': {
+        const idx = num(0);
+        await agent.warpScene(idx);
+        emit({ cmd: 'goto', ok: true, sceneIndex: idx });
+        break;
+      }
+      case 'savestate': {
+        await agent.saveQuickState();
+        emit({ cmd: 'savestate', ok: true });
+        break;
+      }
+      case 'loadstate': {
+        await agent.loadQuickState();
+        emit({ cmd: 'loadstate', ok: true });
         break;
       }
 

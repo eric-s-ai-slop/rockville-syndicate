@@ -149,6 +149,7 @@ export default class ChapterScene extends Phaser.Scene {
   // Story / chapter system
   public chapter!: ChapterConfig;
   public onStoryDialogue!: (payload: StoryDialoguePayload, done: (choiceIndex?: number) => void) => void;
+  public clearStoryDialogue!: () => void;
   public onLedgerChange!: (total: number, note: string) => void;
   public ledgerTotal: number = 0;
   public beatIndex: number = 0;
@@ -272,6 +273,7 @@ export default class ChapterScene extends Phaser.Scene {
     onChapterCompleted?: (stats: { shardsCollected: number; ledgerTotal: number; hpRemaining: number }) => void;
     onGameOver?: () => void;
     onStoryDialogue?: (payload: StoryDialoguePayload, done: (choiceIndex?: number) => void) => void;
+    clearStoryDialogue?: () => void;
     mountExternalGame?: (opts: { gameId: string; config?: unknown }, onDone: (r: ModeResult) => void) => void;
     unmountExternalGame?: () => void;
     onLedgerChange?: (total: number, note: string) => void;
@@ -294,6 +296,7 @@ export default class ChapterScene extends Phaser.Scene {
     this.onGameOver = data.onGameOver!;
     this.onNpcInteract = () => {};
     this.onStoryDialogue = data.onStoryDialogue ?? ((_p, done) => done());
+    this.clearStoryDialogue = data.clearStoryDialogue ?? (() => {});
     this.mountExternalGame = data.mountExternalGame ?? (() => {});
     this.unmountExternalGame = data.unmountExternalGame ?? (() => {});
     this.onLedgerChange = data.onLedgerChange ?? (() => {});
@@ -783,6 +786,27 @@ export default class ChapterScene extends Phaser.Scene {
         onDone?.();
       });
     });
+  }
+
+  /** Instant warp to a scene without transitions. Clears old map and builds the new one immediately. */
+  public warpToScene(sceneIndex: number) {
+    this.teardownMap();
+    this.currentSceneIndex = sceneIndex;
+    const { map, actors } = this.getActiveSceneConfig();
+
+    this.physics.world.setBounds(0, 0, map.width, map.height);
+    this.cameras.main.setBackgroundColor(map.backdrop);
+
+    this.buildMapLayer(map);
+    this.wireMapColliders();
+    this.player.setPosition(map.playerSpawn.x, map.playerSpawn.y);
+    this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
+
+    this.actorsSystem.placeActors(actors);
+    this.movementFrozen = false;
+
+    const sceneMusic = this.chapter.scenes?.[sceneIndex]?.music;
+    if (sceneMusic) this.audioController.crossfadeToMusic(sceneMusic);
   }
 
   // ─── Map building (data-driven) ───────────────────────────────────────────────

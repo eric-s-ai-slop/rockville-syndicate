@@ -110,6 +110,11 @@ Prefer lowercase movement keys.
 | Command | Does |
 | --- | --- |
 | `state` | print the game-state snapshot (see §3 below) |
+| `text` | extract visible text from Phaser canvas and DOM (A2) |
+| `targets` | dump active walk target and NPCs with screen/world coordinates (A3) |
+| `goto <sceneIndex>` | jump to a specific scene index instantly (B1) |
+| `savestate` | quick-save current game state in-memory (B2) |
+| `loadstate` | quick-restore saved game state (B2) |
 | `eval <js>` | run JS in the page and print the result — e.g. `eval window.__OMEGA_GAME__.scene.keys.length` |
 | `screenshot [name]` | save a PNG to `--out`, print its path |
 
@@ -120,6 +125,12 @@ Prefer lowercase movement keys.
 | `pause` / `resume` | sleep / wake the Phaser loop |
 | `loop` | print whether the loop is running |
 | `step <frames> [fps]` | advance exactly `<frames>` fixed-timestep frames (auto-pauses the loop first) |
+
+**Debugging (spec C1)**
+
+| Command | Does |
+| --- | --- |
+| `debug on` / `debug off` | toggle Arcade physics debug rendering (draws hitboxes) |
 
 **Flow / misc**
 
@@ -213,7 +224,7 @@ npm run agent -- --chapter "The Spotify Family Insurgency" "advance; press d 100
 - **`step`/`pause` are dev-build only.** They rely on `window.__OMEGA_GAME__`,
   which `GameLayout.tsx` exposes under `import.meta.env.DEV`. `npm run dev` is dev.
 - **Coordinates are viewport pixels**, not Phaser world units. To click a
-  world-space object, read `state`/`eval` and convert with the camera.
+  world-space object, read `state`/`eval` and convert with the camera (or use the `targets` command, which automatically includes pre-calculated page viewport coordinates).
 - **No stuck keys.** The CLI calls `GameAgent.dispose()` on exit, releasing any
   held key/button — a held `w` never leaks between runs.
 - The underlying class is also usable directly in Playwright specs; see

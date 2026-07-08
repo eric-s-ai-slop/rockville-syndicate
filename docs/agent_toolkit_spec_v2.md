@@ -44,7 +44,7 @@ box with no exception — the *network* failure is the only signal.
 
 ---
 
-### A2. Canvas Text Extractor — **P0**
+### A2. Canvas Text Extractor — **P0** — **implemented**
 
 **Problem.** Dialogue and UI text render into the Phaser canvas (bubble text, HUD
 labels, mode overlays) or into React DOM (the `p.font-pixel` dialogue line,
@@ -76,7 +76,7 @@ is expected.
 
 ---
 
-### A3. Interactable & Walk-Target Dump — **P0**
+### A3. Interactable & Walk-Target Dump — **P0** — **implemented**
 
 **Problem.** The agent guesses coordinates. The scene already knows exactly where
 the player is supposed to go and what can be interacted with.
@@ -139,7 +139,7 @@ complete a chapter's walk-and-talk beats with no image input at all.
 
 ## B. Control — get to the bug in seconds, not minutes
 
-### B1. Scene Jumper / Fast Travel — **P1**
+### B1. Scene Jumper / Fast Travel — **P1** — **implemented**
 
 **Problem.** Reproducing a Scene 10 bug should not require playing Scenes 1–9.
 
@@ -155,7 +155,7 @@ complete a chapter's walk-and-talk beats with no image input at all.
   `{"cmd":"goto","ok":true,"scene":10,"warning":"skipped-state: scenes 1-9 not executed"}`
 - Pairs with B2 for a *correct*-state jump.
 
-### B2. Save-State Snapshot / Restore — **P1**
+### B2. Save-State Snapshot / Restore — **P1** — **implemented**
 
 **Problem.** Some bugs only manifest with specific accumulated state. Recreating
 that state manually every run is the single biggest time sink; B1 alone boots
@@ -222,7 +222,7 @@ rect bugs were found; it should be a first-class command, not a bespoke script.
 - **Hard rule:** never call `cameras.main.setBounds(…)` (lint-enforced project
   gotcha); fit is achieved purely via zoom + centerOn.
 
-### B6. World↔Viewport Converter — **P1** *(tiny)*
+### B6. World↔Viewport Converter — **P1** — **implemented**
 
 **Problem.** v1 documents the "coordinates are viewport pixels, not world units"
 gotcha; this deletes it.
@@ -253,7 +253,7 @@ hold) makes every test run pay real-time cost.
 
 ## C. Determinism & Regression — catch bugs without looking
 
-### C1. Physics Debug Toggle — **P1**
+### C1. Physics Debug Toggle — **P1** — **implemented**
 
 **Problem.** Invisible walls and non-firing overlap zones are undiagnosable from
 normal screenshots.
@@ -385,3 +385,33 @@ one chapter at a time.
 | 2 | B1, B6, B5, C1 | Fast travel + coordinates + camera + hitboxes: the debugging kit |
 | 3 | B3, B4, B2, C2 | Minigame/audio/state/determinism: the repro kit |
 | 4 | B7, C3, C4, C5, C6, C7 | Regression automation: the CI kit |
+
+---
+
+## D. Future Considerations — v3 Backlog (Advanced Automation)
+
+These are advanced tools to be built after the v2 core is completed, focusing on autopilot navigation and economy/state manipulation.
+
+### D1. Pathfinding Auto-Walk (`walkto <x> <y>`) — **P2**
+**Problem.** Navigating complex map geometry using discrete or stateful keyboard inputs requires the agent to calculate angles and avoid obstacles manually, which is highly error-prone.
+**Spec.** 
+- CLI command: `walkto <x> <y>`
+- Bridge: Calculate path using the map's navigation mesh or an A* pathfinder. Autonomously simulate keyboard hold/release cycles to walk the player along the path nodes until they arrive at the destination, then emit `ok`.
+
+### D2. Settings Controller (`settings <key> <value>`) — **P2**
+**Problem.** Verifying game behaviors under different user settings (e.g. fast text speed, audio muted, screen shake off) currently requires clicking through the settings UI.
+**Spec.**
+- CLI command: `settings <key> <value>`
+- Bridge: Mutate the settings state directly in `settings.ts` (e.g., `settings.textSpeed = 'fast'`), updating the active game configuration dynamically.
+
+### D3. Narrative Decision Injector (`choose <index|text>`) — **P2**
+**Problem.** Click targets for dialogue choices can be flaky during complex camera pans or UI animations.
+**Spec.**
+- CLI command: `choose <index|text>`
+- Bridge: Programmatically inject the choice selection directly into the `BeatEngine` (similar to clicking the choice button), bypassing the UI layer entirely.
+
+### D4. Economy & State Editor (`modify <stat> <value>`) — **P2**
+**Problem.** Testing low-HP bark sequences, game-over screens, or inventory/shop purchases requires playing long enough to lose HP or grind currency.
+**Spec.**
+- CLI command: `modify <stat> <value>` (e.g. `modify hp 1` or `modify ledger 5000`)
+- Bridge: Programmatically edit the player's active stats in the `ChapterScene` or save blob.

@@ -9,6 +9,7 @@
 - **TypeScript build & typecheck**: `npm run lint` (runs `tsc --noEmit`)
 - **Run Unit Tests**: `npm test` (runs Vitest unit test suite)
 - **Run E2E Tests**: `npm run e2e` (runs Playwright integration tests)
+- **Drive the game from the terminal**: `npm run agent -- --help` (stateful playtesting CLI — hold keys, drag mouse, read live game state, step frames; see `docs/AGENT_TOOLKIT.md`)
 - **Build production assets**: `npm run build`
 
 ## 3. Directory Map (Where Things Live)
@@ -22,7 +23,7 @@ src/
       types.ts                       # Config types (Speaker, MapRect, Beat, ChapterConfig, etc.)
       palette.ts                     # Shared colors palette (C)
       chapter1.spotify-insurgency.ts
-      ...                            # Per-chapter configs (Chapters 0–11, incl. 3b/5b — see index.ts)
+      ...                            # Per-chapter configs (Chapters 0–12, incl. 3b/5b — see index.ts)
   game/
     ChapterScene.ts                  # Phaser Scene orchestrator (creates and wires subsystems)
     SpritePreprocessor.ts            # Sprite atlasing and frame extraction pipeline
@@ -42,13 +43,16 @@ src/
       bossFight/                     # Combat minigame mode (boss movement, attack AI, HP overlays)
       poolParty/                     # Background minigame mode (Chapter 9 pool entrance script)
       benTrivia/                     # "CAN BEN…?" slam-sorting trivia minigame
-      ...                            # 15 registered modes total — see modes/index.ts (modesDoc.test.ts guards the doc table)
+      ...                            # 16 registered modes total — see modes/index.ts (modesDoc.test.ts guards the doc table)
       _template/                     # Reference template for implementing new minigames
 docs/
   ADDING_A_MINIGAME.md               # Guide for implementing and registering new minigame modes
+  AGENT_TOOLKIT.md                   # ★ Terminal CLI for playtesting (npm run agent) — stateful input, state bridge, frame stepping
   BRAINSTORM_IDEAS.md                # Idea backlog (not committed work)
   chapter-pipeline/                  # Agentic chapter-authoring pipeline + working drafts (drafts go stale once shipped)
   archive/                           # Historical planning docs — do not act on without verifying
+e2e_tests/
+  agent/                             # GameAgent class + CLI driving the game (npm run agent); see docs/AGENT_TOOLKIT.md
 ```
 
 ## 4. Hard-Won Gotchas (Do NOT Violate)

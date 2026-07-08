@@ -29,8 +29,14 @@ plugins see continuous input exactly like a human's.
 | §2 `drag_mouse(sx, sy, ex, ey, duration_ms)` | `dragMouse(sx, sy, ex, ey, durationMs?, steps?)` |
 | §3 `execute_javascript(code)` | `executeJavascript(code)` |
 | §3 state inspection | `snapshotGameState()` |
+| A2 canvas text extraction | `extractVisibleText()` |
+| A3 target/NPC dump | `dumpWalkAndNpcTargets()` |
+| B1 scene warp | `warpScene(sceneIndex)` |
+| B2 save-state | `saveQuickState()` / `loadQuickState()` |
+| — coordinate conversion | `worldToViewport(worldX, worldY, scrollFactor?)` |
 | §4 pause loop | `pauseLoop()` / `resumeLoop()` / `isLoopRunning()` |
 | §4 step N frames | `stepFrames(frames, fps?)` |
+| C1 physics debug | `setPhysicsDebug(enabled)` |
 | — teardown (release stuck holds) | `dispose()` |
 | — focus canvas before typing | `focusCanvas()` |
 
@@ -77,8 +83,7 @@ await agent.releaseKey('d');
 - **Focus first.** Call `focusCanvas()` once after boot; CDP key events need the
   page focused.
 - **Coordinates are viewport CSS pixels** (what Playwright's mouse uses), not
-  Phaser world coordinates. Convert with `snapshotGameState()` + camera math if
-  you need to click a world-space object.
+  Phaser world coordinates. Convert with `worldToViewport()` or use `dumpWalkAndNpcTargets()` which pre-calculates viewport coordinates for walk targets and NPCs.
 - **Always `dispose()`** in `finally`/`afterEach`; a held key leaking into the
   next test is a classic flake.
 - **`stepFrames`/`pauseLoop` are dev-build only** — they rely on

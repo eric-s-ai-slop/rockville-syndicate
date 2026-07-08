@@ -8,6 +8,7 @@ coverage/
 !.env.example
 
 # Scratch & generated artifacts (not source)
+agent-artifacts/
 tmp/
 test-results/
 playwright-report/

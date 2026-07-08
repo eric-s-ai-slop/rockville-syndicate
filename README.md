@@ -146,6 +146,7 @@ Interactive segments implement the `GameMode` contract in [`src/game/modes/types
 | `speakerHunt` | `modes/speakerHunt/` | Find-the-hidden-speaker night hunts (Chapter 11) |
 | `cabinCollapse` | `modes/cabinCollapse/` | Background cabin-degradation meters (Chapter 11) |
 | `swarmSurvival` | `modes/swarmSurvival/` | Theme-neutral wave-survival combat (Chapter 11 grill run) |
+| `doubleCall` | `modes/doubleCall/` | Phone/dialer minigame reused across Chapter 12 with per-scene rule variants |
 
 The [`modes/_template/`](src/game/modes/_template/) directory is a copyable reference. To build a new one, follow [`docs/ADDING_A_MINIGAME.md`](docs/ADDING_A_MINIGAME.md).
 
@@ -258,6 +259,10 @@ project-omega_-the-rockville-syndicate/
 │       └── refs/                    # Reference voice samples
 │
 ├── e2e_tests/
+│   ├── agent/                       # GameAgent (stateful keyboard/mouse, engine bridge, frame-stepping)
+│   │   ├── GameAgent.ts             #   + terminal CLI (npm run agent) — see docs/AGENT_TOOLKIT.md
+│   │   ├── cli.ts
+│   │   └── GameAgent.smoke.spec.ts
 │   ├── chapters_smoke.spec.ts       # Full-playthrough smoke test per chapter
 │   ├── chapter0_minigames.spec.ts
 │   ├── chapter9_pool_party.spec.ts
@@ -268,6 +273,7 @@ project-omega_-the-rockville-syndicate/
 │
 ├── docs/
 │   ├── ADDING_A_MINIGAME.md         # Minigame implementation guide
+│   ├── AGENT_TOOLKIT.md             # Terminal CLI for playtesting (npm run agent)
 │   ├── chapter-pipeline/            # Multi-stage chapter authoring pipeline + working drafts
 │   └── archive/                     # ARCHIVED: old planning specs, handoffs, sprint plans, QA reports
 │
@@ -306,6 +312,7 @@ The dev server (`tsx server.ts`) runs at **`http://localhost:3324`**.
 | `npm run ci` | Full gate: typecheck + eslint + tests + build |
 | `npm test` | Run the Vitest unit-test suite |
 | `npm run e2e` | Run the Playwright E2E suite |
+| `npm run agent -- --help` | Terminal playtesting CLI — hold keys, drag-mouse, read live game state, step frames (see [`docs/AGENT_TOOLKIT.md`](docs/AGENT_TOOLKIT.md)) |
 | `npm run clean` | Remove `dist/` and stray `server.js` |
 | `npm run voice:extract` | Extract dialogue lines for the voice-gen pipeline |
 
@@ -315,6 +322,7 @@ The dev server (`tsx server.ts`) runs at **`http://localhost:3324`**.
 
 - **Unit tests** (Vitest, 200+) live alongside source as `*.test.ts(x)` — covering settings/save, scoring, boss fight logic, beat engine routing, UI sound, sprite preprocessing, and more. Run with `npm test`.
 - **E2E tests** (Playwright) live in [`e2e_tests/`](e2e_tests/) and exercise full gameplay flows. Run with `npm run e2e`.
+- **Manual/agent playtesting**: [`e2e_tests/agent/`](e2e_tests/agent/) exposes the same stateful Playwright toolkit as a terminal CLI (`npm run agent -- --help`) — hold keys, click-drag, read exact game state (position, HP, scene, active mode) as JSON, and step the Phaser loop frame-by-frame, all without screenshots. See [`docs/AGENT_TOOLKIT.md`](docs/AGENT_TOOLKIT.md).
 - **CI** (GitHub Actions) runs `lint → lint:es → test → build` on every push and PR to `main`.
 - Run the full gate locally with `npm run ci` before pushing.
 
@@ -434,6 +442,7 @@ Character voice lines are generated offline via the TTS pipeline in [`scripts/vo
 - [`CLAUDE.md`](CLAUDE.md) — Developer quick reference and the canonical list of hard-won gotchas.
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — Green bar requirements, hard rules, architecture conventions.
 - [`docs/ADDING_A_MINIGAME.md`](docs/ADDING_A_MINIGAME.md) — Step-by-step guide to building and registering a new minigame mode.
+- [`docs/AGENT_TOOLKIT.md`](docs/AGENT_TOOLKIT.md) — How to drive the game from the terminal with the stateful playtesting CLI (`npm run agent`).
 - [`docs/chapter-pipeline/`](docs/chapter-pipeline/) — The multi-stage pipeline for authoring new chapters.
 - [`ROADMAP.md`](ROADMAP.md) — Prioritized tech debt and feature index, verified against current source.
 
