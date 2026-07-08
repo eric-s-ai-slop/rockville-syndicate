@@ -12,6 +12,7 @@ import chapter7 from './chapter7.spain-betrayal';
 import chapter8 from './chapter8.the-cabin';
 import chapter9 from './chapter9.pool-party';
 import chapter11 from './chapter11.cabin-from-hell';
+import chapter12 from './chapter12.origins';
 
 export * from './types';
 
@@ -29,6 +30,7 @@ export const CHAPTERS: ChapterConfig[] = [
   chapter8,
   chapter9,
   chapter11,
+  chapter12,
 ];
 
 export function getChapter(id: string): ChapterConfig | undefined {

@@ -9,6 +9,7 @@ import { SpriteLoader } from './scene/SpriteLoader';
 import type { GameMode, ModeResult } from './modes/types';
 import { getMode } from './modes';
 import { hitStop } from './modes/hitStop';
+import { screenSpace } from './modes/screenSpace';
 import { mariaBrookeStats } from './modes/mariaBrookeStats';
 import {
   CharacterClass,
@@ -105,6 +106,16 @@ import poolMapNightUrl   from '../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/pool
 import stageOcBalconyNightUrl from '../assets/images/game_decor/stages/stage_oc_balcony_night.jpg?url';
 import stageCabinInteriorUrl  from '../assets/images/game_decor/stages/stage_cabin_interior.jpg?url';
 import stageCabinDeckUrl      from '../assets/images/game_decor/stages/stage_cabin_deck.jpg?url';
+
+// Ch12: Origins — McDonald's / void islands / Dogwood Park stage images + dialer prop
+import stageMcdonaldsNightUrl   from '../assets/images/game_decor/stages/origins/stage_mcdonalds_night.jpg?url';
+import stageEricRoomPresentUrl  from '../assets/images/game_decor/stages/origins/stage_eric_room_present.jpg?url';
+import stageVoidNickfRoomUrl    from '../assets/images/game_decor/stages/origins/stage_void_nickf_room.jpg?url';
+import stageVoidJacobRoomUrl    from '../assets/images/game_decor/stages/origins/stage_void_jacob_room.jpg?url';
+import stageVoidEricRoomUrl     from '../assets/images/game_decor/stages/origins/stage_void_eric_room.jpg?url';
+import stageDogwoodLookoutUrl   from '../assets/images/game_decor/stages/origins/stage_dogwood_lookout_night.jpg?url';
+import propDialerSiteUrl        from '../assets/images/game_decor/stages/origins/prop_dialer_site.jpg?url';
+import npcChrisRivasSheet       from '../assets/images/npc_chris_rivas_sheet.jpg';
 
 // RUN-3: owner-added asset-pack JPGs (gray bg, extracted at runtime via packSpriteAtlas)
 import packTollboothUrl from '../assets/images/game_decor/special/toolbooth.jpg?url';
@@ -410,6 +421,16 @@ export default class ChapterScene extends Phaser.Scene {
     this.safeLoadImage('stage_cabin_deck', stageCabinDeckUrl);
     this.audioController.safeLoadAudio('sfx_ultraphonk', ULTRAPHONK_URL);
 
+    // Ch12: Rockville Syndicate: Origins
+    this.safeLoadImage('stage_mcdonalds_night', stageMcdonaldsNightUrl);
+    this.safeLoadImage('stage_eric_room_present', stageEricRoomPresentUrl);
+    this.safeLoadImage('stage_void_nickf_room', stageVoidNickfRoomUrl);
+    this.safeLoadImage('stage_void_jacob_room', stageVoidJacobRoomUrl);
+    this.safeLoadImage('stage_void_eric_room', stageVoidEricRoomUrl);
+    this.safeLoadImage('stage_dogwood_lookout_night', stageDogwoodLookoutUrl);
+    this.safeLoadImage('prop_dialer_site', propDialerSiteUrl);
+    this.safeLoadImage('npc_chris_rivas_sheet_raw_jpg', npcChrisRivasSheet);
+
     // R16: Nature flora
     this.safeLoadImage('nature_flower_1', natureFlower1Url);
     this.safeLoadImage('nature_flower_2', natureFlower2Url);
@@ -514,6 +535,7 @@ export default class ChapterScene extends Phaser.Scene {
     // RUN-3: extract + color-key owner asset packs into the pack_atlas
     buildPackAtlas(this);
     this.preloadNextChapterAudio();
+
 
     // Process prop textures to remove backgrounds and cache aspect ratios
     // Car props are excluded — they are showcase JPEGs with grid layouts, rendered procedurally
@@ -839,22 +861,23 @@ export default class ChapterScene extends Phaser.Scene {
 
   private buildBrainrotHUD() {
     const cam = this.cameras.main;
+    const { zx, zy, s } = screenSpace(cam);
     const cx = cam.width - 160;
     const cy = 24;
 
-    this.brainrotBar = this.add.rectangle(cx, cy, 120, 12, 0x1e293b)
-      .setStrokeStyle(1.5, 0x7c3aed, 0.8)
+    this.brainrotBar = this.add.rectangle(zx(cx), zy(cy), s(120), s(12), 0x1e293b)
+      .setStrokeStyle(s(1.5), 0x7c3aed, 0.8)
       .setScrollFactor(0)
       .setDepth(100);
 
-    this.brainrotFill = this.add.rectangle(cx - 60, cy, 0, 10, 0xa78bfa)
+    this.brainrotFill = this.add.rectangle(zx(cx - 60), zy(cy), 0, s(10), 0xa78bfa)
       .setOrigin(0, 0.5)
       .setScrollFactor(0)
       .setDepth(101);
 
-    this.brainrotLabel = this.label(cx, cy - 13, 'BRAINROT', {
-      fontSize: '11px', color: '#c4b5fd', fontStyle: 'bold',
-      stroke: '#0b1208', strokeThickness: 3
+    this.brainrotLabel = this.label(zx(cx), zy(cy - 13), 'BRAINROT', {
+      fontSize: `${s(11)}px`, color: '#c4b5fd', fontStyle: 'bold',
+      stroke: '#0b1208', strokeThickness: s(3)
     }).setOrigin(0.5, 1).setScrollFactor(0).setDepth(102);
   }
 
@@ -878,21 +901,23 @@ export default class ChapterScene extends Phaser.Scene {
   /** Reposition camera-anchored HUD when the viewport size changes. */
   private repositionHUD() {
     const cam = this.cameras.main;
+    const { zx, zy } = screenSpace(cam);
     const w = cam.width;
     const h = cam.height;
     const cx = w - 160;
     const cy = 24;
-    if (this.brainrotBar) this.brainrotBar.setPosition(cx, cy);
-    if (this.brainrotFill) this.brainrotFill.setPosition(cx - 60, cy);
-    if (this.brainrotLabel) this.brainrotLabel.setPosition(cx, cy - 13);
+    if (this.brainrotBar) this.brainrotBar.setPosition(zx(cx), zy(cy));
+    if (this.brainrotFill) this.brainrotFill.setPosition(zx(cx - 60), zy(cy));
+    if (this.brainrotLabel) this.brainrotLabel.setPosition(zx(cx), zy(cy - 13));
     // Resize screen-space atmosphere overlays to new viewport
     this.atmosphere.repositionOverlays(w, h);
   }
 
   private updateBrainrotHUD() {
     if (!this.brainrotFill) return;
-    const fillW = (this.brainrotLevel / 100) * 120;
-    this.brainrotFill.setSize(fillW, 10);
+    const { s } = screenSpace(this.cameras.main);
+    const fillW = s((this.brainrotLevel / 100) * 120);
+    this.brainrotFill.setSize(fillW, s(10));
     const alpha = this.brainrotLevel > 0 ? 1 : 0.3;
     this.brainrotFill.setAlpha(alpha);
     this.brainrotLabel.setAlpha(alpha);
@@ -1158,13 +1183,17 @@ export default class ChapterScene extends Phaser.Scene {
   }
 
   public runEndChapter() {
-    this.player.play('victory_' + this.playerClass.id, true);
-    this.cameras.main.flash(400, 200, 232, 154);
+    if (!this.chapter.quietEnd) {
+      this.player.play('victory_' + this.playerClass.id, true);
+      this.cameras.main.flash(400, 200, 232, 154);
+    }
     // Fade out stage music and play victory jingle
     if (this.stageMusic?.isPlaying) {
       this.tweens.add({ targets: this.stageMusic, volume: 0, duration: 800 });
     }
-    try { this.sound.play('victory_jingle', { volume: 0.6 * getSettings().sfxVolume }); } catch { /* skip */ }
+    if (!this.chapter.quietEnd) {
+      try { this.sound.play('victory_jingle', { volume: 0.6 * getSettings().sfxVolume }); } catch { /* skip */ }
+    }
     this.time.delayedCall(1200, () => {
       this.cameras.main.fadeOut(500, 0, 0, 0);
       this.time.delayedCall(520, () => this.onLevelCompleted({
@@ -1187,6 +1216,10 @@ export default class ChapterScene extends Phaser.Scene {
 
   public showActor(id: string) {
     this.actorsSystem.showActor(id);
+  }
+
+  public moveActor(id: string, x: number, y: number, durationMs: number, onDone?: () => void) {
+    this.actorsSystem.moveActor(id, x, y, durationMs, onDone);
   }
 
   // Dash, weapon, and footstep logic lives in PlayerController (scene/PlayerController.ts).

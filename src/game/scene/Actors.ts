@@ -78,6 +78,49 @@ export class Actors {
     (this.scene.actorSprites[id] ?? []).forEach(o => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(true));
   }
 
+  /** Tween a static actor to a new point, playing its walk anim en route and
+   *  settling back to the static idle frame (R4) on arrival. Actors don't have
+   *  a real pathfinder — this is a straight-line walk, meant for short story
+   *  beats ("Jacob crosses to the booth"), not general navigation. */
+  public moveActor(id: string, targetX: number, targetY: number, durationMs: number, onDone?: () => void) {
+    const entry = this.scene.actorSprites[id];
+    const sprite = entry?.[0] as (Phaser.GameObjects.Sprite | Phaser.GameObjects.Image) | undefined;
+    const nameplate = entry?.[1] as Phaser.GameObjects.Text | undefined;
+    const shadow = entry?.[2] as Phaser.GameObjects.Image | undefined;
+    if (!sprite || !nameplate || !shadow) { onDone?.(); return; }
+
+    // NPCs loaded through an explicit spriteKey (e.g. npc_chris_rivas_sheet)
+    // register their walk anim under the full sheet key, not the actor id —
+    // see SpriteLoader's npcSheets loop; heroes register under their character
+    // id (SpriteLoader's main hero loop). Resolve whichever applies.
+    const placement = this.scene.getActiveSceneConfig().actors?.find(a => a.id === id);
+    const animId = placement?.spriteKey ?? id;
+    const isSprite = sprite instanceof Phaser.GameObjects.Sprite;
+    if (isSprite && Math.abs(targetX - sprite.x) > 1) {
+      sprite.setFlipX(targetX < sprite.x);
+    }
+    if (isSprite) {
+      const walkKey = `walk_${animId}`;
+      if (this.scene.anims.exists(walkKey)) sprite.play(walkKey, true);
+    }
+
+    this.scene.tweens.add({
+      targets: sprite, x: targetX, y: targetY, duration: durationMs, ease: 'Linear',
+      onUpdate: () => {
+        nameplate.setPosition(sprite.x, sprite.y - 38).setDepth(sprite.y + 200);
+        shadow.setPosition(sprite.x, sprite.y + 18).setDepth(sprite.y - 1);
+        sprite.setDepth(sprite.y);
+      },
+      onComplete: () => {
+        if (isSprite) {
+          sprite.anims.stop();
+          sprite.setFrame(0);
+        }
+        onDone?.();
+      },
+    });
+  }
+
   public applyDirectionalAnim(sprite: Phaser.GameObjects.Sprite, id: string, vx: number, vy: number, facesLeftByDefault = false) {
     const moving = vx !== 0 || vy !== 0;
     let dir: 'front' | 'side' | 'back' = 'front';

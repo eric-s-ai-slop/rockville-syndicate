@@ -10,6 +10,7 @@ export interface Speaker {
 // Extra speakers that aren't playable heroes or roaming NPCs.
 const EXTRA_SPEAKERS: Speaker[] = [
   { id: 'narrator', name: 'The Group Chat', emoji: '💬', color: '#c8e89a' },
+  { id: 'narrator_eric', name: 'Eric', emoji: '💬', color: '#c8e89a' },
   { id: 'audrey', name: 'Audrey', emoji: '🇨🇦', color: '#f472b6' },
   { id: 'maharko', name: 'Maharko', emoji: '🏎️', color: '#22d3ee' },
   { id: 'ben', name: 'Ben Bersofsky', emoji: '🧪', color: '#84cc16' },
@@ -47,7 +48,8 @@ export type MapTheme =
   | 'florida'
   | 'suburb_night'
   | 'cabin'
-  | 'pool_party';
+  | 'pool_party'
+  | 'void';
 
 export interface MapRect {
   x: number;
@@ -151,6 +153,9 @@ export type Beat = { id?: string } & (
   | { type: 'choice'; speaker: string; prompt: string; options: ChoiceOption[] }
   | { type: 'walkTo'; x: number; y: number; radius?: number; markerLabel?: string }
   | { type: 'cameraPan'; x: number; y: number; durationMs: number; holdMs?: number }
+  | { type: 'hideActor'; id: string }
+  | { type: 'showActor'; id: string }
+  | { type: 'moveActor'; id: string; x: number; y: number; durationMs: number }
   | { type: 'bossFight'; bossId: string; arena: { x: number; y: number; w: number; h: number }; hideActorId?: string; introLines?: string[] }
   | { type: 'minigame'; modeId: string; config?: unknown; introLines?: string[]; background?: boolean; loseGoto?: string }
   | { type: 'routeOnMinigame'; cases: Record<string, string>; default?: string }
@@ -197,6 +202,9 @@ export interface ChapterConfig {
   scenes?: ChapterSceneConfig[];
   beats: Beat[];
   cameraZoom?: number;
+  /** Suppress the end-of-chapter victory celebration (jingle, flash, victory anim).
+   *  The chapter fades out silently. */
+  quietEnd?: boolean;
   usePoolSheet?: boolean;
   ambientSfx?: { onDoor?: string };
   chaseTextureSwaps?: Array<{ propKey: string; targetTexture: string; fallbackTexture?: string }>;

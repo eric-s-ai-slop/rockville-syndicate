@@ -14,6 +14,8 @@ to the next unless a jump redirects.
 | `choice` | `speaker`, `prompt`, `options[]` | Option: `text`, `ledgerDelta?`, `reactionSpeaker?`, `reactionLines?`, `goto?`, `sideEffect?` |
 | `walkTo` | `x`, `y`, `radius?`, `markerLabel?` | Blocks until player reaches point |
 | `cameraPan` | `x`, `y`, `durationMs`, `holdMs?` | |
+| `hideActor` / `showActor` | `id` | Toggles visibility of a placed actor (sprite, nameplate, shadow). Use to keep a static actor (e.g. someone who "arrives" mid-scene) out of frame until the beat where they're narrated as showing up |
+| `moveActor` | `id`, `x`, `y`, `durationMs` | Straight-line tween of a placed actor to a new point, playing its walk anim en route (resolves the anim key from the actor's `spriteKey` if set, else its id) and settling back to the static idle frame on arrival. Blocking (advances on arrival). Not pathfinding — line-of-sight only |
 | `bossFight` | `bossId`, `arena{x,y,w,h}`, `hideActorId?`, `introLines?` | Runs the bossFight mode — NOT via `minigame` beat. `bossId` from `BOSSES` in `src/data/entities/` |
 | `minigame` | `modeId`, `config?`, `introLines?`, `background?`, `loseGoto?` | See `src/game/modes/CLAUDE.md` for the mode table |
 | `routeOnMinigame` | `cases{}`, `default?` | ⚠️ HARDCODED to groupChat's payload (`saidTrueThing`+`when`, BeatEngine `runRouteOnMinigame`). Do NOT use for other modes — use `loseGoto` |

@@ -14,6 +14,7 @@ import { createExternalGameMode } from './external';
 import { speakerHuntMode } from './speakerHunt';
 import { cabinCollapseMode } from './cabinCollapse';
 import { swarmSurvivalMode } from './swarmSurvival';
+import { doubleCallMode } from './doubleCall';
 
 const registry = new Map<string, GameMode>();
 
@@ -32,6 +33,7 @@ registerMode(createExternalGameMode({ id: 'battleiq-battle', gameId: 'battleiq' 
 registerMode(speakerHuntMode);
 registerMode(cabinCollapseMode);
 registerMode(swarmSurvivalMode);
+registerMode(doubleCallMode);
 
 export function registerMode(m: GameMode) {
   registry.set(m.id, m);

@@ -1348,7 +1348,7 @@ export function preprocessGirlSilhouetteSheet(img: HTMLImageElement): SlicedSpri
   };
 }
 
-export function preprocessStandardSheet(img: HTMLImageElement, cols = 3): SlicedSpriteSheet {
+export function preprocessStandardSheet(img: HTMLImageElement, cols = 3, rows = 4, bgLumMax = 205): SlicedSpriteSheet {
   const width = img.naturalWidth || img.width;
   const height = img.naturalHeight || img.height;
 
@@ -1380,7 +1380,7 @@ export function preprocessStandardSheet(img: HTMLImageElement, cols = 3): Sliced
     const r = pixels[idx], g = pixels[idx + 1], b = pixels[idx + 2];
     if (Math.max(r, g, b) - Math.min(r, g, b) >= 28) return false; // saturated → subject
     const lum = (r + g + b) / 3;
-    return lum >= 78 && lum <= 205; // checker grays (+ JPEG ringing); excludes dark outlines & white tanks
+    return lum >= 78 && lum <= bgLumMax; // checker grays (+ JPEG ringing); excludes dark outlines & (by default) white tanks
   };
   const visited = new Uint8Array(width * height);
   const stack: number[] = [];
@@ -1437,7 +1437,7 @@ export function preprocessStandardSheet(img: HTMLImageElement, cols = 3): Sliced
   finalCtx.putImageData(imgData, 0, 0);
 
   const frameWidth = width / cols;
-  const frameHeight = height / 4;
+  const frameHeight = height / rows;
 
   return {
     canvas: finalCanvas,

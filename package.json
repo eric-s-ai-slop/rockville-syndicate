@@ -14,7 +14,8 @@
     "ci": "npm run lint && npm run lint:es && npm test && npm run build",
     "voice:extract": "tsx scripts/voicegen/extract-lines.ts",
     "test": "vitest run",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "agent": "tsx e2e_tests/agent/cli.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

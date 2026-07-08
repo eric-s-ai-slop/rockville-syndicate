@@ -601,6 +601,31 @@ export class MapBuilder {
         g.strokeRect(mx, my, 24, 16);
         break;
       }
+      case 'wall': {
+        g.fillStyle(fill, 1);
+        g.fillRect(l, t, w, h);
+        g.lineStyle(2, stroke, 0.8);
+        g.strokeRect(l, t, w, h);
+        // Faint panel seams so a flat storefront wall doesn't read as a raw rect.
+        g.lineStyle(1, stroke, 0.3);
+        for (let sx = l + w / 4; sx < l + w; sx += w / 4) {
+          g.lineBetween(sx, t + 2, sx, t + h - 2);
+        }
+        break;
+      }
+      case 'window': {
+        g.fillStyle(fill, 1);
+        g.fillRect(l, t, w, h);
+        g.lineStyle(2, stroke, 0.9);
+        g.strokeRect(l, t, w, h);
+        // Muntin cross-bars + a soft glass highlight.
+        g.lineStyle(1.5, stroke, 0.6);
+        g.lineBetween(x, t + 2, x, t + h - 2);
+        g.lineBetween(l + 2, y, l + w - 2, y);
+        g.fillStyle(0xffffff, 0.06);
+        g.fillRect(l + 2, t + 2, w * 0.4, h - 4);
+        break;
+      }
       case 'counter': {
         g.fillStyle(fill, 1);
         g.fillRect(l, t, w, h);

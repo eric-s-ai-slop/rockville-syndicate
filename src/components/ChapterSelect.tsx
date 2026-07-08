@@ -104,6 +104,7 @@ const THEME_COLOR: Record<MapTheme, string> = {
   suburb_night:  '#a78bfa',
   cabin:         '#d97706',
   pool_party:    '#38bdf8',
+  void:          '#c8e89a',
 };
 
 const THEME_ICON: Record<MapTheme, string> = {
@@ -115,6 +116,7 @@ const THEME_ICON: Record<MapTheme, string> = {
   suburb_night:  '🌙',
   cabin:         '🪵',
   pool_party:    '🏊',
+  void:          '💬',
 };
 
 export default function ChapterSelect({ heroColor, completed, freePlay, onFreePlayChange, onPick }: ChapterSelectProps) {

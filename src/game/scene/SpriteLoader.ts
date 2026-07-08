@@ -190,17 +190,21 @@ export class SpriteLoader {
     // front-facing standing pose; rose's front row starts at column 1, so her sheet
     // is shifted left by one cell to land that pose on frame 0.
     const npcSheets = [
-      { key: 'npc_alex_sheet',        cols: 6, frontCol: 0 },
-      { key: 'npc_benji_sheet',       cols: 4, frontCol: 0 },
-      { key: 'npc_rose_sheet',        cols: 6, frontCol: 1 },
-      { key: 'npc_rose_sister_sheet', cols: 4, frontCol: 0 },
+      { key: 'npc_alex_sheet',        cols: 6, frontCol: 0, rows: 4 },
+      { key: 'npc_benji_sheet',       cols: 4, frontCol: 0, rows: 4 },
+      { key: 'npc_rose_sheet',        cols: 6, frontCol: 1, rows: 4 },
+      { key: 'npc_rose_sister_sheet', cols: 4, frontCol: 0, rows: 4 },
+      // Ch12: 3 rows (front/side/back) x 8 cols; front standing pose is already col 0.
+      // Plain WHITE background (not the gray checkerboard the others use), so the
+      // flood-fill needs its lum band widened to include white — see bgLumMax below.
+      { key: 'npc_chris_rivas_sheet', cols: 8, frontCol: 0, rows: 3, bgLumMax: 255 },
     ];
-    npcSheets.forEach(({ key: sheetKey, cols, frontCol }) => {
+    npcSheets.forEach(({ key: sheetKey, cols, frontCol, rows, bgLumMax }) => {
       const rawKey = `${sheetKey}_raw_jpg`;
       if (!this.scene.textures.exists(rawKey) || this.scene.textures.exists(sheetKey)) return;
       try {
         const image = this.scene.textures.get(rawKey).getSourceImage() as HTMLImageElement;
-        const processed = preprocessStandardSheet(image, cols);
+        const processed = preprocessStandardSheet(image, cols, rows, bgLumMax);
         const fw = processed.frameWidth;
         const fh = processed.frameHeight;
 

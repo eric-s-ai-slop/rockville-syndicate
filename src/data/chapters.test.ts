@@ -23,7 +23,8 @@ import { CHAPTER_MUSIC_KEY } from '../game/audio';
 // FIXME(rose_florida): silence is unconfirmed — it may be a deliberate tonal
 // choice for this chapter or an oversight. See ROADMAP.md "Open questions".
 // Remove from this set once a track is added (or the silence is confirmed).
-const INTENTIONALLY_SILENT = new Set<string>(['rose_florida']);
+// origins: cold open is scored by room tone; music enters per-scene at scenes[1]
+const INTENTIONALLY_SILENT = new Set<string>(['rose_florida', 'origins']);
 
 describe('chapters data', () => {
   it('should have chapters defined', () => {

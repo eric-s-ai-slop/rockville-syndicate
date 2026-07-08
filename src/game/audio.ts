@@ -71,6 +71,7 @@ export const STAGE_MUSIC_URL: Record<string, string> = {
   music_umbc_basement: umbcBasementUrl,
   music_ch11_spins:      ch11SpinsUrl,
   music_ch11_space_song: ch11SpaceSongUrl,
+  music_origins:         ch1Url, // TODO(phase8): placeholder — Origins' own track hasn't landed yet
 };
 
 // Ambient SFX (not stage music — loaded via ChapterScene preload)

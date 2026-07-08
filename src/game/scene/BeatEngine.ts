@@ -25,6 +25,9 @@ export class BeatEngine {
       case 'choice': return this.runChoiceBeat(beat);
       case 'walkTo': return this.runWalkToBeat(beat);
       case 'cameraPan': return this.runCameraPanBeat(beat);
+      case 'hideActor': this.scene.hideActor(beat.id); return this.advanceBeat();
+      case 'showActor': this.scene.showActor(beat.id); return this.advanceBeat();
+      case 'moveActor': return this.scene.moveActor(beat.id, beat.x, beat.y, beat.durationMs, () => this.advanceBeat());
       case 'bossFight': return this.runBossFightAsMinigame(beat);
       case 'chase': return this.scene.runChaseBeat(beat);
       case 'sfx': {
