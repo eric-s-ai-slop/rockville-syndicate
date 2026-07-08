@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { getRunRecords } from '../game/settings';
 import { GHOST_TARGETS, type RunRecord } from '../game/scoring';
 import { playUi } from '../game/uiSound';
@@ -9,15 +10,20 @@ interface HallOfRecordsProps {
 
 export default function HallOfRecords({ heroColor, onBack }: HallOfRecordsProps) {
   const records = getRunRecords();
-  // Group personal bests by chapter
-  const bestByChapter: Record<string, RunRecord> = {};
-  for (const r of [...records].reverse()) {
-    if (!bestByChapter[r.chapterId] || r.score > bestByChapter[r.chapterId].score) {
-      bestByChapter[r.chapterId] = r;
+
+  const { bests, allTimeTotal } = useMemo(() => {
+    // Group personal bests by chapter
+    const bestByChapter: Record<string, RunRecord> = {};
+    for (let i = records.length - 1; i >= 0; i--) {
+      const r = records[i];
+      if (!bestByChapter[r.chapterId] || r.score > bestByChapter[r.chapterId].score) {
+        bestByChapter[r.chapterId] = r;
+      }
     }
-  }
-  const bests = Object.values(bestByChapter).sort((a, b) => b.score - a.score);
-  const allTimeTotal = bests.reduce((sum, r) => sum + r.score, 0);
+    const computedBests = Object.values(bestByChapter).sort((a, b) => b.score - a.score);
+    const computedTotal = computedBests.reduce((sum, r) => sum + r.score, 0);
+    return { bests: computedBests, allTimeTotal: computedTotal };
+  }, [records]);
 
   return (
     <div className="h-full overflow-y-auto flex flex-col items-center p-8 omega-fade-up" style={{ background: '#0a1006' }}>
