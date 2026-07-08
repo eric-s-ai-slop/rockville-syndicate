@@ -102,6 +102,12 @@ COMMANDS (one per line; ';' also separates them on a single line)
     state                      print snapshotGameState() JSON (scene, player, velocity, hp, mode, loop)
     text                       extract visible text from Phaser canvas and DOM (A2)
     targets                    dump active walk target and NPCs with screen/world coordinates (A3)
+    observe | obs              print composite observation snapshot (A5)
+    beat | beats               print current and upcoming narrative beats (A4)
+    audio                      print playing audio state and master volume (B4)
+    camera                     print camera zoom, center, and dimensions (B5)
+    camera zoom <factor>       set camera zoom factor (B5)
+    camera center <x> <y>      center camera on world coordinates (B5)
     goto <sceneIndex>          jump to a specific scene index instantly (B1)
     savestate                  quick-save current game state in-memory (B2)
     loadstate                  quick-restore saved game state (B2)
@@ -111,6 +117,7 @@ COMMANDS (one per line; ';' also separates them on a single line)
     pause | resume             sleep / wake the Phaser loop
     loop                       print whether the loop is running
     step <frames> [fps]        advance exactly <frames> fixed-timestep frames (loop auto-pauses)
+    speed | timescale <num>    set timescale multiplier for physics/tweens/timers (B7)
   Debug (C1)
     debug on | off             toggle physics debug graphics
   Flow / misc
@@ -254,6 +261,43 @@ async function runCommand(
       case 'targets': {
         const res = await agent.dumpWalkAndNpcTargets();
         emit({ cmd: 'targets', ok: true, ...res });
+        break;
+      }
+      case 'observe': case 'obs': {
+        const res = await agent.observeComposite();
+        emit({ cmd: 'observe', ok: true, ...res });
+        break;
+      }
+      case 'beat': case 'beats': {
+        const res = await agent.inspectBeats();
+        emit({ cmd: 'beat', ok: true, ...res });
+        break;
+      }
+      case 'audio': {
+        const res = await agent.inspectAudio();
+        emit({ cmd: 'audio', ok: true, ...res });
+        break;
+      }
+      case 'camera': {
+        if (args[0] === 'zoom') {
+          const factor = num(1);
+          await agent.setCameraZoom(factor);
+          emit({ cmd: 'camera', ok: true, action: 'zoom', factor });
+        } else if (args[0] === 'center') {
+          const cx = num(1);
+          const cy = num(2);
+          await agent.setCameraCenter(cx, cy);
+          emit({ cmd: 'camera', ok: true, action: 'center', x: cx, y: cy });
+        } else {
+          const cam = await agent.inspectCamera();
+          emit({ cmd: 'camera', ok: true, ...cam });
+        }
+        break;
+      }
+      case 'speed': case 'timescale': {
+        const factor = num(0);
+        await agent.setTimeScale(factor);
+        emit({ cmd: 'speed', ok: true, timescale: factor });
         break;
       }
       case 'goto': {

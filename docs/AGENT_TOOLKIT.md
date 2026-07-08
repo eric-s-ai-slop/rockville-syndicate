@@ -112,6 +112,12 @@ Prefer lowercase movement keys.
 | `state` | print the game-state snapshot (see §3 below) |
 | `text` | extract visible text from Phaser canvas and DOM (A2) |
 | `targets` | dump active walk target and NPCs with screen/world coordinates (A3) |
+| `observe` / `obs` | print composite observation snapshot (A5) |
+| `beat` / `beats` | print current and upcoming narrative beats (A4) |
+| `audio` | print playing audio state and master volume (B4) |
+| `camera` | print camera zoom, center, and dimensions (B5) |
+| `camera zoom <num>` | set camera zoom factor (B5) |
+| `camera center <x> <y>` | center camera on world coordinates (B5) |
 | `goto <sceneIndex>` | jump to a specific scene index instantly (B1) |
 | `savestate` | quick-save current game state in-memory (B2) |
 | `loadstate` | quick-restore saved game state (B2) |
@@ -125,6 +131,7 @@ Prefer lowercase movement keys.
 | `pause` / `resume` | sleep / wake the Phaser loop |
 | `loop` | print whether the loop is running |
 | `step <frames> [fps]` | advance exactly `<frames>` fixed-timestep frames (auto-pauses the loop first) |
+| `speed` / `timescale <num>` | set timescale multiplier for physics/tweens/timers (B7) |
 
 **Debugging (spec C1)**
 

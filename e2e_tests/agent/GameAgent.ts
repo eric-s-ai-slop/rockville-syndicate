@@ -57,8 +57,20 @@ export class GameAgent {
   private pointer = { x: 0, y: 0 };
   /** Quick-save state slot. */
   private quickSaveState: any = null;
+  /** Intercepted browser console log logs. */
+  private readonly consoleLogs: { type: string; text: string }[] = [];
 
-  constructor(private readonly page: Page) {}
+  constructor(private readonly page: Page) {
+    this.page.on('console', msg => {
+      const type = msg.type();
+      if (type === 'error' || type === 'warning') {
+        this.consoleLogs.push({ type, text: msg.text() });
+      }
+    });
+    this.page.on('pageerror', err => {
+      this.consoleLogs.push({ type: 'error', text: err.message });
+    });
+  }
 
   // ── lifecycle ────────────────────────────────────────────────────────────
 
@@ -89,6 +101,12 @@ export class GameAgent {
     if (this.heldMouseButton) {
       await this.page.mouse.up({ button: this.heldMouseButton }).catch(() => {});
       this.heldMouseButton = null;
+    }
+
+    const errors = this.consoleLogs.filter(e => e.type === 'error').length;
+    const warnings = this.consoleLogs.filter(e => e.type === 'warning').length;
+    if (errors > 0 || warnings > 0) {
+      console.error(`[GameAgent] Session ended with ${errors} console errors and ${warnings} warnings.`);
     }
   }
 
@@ -635,5 +653,306 @@ export class GameAgent {
       // Start beat
       scene.beatEngine.startBeat(saved.beatIndex);
     }, this.quickSaveState);
+  }
+
+  getConsoleLogs(): { type: string; text: string }[] {
+    return [...this.consoleLogs];
+  }
+
+  clearConsoleLogs(): void {
+    this.consoleLogs.length = 0;
+  }
+
+  /** Inspect current speaker, dialogue index, active status, and upcoming beats. */
+  async inspectBeats(): Promise<{
+    currentBeatIndex: number;
+    totalBeats: number;
+    beatActive: boolean;
+    currentBeat: any;
+    upcomingBeats: any[];
+  }> {
+    return this.page.evaluate(() => {
+      const game = (window as unknown as { __OMEGA_GAME__?: any }).__OMEGA_GAME__;
+      if (!game) throw new Error('Game not initialized');
+      const scene = game.scene.getScene('ChapterScene');
+      if (!scene) throw new Error('ChapterScene not found');
+
+      const beats = scene.chapter.beats || [];
+      const currentIdx = scene.beatIndex;
+      const upcoming: any[] = [];
+      const endLimit = Math.min(currentIdx + 6, beats.length);
+      for (let i = currentIdx + 1; i < endLimit; i++) {
+        upcoming.push(beats[i]);
+      }
+
+      return {
+        currentBeatIndex: currentIdx,
+        totalBeats: beats.length,
+        beatActive: scene.beatActive,
+        currentBeat: beats[currentIdx] || null,
+        upcomingBeats: upcoming
+      };
+    });
+  }
+
+  /** Scrape player state, text, and target/NPC coords in a single evaluate to minimize Playwright IPC overhead. */
+  async observeComposite(): Promise<{
+    state: GameStateSnapshot | null;
+    canvas: { text: string; x: number; y: number; type: string }[];
+    dom: {
+      speaker: string | null;
+      dialogue: string | null;
+      choices: string[];
+      qte: string | null;
+    };
+    walkTarget: { x: number; y: number; radius: number; markerLabel: string; viewport: { x: number; y: number } } | null;
+    npcs: { id: string; name: string; x: number; y: number; viewport: { x: number; y: number } }[];
+  }> {
+    return this.page.evaluate(() => {
+      const game = (window as unknown as { __OMEGA_GAME__?: any }).__OMEGA_GAME__;
+      if (!game) {
+        return {
+          state: null,
+          canvas: [],
+          dom: { speaker: null, dialogue: null, choices: [], qte: null },
+          walkTarget: null,
+          npcs: []
+        };
+      }
+
+      const scene = game.scene.getScene('ChapterScene');
+      
+      // 1. GameStateSnapshot
+      let state = null;
+      if (scene) {
+        state = {
+          scene: 'ChapterScene',
+          player: scene.player ? { x: scene.player.x, y: scene.player.y } : null,
+          velocity: (scene.player && scene.player.body) ? { x: scene.player.body.velocity.x, y: scene.player.body.velocity.y } : null,
+          hp: typeof scene.activeHp === 'number' ? scene.activeHp : null,
+          activeMode: scene.activeMode ? scene.activeMode.id : null,
+          loopRunning: game.loop.running
+        };
+      } else {
+        const activeScenes = game.scene.getScenes(true);
+        state = {
+          scene: activeScenes.length > 0 ? activeScenes[0].sys.settings.key : null,
+          player: null,
+          velocity: null,
+          hp: null,
+          activeMode: null,
+          loopRunning: game.loop.running
+        };
+      }
+
+      // 2. Canvas Text & DOM Text
+      const canvasText: { text: string; x: number; y: number; type: string }[] = [];
+      const scenes = game.scene.getScenes(true);
+      for (let i = 0; i < scenes.length; i++) {
+        const sc = scenes[i];
+        const queue = [...sc.children.list];
+        let head = 0;
+        while (head < queue.length) {
+          const child = queue[head++];
+          if (!child.visible || child.alpha <= 0) continue;
+          if (child.type === 'Text' || child.type === 'BitmapText') {
+            canvasText.push({
+              text: child.text || child._text || '',
+              x: child.x,
+              y: child.y,
+              type: child.type
+            });
+          } else if (child.list && Array.isArray(child.list)) {
+            for (let j = 0; j < child.list.length; j++) {
+              queue.push(child.list[j]);
+            }
+          }
+        }
+      }
+
+      const speakerPop = document.querySelector('.portrait-pop');
+      let speaker: string | null = null;
+      if (speakerPop && speakerPop.parentElement) {
+        const nameEl = speakerPop.parentElement.querySelector('span.font-pixel');
+        if (nameEl) speaker = (nameEl as HTMLElement).innerText;
+      }
+
+      const dialogueEl = document.querySelector('p.font-pixel');
+      const choiceEls = document.querySelectorAll('[data-testid=\"dialogue-choice\"]');
+      const qteEl = document.querySelector('span.font-pixel');
+
+      const choices: string[] = [];
+      const choiceArray = Array.from(choiceEls);
+      for (let i = 0; i < choiceArray.length; i++) {
+        const el = choiceArray[i];
+        const textSpan = el.querySelector('span:nth-child(2)');
+        choices.push(textSpan ? (textSpan as HTMLElement).innerText : (el as HTMLElement).innerText);
+      }
+
+      const dom = {
+        speaker,
+        dialogue: dialogueEl ? (dialogueEl as HTMLElement).innerText : null,
+        choices,
+        qte: qteEl ? (qteEl as HTMLElement).innerText : null
+      };
+
+      // 3. Targets and NPCs
+      let walkTarget = null;
+      const npcs: any[] = [];
+
+      if (scene) {
+        const cam = scene.cameras.main;
+        const cx = cam.width / 2;
+        const cy = cam.height / 2;
+        const rect = game.canvas.getBoundingClientRect();
+
+        if (scene.walkTarget) {
+          const screenX = cx + (scene.walkTarget.x - cam.scrollX - cx) * cam.zoom;
+          const screenY = cy + (scene.walkTarget.y - cam.scrollY - cy) * cam.zoom;
+          walkTarget = {
+            x: scene.walkTarget.x,
+            y: scene.walkTarget.y,
+            radius: scene.walkTarget.radius,
+            markerLabel: scene.walkTarget.markerLabel || '',
+            viewport: {
+              x: rect.left + screenX,
+              y: rect.top + screenY
+            }
+          };
+        }
+
+        if (scene.actorSprites) {
+          const ids = Object.keys(scene.actorSprites);
+          for (let i = 0; i < ids.length; i++) {
+            const id = ids[i];
+            const entry = scene.actorSprites[id];
+            const sprite = entry?.[0];
+            if (sprite && sprite.visible) {
+              const screenX = cx + (sprite.x - cam.scrollX - cx) * cam.zoom;
+              const screenY = cy + (sprite.y - cam.scrollY - cy) * cam.zoom;
+              npcs.push({
+                id,
+                name: entry[1]?.text || id,
+                x: sprite.x,
+                y: sprite.y,
+                viewport: {
+                  x: rect.left + screenX,
+                  y: rect.top + screenY
+                }
+              });
+            }
+          }
+        }
+      }
+
+      return {
+        state,
+        canvas: canvasText,
+        dom,
+        walkTarget,
+        npcs
+      };
+    });
+  }
+
+  /** Get details of all currently playing audio sounds. */
+  async inspectAudio(): Promise<{
+    playing: { key: string; volume: number; paused: boolean; progress: number }[];
+    masterVolume: number;
+  }> {
+    return this.page.evaluate(() => {
+      const game = (window as unknown as { __OMEGA_GAME__?: any }).__OMEGA_GAME__;
+      if (!game) throw new Error('Game not initialized');
+
+      const activeSounds: any[] = [];
+      const soundList = game.sound.sounds;
+      for (let i = 0; i < soundList.length; i++) {
+        const snd = soundList[i];
+        if (snd.isPlaying) {
+          let progress = 0;
+          if (typeof snd.progress === 'number') {
+            progress = snd.progress;
+          } else if (snd.duration && snd.seek) {
+            progress = snd.seek / snd.duration;
+          }
+          activeSounds.push({
+            key: snd.key,
+            volume: snd.volume,
+            paused: snd.isPaused,
+            progress
+          });
+        }
+      }
+
+      return {
+        playing: activeSounds,
+        masterVolume: game.sound.volume
+      };
+    });
+  }
+
+  /** Inspect current main camera parameters. */
+  async inspectCamera(): Promise<{
+    zoom: number;
+    scrollX: number;
+    scrollY: number;
+    width: number;
+    height: number;
+  }> {
+    return this.page.evaluate(() => {
+      const game = (window as unknown as { __OMEGA_GAME__?: any }).__OMEGA_GAME__;
+      if (!game) throw new Error('Game not initialized');
+      const scene = game.scene.getScene('ChapterScene');
+      if (!scene) throw new Error('ChapterScene not found');
+
+      const cam = scene.cameras.main;
+      return {
+        zoom: cam.zoom,
+        scrollX: cam.scrollX,
+        scrollY: cam.scrollY,
+        width: cam.width,
+        height: cam.height
+      };
+    });
+  }
+
+  /** Set camera zoom factor. */
+  async setCameraZoom(zoom: number): Promise<void> {
+    await this.page.evaluate((z) => {
+      const game = (window as unknown as { __OMEGA_GAME__?: any }).__OMEGA_GAME__;
+      if (!game) throw new Error('Game not initialized');
+      const scene = game.scene.getScene('ChapterScene');
+      if (!scene) throw new Error('ChapterScene not found');
+
+      scene.cameras.main.setZoom(z);
+    }, zoom);
+  }
+
+  /** Center main camera on world coordinates. */
+  async setCameraCenter(x: number, y: number): Promise<void> {
+    await this.page.evaluate((coords) => {
+      const game = (window as unknown as { __OMEGA_GAME__?: any }).__OMEGA_GAME__;
+      if (!game) throw new Error('Game not initialized');
+      const scene = game.scene.getScene('ChapterScene');
+      if (!scene) throw new Error('ChapterScene not found');
+
+      scene.cameras.main.centerOn(coords.cx, coords.cy);
+    }, { cx: x, cy: y });
+  }
+
+  /** Set Phaser clock, tweens, and Arcade Physics timeScale. */
+  async setTimeScale(multiplier: number): Promise<void> {
+    await this.page.evaluate((scale) => {
+      const game = (window as unknown as { __OMEGA_GAME__?: any }).__OMEGA_GAME__;
+      if (!game) throw new Error('Game not initialized');
+      const scene = game.scene.getScene('ChapterScene');
+      if (!scene) throw new Error('ChapterScene not found');
+
+      scene.time.timeScale = scale;
+      scene.tweens.timeScale = scale;
+      if (scene.physics && scene.physics.world) {
+        scene.physics.world.timeScale = scale;
+      }
+    }, multiplier);
   }
 }

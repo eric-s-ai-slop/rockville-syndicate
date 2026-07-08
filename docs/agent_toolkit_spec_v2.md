@@ -21,7 +21,7 @@ Tools are grouped by theme and tagged with a priority tier:
 
 ## A. Observation — let the agent "see" without computer vision
 
-### A1. Console & Error Interceptor — **P0** *(always on, not a command)*
+### A1. Console & Error Interceptor — **P0** — **implemented** *(always on, not a command)*
 
 **Problem.** A game can look fine while a silent error, memory leak, or missing
 asset fires in the background. Phaser renders a missing texture as a plain green
@@ -97,7 +97,7 @@ existing teleport) without ever taking a screenshot.
 
 ---
 
-### A4. Beat Inspector — **P0**
+### A4. Beat Inspector — **P0** — **implemented**
 
 **Problem.** "The game looks stuck" usually means "a beat is waiting on a
 condition that can't fire." Diagnosing that from pixels is hopeless.
@@ -119,7 +119,7 @@ never registered its completion callback" (engine bug).
 
 ---
 
-### A5. `observe` — Composite Frame Snapshot — **P0** *(build last of the P0s)*
+### A5. `observe` — Composite Frame Snapshot — **P0** — **implemented** *(build last of the P0s)*
 
 **Problem.** One agent decision should not cost five round-trips.
 
@@ -193,7 +193,7 @@ its trigger beat fires.
 chapter navigation. `winmode` tears it down cleanly (no orphaned HUD objects —
 check via A2 that its labels are gone).
 
-### B4. Audio Inspector — **P1**
+### B4. Audio Inspector — **P1** — **implemented**
 
 **Problem.** QA checklists contain audio assertions ("Scene 0 plays in silence",
 "BGM never returns post-snap") that currently require human ears.
@@ -207,7 +207,7 @@ check via A2 that its labels are gone).
 **Acceptance.** In Chapter 12 Scene 0, `audio` shows `playing: []` (the verified
 silent-open behavior becomes a scriptable assertion).
 
-### B5. Camera Commands — **P1**
+### B5. Camera Commands — **P1** — **implemented**
 
 **Problem.** The full-map zoom-out in `qa_capture.cjs` is how the visible-collision-
 rect bugs were found; it should be a first-class command, not a bespoke script.
@@ -234,7 +234,7 @@ gotcha; this deletes it.
   - `where <x> <y>` — print both conversions without clicking.
 - The conversion helper lives on `GameAgent` and is reused by A2/A3 `screen` fields.
 
-### B7. Time Scale / Fast-Forward — **P2**
+### B7. Time Scale / Fast-Forward — **P2** — **implemented**
 
 **Problem.** Intentional slow content (e.g. Chapter 12 Scene 11's ~25-second
 hold) makes every test run pay real-time cost.

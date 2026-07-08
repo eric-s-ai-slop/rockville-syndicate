@@ -29,10 +29,16 @@ plugins see continuous input exactly like a human's.
 | §2 `drag_mouse(sx, sy, ex, ey, duration_ms)` | `dragMouse(sx, sy, ex, ey, durationMs?, steps?)` |
 | §3 `execute_javascript(code)` | `executeJavascript(code)` |
 | §3 state inspection | `snapshotGameState()` |
+| A1 console logs | `getConsoleLogs()` / `clearConsoleLogs()` |
 | A2 canvas text extraction | `extractVisibleText()` |
 | A3 target/NPC dump | `dumpWalkAndNpcTargets()` |
+| A4 beat inspection | `inspectBeats()` |
+| A5 composite observe | `observeComposite()` |
 | B1 scene warp | `warpScene(sceneIndex)` |
 | B2 save-state | `saveQuickState()` / `loadQuickState()` |
+| B4 audio state | `inspectAudio()` |
+| B5 camera controls | `inspectCamera()` / `setCameraZoom()` / `setCameraCenter()` |
+| B7 time scale / fast-forward | `setTimeScale(multiplier)` |
 | — coordinate conversion | `worldToViewport(worldX, worldY, scrollFactor?)` |
 | §4 pause loop | `pauseLoop()` / `resumeLoop()` / `isLoopRunning()` |
 | §4 step N frames | `stepFrames(frames, fps?)` |
