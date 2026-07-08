@@ -9,6 +9,11 @@ import { navigateToChapter, advanceUntil } from '../helpers';
  * capabilities in docs/browser_subagent_spec.md.
  */
 
+// These tests boot the whole game and use advanceUntil's own 60s ceiling —
+// on a loaded/slow CI runner that alone can exceed Playwright's 30s default
+// test timeout before the assertions even start. Give this file real headroom.
+test.describe.configure({ timeout: 90_000 });
+
 /**
  * True once the ChapterScene exists, has started, spawned the player, and is NOT
  * frozen by a dialogue/cutscene beat — i.e. the player has free walk control.

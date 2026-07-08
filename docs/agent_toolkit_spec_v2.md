@@ -11,11 +11,70 @@ command or flag** on `e2e_tests/agent/cli.ts`, backed where needed by a helper o
 command on stdout** (`{"cmd":"…","ok":true,…}`), errors as `ok:false` without
 crashing the session.
 
+> **Primary consumer: an LLM agent (Antigravity), not a human.** The toolkit is
+> driven by an AI agent piping commands in and reading JSONL out. This makes
+> **token efficiency a hard design requirement**, on par with correctness:
+> - Prefer **one composite round-trip** over many small ones (`observe`).
+> - Prefer **deltas** over full snapshots when state is mostly unchanged (E5 `diff`).
+> - Prefer **blocking waits with conditions** over poll loops the agent must
+>   drive itself (E6 `watch`).
+> - Output keys are short, flat, and stable so downstream prompts can rely on them.
+
 Tools are grouped by theme and tagged with a priority tier:
 
 - **P0** — closes the observation loop; build first.
 - **P1** — big iteration-speed or determinism win.
 - **P2** — valuable, build when the need bites.
+
+## Implementation status at a glance
+
+| Tier | Shipped | Partial | Not started |
+| --- | --- | --- | --- |
+| A (observation) | A1 A2 A3 A4 A5 | — | — |
+| B (control) | B1 B4 B7 | B2 B3 B5 B6 | — |
+| C (regression) | C1 C2 C3 C4 C7 | C5 C6 | — |
+| D (v3 backlog) | — | — | D1–D6 (see revisions below) |
+| E–I (v2.1 additions) | — | — | all |
+
+---
+
+## Lessons learned in implementation (read before building anything new)
+
+Hard-won notes from building and live-testing batches 1–2. New tools MUST
+respect these.
+
+1. **Never import game modules into the CLI's Node process.** `cli.ts` runs
+   under plain `tsx`/Node. Importing anything that transitively pulls in Phaser
+   (e.g. `src/game/modes/index.ts` for `listModeIds()`) crashes at module load
+   with `ReferenceError: window is not defined` — Phaser touches `window` at
+   import time. Chapter *data* (`src/data/chapters`) is safe; game *engine* code
+   is not. Anything that needs the mode registry, scene classes, etc. must go
+   through `page.evaluate` against the live game.
+2. **`endChapter` is a terminal beat that never advances `beatIndex`.**
+   `runEndChapter()` plays victory FX and hands off to React via
+   `onLevelCompleted` — the beat index stays parked on the `endChapter` beat
+   forever. Any "did the chapter complete?" condition must treat
+   `beats[beatIndex].type === 'endChapter'` (or game unmount) as completion;
+   `beatIndex >= beats.length` alone can never fire. This bug shipped once
+   (gauntlet reported every finishing chapter as `stalled`).
+3. **Reuse `advanceUntil`, never hand-roll a beat-advance loop.** Calling
+   `beatEngine.advanceBeat()` out from under the React dialogue overlay desyncs
+   UI from engine state (the StrictMode double-invoke trap in CLAUDE.md).
+   `advanceUntil` dismisses dialogue with a trusted Space press, clicks choice
+   buttons, and auto-wins modes — through the same paths a player uses.
+   `skipModes: ['*']` is the supported wildcard for "auto-win any mode" (added
+   precisely because of lesson 1 — the CLI can't enumerate mode ids statically).
+4. **Guard every scene-dependent bridge call for readiness.** `warpScene`
+   crashed on `undefined` physics groups when called before `create()` finished.
+   Pattern: `if (!scene.levelStarted || !scene.walls) throw new Error('Scene not
+   ready — run "advance" first')`. Every new mutating command that touches scene
+   internals needs an equivalent guard with an *actionable* error message.
+5. **Mutating force-advances need cleanup.** `skipbeat` must clear story
+   dialogue, unfreeze the engine, and clear the walk target before each advance,
+   or it leaves stale UI contradicting the engine's beat index.
+6. **Console interception needs `requestfailed` too.** A missing Phaser texture
+   renders as a green box with no exception; the failed network request is the
+   only signal. `page.on('console'/'pageerror')` alone is not enough.
 
 ---
 
@@ -27,20 +86,20 @@ Tools are grouped by theme and tagged with a priority tier:
 asset fires in the background. Phaser renders a missing texture as a plain green
 box with no exception — the *network* failure is the only signal.
 
-**Spec.**
-- On session boot, the CLI attaches:
-  - `page.on('console')` — forward `warn`/`error` (and `log` with `--verbose`),
-  - `page.on('pageerror')` — uncaught exceptions with stack,
-  - `page.on('requestfailed')` — failed asset/network requests (URL + failure reason).
-- Each event is emitted as its own JSONL line, interleaved with command output:
-  `{"cmd":"console","level":"error","text":"…","location":"file:line"}`
-  `{"cmd":"pageerror","message":"…","stack":"…"}`
-  `{"cmd":"requestfailed","url":"…","failure":"…"}`
-- A `--quiet-console` flag suppresses them; default is **on**.
-- On session exit, emit a summary line: total errors/warnings/failed requests, so
-  a scripted run can assert "zero console errors" from the last line alone.
+**As shipped** (deviates slightly from the original spec, deliberately):
+- `page.on('console')` (warn/error), `page.on('pageerror')`, and
+  `page.on('requestfailed')` are attached in the `GameAgent` constructor.
+- Events are **buffered**, not interleaved into stdout — interleaving broke
+  line-oriented parsing for the driving agent. Read the buffer any time with
+  the `logs` (alias `console`) command; `logs clear` resets it.
+- On session exit the CLI emits a final
+  `{"cmd":"session_summary","ok":true,"errors":N,"warnings":N}` line, so a
+  scripted run asserts "zero console errors" from the last line alone.
+- `observe` folds in `errorsSinceLastObserve` / `warningsSinceLastObserve`
+  deltas (see A5).
 
-**Notes.** Zero game-side code. Pure Playwright event wiring in `cli.ts`.
+**Proven in practice:** this interceptor surfaced a real, reproducible React
+"mixing shorthand/non-shorthand background" warning firing ~11×/playthrough.
 
 ---
 
@@ -68,12 +127,6 @@ as data.
 - `screen` for canvas objects is computed through the camera (scroll + zoom) so
   the agent can immediately `click` what it reads.
 
-**Acceptance.** During a dialogue beat, `text` returns the visible line and the
-speaker name; during `doubleCall`, it returns the dialer UI labels. Regression
-value: v1 QA finding #7 (intro text painted onto the floor) is detectable from
-the JSON alone — world-anchored text with `scrollFactor:1` where screen-space UI
-is expected.
-
 ---
 
 ### A3. Interactable & Walk-Target Dump — **P0** — **implemented**
@@ -83,17 +136,10 @@ the player is supposed to go and what can be interacted with.
 
 **Spec.**
 - CLI command: `targets`
-- Bridge reads, from the live `ChapterScene`:
-  - `scene.walkTarget` — `{x, y, radius, markerLabel}` or null,
-  - interactive props / trigger zones registered by `MapBuilder` (expose a
-    read-only list; add a tiny registry in `MapBuilder` if one doesn't exist),
-  - DOM choice buttons currently clickable.
+- Bridge reads, from the live `ChapterScene`: `scene.walkTarget`
+  (`{x, y, radius, markerLabel}` or null), NPC actors, and DOM choice buttons
+  currently clickable.
 - Each entry includes both world and viewport coordinates (same camera math as A2).
-- Output: `{"cmd":"targets","ok":true,"walkTarget":{…}|null,"props":[…],"choices":[…]}`
-
-**Acceptance.** After `advance`, `targets` names the active walk marker; the
-agent can complete a walk beat with `press`/`hold` toward `walkTarget` (or the
-existing teleport) without ever taking a screenshot.
 
 ---
 
@@ -103,149 +149,93 @@ existing teleport) without ever taking a screenshot.
 condition that can't fire." Diagnosing that from pixels is hopeless.
 
 **Spec.**
-- CLI command: `beat`
-- Bridge reads `BeatEngine` state: current beat index, beat `type`, total beats
-  in the scene, and **what it is waiting on** (dialogue dismiss / choice / walk
-  target reached / mode completion / timer), plus the active scene index within
-  the chapter.
-- Output: `{"cmd":"beat","ok":true,"sceneIndex":4,"beatIndex":12,"of":31,"type":"dialogue","waitingOn":"dismiss","speaker":"eric"}`
-- Companion command: `skipbeat [n]` — force-advance 1 (or n) beats using the
-  engine's own advance path (never a hand-rolled duplicate — StrictMode
-  double-fire history applies to any new bridge into React).
+- CLI command: `beat` — current beat index/type/total, active flag, current beat
+  payload, and upcoming beats.
+- Companion command: `skipbeat [n]` — force-advance 1 (or n) beats, with the
+  cleanup sequence from lesson 5 before each advance.
 
-**Acceptance.** In a stalled playthrough, `beat` immediately distinguishes
-"waiting for walk target the player can't reach" (level-design bug) from "beat
-never registered its completion callback" (engine bug).
+**Known gap (carry into next batch):** `skipbeat` bypasses beat side effects
+(ledger deltas, flags, spawns) but does not yet emit the `"warning":
+"skipped-state: …"` field that B1's `goto` was spec'd to carry. Add the same
+warning field to both so transcripts are honest about state validity.
 
 ---
 
-### A5. `observe` — Composite Frame Snapshot — **P0** — **implemented** *(build last of the P0s)*
+### A5. `observe` — Composite Frame Snapshot — **P0** — **implemented**
 
 **Problem.** One agent decision should not cost five round-trips.
 
-**Spec.**
-- CLI command: `observe`
-- Returns one JSON object aggregating: `state` (v1 snapshot), `text` (A2),
-  `targets` (A3), `beat` (A4), audio summary (B4), perf sample (C4), and a count
-  of console errors since the last `observe`.
-- Optional flag `observe --shot` also saves a screenshot and includes its path.
-- This is the primary playtesting primitive: *screenshot-free* full situational
-  awareness in a single line.
+**As shipped:** one JSON object aggregating `state`, canvas/DOM text, walk
+target, NPCs, and console error/warning counts **since the last observe**
+(delta, not cumulative — this matters for the LLM consumer: unchanged ≠
+re-reported).
 
-**Acceptance.** An LLM agent given only `observe` + v1 input commands can
-complete a chapter's walk-and-talk beats with no image input at all.
+**Validated:** an LLM agent given only `observe` + v1 input commands completed
+walk-and-talk beats with no image input.
 
 ---
 
 ## B. Control — get to the bug in seconds, not minutes
 
-### B1. Scene Jumper / Fast Travel — **P1** — **implemented**
+### B1. Scene Jumper / Fast Travel — **P1** — **implemented (core)**
 
-**Problem.** Reproducing a Scene 10 bug should not require playing Scenes 1–9.
+- CLI command: `goto <sceneIndex>` — jump to a scene index instantly. Guarded
+  per lesson 4 (clear error if the scene hasn't booted).
+- **Not yet built:** `--scene <n>` / `--pos <x>,<y>` boot flags, a `teleport <x>
+  <y>` command, and the `"warning":"skipped-state"` field on forward jumps.
+  These remain spec'd; the warning field is the priority (see A4 gap).
 
-**Spec.**
-- CLI flags: `--scene <n>` (jump after chapter boot) and `--pos <x>,<y>`
-  (teleport player after the jump).
-- CLI commands: `goto <sceneIndex>` and `teleport <x> <y>` for mid-session use.
-- Implementation: the existing `scene.transitionToScene(n, …)` path (already
-  proven in `qa_capture.cjs`) + setting `player.x/y`. Use a short transition
-  duration; wait for the transition callback before emitting `ok`.
-- **Must emit a warning field** when jumping forward: beats in skipped scenes may
-  set state (flags, spawned actors, HP changes) that the target scene assumes.
-  `{"cmd":"goto","ok":true,"scene":10,"warning":"skipped-state: scenes 1-9 not executed"}`
-- Pairs with B2 for a *correct*-state jump.
+### B2. Save-State Snapshot / Restore — **P1** — **partial**
 
-### B2. Save-State Snapshot / Restore — **P1** — **implemented**
+- **As shipped:** `savestate` / `loadstate` are **in-memory within one session**
+  — quick-save/quick-restore of live scene state.
+- **Not yet built (the bigger half):** file-based persistence
+  (`savestate <file>` / `loadstate <file>`) that survives across sessions:
+  dump `{saveBlob, chapterId, sceneIndex, beatIndex, player, hp}` where the blob
+  is the `omega-save-v2` localStorage value (via `settings.ts` semantics —
+  never a parallel persistence path), then on load: write blob → reload →
+  re-navigate → `goto` → `skipbeat` → teleport. Emulator-style ergonomics:
+  capture once right before a bug, restore in every subsequent run.
 
-**Problem.** Some bugs only manifest with specific accumulated state. Recreating
-that state manually every run is the single biggest time sink; B1 alone boots
-scenes in a possibly-impossible state.
+### B3. Minigame Launcher — **P1** — **partial**
 
-**Spec.**
-- CLI commands:
-  - `savestate <file>` — dump `{saveBlob, chapterId, sceneIndex, beatIndex, player:{x,y}, hp}` to a JSON file. The blob is the `omega-save-v2` localStorage value — read via the bridge, **never** a parallel persistence path (CLAUDE.md rule: all persisted state goes through `settings.ts`).
-  - `loadstate <file>` — write the blob back into localStorage, reload the page,
-    re-navigate to the chapter, `goto` the scene, `skipbeat` to the beat index,
-    teleport the player. Emit `ok` only when the full restore completes.
-- Emulator-style ergonomics: capture once right before a bug, restore in every
-  subsequent run.
-
-**Acceptance.** `savestate s.json` → kill session → new session `loadstate s.json`
-→ `observe` shows identical scene/beat/position/hp.
-
-### B3. Minigame Launcher — **P1**
-
-**Problem.** Testing one of the 15 registered modes means walking a chapter until
-its trigger beat fires.
-
-**Spec.**
-- CLI commands:
-  - `modes` — list registered mode ids via `listModeIds()`.
-  - `mode <id>` — launch mode `<id>` immediately in the current scene with the
-    real `ModeContext` (launch through the same code path the beat uses, so
-    lifecycle/teardown match production — see `modes/CLAUDE.md` traps).
-  - `winmode` / `losemode` — complete the foreground mode via
-    `activeMode.onCompleteCallback({outcome})` (the exact mechanism `advanceUntil`
-    already uses).
-- Output includes the mode's `ModeResult` on completion.
-
-**Acceptance.** `mode benTrivia; observe` shows the trivia UI's text (A2) with no
-chapter navigation. `winmode` tears it down cleanly (no orphaned HUD objects —
-check via A2 that its labels are gone).
+- **As shipped:** `mode <id> [configJson]` launches a registered mode with the
+  real `ModeContext` via `ChapterScene.launchMode()`.
+- **Not yet built:** `modes` (list ids), `winmode` / `losemode` (complete the
+  foreground mode via `activeMode.onCompleteCallback({outcome})` — the exact
+  mechanism `advanceUntil` uses). **Implementation constraint from lesson 1:**
+  `modes` must enumerate ids inside the browser via `page.evaluate` against the
+  live registry — importing `listModeIds()` into the CLI crashes Node.
+- Output should include the mode's `ModeResult` on completion.
 
 ### B4. Audio Inspector — **P1** — **implemented**
 
-**Problem.** QA checklists contain audio assertions ("Scene 0 plays in silence",
-"BGM never returns post-snap") that currently require human ears.
+- CLI command: `audio` — playing sounds `{key, isPlaying, volume, loop, seek,
+  duration}`, stage-track key, master volume.
+- **Follow-up spec'd in G3:** `audio assert …` to turn QA checklist lines
+  ("Scene 0 opens in silence") into one-line scriptable assertions.
 
-**Spec.**
-- CLI command: `audio`
-- Bridge reads `game.sound.sounds` → for each: `{key, isPlaying, volume, loop, seek, duration}`, plus the AudioController's current stage-track key.
-- Output: `{"cmd":"audio","ok":true,"playing":[…],"stageTrack":"music_ch6"|null,"muted":false}`
-- Folded into `observe` as a compact summary (`playing` keys only).
+### B5. Camera Commands — **P1** — **partial**
 
-**Acceptance.** In Chapter 12 Scene 0, `audio` shows `playing: []` (the verified
-silent-open behavior becomes a scriptable assertion).
-
-### B5. Camera Commands — **P1** — **implemented**
-
-**Problem.** The full-map zoom-out in `qa_capture.cjs` is how the visible-collision-
-rect bugs were found; it should be a first-class command, not a bespoke script.
-
-**Spec.**
-- CLI commands:
-  - `cam fit` — stop follow, zoom to fit the whole `map` rect, center it (the
-    `qa_capture.cjs` recipe).
-  - `cam follow` — restore `startFollow(player)` at the chapter's normal zoom
-    (`chapter.cameraZoom ?? 2.0`).
-  - `cam zoom <z>`, `cam center <x> <y>` — manual control.
+- **As shipped:** `camera` (inspect), `camera zoom <z>`, `camera center <x> <y>`.
+- **Not yet built:** `cam fit` (stop follow, zoom to fit the whole map rect —
+  the `qa_capture.cjs` recipe that found the collision-rect bugs) and
+  `cam follow` (restore `startFollow(player)` at `chapter.cameraZoom ?? 2.0`).
+  These are the two highest-value camera verbs; the shipped primitives are
+  their building blocks.
 - **Hard rule:** never call `cameras.main.setBounds(…)` (lint-enforced project
   gotcha); fit is achieved purely via zoom + centerOn.
 
-### B6. World↔Viewport Converter — **P1** — **implemented**
+### B6. World↔Viewport Converter — **P1** — **partial**
 
-**Problem.** v1 documents the "coordinates are viewport pixels, not world units"
-gotcha; this deletes it.
-
-**Spec.**
-- CLI commands:
-  - `clickworld <x> <y>` — convert world → viewport through the active camera
-    (scroll, zoom, canvas offset within the page) and click there.
-  - `where <x> <y>` — print both conversions without clicking.
-- The conversion helper lives on `GameAgent` and is reused by A2/A3 `screen` fields.
+- **As shipped:** the `worldToViewport()` helper on `GameAgent`, reused by
+  A2/A3 `screen` fields.
+- **Not yet built:** the CLI verbs `clickworld <x> <y>` (convert + click) and
+  `where <x> <y>` (print both conversions). Cheap — the helper exists; wire it.
 
 ### B7. Time Scale / Fast-Forward — **P2** — **implemented**
 
-**Problem.** Intentional slow content (e.g. Chapter 12 Scene 11's ~25-second
-hold) makes every test run pay real-time cost.
-
-**Spec.**
-- CLI command: `speed <multiplier>` — sets `scene.time.timeScale`,
-  `scene.tweens.timeScale`, `physics.world.timeScale` (note: Arcade's timeScale
-  semantics are inverse — encapsulate so `speed 10` always means 10× faster),
-  and `anims.globalTimeScale`.
-- `speed 1` restores. `observe` reports the current multiplier so a forgotten
-  fast-forward can't silently invalidate timing-sensitive findings.
+- CLI command: `speed <multiplier>` (alias `timescale`). `speed 1` restores.
 - Interaction note: prefer v1 `stepFrames` for determinism; `speed` is for
   wall-clock-bound waits.
 
@@ -255,106 +245,58 @@ hold) makes every test run pay real-time cost.
 
 ### C1. Physics Debug Toggle — **P1** — **implemented**
 
-**Problem.** Invisible walls and non-firing overlap zones are undiagnosable from
-normal screenshots.
+- `debug on` / `debug off` — Arcade debug graphic, fully cleaned up on `off`.
+- Typical use: `debug on; camera zoom 0.5; screenshot hitboxes.png; debug off`.
 
-**Spec.**
-- CLI commands: `debug on` / `debug off`
-- Bridge: `scene.physics.world.createDebugGraphic()` (once) +
-  `drawDebug = true/false`; also toggle the debug graphic's visibility so `off`
-  fully cleans up.
-- Typical use: `debug on; cam fit; screenshot hitboxes.png; debug off`.
+### C2. Seeded RNG — **P1** — **implemented**
 
-### C2. Seeded RNG — **P1**
+- `--seed <n>` flag (Mulberry32 via `page.addInitScript`, replaces
+  `Math.random` before first script execution) + `reseed <n>` command.
+- The `ready` line echoes the seed. No flag = native `Math.random`.
+- **Non-goal:** determinism of timing (that's v1 `stepFrames`); this covers
+  value randomness only. Full determinism = `--seed` + `stepFrames`.
 
-**Problem.** `Math.random` gates gameplay — e.g. Nick F's dash has a literal 5%
-random failure, bosses randomize attacks, barks are sampled. Every test touching
-these is flaky.
+### C3. Input Record & Replay — **P2** — **implemented**
 
-**Spec.**
-- CLI flag: `--seed <n>` — before the game loads (`page.addInitScript`), replace
-  `Math.random` with a seeded PRNG (mulberry32 or similar). Applies to the whole
-  page from first script execution, so Phaser and game code inherit it.
-- CLI command: `reseed <n>` — reset the sequence mid-session.
-- The `ready` line echoes the seed. No seed flag = native `Math.random`
-  (production behavior).
-- **Non-goal:** determinism of timing (that's v1 `stepFrames`); this covers value
-  randomness only. Full determinism = `--seed` + `stepFrames`.
+- `--record <file>` flag + `replay <file>` command, honoring original
+  inter-command delays. Format is the same command grammar as `--script`, so a
+  recording is also a human-editable script. Combined with `--seed`, a committed
+  deterministic repro script.
 
-### C3. Input Record & Replay — **P2**
+### C4. Perf & Leak Telemetry — **P2** — **implemented**
 
-**Problem.** A bug reproduced interactively is lost when the session ends.
+- `perf` — FPS, used JS heap, active tweens/children/sounds/textures, flat JSON
+  so successive samples diff trivially.
+- **Follow-up spec'd in G2:** assertable budgets.
 
-**Spec.**
-- CLI flag: `--record <file>` — append every executed command with a timestamp
-  delta to a JSONL file.
-- CLI command: `replay <file>` — re-execute a recorded file, honoring the
-  original inter-command delays (flag `--fast` to ignore delays where safe).
-- Combined with C2 (`--seed`) this yields true deterministic repro scripts that
-  can be committed next to bug reports.
-- Format is the same command grammar as `--script`, so a recording is also a
-  human-editable script.
+### C5. Golden-Frame Screenshot Diffing — **P2** — **implemented, needs hardening**
 
-### C4. Perf & Leak Telemetry — **P2**
+- **As shipped:** `golden save <name> [threshold]` / `golden check <name>
+  [threshold]` — Jimp pixel-diff against
+  `e2e_tests/agent/goldens/<chapter>/<name>.png` (directory is gitignored;
+  commit baselines deliberately, not accidentally).
+- **Known gap — build next:** the stabilization requirements (pause loop, fixed
+  viewport, seed set, animations settled) are documented but **not enforced**.
+  `golden` should *itself* pause → step ~5 frames → capture → resume, every
+  time, rather than trusting the caller. Unstabilized goldens flap and erode
+  trust in the whole mechanism.
 
-**Problem.** Leaks (undestroyed tweens, orphaned sounds, texture growth) are
-invisible until the game stutters.
+### C6. Static Asset Audit — **P2** — **implemented (shallow)**
 
-**Spec.**
-- CLI command: `perf`
-- Bridge samples: `game.loop.actualFps`, `renderer` texture count,
-  `sound.sounds.length`, `scene.children.list.length`, `tweens` active count,
-  `performance.memory.usedJSHeapSize` (Chromium-only, best-effort).
-- `perf` output is a flat JSON object so successive samples diff trivially; a
-  monotonic climb across a playthrough = leak. Compact version included in
-  `observe`.
+- **As shipped:** `npm run agent:audit` (tsx, no Playwright) — verifies audio
+  imports exist on disk, stage-music keys referenced by chapters/scenes/beats
+  are registered, and `ChapterScene` image imports exist.
+- **Known gap:** the original spec covered sprite/texture/prop keys too, and the
+  current implementation regex-parses TS, which is brittle. The honest fix is a
+  small `ts-morph`/AST pass (see H1) — do that rather than growing the regexes.
 
-### C5. Golden-Frame Screenshot Diffing — **P2**
+### C7. Chapter Gauntlet — **P2** — **implemented**
 
-**Problem.** The entire v1 QA report §1–3 (visible collision rects, mis-scaled
-Chris Rivas sprite, corner-floating actor) is "screenshot differs from intent" —
-detectable mechanically.
-
-**Spec.**
-- CLI commands:
-  - `golden save <name>` — capture the canonical `cam fit` screenshot of the
-    current scene into `e2e_tests/agent/goldens/<chapter>/<name>.png`.
-  - `golden check <name> [threshold]` — re-capture, pixelmatch against the
-    golden, emit `{"cmd":"golden","ok":true,"diffPct":0.3,"pass":true,"diffPath":"…"}`
-    and write a diff image on failure.
-- Stabilization requirements before capture: `pause` the loop (v1), fixed
-  viewport size, `--seed` set, animations settled (step a few frames after
-  pause). Without these, goldens flap.
-- Dependency: `pixelmatch` + `pngjs` (dev-only).
-
-### C6. Static Asset Audit — **P2** *(no browser needed)*
-
-**Problem.** A texture/audio key referenced by a chapter config but absent from
-the loader manifest = silent green box or silent missing sound at runtime.
-
-**Spec.**
-- Standalone script: `npm run agent:audit` (tsx, no Playwright).
-- Cross-references every asset key referenced in `src/data/chapters/*.ts`
-  (sprites, music keys, prop textures) against what `SpriteLoader` /
-  `AudioController` register and what exists under `src/assets/`.
-- Output: JSONL of `{"chapter":"…","key":"…","kind":"texture|audio","status":"missing|unused"}` and a nonzero exit code on `missing`.
-- Complements A1: A1 catches missing assets at runtime on the path you happened
-  to test; the audit catches all of them statically.
-
-### C7. Chapter Gauntlet — **P2**
-
-**Problem.** "Does every chapter still complete end-to-end?" is currently answered
-one chapter at a time.
-
-**Spec.**
-- CLI mode: `npm run agent -- --gauntlet [--chapters 1,3b,9]`
-- For each chapter in `CHAPTERS`: navigate, drive with the `advanceUntil` loop
-  (auto-win `skipModes` for all registered modes), record per-chapter:
-  completed/stalled, stall scene+beat (A4), console error count (A1), duration,
-  final `observe`.
-- Emits one summary JSON line per chapter + a final table; nonzero exit if any
-  chapter stalls. Designed to run nightly / in CI (extends the existing
-  `chapters_smoke` spec rather than duplicating its logic where practical).
+- `npm run agent -- --gauntlet [--chapters "name,name"]` — for each chapter:
+  navigate, drive with `advanceUntil` (auto-win any mode via the `'*'`
+  wildcard), record completed/stalled + stall beat info (A4) + console error
+  count (A1) + duration. Summary table + nonzero exit on any stall.
+- Completion condition implements lesson 2 (`endChapter` beat = done).
 
 ---
 
@@ -362,67 +304,257 @@ one chapter at a time.
 
 1. **Output contract.** Every new command speaks the v1 JSONL protocol. No bare
    `console.log` prose on stdout; human chatter goes to stderr.
-2. **Read-only by default.** Observation tools (A*) must not mutate game state.
-   Control tools that mutate (B*, C1, C2) must say so in their result line
-   (`"mutates":true`) so a transcript is auditable.
+2. **Read-only by default.** Observation tools must not mutate game state.
+   Control tools that mutate must say so in their result line (`"mutates":true`)
+   so a transcript is auditable.
 3. **Dev-build only.** Everything rides on `window.__OMEGA_GAME__`
    (`import.meta.env.DEV`). Tools must fail soft with a clear
    `{"ok":false,"error":"__OMEGA_GAME__ unavailable (production build?)"}`.
 4. **No parallel persistence.** Any save-state work goes through the
    `omega-save-v2` blob via `settings.ts` semantics (project hard rule).
 5. **No new React↔Phaser bridge foot-guns.** Anything that force-advances beats
-   (`skipbeat`, gauntlet) must reuse the engine's own advance path — StrictMode
-   double-invocation has bitten this project before (see CLAUDE.md).
+   must reuse the engine's own advance path (lesson 3).
 6. **Docs.** Each shipped tier updates `AGENT_TOOLKIT.md` (user-facing commands)
    and `e2e_tests/agent/README.md` (API); `--help` stays the single source of
    truth for syntax.
-
-## Suggested build order
-
-| Batch | Tools | Rationale |
-| --- | --- | --- |
-| 1 | A1, A2, A3, A4, then A5 | Closes the observation loop; agent becomes screenshot-optional |
-| 2 | B1, B6, B5, C1 | Fast travel + coordinates + camera + hitboxes: the debugging kit |
-| 3 | B3, B4, B2, C2 | Minigame/audio/state/determinism: the repro kit |
-| 4 | B7, C3, C4, C5, C6, C7 | Regression automation: the CI kit |
+7. **Token efficiency (new).** The consumer is an LLM agent. Composite > many
+   round-trips; deltas > full snapshots; blocking condition-waits > agent-driven
+   poll loops; compact stable keys > verbose prose. When adding a field to
+   `observe`, ask whether it belongs in every observation or behind a flag.
+8. **Readiness guards (new).** Every scene-dependent command guards per lesson 4
+   and returns an actionable error naming the command to run first.
+9. **State-validity warnings (new).** Every command that skips normal
+   progression (`goto`, `skipbeat`, future `modify`) carries a `warning` field
+   describing what state may be invalid.
 
 ---
 
-## D. Future Considerations — v3 Backlog (Advanced Automation)
+## D. v3 Backlog — revised after v2 field experience
 
-These are advanced tools to be built after the v2 core is completed, focusing on autopilot navigation and economy/state manipulation.
+Statuses and designs updated; several items are re-scoped based on what testing
+actually showed.
 
-### D1. Pathfinding Auto-Walk (`walkto <x> <y>`) — **P2**
-**Problem.** Navigating complex map geometry using discrete or stateful keyboard inputs requires the agent to calculate angles and avoid obstacles manually, which is highly error-prone.
-**Spec.** 
-- CLI command: `walkto <x> <y>`
-- Bridge: Calculate path using the map's navigation mesh or an A* pathfinder. Autonomously simulate keyboard hold/release cycles to walk the player along the path nodes until they arrive at the destination, then emit `ok`.
+### D1. Pathfinding Auto-Walk (`walkto <x> <y>`) — **P2, descoped**
+Build the *cheap* version first: hold the dominant direction key toward the
+target, re-evaluate every ~10 frames, stop inside the radius, give up after N
+seconds with `ok:false` and the final position. No A*/navmesh — current maps
+are open rooms with perimeter walls; full pathfinding is over-engineering until
+a maze-like map exists. Emits `mutates:true`.
 
-### D2. Settings Controller (`settings <key> <value>`) — **P2**
-**Problem.** Verifying game behaviors under different user settings (e.g. fast text speed, audio muted, screen shake off) currently requires clicking through the settings UI.
-**Spec.**
-- CLI command: `settings <key> <value>`
-- Bridge: Mutate the settings state directly in `settings.ts` (e.g., `settings.textSpeed = 'fast'`), updating the active game configuration dynamically.
+### D2. Settings Controller (`settings <key> <value>`) — **promoted to P1**
+Trivial via the bridge + `settings.ts` setters, and the only way to make "text
+speed = fast" or "SFX muted" a scriptable test precondition. Respects
+cross-cutting rule 4 (goes through `settings.ts`, never raw localStorage).
 
-### D3. Narrative Decision Injector (`choose <index|text>`) — **P2**
-**Problem.** Click targets for dialogue choices can be flaky during complex camera pans or UI animations.
-**Spec.**
-- CLI command: `choose <index|text>`
-- Bridge: Programmatically inject the choice selection directly into the `BeatEngine` (similar to clicking the choice button), bypassing the UI layer entirely.
+### D3. Narrative Decision Injector (`choose <index|text>`) — **promoted to P1, design revised**
+**Original design rejected:** injecting the selection directly into `BeatEngine`
+"bypassing the UI layer" is exactly the React↔Phaser desync pattern lesson 3
+exists to prevent. **Revised design:** locate the
+`[data-testid="dialogue-choice"]` button by index or fuzzy text match and click
+it with the trusted mouse. Same ergonomics (no coordinates needed), none of the
+risk. Fails with the list of available choice texts when no match.
 
-### D4. Economy & State Editor (`modify <stat> <value>`) — **P2**
-**Problem.** Testing low-HP bark sequences, game-over screens, or inventory/shop purchases requires playing long enough to lose HP or grind currency.
-**Spec.**
-- CLI command: `modify <stat> <value>` (e.g. `modify hp 1` or `modify ledger 5000`)
-- Bridge: Programmatically edit the player's active stats in the `ChapterScene` or save blob.
+### D4. Economy & State Editor (`modify <stat> <value>`) — **promoted to P1**
+`modify hp 1`, `modify ledger 5000`, `modify shards 3`. Each is one guarded
+scene-field write; unlocks whole test categories (low-HP barks, game-over
+screens, ledger-threshold endings) that currently require grinding. Emits
+`mutates:true` + a state-validity `warning` (rule 9).
 
-### D5. AST Context-Mapping CLI (`npm run agent:map --target=<domain>`) — **P2**
-**Problem.** When starting a new feature (e.g. adding a weapon or boss), an agent may waste context window tokens blindly searching files to locate registration points.
-**Spec.**
-- CLI command: `npm run agent:map --target=<domain>` (e.g. `weapon` or `boss`)
-- CLI tool: Runs a lightweight AST parser that outputs an LLM-friendly dependency map of all files touching the target domain, pointing the agent to exact modification sites.
+### D5. AST Context-Mapping CLI — **P2, descoped**
+Instead of a general AST dependency mapper: ship `npm run agent:map
+--target=weapon|boss|mode|chapter` as a **curated, hand-maintained JSON** of
+registration points per domain, **validated by a unit test that checks the
+listed files/symbols still exist** (so it can't silently rot). 90% of the value,
+10% of the machinery. If/when C6's audit moves to `ts-morph` (H1), revisit
+generating this from the AST.
 
-### D6. Telemetry Summarizer — **P1**
-**Problem.** Logging raw game telemetry streams on long-running test play sessions consumes massive context window tokens and introduces noise.
-**Spec.**
-- CLI integration: Aggregate state events in-memory during testing. On completion, output a dense, semantic YAML/JSON summary summarizing simulated time, total player movements, collisions, combat actions, and health drop progressions.
+### D6. Telemetry Summarizer — **superseded**
+The vague "semantic YAML summary" is replaced by two concrete tools that
+together serve the same goal (token-cheap situational awareness over time):
+E5 `diff` (per-observation deltas) and G6 coverage tracking (per-run aggregate).
+
+---
+
+## E. Observation v2.1 — closing the remaining blind spots
+
+### E1. `anim` — Animation State Dump — **P1**
+Per visible actor sprite: `{name, animKey, frameIndex, isPlaying, flipX}`.
+Catches "sprite frozen on frame 0", "understudy playing the wrong hero's walk
+cycle", and flip-direction bugs — invisible to `state`, currently only
+detectable by eye. Read-only; fold a compact form into `observe` behind a flag.
+
+### E2. `depth [x y]` — Render-Order Inspector — **P1**
+Without args: visible objects sorted by depth (type, texture/text, depth,
+scrollFactor, world+screen pos). With a screen point: only objects whose bounds
+contain it, top-first. Makes z-fighting and "text painted onto the floor"
+(v1 QA finding #7) queryable instead of visual.
+
+### E3. `hitreport <x> <y>` — What's Under This Pixel — **P1**
+Composite of E2 at a point + physics bodies overlapping the world position +
+whether any interactive zone/DOM element is there. Answers "I clicked and
+nothing happened" in one command: either nothing interactive was there, or
+something invisible is covering it.
+
+### E4. `fx` — Active Visual-Effects Dump — **P2**
+Camera tint/flash/shake/fade state plus any screen-tint overlay objects and
+their **effective** rendered alpha (`fillAlpha * alpha`). This codebase has been
+bitten twice by silently no-op'd tints (the `fillAlpha:0` trap in CLAUDE.md) —
+`fx` makes "is the tint actually rendering" assertable.
+
+### E5. `diff` / `observe --diff` — Observation Delta — **P0 of this tier**
+Emit only what changed since the last observation: position/HP/velocity deltas,
+beat advanced or not, text lines added/removed, new errors, mode
+entered/exited. Unchanged fields are omitted entirely. **This is the single
+biggest token-efficiency win available** — an LLM driver's per-step cost drops
+from a full world snapshot to a few lines. Implementation: keep the last
+composite in `GameAgent`, structural-diff in Node (not in the page).
+
+### E6. `watch <jsExpr> [timeoutMs]` — Condition Breakpoint — **P0 of this tier**
+Block until a predicate on the live scene is true, then emit
+`{"cmd":"watch","ok":true,"waitedMs":…}` (or `ok:false` on timeout **with a
+final observation attached** so the agent sees the stuck state without a
+follow-up call). Example: `watch "scene.activeHp < 50" 10000`. Replaces
+agent-driven `wait 500; state` poll loops — one round-trip instead of dozens.
+Implementation: loop `page.evaluate` at ~100ms inside one CLI command.
+
+### E7. `vision [question]` — LLM Screenshot Summary — **P2, flag-gated**
+Screenshot → send to a vision model (`@google/genai` is already a dependency) →
+return a text description or an answer to a specific question ("is any sprite
+visibly mis-scaled?"). The escape hatch for the one bug class JSON observation
+can't express: *it looks wrong*. Costs money per call — never part of
+`observe`, requires an explicit API key env var, fails soft without it.
+
+---
+
+## F. Control v2.1
+
+### F1. Finish B3 (`modes`, `winmode`, `losemode`) — **P0 of this tier**
+Highest-value unbuilt control item; design and constraints under B3 above.
+
+### F2. `chapterflag` — Progress/Unlock Editor — **P2**
+Set Hall-of-Records and chapter unlock state in the `omega-save-v2` blob (via
+`settings.ts` semantics) so "chapter N unlocked but not completed" is
+constructable without playing N−1 chapters. Pairs with B2's file-based
+save-state.
+
+### F3. `injectbeat <json>` — One-Off Beat Executor — **P2**
+Execute a single beat object (a `dialogue`, `sfx`, `screenTint`, …) in the live
+scene through the engine's own dispatch (lesson 3). Lets a chapter author
+preview a beat *before* writing it into a chapter file — bridges playtesting
+and authoring (section H).
+
+---
+
+## G. Regression & CI v2.1
+
+### G1. `npm run agent:ci` — The One-Command Nightly — **P0 of this tier**
+Wrapper that runs: static audit (C6) → gauntlet across all chapters (C7) →
+Playwright smoke specs → a `perf` sample per chapter, and merges everything
+into one JSONL report + one human summary table, nonzero exit on any failure.
+**All the pieces already exist; only the wrapper doesn't.** Cheapest
+high-value item in this document.
+
+### G2. Perf Budgets (`perf --assert "fps>50,heap<300000000"`) — **P1**
+Turn C4 samples into pass/fail lines. A leak becomes a red CI line instead of a
+number someone must eyeball. Gauntlet gains `--perf-budget` to apply per
+chapter.
+
+### G3. Audio Assertions (`audio assert silent|playing <key>|stopped <key>`) — **P1**
+B4 provides the data; this makes QA checklist lines ("Scene 0 plays in
+silence", "BGM never returns post-snap") one-line script assertions with
+`ok:false` on violation.
+
+### G4. Golden Auto-Stabilization — **P1 (fix, not feature)**
+Per C5's known gap: `golden save`/`check` internally pause → step ~5 frames →
+capture → restore loop state. Refuse to capture (`ok:false`) if the viewport
+size differs from the baseline's recorded size.
+
+### G5. `transcript <chapter>` — Static Narrative Dump — **P1** *(no browser)*
+Walk a chapter's beat list statically and emit every dialogue line, speaker,
+choice, and reaction in play order. Enables prose review (typos, tone, broken
+speaker refs) and **narrative diffing between commits** — "did this refactor
+change any player-visible text?" becomes `transcript | git diff`. Safe to
+import chapter data per lesson 1.
+
+### G6. Coverage Tracker — **P2**
+During a gauntlet run, record which beats, modes, and choice branches were
+actually exercised; emit `"chapter 8: choice branch 2/3 never taken"`.
+Branch-specific stalls (the historical Ch8 endings bug) live exactly in
+never-taken branches.
+
+### G7. Choice-Matrix Gauntlet (`--gauntlet --branches all`) — **P2**
+Replay chapters taking each choice permutation, bounded (e.g. vary the first
+divergence only, or cap total runs). Expensive; the only automated way to catch
+branch-specific breakage. Requires G6 to know what the branches are.
+
+### G8. Parallel Gauntlet (`--gauntlet --parallel <n>`) — **P2**
+Chapters are independent; run N headless sessions concurrently. Only worth
+building once the gauntlet runs in CI and its wall-clock time actually annoys
+someone.
+
+---
+
+## H. Authoring & Development Tools *(no browser needed)*
+
+### H1. `agent:validate-chapter <file>` — Chapter Schema Linter — **P1**
+Typed, AST-or-import-based (not regex) static validation of a chapter config:
+unknown speakers, `walkTo` coordinates outside the map rect, unregistered mode
+ids, `changeMusic` keys not in the manifest, `endChapter` not last, theme/scene
+mismatches (indoor theme on a void scene — a CLAUDE.md gotcha). Subsumes and
+deepens C6; runs in CI via G1.
+
+### H2. `agent:scaffold mode <id>` — Minigame Scaffolder — **P2**
+Copy `_template/`, rename symbols, register in `modes/index.ts`, update the doc
+table (which `modesDoc.test.ts` already guards). Removes every manual step in
+`ADDING_A_MINIGAME.md`.
+
+### H3. Dialogue Overflow Linter — **P2**
+Static check flagging dialogue lines that will overflow the dialogue box
+(measurable: character count vs. box width at the pixel font's metrics).
+Attach to H1.
+
+---
+
+## I. Autonomous Testing *(the payoff tier)*
+
+### I1. Autonomous Playtest Loop — **P1**
+A wrapper (`npm run agent:auto -- --chapter …`) that feeds `observe`/`diff`
+output to an LLM (`@google/genai` is present) which picks the next CLI command,
+in a loop, until chapter end / stall / budget exhaustion; emits an annotated
+session log. This is the toolkit's founding thesis ("an LLM agent given only
+observe + input commands can complete a chapter") made runnable, and it finds
+what scripted gauntlets can't: soft-locks that require *wrong* play to trigger.
+**Prerequisites: E5 `diff` and E6 `watch`** — they are what make an LLM driver
+token-affordable. Antigravity can drive the CLI directly today; this tool is
+for unattended runs.
+
+### I2. Fuzz Mode (`--fuzz <seconds>`) — **P2**
+Seeded random key-mashing, clicking, and mode launches with A1 watching for
+exceptions and A4 watching for stalls. Crash-finding for the cost of an
+overnight run. Pairs with `--record`: every crash yields a committed repro
+script (C3 + C2 = deterministic).
+
+### I3. Session-to-GIF (`--gif <file>`) — **P2**
+Capture frames during a scripted run, assemble a GIF/webm artifact. Turns "the
+boss fight feels wrong" into shareable evidence without a human screen
+recording.
+
+### I4. Transition-Graph Extraction — **P2**
+Instrument a run to record the observed beat/scene/mode transition graph; diff
+it against the graph implied by the chapter config. Divergence = routing bug
+(the `routeOnMinigame` gotcha is exactly this class). Builds on G6's
+instrumentation.
+
+---
+
+## Suggested build order (updated)
+
+| Batch | Tools | Rationale |
+| --- | --- | --- |
+| ~~1~~ | ~~A1–A5~~ | **done** — observation loop closed |
+| ~~2~~ | ~~B1, B4, B5(core), B7, C1–C4, C5(core), C6(core), C7~~ | **done** — debugging + repro + CI kit cores |
+| 3 | F1 (finish B3), E5 `diff`, E6 `watch`, D4 `modify`, G1 `agent:ci` | small builds, each multiplies existing tools; unblocks I1 |
+| 4 | D3 `choose`, D2 `settings`, G4 golden fix, B5 `cam fit/follow`, B6 CLI verbs, A4/B1 warning fields, G3 audio asserts | ergonomics + hardening + honest transcripts |
+| 5 | B2 file-based save-state, D1 `walkto` (cheap), G5 `transcript`, H1 validate-chapter, E1–E3 | repro depth + authoring + render-order observability |
+| 6 | I1 autonomous loop, G2 perf budgets, G6 coverage, F2, F3 | unattended testing |
+| 7 | I2 fuzz, I3 gif, G7/G8 gauntlet variants, E4, E7, H2, H3, I4, D5 map | build when the need bites |
