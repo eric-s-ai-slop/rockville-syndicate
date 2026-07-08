@@ -181,7 +181,6 @@ function ericIslandRects(dressing: 'dark' | 'act2' | 'winter') {
       { x: ERIC_ISLAND_CENTER.x, y: ERIC_ISLAND_CENTER.y, w: 300, h: 220, fill: 0x000000, propKey: 'stage_void_eric_room', invisible: true },
       // Only solid+invisible rects render as collision-only (MapBuilder); non-solid
       // decorative duplicates (phone, monitor, water glass) are dropped entirely.
-      { x: 1200, y: 1105, w: 110, h: 55, fill: 0x3b2f23, propType: 'desk' as const, solid: true, invisible: true },
       { x: 1085, y: 1225, w: 130, h: 62, fill: 0x334155, propType: 'bed' as const, solid: true, invisible: true }, // periphery bed
     ];
   }

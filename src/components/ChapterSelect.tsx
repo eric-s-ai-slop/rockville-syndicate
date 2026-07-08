@@ -343,7 +343,7 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
                 }}
                 className="text-left p-5 transition-all duration-200 relative overflow-hidden"
                 style={{
-                  background: isClassified ? (unlocked ? '#1a180a' : '#0e0e05') : (unlocked ? '#142012' : '#0e1509'),
+                  backgroundColor: isClassified ? (unlocked ? '#1a180a' : '#0e0e05') : (unlocked ? '#142012' : '#0e1509'),
                   borderWidth: '1px', borderStyle: 'solid',
                   borderColor: isClassified
                     ? (isSelected || isDone ? '#eab308' : unlocked ? '#4a3f05' : '#2a2402')
