@@ -14,3 +14,4 @@ test-results/
 playwright-report/
 test_preprocess*.js
 e2e_tests/__screenshots__/
+e2e_tests/agent/goldens/

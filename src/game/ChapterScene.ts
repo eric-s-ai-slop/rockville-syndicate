@@ -809,6 +809,39 @@ export default class ChapterScene extends Phaser.Scene {
     if (sceneMusic) this.audioController.crossfadeToMusic(sceneMusic);
   }
 
+  /** Direct launcher for minigames. Preloads, setups contexts, and starts mode cleanly. */
+  public launchMode(modeId: string, config: any = {}) {
+    const mode = getMode(modeId);
+    if (!mode) throw new Error(`Unknown minigame modeId: ${modeId}`);
+
+    if (this.activeMode) {
+      try { this.activeMode.teardown(); } catch {}
+      this.activeMode = null;
+    }
+
+    const context = this.beatEngine.buildModeContext();
+    if (mode.preload) {
+      try {
+        mode.preload(context);
+      } catch (err) {
+        console.error(`[ChapterScene] Preload failed for mode ${modeId}:`, err);
+      }
+    }
+
+    this.activeMode = mode;
+    mode.start(context, config, (result) => {
+      try {
+        mode.teardown();
+      } catch (err) {
+        console.error(`[ChapterScene] Teardown failed for mode ${modeId}:`, err);
+      }
+      if (this.activeMode === mode) {
+        this.activeMode = null;
+      }
+      console.log(`[ChapterScene] Direct mode ${modeId} completed:`, result);
+    });
+  }
+
   // ─── Map building (data-driven) ───────────────────────────────────────────────
 
   public buildMapFromConfig(map: MapConfig) {

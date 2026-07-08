@@ -78,6 +78,11 @@ the CLI just loads the URL and leaves you on the menu (drive it yourself with
 | `--headed` | Show the browser window (default headless) |
 | `--slowmo <ms>` | Delay every action by `<ms>` — watch it happen |
 | `--keep-open` | After inline/script commands, stay open and read stdin |
+| `--seed <number>` | Initialize the page with a specific random seed for determinism |
+| `--record <file>` | Record all executed commands and their timings into a file |
+| `--replay <file>` | Replay a recorded command log file with original timing delays |
+| `--gauntlet` | Run the full test gauntlet skipping minigame modes to verify all chapters |
+| `--chapters <list>` | Run the gauntlet on a comma-separated list of chapters |
 | `-h`, `--help` | Print the usage menu |
 
 ### Commands (one per line; `;` also separates them inline)
@@ -112,8 +117,10 @@ Prefer lowercase movement keys.
 | `state` | print the game-state snapshot (see §3 below) |
 | `text` | extract visible text from Phaser canvas and DOM (A2) |
 | `targets` | dump active walk target and NPCs with screen/world coordinates (A3) |
-| `observe` / `obs` | print composite observation snapshot (A5) |
+| `observe` / `obs` | print composite observation snapshot, including console errors/warnings seen since the last `observe` (A5) |
 | `beat` / `beats` | print current and upcoming narrative beats (A4) |
+| `skipbeat [n]` | force-advance `n` beats (default 1) past one that can never complete normally — a walk target that can't be reached, a mode stuck without calling `onComplete` (A4) |
+| `logs` / `console [clear]` | print buffered console errors/warnings/failed asset requests captured since boot (or the last `clear`) (A1) |
 | `audio` | print playing audio state and master volume (B4) |
 | `camera` | print camera zoom, center, and dimensions (B5) |
 | `camera zoom <num>` | set camera zoom factor (B5) |
@@ -123,6 +130,16 @@ Prefer lowercase movement keys.
 | `loadstate` | quick-restore saved game state (B2) |
 | `eval <js>` | run JS in the page and print the result — e.g. `eval window.__OMEGA_GAME__.scene.keys.length` |
 | `screenshot [name]` | save a PNG to `--out`, print its path |
+| `reseed <seed>` | reseeds the Mulberry32 pseudo-random number generator on the fly |
+| `perf` | collect engine telemetry: FPS, memory (used JS heap), active tweens/children/sounds/textures |
+| `mode <modeId> [configJson]` | launch a registered minigame mode directly under ChapterScene context |
+
+**Visual Regression Tests (Golden Screenshots)**
+
+| Command | Does |
+| --- | --- |
+| `golden save <name> [threshold]` | take a screenshot and save it as the gold baseline for this chapter |
+| `golden check <name> [threshold]` | screenshot and pixel-diff against baseline. Fails if diff percent exceeds threshold (default 0.01) |
 
 **Time (spec §4 — deterministic stepping)**
 
@@ -144,6 +161,7 @@ Prefer lowercase movement keys.
 | Command | Does |
 | --- | --- |
 | `advance [maxSeconds]` | skip dialogue/intro until the player has free walk control (default 60) |
+| `replay <file>` | execute commands recorded in `<file>` recreating original timing delays |
 | `wait <ms>` | sleep `<ms>` of real time |
 | `help` | print the menu |
 | `quit` / `exit` | close the browser and end |
@@ -163,10 +181,16 @@ command then prints its own result.
 {"cmd":"state","ok":true,"state":{"scene":"ChapterScene","player":{"x":559.2,"y":560},"velocity":{"x":0,"y":0},"hp":120,"activeMode":null,"loopRunning":true}}
 {"cmd":"screenshot","ok":true,"path":"/abs/path/agent-artifacts/walked.png"}
 {"cmd":"eval","ok":true,"result":120}
+{"cmd":"session_summary","ok":true,"errors":0,"warnings":0}
 ```
 
 - **Errors never crash the session.** A bad command prints
   `{"cmd":"…","ok":false,"error":"…"}` and the run continues.
+- **`session_summary`** is the last line printed on exit (`quit`/`exit`, EOF on
+  stdin, or the process ending) — total console errors/warnings/failed asset
+  requests captured for the whole session (A1). A scripted run can assert "zero
+  console errors" by checking this one line instead of scanning the whole log.
+  Read the full list any time mid-session with `logs`.
 - **`state` payload** (`snapshotGameState`): read straight off the live scene, no
   computer vision needed —
   - `scene` — key of the top active Scene (`"ChapterScene"`, or `null` mid-transition)
@@ -237,4 +261,8 @@ npm run agent -- --chapter "The Spotify Family Insurgency" "advance; press d 100
 - The underlying class is also usable directly in Playwright specs; see
   [`e2e_tests/agent/README.md`](../e2e_tests/agent/README.md) and the integration
   test `e2e_tests/agent/GameAgent.smoke.spec.ts`.
-```
+- **Deterministic Seeded RNG.** Using the `--seed <number>` flag mock-replaces `Math.random` in the browser with a seedable Mulberry32 generator before the game boots. You can also reseed on the fly using the `reseed <seed>` command mid-session.
+- **Timing-Preserved Playbacks.** By combining `--record <file>` with the `replay <file>` command, you can record a manual interaction path and replay it deterministic-style. The replayer parses the delay times between your commands and replicates them exactly.
+- **Visual Regression Checks.** The `golden save <name>` and `golden check <name>` commands let you capture PNG baselines and compare them on the fly. Diffing uses Jimp and fails if the pixel delta exceeds the specified threshold.
+- **Chapter Gauntlet Runner.** Running `npm run agent -- --gauntlet` runs a background gauntlet where dialogue is clicked through, and complex minigames are mocked out, verifying that all chapters run successfully to completion without stalling.
+- **Static Asset Audit.** Running `npm run agent:audit` statically parses and audits all chapters to ensure that all speakers and audio assets mentioned in chapter definitions are correctly defined and exist as static files in the repository.

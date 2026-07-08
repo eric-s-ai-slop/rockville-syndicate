@@ -15,6 +15,7 @@ import path from 'node:path';
 import readline from 'node:readline';
 import { GameAgent, MouseButton } from './GameAgent';
 import { navigateToChapter, advanceUntil } from '../helpers';
+import { CHAPTERS } from '../../src/data/chapters';
 
 // ── Flags ────────────────────────────────────────────────────────────────────
 
@@ -29,6 +30,10 @@ interface Flags {
   slowmo: number;
   help: boolean;
   inline: string | null; // positional command(s), ';'-separated
+  seed: number | null;
+  record: string | null;
+  gauntlet: boolean;
+  chapters: string | null;
 }
 
 function parseFlags(argv: string[]): Flags {
@@ -43,6 +48,10 @@ function parseFlags(argv: string[]): Flags {
     slowmo: 0,
     help: false,
     inline: null,
+    seed: null,
+    record: null,
+    gauntlet: false,
+    chapters: null,
   };
   const positional: string[] = [];
   for (let i = 0; i < argv.length; i++) {
@@ -57,10 +66,14 @@ function parseFlags(argv: string[]): Flags {
       case '--out': f.out = argv[++i]; break;
       case '--script': f.script = argv[++i]; break;
       case '--slowmo': f.slowmo = Number(argv[++i]) || 0; break;
+      case '--seed': f.seed = Number(argv[++i]); break;
+      case '--record': f.record = argv[++i]; break;
+      case '--gauntlet': f.gauntlet = true; break;
+      case '--chapters': f.chapters = argv[++i]; break;
       default:
         if (a.startsWith('--')) throw new Error(`Unknown flag: ${a}`);
         positional.push(a);
-    }
+    } 
   }
   if (positional.length) f.inline = positional.join(' ');
   return f;
@@ -102,8 +115,10 @@ COMMANDS (one per line; ';' also separates them on a single line)
     state                      print snapshotGameState() JSON (scene, player, velocity, hp, mode, loop)
     text                       extract visible text from Phaser canvas and DOM (A2)
     targets                    dump active walk target and NPCs with screen/world coordinates (A3)
-    observe | obs              print composite observation snapshot (A5)
+    observe | obs              print composite observation snapshot, incl. console errors/warnings since last observe (A5)
     beat | beats               print current and upcoming narrative beats (A4)
+    skipbeat [n]               force-advance n beats (default 1) past one that can never complete normally (A4)
+    logs | console [clear]     print buffered console errors/warnings/failed requests since boot or last clear (A1)
     audio                      print playing audio state and master volume (B4)
     camera                     print camera zoom, center, and dimensions (B5)
     camera zoom <factor>       set camera zoom factor (B5)
@@ -144,6 +159,9 @@ EXAMPLES
 
 // ── Command execution ─────────────────────────────────────────────────────────
 
+let recordStream: fs.WriteStream | null = null;
+let lastCommandTime = Date.now();
+
 function emit(obj: Record<string, unknown>): void {
   process.stdout.write(JSON.stringify(obj) + '\n');
 }
@@ -174,6 +192,16 @@ async function runCommand(
 ): Promise<boolean> {
   const trimmed = line.trim();
   if (!trimmed || trimmed.startsWith('#')) return true;
+
+  if (recordStream && !trimmed.startsWith('replay') && !trimmed.startsWith('quit') && !trimmed.startsWith('exit')) {
+    const now = Date.now();
+    const delta = now - lastCommandTime;
+    if (delta > 10) {
+      recordStream.write(`wait ${delta}\n`);
+    }
+    recordStream.write(`${trimmed}\n`);
+    lastCommandTime = now;
+  }
 
   const verb = trimmed.split(/\s+/)[0].toLowerCase();
   const rest = trimmed.slice(verb.length).trim(); // raw remainder (for eval)
@@ -273,6 +301,24 @@ async function runCommand(
         emit({ cmd: 'beat', ok: true, ...res });
         break;
       }
+      case 'skipbeat': {
+        const n = args[0] ? num(0) : 1;
+        const res = await agent.skipBeat(n);
+        emit({ cmd: 'skipbeat', ok: true, ...res, mutates: true });
+        break;
+      }
+      case 'logs': case 'console': {
+        if (args[0] === 'clear') {
+          agent.clearConsoleLogs();
+          emit({ cmd: 'logs', ok: true, action: 'clear', mutates: true });
+        } else {
+          const entries = agent.getConsoleLogs();
+          const errors = entries.filter(e => e.type === 'error').length;
+          const warnings = entries.filter(e => e.type === 'warning').length;
+          emit({ cmd: 'logs', ok: true, errors, warnings, entries });
+        }
+        break;
+      }
       case 'audio': {
         const res = await agent.inspectAudio();
         emit({ cmd: 'audio', ok: true, ...res });
@@ -316,6 +362,61 @@ async function runCommand(
         emit({ cmd: 'loadstate', ok: true });
         break;
       }
+      case 'mode': {
+        const modeId = args[0];
+        if (!modeId) throw new Error('Usage: mode <modeId> [configJson]');
+        let config = {};
+        if (args[1]) {
+          try {
+            config = JSON.parse(args.slice(1).join(' '));
+          } catch (err) {
+            throw new Error(`Invalid config JSON: ${err instanceof Error ? err.message : String(err)}`);
+          }
+        }
+        await agent.launchMinigame(modeId, config);
+        emit({ cmd: 'mode', ok: true, modeId, config, mutates: true });
+        break;
+      }
+      case 'reseed': {
+        const seedVal = num(0);
+        await agent.reseed(seedVal);
+        emit({ cmd: 'reseed', ok: true, seed: seedVal, mutates: true });
+        break;
+      }
+      case 'perf': {
+        const res = await agent.inspectPerf();
+        emit({ cmd: 'perf', ok: true, ...res });
+        break;
+      }
+      case 'golden': {
+        const action = args[0];
+        const name = args[1];
+        if (!action || !name) throw new Error('Usage: golden save|check <name> [threshold]');
+        const chapterName = flags.chapter || 'unknown';
+        if (action === 'save') {
+          const file = await agent.saveGolden(chapterName, name);
+          emit({ cmd: 'golden', ok: true, action: 'save', name, file });
+        } else if (action === 'check') {
+          const threshold = args[2] ? Number(args[2]) : 0.01;
+          const res = await agent.checkGolden(chapterName, name, threshold);
+          emit({ cmd: 'golden', ok: true, action: 'check', name, ...res });
+        } else {
+          throw new Error(`Unknown golden action: ${action}`);
+        }
+        break;
+      }
+      case 'replay': {
+        const file = args[0];
+        if (!file) throw new Error('Usage: replay <file>');
+        const filePath = path.resolve(file);
+        if (!fs.existsSync(filePath)) throw new Error(`Replay file not found: ${filePath}`);
+        const lines = fs.readFileSync(filePath, 'utf8').split(/\r?\n/);
+        for (const line of lines) {
+          if (!(await runCommand(agent, page, flags, line))) break;
+        }
+        emit({ cmd: 'replay', ok: true, file });
+        break;
+      }
 
       case 'advance':
         await reachWalkControl(page, args[0] ? num(0) : 60);
@@ -335,6 +436,123 @@ async function runCommand(
     emit({ cmd: verb, ok: false, error: err instanceof Error ? err.message : String(err) });
   }
   return true;
+}
+
+async function runGauntlet(flags: Flags): Promise<void> {
+  const browser = await chromium.launch({ headless: !flags.headed, slowMo: flags.slowmo });
+  const context = await browser.newContext({ baseURL: flags.url });
+  const page = await context.newPage();
+  
+  let consoleErrors = 0;
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') {
+      consoleErrors++;
+      process.stderr.write(`[Browser Console Error] ${msg.text()}\n`);
+    }
+  });
+  page.on('pageerror', (err) => {
+    consoleErrors++;
+    process.stderr.write(`[Browser Page Error] ${err.stack || err.message}\n`);
+  });
+
+  const targetChapters = flags.chapters 
+    ? flags.chapters.split(',').map(s => s.trim()) 
+    : [];
+
+  const results: Array<{
+    chapter: string;
+    status: 'completed' | 'stalled';
+    errors: number;
+    duration: number;
+    stallInfo?: string;
+  }> = [];
+
+  for (const chapter of CHAPTERS) {
+    const titleMatch = targetChapters.length === 0 || targetChapters.some(t => 
+      chapter.title.toLowerCase().includes(t.toLowerCase()) || 
+      chapter.id.toLowerCase().includes(t.toLowerCase())
+    );
+    if (!titleMatch) continue;
+
+    process.stderr.write(`Gauntlet running chapter: ${chapter.title}...\n`);
+    consoleErrors = 0;
+    const start = Date.now();
+    let status: 'completed' | 'stalled' = 'stalled';
+    let stallInfo = '';
+
+    let agent: GameAgent | null = null;
+    try {
+      const isClassified = chapter.title.includes('Rose') || chapter.title.includes('UMBC');
+      await navigateToChapter(page, chapter.title, { classified: isClassified });
+      await page.waitForSelector('canvas', { timeout: 15000 });
+
+      agent = new GameAgent(page);
+
+      // Reuse the proven advanceUntil per-tick logic (dismiss dialogue via a
+      // trusted Space dispatch, click choices, auto-win skipModes, teleport onto
+      // walk targets) instead of a parallel loop that pokes BeatEngine directly —
+      // calling beatEngine.advanceBeat() out from under the React dialogue overlay
+      // desyncs UI from engine state (see CLAUDE.md's StrictMode gotcha).
+      try {
+        await advanceUntil(
+          page,
+          () =>
+            page.evaluate(() => {
+              const game = (window as unknown as { __OMEGA_GAME__?: any }).__OMEGA_GAME__;
+              if (!game) return true; // game unmounted — flow ended, back at chapter select
+              const scene = game.scene.getScene('ChapterScene');
+              if (!scene) return true;
+              const beats = scene.chapter?.beats;
+              if (!scene.levelStarted || !beats) return false;
+              if (scene.beatIndex >= beats.length) return true;
+              // runEndChapter() plays victory FX then calls onLevelCompleted via a
+              // React callback — it never advances beatIndex past this beat, so
+              // "beatIndex >= beats.length" alone can never fire once reached.
+              return beats[scene.beatIndex]?.type === 'endChapter';
+            }),
+          { maxSeconds: 45, skipModes: ['*'] },
+        );
+        status = 'completed';
+      } catch (timeoutErr) {
+        status = 'stalled';
+        const beatInfo = await agent.inspectBeats().catch(() => null);
+        stallInfo = beatInfo
+          ? `Beat ${beatInfo.currentBeatIndex}/${beatInfo.totalBeats} (type: ${beatInfo.currentBeat?.type}, speaker: ${beatInfo.currentBeat?.speaker ?? 'n/a'})`
+          : timeoutErr instanceof Error
+            ? timeoutErr.message
+            : String(timeoutErr);
+      }
+    } catch (err) {
+      stallInfo = err instanceof Error ? err.message : String(err);
+    } finally {
+      if (agent) await agent.dispose().catch(() => {});
+    }
+
+    const duration = Math.round((Date.now() - start) / 1000);
+    const chapterRes = {
+      chapter: chapter.title,
+      status,
+      errors: consoleErrors,
+      duration,
+      ...(status === 'stalled' ? { stallInfo } : {})
+    };
+    results.push(chapterRes);
+    emit(chapterRes);
+  }
+
+  await browser.close().catch(() => {});
+
+  process.stderr.write('\n=== GAUNTLET SUMMARY ===\n');
+  console.table(results);
+
+  const failed = results.some(r => r.status === 'stalled');
+  if (failed) {
+    process.stderr.write('Gauntlet failed! One or more chapters stalled.\n');
+    process.exit(1);
+  } else {
+    process.stderr.write('Gauntlet passed successfully!\n');
+    process.exit(0);
+  }
 }
 
 // ── Session bootstrap ─────────────────────────────────────────────────────────
@@ -357,14 +575,38 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (flags.gauntlet) {
+    await runGauntlet(flags);
+    return;
+  }
+
   let browser: Browser | null = null;
   let agent: GameAgent | null = null;
   try {
     browser = await chromium.launch({ headless: !flags.headed, slowMo: flags.slowmo });
-    // baseURL lets navigateToChapter's `page.goto('/')` resolve (there is no
-    // Playwright test config supplying it when run standalone).
     const context = await browser.newContext({ baseURL: flags.url });
     const page = await context.newPage();
+
+    if (flags.seed !== null) {
+      await page.addInitScript((seedVal) => {
+        function mulberry32(a: number) {
+          return function() {
+            let t = a += 0x6D2B79F5;
+            t = Math.imul(t ^ (t >>> 15), t | 1);
+            t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+          };
+        }
+        Math.random = mulberry32(seedVal);
+      }, flags.seed);
+    }
+
+    if (flags.record) {
+      const recordPath = path.resolve(flags.record);
+      fs.mkdirSync(path.dirname(recordPath), { recursive: true });
+      recordStream = fs.createWriteStream(recordPath);
+      lastCommandTime = Date.now();
+    }
 
     // Get to the game canvas.
     if (flags.chapter) {
@@ -375,7 +617,7 @@ async function main(): Promise<void> {
     await page.waitForSelector('canvas', { timeout: 15000 }).catch(() => {});
     agent = new GameAgent(page);
     await agent.focusCanvas();
-    emit({ cmd: 'ready', ok: true, url: flags.url, chapter: flags.chapter });
+    emit({ cmd: 'ready', ok: true, url: flags.url, chapter: flags.chapter, seed: flags.seed });
 
     // Source of commands: --script file, inline positional, or stdin.
     let lines: string[] | null = null;
@@ -391,7 +633,20 @@ async function main(): Promise<void> {
       await readStdin(agent, page, flags);
     }
   } finally {
-    if (agent) await agent.dispose().catch(() => {});
+    if (recordStream) {
+      recordStream.end();
+      recordStream = null;
+    }
+    if (agent) {
+      const entries = agent.getConsoleLogs();
+      emit({
+        cmd: 'session_summary',
+        ok: true,
+        errors: entries.filter(e => e.type === 'error').length,
+        warnings: entries.filter(e => e.type === 'warning').length,
+      });
+      await agent.dispose().catch(() => {});
+    }
     if (browser) await browser.close().catch(() => {});
   }
 }

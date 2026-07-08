@@ -15,7 +15,8 @@
     "voice:extract": "tsx scripts/voicegen/extract-lines.ts",
     "test": "vitest run",
     "e2e": "playwright test",
-    "agent": "tsx e2e_tests/agent/cli.ts"
+    "agent": "tsx e2e_tests/agent/cli.ts",
+    "agent:audit": "tsx e2e_tests/agent/audit.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

@@ -64,8 +64,11 @@ export async function advanceUntil(
       const scene = (window as any).__OMEGA_GAME__?.scene.getScene('ChapterScene');
 
       // Auto-complete a foreground minigame that is blocking the flow.
+      // '*' means "any mode" — for callers (like the agent CLI gauntlet) that
+      // can't import the mode registry to enumerate real ids (it pulls in
+      // Phaser at module scope, which crashes outside a browser context).
       const mode = scene?.activeMode;
-      if (mode && skip.includes(mode.id) && typeof mode.onCompleteCallback === 'function') {
+      if (mode && (skip.includes('*') || skip.includes(mode.id)) && typeof mode.onCompleteCallback === 'function') {
         mode.onCompleteCallback({ outcome: 'win' });
         return;
       }

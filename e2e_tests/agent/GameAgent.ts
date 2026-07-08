@@ -1,4 +1,7 @@
 import { Page } from '@playwright/test';
+import { Jimp, diff } from 'jimp';
+import fs from 'node:fs';
+import path from 'node:path';
 
 /**
  * GameAgent — stateful browser-automation toolkit for playtesting the Phaser 3
@@ -59,6 +62,8 @@ export class GameAgent {
   private quickSaveState: any = null;
   /** Intercepted browser console log logs. */
   private readonly consoleLogs: { type: string; text: string }[] = [];
+  /** Index into consoleLogs as of the last observeComposite() call (A5 error-count field). */
+  private lastObserveLogIndex = 0;
 
   constructor(private readonly page: Page) {
     this.page.on('console', msg => {
@@ -69,6 +74,12 @@ export class GameAgent {
     });
     this.page.on('pageerror', err => {
       this.consoleLogs.push({ type: 'error', text: err.message });
+    });
+    this.page.on('requestfailed', req => {
+      this.consoleLogs.push({
+        type: 'error',
+        text: `requestfailed: ${req.url()} (${req.failure()?.errorText ?? 'unknown'})`,
+      });
     });
   }
 
@@ -548,6 +559,12 @@ export class GameAgent {
 
       const scene = game.scene.getScene('ChapterScene');
       if (!scene) throw new Error('ChapterScene not found');
+      // create() hasn't finished (e.g. called before the first 'advance') — the
+      // physics groups teardownMap() relies on (this.walls, etc.) don't exist yet.
+      // Fail with a clear message instead of letting a raw TypeError bubble up.
+      if (!scene.levelStarted || !scene.walls) {
+        throw new Error('Scene not ready — run "advance" (or wait for boot) before "goto"');
+      }
 
       const sceneCount = scene.chapter.scenes ? scene.chapter.scenes.length : 1;
       if (targetIndex < 0 || targetIndex >= sceneCount) {
@@ -663,6 +680,36 @@ export class GameAgent {
     this.consoleLogs.length = 0;
   }
 
+  /**
+   * Force-advance the BeatEngine by `n` beats — diagnostic escape hatch for a
+   * beat whose completion condition can never fire (an unreachable walk target,
+   * a mode that never calls onComplete). Explicitly clears the React dialogue
+   * overlay and any freeze/walk-target state before each jump so the displayed
+   * UI doesn't go stale relative to the engine's beat index.
+   *
+   * Unlike a polling loop that calls this every tick (that reintroduces the
+   * exact StrictMode-style desync this avoids — see CLAUDE.md), this is meant
+   * as a single, operator-chosen jump when normal dismissal is impossible.
+   */
+  async skipBeat(n = 1): Promise<{ from: number; to: number }> {
+    return this.page.evaluate((count) => {
+      const game = (window as unknown as { __OMEGA_GAME__?: any }).__OMEGA_GAME__;
+      if (!game) throw new Error('Game not initialized');
+      const scene = game.scene.getScene('ChapterScene');
+      if (!scene) throw new Error('ChapterScene not found');
+
+      const from = scene.beatIndex;
+      for (let i = 0; i < count; i++) {
+        if (typeof scene.clearStoryDialogue === 'function') scene.clearStoryDialogue();
+        scene.beatEngine.unfreeze();
+        scene.movementFrozen = false;
+        scene.beatEngine.clearWalkTarget();
+        scene.beatEngine.startBeat(scene.beatIndex + 1);
+      }
+      return { from, to: scene.beatIndex };
+    }, n);
+  }
+
   /** Inspect current speaker, dialogue index, active status, and upcoming beats. */
   async inspectBeats(): Promise<{
     currentBeatIndex: number;
@@ -707,8 +754,16 @@ export class GameAgent {
     };
     walkTarget: { x: number; y: number; radius: number; markerLabel: string; viewport: { x: number; y: number } } | null;
     npcs: { id: string; name: string; x: number; y: number; viewport: { x: number; y: number } }[];
+    /** Console errors/warnings (incl. failed asset requests) captured since the previous observe(). */
+    errorsSinceLastObserve: number;
+    warningsSinceLastObserve: number;
   }> {
-    return this.page.evaluate(() => {
+    const newLogs = this.consoleLogs.slice(this.lastObserveLogIndex);
+    this.lastObserveLogIndex = this.consoleLogs.length;
+    const errorsSinceLastObserve = newLogs.filter(l => l.type === 'error').length;
+    const warningsSinceLastObserve = newLogs.filter(l => l.type === 'warning').length;
+
+    const result = await this.page.evaluate(() => {
       const game = (window as unknown as { __OMEGA_GAME__?: any }).__OMEGA_GAME__;
       if (!game) {
         return {
@@ -778,7 +833,7 @@ export class GameAgent {
       }
 
       const dialogueEl = document.querySelector('p.font-pixel');
-      const choiceEls = document.querySelectorAll('[data-testid=\"dialogue-choice\"]');
+      const choiceEls = document.querySelectorAll('[data-testid="dialogue-choice"]');
       const qteEl = document.querySelector('span.font-pixel');
 
       const choices: string[] = [];
@@ -853,6 +908,8 @@ export class GameAgent {
         npcs
       };
     });
+
+    return { ...result, errorsSinceLastObserve, warningsSinceLastObserve };
   }
 
   /** Get details of all currently playing audio sounds. */
@@ -954,5 +1011,113 @@ export class GameAgent {
         scene.physics.world.timeScale = scale;
       }
     }, multiplier);
+  }
+
+  /** Launch a specific minigame mode directly. */
+  async launchMinigame(modeId: string, config: any = {}): Promise<void> {
+    await this.page.evaluate(({ mId, cfg }) => {
+      const game = (window as unknown as { __OMEGA_GAME__?: any }).__OMEGA_GAME__;
+      if (!game) throw new Error('Game not initialized');
+      const scene = game.scene.getScene('ChapterScene');
+      if (!scene) throw new Error('ChapterScene not found');
+
+      (scene as any).launchMode(mId, cfg);
+    }, { mId: modeId, cfg: config });
+  }
+
+  /** Reset/reseed the PRNG on the page mid-session. */
+  async reseed(seed: number): Promise<void> {
+    await this.page.evaluate((seedVal) => {
+      let val = seedVal;
+      Math.random = () => {
+        let t = val += 0x6D2B79F5;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }, seed);
+  }
+
+  /** Collect performance metrics and memory usage. */
+  async inspectPerf(): Promise<{
+    fps: number;
+    textures: number;
+    sounds: number;
+    children: number;
+    tweens: number;
+    heapSize: number;
+  }> {
+    return this.page.evaluate(() => {
+      const game = (window as unknown as { __OMEGA_GAME__?: any }).__OMEGA_GAME__;
+      if (!game) throw new Error('Game not initialized');
+      const scene = game.scene.getScene('ChapterScene');
+
+      const heapSize = (window.performance as any)?.memory?.usedJSHeapSize || 0;
+      const sounds = game.sound.sounds.length;
+      const textures = Object.keys(game.textures.list).length;
+
+      let children = 0;
+      let tweens = 0;
+      if (scene) {
+        children = scene.children.list.length;
+        tweens = scene.tweens.getTweens().length;
+      }
+
+      return {
+        fps: Math.round(game.loop.actualFps),
+        textures,
+        sounds,
+        children,
+        tweens,
+        heapSize
+      };
+    });
+  }
+
+  /** Capture current frame and save as the golden screenshot. */
+  async saveGolden(chapterName: string, name: string): Promise<string> {
+    const cleanChapter = chapterName.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const folder = path.resolve('e2e_tests/agent/goldens', cleanChapter);
+    fs.mkdirSync(folder, { recursive: true });
+    const file = path.resolve(folder, `${name}.png`);
+    await this.page.screenshot({ path: file });
+    return file;
+  }
+
+  /** Capture current frame, compare it against the golden screenshot, and output pixel diff. */
+  async checkGolden(chapterName: string, name: string, threshold = 0.01): Promise<{
+    diffPct: number;
+    pass: boolean;
+    diffPath: string | null;
+  }> {
+    const cleanChapter = chapterName.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const goldenFile = path.resolve('e2e_tests/agent/goldens', cleanChapter, `${name}.png`);
+    if (!fs.existsSync(goldenFile)) {
+      throw new Error(`Golden screenshot does not exist: ${goldenFile}`);
+    }
+
+    const tempDir = path.resolve('agent-artifacts/diffs');
+    fs.mkdirSync(tempDir, { recursive: true });
+    const currentFile = path.resolve(tempDir, `current-${name}.png`);
+    const diffFile = path.resolve(tempDir, `diff-${name}.png`);
+
+    // Take current screenshot
+    await this.page.screenshot({ path: currentFile });
+
+    // Diff images using Jimp
+    const img1 = await Jimp.read(goldenFile);
+    const img2 = await Jimp.read(currentFile);
+
+    const diffResult = diff(img1, img2);
+    if (diffResult.percent > 0) {
+      await diffResult.image.write(diffFile);
+    }
+
+    const pass = diffResult.percent < threshold;
+    return {
+      diffPct: diffResult.percent,
+      pass,
+      diffPath: diffResult.percent > 0 ? diffFile : null
+    };
   }
 }
