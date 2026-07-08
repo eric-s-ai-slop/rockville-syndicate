@@ -16,9 +16,10 @@ import path from 'node:path';
 import readline from 'node:readline';
 import { spawnSync } from 'node:child_process';
 import { GameAgent, MouseButton } from './GameAgent';
-import { navigateToChapter, advanceUntil } from '../helpers';
+import { navigateToChapter, advanceUntil, AdvanceTimeoutError, AdvanceTimeoutDiagnostics } from '../helpers';
 import { CHAPTERS } from '../../src/data/chapters';
 import type { Beat } from '../../src/data/chapters/types';
+import type { DevBridgeWindow } from './DevBridge';
 
 // ── Flags ────────────────────────────────────────────────────────────────────
 
@@ -46,6 +47,9 @@ interface Flags {
   parallel: number; // concurrent gauntlet workers (G8)
   fuzz: number | null; // seconds of seeded fuzzing (I2)
   gif: string | null; // output path for a session recording (I3)
+  gauntletMax: number | null; // hard override for the per-chapter gauntlet timeout budget (H5)
+  speed: number | null; // Phaser time/tween/physics timeScale multiplier (H2)
+  repl: boolean; // explicit alias for --keep-open's stdin loop, plus a ready signal (C3)
 }
 
 function parseFlags(argv: string[]): Flags {
@@ -73,6 +77,9 @@ function parseFlags(argv: string[]): Flags {
     parallel: 1,
     fuzz: null,
     gif: null,
+    gauntletMax: null,
+    speed: null,
+    repl: false,
   };
   const positional: string[] = [];
   for (let i = 0; i < argv.length; i++) {
@@ -100,6 +107,9 @@ function parseFlags(argv: string[]): Flags {
       case '--parallel': f.parallel = Math.max(1, Number(argv[++i]) || 1); break;
       case '--fuzz': f.fuzz = Number(argv[++i]); break;
       case '--gif': f.gif = argv[++i]; break;
+      case '--gauntlet-max': f.gauntletMax = Number(argv[++i]); break;
+      case '--speed': f.speed = Number(argv[++i]); break;
+      case '--repl': f.repl = true; f.keepOpen = true; break;
       default:
         if (a.startsWith('--')) throw new Error(`Unknown flag: ${a}`);
         positional.push(a);
@@ -126,9 +136,27 @@ FLAGS
   --headed              Show the browser window (default headless)
   --slowmo <ms>         Delay every Playwright action by <ms> (visual debugging)
   --keep-open           After running inline/script commands, stay open and read stdin
+  --repl                Alias for --keep-open that also emits {"repl":"ready"} once the stdin
+                        loop is actually listening, so a driving process knows exactly when it's
+                        safe to start writing lines (C3). Same runCommand/JSONL/--record behavior
+                        as --keep-open — no parallel implementation, just a ready signal + name.
+                        'exit'/'quit'/EOF on stdin closes the browser and exits 0.
   --seed <n>            Boot with a seeded Mulberry32 PRNG (replaces Math.random) for determinism
   --record <file>       Record executed commands + inter-command delays to <file>
-  --gauntlet            Run every chapter end-to-end via advanceUntil, report completed/stalled
+  --gauntlet            Run every chapter end-to-end via advanceUntil, report completed/stalled.
+                         Each attempt gets a per-chapter timeout budget computed from the chapter's
+                         own beat/scene count (base 45s + 0.75s/beat + 20s per minigame/bossFight
+                         beat + 10s/scene, capped at 300s unless --gauntlet-max overrides it) instead
+                         of one flat number, so short chapters fail fast and finales aren't falsely
+                         killed halfway through (H5). The computed budget is included in each
+                         chapter's JSONL result as 'timeoutBudget'. On a timeout, the result is
+                         classified 'stall: soft-lock' (beatIndex frozen >=10s — likely an engine
+                         bug at 'stuckBeatIndex'/'stuckBeatType') vs 'stall: global-timeout' (beats
+                         were still advancing when the budget ran out) (H1). A stalled result also
+                         carries a 'diagnostics' dump from advanceUntil itself — player vs walkTarget
+                         position/distance, movementFrozen, activeMode, dialogue/choice visibility (H3)
+  --gauntlet-max <s>    (with --gauntlet) hard override for the per-chapter timeout budget — skips
+                         the computed budget and its 300s cap entirely (H5)
   --chapters "<list>"   Comma-separated chapter title/id filter for --gauntlet
   --shots               (with --gauntlet) capture a stabilized screenshot per scene + a contact-sheet index.html (N1)
   --max-errors <n>      (with --gauntlet) fail the run if any chapter's console error count exceeds <n>
@@ -147,10 +175,26 @@ FLAGS
   --fuzz <seconds>      Seeded random key/click/mode-launch mashing for <seconds>, watching console errors;
                          stops and reports on the first new error. Pair with --record for a committed repro
                          script of exactly the actions that crashed it (I2)
-  --gif <file>          Capture raw frames for the whole session and assemble them into a GIF at <file> via
-                         a system 'ffmpeg' (must be on PATH; soft-fails with frames kept if it's missing) (I3)
+  --gif <file>          THE tool for animation/motion bugs (flicker, stalled walk cycles, misaligned
+                         frames) — static screenshots can't show these. Captures raw frames for the
+                         whole session and assembles them into a GIF at <file> via a system 'ffmpeg'
+                         (must be on PATH; soft-fails with frames kept if it's missing) (I3). For a
+                         shorter, scoped clip instead of the whole session, use the 'gifstart'/'gifstop'
+                         commands below (H6) — do not combine --gif with gifstart/gifstop, they share
+                         the same capture and gifstart will error out while --gif is active
   --checkpoints         Auto-capture a stabilized screenshot + emit 'visual_checkpoint' on every
                         chapter/scene/mode transition during a normal (non-gauntlet) session (N3)
+  --speed <n>           Set Phaser's scene.time/scene.tweens/arcade-physics timeScale to <n> once the
+                        chapter scene has booted (via GameAgent.setTimeScale) — applies to both normal
+                        sessions and --gauntlet runs (H2). Re-applied on every observed scene-index
+                        change (gauntlet only; scene restarts can reset timeScale to 1). Only speeds up
+                        Phaser tweens/waits (cameraPan, wait beats) — it does NOT accelerate
+                        advanceUntil's own ~150ms polling loop or React-side timers (e.g. the dialogue
+                        typewriter), so wall-clock wins are real but sub-linear. Tested stable (--speed
+                        1/3/4 always completed) against the heaviest cameraPan/wait chapter in the repo;
+                        --speed 5 crashed on one of two repeated runs (page navigation context destroyed
+                        mid-evaluate) despite completing the other. Recommended max: 3 — see
+                        AGENT_TOOLKIT.md for full numbers.
   -h, --help            Show this menu
 
 COMMANDS (one per line; ';' also separates them on a single line)
@@ -164,8 +208,11 @@ COMMANDS (one per line; ';' also separates them on a single line)
     mousedown <x> <y> [left|right]
     mousemove <x> <y>          drag step if a button is held, else a hover
     mouseup [x] [y] [left|right]
-    click <x> <y> [left|right] down+up at one point
-    drag <sx> <sy> <ex> <ey> [ms]   smooth click-drag (e.g. drag 200 300 500 300 400)
+    click <x> <y> [left|right] [--world]   down+up at one point; --world treats x/y as world
+                               coordinates (like 'state'/'targets' report) instead of viewport
+                               pixels, translated via the same camera math as clickworld (C2)
+    drag <sx> <sy> <ex> <ey> [ms] [--world]   smooth click-drag (e.g. drag 200 300 500 300 400);
+                               --world treats both points as world coordinates (C2)
   State / bridge (§3)
     state                      print snapshotGameState() JSON (scene, player, velocity, hp, mode, loop)
     text                       extract visible text from Phaser canvas and DOM (A2)
@@ -211,6 +258,16 @@ COMMANDS (one per line; ';' also separates them on a single line)
     eval <js>                  run JS in the page, print the result (e.g. eval window.__OMEGA_GAME__.scene.keys.length)
     screenshot [name] [--annotate]  save a PNG to --out, print its path; --annotate draws each visible
                                actor's bounding box + name + depth, and the walk target, onto the image (N3)
+    gifstart                  begin a scoped GIF capture mid-session (H6) — for verifying animation/
+                               motion bugs (flicker, stalled walk cycles, misaligned frames) over just
+                               the window you care about, instead of the whole session (see --gif).
+                               Errors (ok:false) instead of crashing if --gif is already capturing the
+                               whole session, or a gifstart capture is already running — mutates
+    gifstop [file]             stop a gifstart capture and assemble it into a GIF, printing the path.
+                               <file> is resolved under --out; omitted defaults to a timestamped
+                               'gif-<timestamp>.gif'. Errors (ok:false) if no gifstart capture is
+                               running. Same ffmpeg-on-PATH soft-fail behavior as --gif (frames are
+                               kept on disk if ffmpeg is missing or fails) — mutates
   Time (§4)
     pause | resume             sleep / wake the Phaser loop
     loop                       print whether the loop is running
@@ -219,7 +276,14 @@ COMMANDS (one per line; ';' also separates them on a single line)
   Debug (C1)
     debug on | off             toggle physics debug graphics
   Flow / misc
-    advance [maxSeconds]       skip dialogue/intro until the player has free walk control (default 60)
+    advance [maxSeconds]       skip dialogue/intro until the player has free walk control AND no
+                               dialogue line is visible (default 60) (C1). Ambient/looping dialogue
+                               that never actually clears bails out after ~3 consecutive ticks of
+                               "walk-ok but a line is still showing" and returns anyway with
+                               note: 'dialogue-still-visible' in the result. On timeout, the failure
+                               line includes a 'diagnostics' dump (beatIndex/type, player vs
+                               walkTarget position + distance, movementFrozen, activeMode, dialogue/
+                               choice visibility) (H3)
     wait <ms>                  sleep <ms> of real time
     help                       print this menu
     quit | exit                close the browser and end
@@ -257,19 +321,59 @@ function emit(obj: Record<string, unknown>): void {
   process.stdout.write(JSON.stringify(obj) + '\n');
 }
 
-/** Condition used by `advance`: scene booted, player spawned, not frozen. */
-async function reachWalkControl(page: Page, maxSeconds: number): Promise<void> {
+/**
+ * Condition used by `advance`: scene booted, player spawned, not frozen, AND
+ * no dialogue line currently visible (C1). Chapters whose opening dialogue
+ * doesn't freeze movement used to satisfy the old (weaker) condition while
+ * the first line was still typing, so `advance` returned with a dialogue box
+ * still on screen — this closes that gap using the same `p.font-pixel` +
+ * `offsetParent` check `advanceUntil` itself uses to decide whether to press
+ * Space.
+ *
+ * Bail-out: some chapters run ambient/looping dialogue that never actually
+ * clears (a new line replaces the dismissed one every tick), which would
+ * otherwise hang `advance` for the full `maxSeconds` even though walk control
+ * is effectively held. `onTick` runs once per tick before the interaction
+ * step, so seeing "walk control ok, but dialogue visible" survive >= 3
+ * consecutive ticks means Space is being pressed each tick and the strict
+ * condition still isn't clearing — call it done anyway and let the caller
+ * know via the returned note.
+ */
+async function reachWalkControl(
+  page: Page,
+  maxSeconds: number,
+): Promise<{ note?: 'dialogue-still-visible' }> {
+  let consecutiveWalkOkButDialogueVisible = 0;
+  let bailedOnLoopingDialogue = false;
+
   await advanceUntil(
     page,
     () =>
       page.evaluate(() => {
-        const s = (window as unknown as { __OMEGA_GAME__?: any }).__OMEGA_GAME__?.scene.getScene(
+        const s = (window as unknown as DevBridgeWindow).__OMEGA_GAME__?.scene.getScene(
           'ChapterScene',
         );
-        return !!(s && s.levelStarted && s.player && !s.movementFrozen);
+        const walkOk = !!(s && s.levelStarted && s.player && !s.movementFrozen);
+        const line = document.querySelector('p.font-pixel') as HTMLElement | null;
+        const dialogueVisible = !!(line && line.offsetParent !== null);
+        return { walkOk, dialogueVisible };
+      }).then(({ walkOk, dialogueVisible }) => {
+        if (walkOk && !dialogueVisible) return true;
+        if (walkOk && dialogueVisible) {
+          consecutiveWalkOkButDialogueVisible++;
+          if (consecutiveWalkOkButDialogueVisible >= 3) {
+            bailedOnLoopingDialogue = true;
+            return true;
+          }
+        } else {
+          consecutiveWalkOkButDialogueVisible = 0;
+        }
+        return false;
       }),
     { maxSeconds },
   );
+
+  return bailedOnLoopingDialogue ? { note: 'dialogue-still-visible' } : {};
 }
 
 let screenshotCount = 0;
@@ -293,7 +397,7 @@ async function maybeEmitCheckpoint(agent: GameAgent, page: Page, flags: Flags): 
   if (!flags.checkpoints) return;
   const current = await page
     .evaluate(() => {
-      const game = (window as unknown as { __OMEGA_GAME__?: any }).__OMEGA_GAME__;
+      const game = (window as unknown as DevBridgeWindow).__OMEGA_GAME__;
       if (!game) return { sceneKey: null, sceneIndex: null, mode: null };
       const active = game.scene.getScenes(true);
       const top = active[active.length - 1];
@@ -335,9 +439,18 @@ let gifFrameDir: string | null = null;
 let gifFrameCount = 0;
 let gifCapturing = false;
 let gifLoopPromise: Promise<void> | null = null;
+// H6: distinguishes a whole-session `--gif` capture (finished automatically in
+// main()'s `finally`) from a scoped `gifstart`/`gifstop` capture started mid-session
+// via a command. Both reuse the exact same module-level frame-loop state above —
+// there is only ever one capture in flight at a time (see startGifCapture/
+// finishGifCapture, unchanged) — so this flag exists purely to pick the right
+// error/cleanup behavior for whichever caller (flag vs command) is in play, not
+// to run two captures concurrently.
+let gifStartedByCommand = false;
 
 function startGifCapture(page: Page): void {
   gifFrameDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-gif-'));
+  gifFrameCount = 0;
   gifCapturing = true;
   gifLoopPromise = (async () => {
     while (gifCapturing) {
@@ -436,15 +549,58 @@ async function runCommand(
         else await agent.mouseUp(undefined, undefined, btn(args[0]));
         emit({ cmd: 'mouseup', ok: true });
         break;
-      case 'click':
-        await agent.mouseDown(num(0), num(1), btn(args[2]));
-        await agent.mouseUp(num(0), num(1), btn(args[2]));
-        emit({ cmd: 'click', ok: true, x: num(0), y: num(1), button: btn(args[2]) });
+      case 'click': {
+        // C2: --world lets click take world coordinates (the same ones
+        // `state`/`targets` report) instead of requiring the caller to
+        // mentally invert the camera zoom/scroll math. Strip the flag before
+        // the usual positional parsing so default (viewport) behavior is
+        // untouched byte-for-byte when --world is absent.
+        const world = args.includes('--world');
+        const cargs = args.filter((a) => a !== '--world');
+        const cnum = (i: number) => Number(cargs[i]);
+        let x = cnum(0);
+        let y = cnum(1);
+        if (world) {
+          const vp = await agent.worldToViewport(x, y);
+          const wx = x;
+          const wy = y;
+          x = vp.x;
+          y = vp.y;
+          await agent.mouseDown(x, y, btn(cargs[2]));
+          await agent.mouseUp(x, y, btn(cargs[2]));
+          emit({ cmd: 'click', ok: true, world: { x: wx, y: wy }, viewport: vp, button: btn(cargs[2]) });
+        } else {
+          await agent.mouseDown(x, y, btn(cargs[2]));
+          await agent.mouseUp(x, y, btn(cargs[2]));
+          emit({ cmd: 'click', ok: true, x, y, button: btn(cargs[2]) });
+        }
         break;
-      case 'drag':
-        await agent.dragMouse(num(0), num(1), num(2), num(3), args[4] ? num(4) : 400);
-        emit({ cmd: 'drag', ok: true, from: [num(0), num(1)], to: [num(2), num(3)] });
+      }
+      case 'drag': {
+        const world = args.includes('--world');
+        const dargs = args.filter((a) => a !== '--world');
+        const dnum = (i: number) => Number(dargs[i]);
+        let sx = dnum(0);
+        let sy = dnum(1);
+        let ex = dnum(2);
+        let ey = dnum(3);
+        const ms = dargs[4] ? dnum(4) : 400;
+        if (world) {
+          const startVp = await agent.worldToViewport(sx, sy);
+          const endVp = await agent.worldToViewport(ex, ey);
+          await agent.dragMouse(startVp.x, startVp.y, endVp.x, endVp.y, ms);
+          emit({
+            cmd: 'drag',
+            ok: true,
+            world: { from: [sx, sy], to: [ex, ey] },
+            viewport: { from: [startVp.x, startVp.y], to: [endVp.x, endVp.y] },
+          });
+        } else {
+          await agent.dragMouse(sx, sy, ex, ey, ms);
+          emit({ cmd: 'drag', ok: true, from: [sx, sy], to: [ex, ey] });
+        }
         break;
+      }
 
       case 'state': {
         const s = await agent.snapshotGameState();
@@ -465,6 +621,41 @@ async function runCommand(
         if (annotate) await agent.annotateScreenshot(file);
         else await page.screenshot({ path: file });
         emit({ cmd: 'screenshot', ok: true, path: file, annotated: annotate });
+        break;
+      }
+      // H6: scoped animation capture — begins/ends a GIF recording mid-session
+      // instead of requiring the whole-session --gif flag, for when you only
+      // want to capture a specific moment (e.g. right around a walk cycle or a
+      // scene transition) rather than the entire run. Reuses startGifCapture/
+      // finishGifCapture verbatim — see the I3 comment block above for the
+      // frame-loop + ffmpeg-assembly details.
+      case 'gifstart': {
+        if (gifCapturing) {
+          emit({
+            cmd: 'gifstart',
+            ok: false,
+            error: flags.gif
+              ? 'a --gif whole-session capture is already running; gifstart/gifstop cannot run alongside --gif'
+              : 'a gif capture is already in progress (call gifstop first)',
+          });
+          break;
+        }
+        gifStartedByCommand = true;
+        startGifCapture(page);
+        emit({ cmd: 'gifstart', ok: true, mutates: true });
+        break;
+      }
+      case 'gifstop': {
+        if (!gifCapturing || !gifStartedByCommand) {
+          emit({ cmd: 'gifstop', ok: false, error: 'no gifstart capture is in progress' });
+          break;
+        }
+        fs.mkdirSync(flags.out, { recursive: true });
+        const outFile = args[0]
+          ? path.resolve(flags.out, args[0])
+          : path.resolve(flags.out, `gif-${new Date().toISOString().replace(/[:.]/g, '-')}.gif`);
+        await finishGifCapture(outFile);
+        gifStartedByCommand = false;
         break;
       }
 
@@ -815,10 +1006,16 @@ async function runCommand(
         break;
       }
 
-      case 'advance':
-        await reachWalkControl(page, args[0] ? num(0) : 60);
-        emit({ cmd: 'advance', ok: true, state: await agent.snapshotGameState() });
+      case 'advance': {
+        const { note } = await reachWalkControl(page, args[0] ? num(0) : 60);
+        emit({
+          cmd: 'advance',
+          ok: true,
+          state: await agent.snapshotGameState(),
+          ...(note ? { note } : {}),
+        });
         break;
+      }
       case 'wait':
         await page.waitForTimeout(num(0));
         emit({ cmd: 'wait', ok: true, ms: num(0) });
@@ -830,7 +1027,15 @@ async function runCommand(
         emit({ cmd: verb, ok: false, error: `unknown command (try 'help')` });
     }
   } catch (err) {
-    emit({ cmd: verb, ok: false, error: err instanceof Error ? err.message : String(err) });
+    // H3: surface advanceUntil's stall diagnostics on the failure line so a
+    // caller doesn't have to blindly guess why 'advance' (or any other
+    // command built on advanceUntil) timed out.
+    emit({
+      cmd: verb,
+      ok: false,
+      error: err instanceof Error ? err.message : String(err),
+      ...(err instanceof AdvanceTimeoutError ? { diagnostics: err.diagnostics } : {}),
+    });
   }
   return true;
 }
@@ -849,6 +1054,41 @@ interface GauntletResult {
   shots?: { sceneIndex: number; path: string }[];
   coverage?: CoverageReport;
   transitions?: TransitionReport;
+  /** H5: the per-chapter timeout budget this attempt ran under, for auditability. */
+  timeoutBudget?: number;
+  /**
+   * H1: on a timeout failure, whether beatIndex was still changing
+   * ('global-timeout' — the chapter is just long/slow) or had been frozen for
+   * >=10s at the moment of failure ('soft-lock' — likely an engine bug, since
+   * a healthy chapter always eventually dismisses dialogue/completes a mode).
+   * Absent on a completed run.
+   */
+  stall?: 'soft-lock' | 'global-timeout';
+  /** H1: the beatIndex the chapter was stuck on when a soft-lock was detected. */
+  stuckBeatIndex?: number;
+  /** H1: that beat's `type`, if cheaply available from the loaded chapter config. */
+  stuckBeatType?: string;
+  /** H3: raw advanceUntil diagnostics dump, present whenever the timeout came from an AdvanceTimeoutError. */
+  diagnostics?: AdvanceTimeoutDiagnostics;
+}
+
+/**
+ * H5: replace the old flat 180s gauntlet budget with one scaled to the shape
+ * of the chapter actually being tested — a one-scene dialogue-only chapter
+ * shouldn't get the same runway as a multi-scene finale stacked with
+ * minigames/boss fights. Coefficients are the blessed spec's (docs/toolkit_
+ * complaints.md Triage/Blessing, H5): 45s base + 0.75s/beat + 20s per
+ * minigame/bossFight beat + 10s/scene, rounded up and capped at 300s so a
+ * pathological config can't make a single gauntlet job run unbounded — pass
+ * --gauntlet-max to override the cap (and the computed budget) entirely.
+ */
+function computeGauntletBudget(chapter: (typeof CHAPTERS)[number], flags: Flags): number {
+  if (flags.gauntletMax !== null && !Number.isNaN(flags.gauntletMax)) return flags.gauntletMax;
+  const beats = chapter.beats;
+  const heavyBeats = beats.filter((b) => b.type === 'minigame' || b.type === 'bossFight').length;
+  const sceneCount = chapter.scenes?.length ?? 1;
+  const budget = 45 + 0.75 * beats.length + 20 * heavyBeats + 10 * sceneCount;
+  return Math.min(300, Math.ceil(budget));
 }
 
 interface CoverageReport {
@@ -1141,6 +1381,19 @@ async function runChapterAttempt(
   const visitedModes = new Set<string>();
   const observedEdges = new Set<string>();
   let lastBeatIndex: number | null = null;
+  // H1: track when beatIndex last actually changed (as opposed to just being
+  // observed) so a timeout can be classified as a true soft-lock (engine
+  // frozen on one beat) vs a global-timeout (beats kept advancing, the
+  // chapter is just longer than its budget). Seeded at attempt start so a
+  // chapter that never advances past beat 0 still measures elapsed time
+  // correctly instead of comparing against `null`.
+  let lastBeatChangeAt = Date.now();
+  let lastObservedBeatIndex: number | null = null;
+  const timeoutBudget = computeGauntletBudget(chapter, flags);
+  let stall: 'soft-lock' | 'global-timeout' | undefined;
+  let stuckBeatIndex: number | undefined;
+  let stuckBeatType: string | undefined;
+  let diagnostics: AdvanceTimeoutDiagnostics | undefined;
 
   const chapterDir = runDir ? path.resolve(runDir, slugify(label)) : null;
   if (chapterDir) fs.mkdirSync(chapterDir, { recursive: true });
@@ -1160,8 +1413,15 @@ async function runChapterAttempt(
     await page.waitForSelector('canvas', { timeout: 15000 });
 
     agent = new GameAgent(page);
+    // H2: apply once right after boot. Gauntlet attempts don't go through
+    // main()'s normal-session 'ready' point, so this is the equivalent spot —
+    // ChapterScene exists (canvas is up) but advanceUntil hasn't started yet.
+    if (flags.speed !== null && !Number.isNaN(flags.speed)) {
+      await agent.setTimeScale(flags.speed).catch(() => {});
+    }
     if (chapterDir) await captureScene(agent, 0); // one at chapter start (N1)
     let lastSceneIndex = 0;
+    let lastSpeedSceneIndex = 0;
     const tracking = flags.coverage || flags.transitions;
 
     // Reuse the proven advanceUntil per-tick logic (dismiss dialogue via a
@@ -1187,25 +1447,46 @@ async function runChapterAttempt(
             return beats[scene.beatIndex]?.type === 'endChapter';
           }),
         {
-          maxSeconds: 180,
+          maxSeconds: timeoutBudget,
           skipModes: ['*'],
           forceChoice,
-          onTick: chapterDir || tracking
-            ? async (info) => {
-                if (tracking && info.beatIndex !== null) {
-                  visitedBeats.add(info.beatIndex);
-                  if (flags.transitions && lastBeatIndex !== null && lastBeatIndex !== info.beatIndex) {
-                    observedEdges.add(`${lastBeatIndex}->${info.beatIndex}`);
-                  }
-                  lastBeatIndex = info.beatIndex;
-                }
-                if (tracking && info.mode) visitedModes.add(info.mode);
-                if (chapterDir && info.sceneIndex !== null && info.sceneIndex !== lastSceneIndex) {
-                  lastSceneIndex = info.sceneIndex;
-                  await captureScene(agent!, info.sceneIndex);
-                }
+          // H1's stall classification needs beatIndex-change tracking on
+          // every attempt (not just --coverage/--transitions/--shots runs),
+          // so onTick is now unconditional; the tracking-gated work inside it
+          // is unchanged.
+          onTick: async (info) => {
+            if (info.beatIndex !== null && info.beatIndex !== lastObservedBeatIndex) {
+              lastObservedBeatIndex = info.beatIndex;
+              lastBeatChangeAt = Date.now();
+            }
+            if (tracking && info.beatIndex !== null) {
+              visitedBeats.add(info.beatIndex);
+              if (flags.transitions && lastBeatIndex !== null && lastBeatIndex !== info.beatIndex) {
+                observedEdges.add(`${lastBeatIndex}->${info.beatIndex}`);
               }
-            : undefined,
+              lastBeatIndex = info.beatIndex;
+            }
+            if (tracking && info.mode) visitedModes.add(info.mode);
+            if (chapterDir && info.sceneIndex !== null && info.sceneIndex !== lastSceneIndex) {
+              lastSceneIndex = info.sceneIndex;
+              await captureScene(agent!, info.sceneIndex);
+            }
+            // H2: scene restarts can reset a fresh ChapterScene's timeScale to
+            // Phaser's default (1), silently dropping --speed partway through
+            // a multi-scene chapter. Re-apply whenever onTick observes a new
+            // sceneIndex (already how --shots detects scene changes above) —
+            // independent of --shots/chapterDir since this must run for every
+            // gauntlet attempt that sets --speed, not just --shots ones.
+            if (
+              flags.speed !== null &&
+              !Number.isNaN(flags.speed) &&
+              info.sceneIndex !== null &&
+              info.sceneIndex !== lastSpeedSceneIndex
+            ) {
+              lastSpeedSceneIndex = info.sceneIndex;
+              await agent!.setTimeScale(flags.speed).catch(() => {});
+            }
+          },
         },
       );
       status = 'completed';
@@ -1223,6 +1504,29 @@ async function runChapterAttempt(
         : timeoutErr instanceof Error
           ? timeoutErr.message
           : String(timeoutErr);
+
+      // H1: classify why the attempt timed out. beatIndex frozen for >=10s at
+      // the moment of failure means the engine itself stopped progressing
+      // (a true soft-lock) — anything else means beats were still advancing
+      // and this chapter simply needs more of its (already-scaled, H5)
+      // budget than it got. stuckBeatIndex/stuckBeatType come from the same
+      // beatInfo dump used for stallInfo above, so no extra round-trip.
+      const stuckForMs = Date.now() - lastBeatChangeAt;
+      if (stuckForMs >= 10_000) {
+        stall = 'soft-lock';
+        stuckBeatIndex = lastObservedBeatIndex ?? beatInfo?.currentBeatIndex;
+        stuckBeatType = beatInfo?.currentBeat?.type;
+      } else {
+        stall = 'global-timeout';
+      }
+
+      // H3: additive to H1's stall/stuckBeatIndex — a raw diagnostics dump
+      // from advanceUntil itself when the timeout came from an
+      // AdvanceTimeoutError (it always does here, since this is the only
+      // throw site inside advanceUntil, but guard defensively anyway).
+      if (timeoutErr instanceof AdvanceTimeoutError) {
+        diagnostics = timeoutErr.diagnostics;
+      }
     }
   } catch (err) {
     stallInfo = err instanceof Error ? err.message : String(err);
@@ -1239,7 +1543,14 @@ async function runChapterAttempt(
     status,
     errors: consoleErrors,
     duration,
+    timeoutBudget,
     ...(status === 'stalled' ? { stallInfo } : {}),
+    // H1: only meaningful on a stalled attempt — a completed run never hit
+    // the timeout path that sets these.
+    ...(status === 'stalled' && stall ? { stall } : {}),
+    ...(status === 'stalled' && stuckBeatIndex !== undefined ? { stuckBeatIndex } : {}),
+    ...(status === 'stalled' && stuckBeatType !== undefined ? { stuckBeatType } : {}),
+    ...(status === 'stalled' && diagnostics ? { diagnostics } : {}),
     ...(chapterDir ? { shots } : {}),
     ...(coverage ? { coverage } : {}),
     ...(transitions ? { transitions } : {}),
@@ -1401,6 +1712,13 @@ async function readStdin(agent: GameAgent, page: Page, flags: Flags): Promise<vo
   const rl = readline.createInterface({ input: process.stdin, terminal: false });
   const interactive = process.stdin.isTTY;
   if (interactive) process.stderr.write('agent> ');
+  // C3: --repl is an explicit alias for the same stdin loop --keep-open already
+  // runs (readline over runCommand, ';'-splitting and --record handled inside
+  // runCommand itself — nothing new there). The one thing it adds is this
+  // ready-signal line, emitted once the readline interface is actually
+  // listening, so a process piping commands into stdin line-by-line knows the
+  // exact moment it's safe to start writing instead of guessing/sleeping.
+  if (flags.repl) emit({ repl: 'ready' });
   for await (const line of rl) {
     const keepGoing = await runCommand(agent, page, flags, line);
     await maybeEmitCheckpoint(agent, page, flags);
@@ -1464,7 +1782,14 @@ async function main(): Promise<void> {
     // hang on Playwright's default actionability timeout waiting for a canvas
     // that will never appear without a command running first.
     await agent.focusCanvas().catch(() => {});
-    emit({ cmd: 'ready', ok: true, url: flags.url, chapter: flags.chapter, seed: flags.seed });
+    // H2: applied once here, right after the chapter scene has booted (same
+    // point 'ready' is emitted). Only meaningful when a chapter is actually
+    // loaded (ChapterScene exists) — soft-fails on the canvas-less
+    // chapter-select menu for the same reason focusCanvas() does above.
+    if (flags.speed !== null && !Number.isNaN(flags.speed)) {
+      await agent.setTimeScale(flags.speed).catch(() => {});
+    }
+    emit({ cmd: 'ready', ok: true, url: flags.url, chapter: flags.chapter, seed: flags.seed, speed: flags.speed });
     await maybeEmitCheckpoint(agent, page, flags); // chapter-load checkpoint (N3)
 
     if (flags.gif) startGifCapture(page); // I3
@@ -1489,7 +1814,22 @@ async function main(): Promise<void> {
       await readStdin(agent, page, flags);
     }
   } finally {
-    if (flags.gif) await finishGifCapture(flags.gif).catch(() => {});
+    if (flags.gif) {
+      await finishGifCapture(flags.gif).catch(() => {});
+    } else if (gifCapturing && gifStartedByCommand) {
+      // H6: a gifstart capture that never got a matching gifstop before the
+      // session ended (e.g. `quit`/EOF cut it short). --gif (whole-session)
+      // was NOT set, so there's no caller-declared output path — finishing to
+      // a default timestamped file under --out is strictly more useful than
+      // silently discarding the frames already captured, and matches what
+      // gifstop itself would have chosen as a default name.
+      fs.mkdirSync(flags.out, { recursive: true });
+      const defaultFile = path.resolve(
+        flags.out,
+        `gif-${new Date().toISOString().replace(/[:.]/g, '-')}.gif`,
+      );
+      await finishGifCapture(defaultFile).catch(() => {});
+    }
     if (recordStream) {
       recordStream.end();
       recordStream = null;

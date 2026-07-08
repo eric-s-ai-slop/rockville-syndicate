@@ -18,6 +18,11 @@ export class AudioController {
   private scene: ChapterScene;
   private settingsUnsub: (() => void) | null = null;
   private currentStageMix = STAGE_MIX;
+  // Bumped on every crossfadeToMusic()/stopAllAudio() call so stale delayedCall/tween
+  // callbacks from a superseded crossfade can detect they've been overtaken and bail
+  // instead of touching a destroyed/replaced stageMusic (goto/warpScene can trigger
+  // several crossfades in quick succession — see docs/toolkit_complaints.md C4).
+  private crossfadeToken = 0;
 
   constructor(scene: ChapterScene) {
     this.scene = scene;
@@ -135,25 +140,38 @@ export class AudioController {
     const current = this.scene.stageMusic as Phaser.Sound.WebAudioSound | null;
     if ((current as any)?.key === newKey && current?.isPlaying) return;
 
+    // Invalidate any in-flight crossfade from a previous call (e.g. warp/goto firing
+    // several crossfades back-to-back) — its delayedCall/tween callbacks below check
+    // this token and bail instead of touching a sound object we've since destroyed.
+    const myToken = ++this.crossfadeToken;
+
     if (current?.isPlaying) {
+      // A prior crossfade's fade-out/fade-in tween may still be ticking against
+      // `current` — clear it first so it can't set .volume on it after destroy() below.
+      this.scene.tweens.killTweensOf(current);
       this.scene.tweens.add({
         targets: current, volume: 0, duration: 700,
-        onComplete: () => { 
-          current.stop(); 
-          current.destroy(); 
+        onComplete: () => {
+          try { current.stop(); current.destroy(); } catch { /* already gone */ }
           if (this.scene.stageMusic === current) {
-            this.scene.stageMusic = null; 
+            this.scene.stageMusic = null;
           }
         },
       });
     }
 
     this.scene.time.delayedCall(350, () => {
+      // A newer crossfade (or a stopAllAudio) superseded this one — the sound object
+      // we'd target here may already be destroyed/reassigned. Bail quietly.
+      if (myToken !== this.crossfadeToken) return;
       try {
         this.currentStageMix = newKey === 'music_ch6' ? CH6_MIX : STAGE_MIX;
-        this.scene.stageMusic = this.scene.sound.add(newKey, { loop: true, volume: 0 });
-        this.scene.stageMusic.play();
-        this.scene.tweens.add({ targets: this.scene.stageMusic, volume: this.currentStageMix * getSettings().musicVolume, duration: 900 });
+        const track = this.scene.sound.add(newKey, { loop: true, volume: 0 });
+        this.scene.stageMusic = track;
+        track.play();
+        this.scene.tweens.add({
+          targets: track, volume: this.currentStageMix * getSettings().musicVolume, duration: 900,
+        });
       } catch { /* Web Audio context not ready */ }
     });
   }
@@ -173,14 +191,15 @@ export class AudioController {
         this.scene.bossMusicSting = this.scene.sound.add('boss_sting', { loop: false, volume: 0.55 });
         this.scene.bossMusicSting.play();
         this.scene.time.delayedCall(3127, () => {
-          if (this.scene.bossMusicSting && this.scene.bossMusicSting.isPlaying) {
+          const sting = this.scene.bossMusicSting;
+          if (sting && !(sting as any).pendingRemove && sting.isPlaying) {
             this.scene.tweens.add({
-              targets: this.scene.bossMusicSting,
+              targets: sting,
               volume: 0,
               duration: 1000,
               onComplete: () => {
-                this.scene.bossMusicSting?.destroy();
-                this.scene.bossMusicSting = null;
+                try { sting.destroy(); } catch { /* already gone */ }
+                if (this.scene.bossMusicSting === sting) this.scene.bossMusicSting = null;
               }
             });
           }
@@ -240,8 +259,15 @@ export class AudioController {
    *  later beat starts music again. (changeScene only revives music when a scene
    *  sets its own `music`, so the silence carries across scene transitions.) */
   public stopAllAudio(fadeMs: number = 150) {
+    // Invalidate any in-flight crossfadeToMusic() delayedCall/tween so it can't
+    // resurrect stageMusic after we've just silenced everything.
+    this.crossfadeToken++;
     const kill = (snd: Phaser.Sound.BaseSound | null) => {
       if (!snd) return;
+      // Any tween still ticking against this sound (e.g. a fade-out/fade-in from a
+      // prior crossfade) would otherwise keep setting .volume on it next frame after
+      // destroy() below nulls its internals — killTweensOf() removes those first.
+      this.scene.tweens.killTweensOf(snd);
       if (snd.isPlaying && fadeMs > 0) {
         this.scene.tweens.add({
           targets: snd, volume: 0, duration: fadeMs,

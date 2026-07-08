@@ -78,10 +78,13 @@ the CLI just loads the URL and leaves you on the menu (drive it yourself with
 | `--headed` | Show the browser window (default headless) |
 | `--slowmo <ms>` | Delay every action by `<ms>` — watch it happen |
 | `--keep-open` | After inline/script commands, stay open and read stdin |
+| `--repl` | Alias for `--keep-open` that also emits `{"repl":"ready"}` once the stdin loop is actually listening, so a process piping commands in line-by-line knows exactly when it's safe to start writing (C3). Same `runCommand`/JSONL/`--record` behavior as `--keep-open` underneath — this only adds the ready signal and the name. `exit`/`quit`/EOF on stdin closes the browser and exits 0 |
+| `--speed <n>` | Set Phaser's `scene.time` / `scene.tweens` / arcade-physics `timeScale` to `<n>` via `GameAgent.setTimeScale()`, once the chapter scene has booted. Works for both normal sessions and `--gauntlet` runs; for the gauntlet it's re-applied whenever `advanceUntil`'s `onTick` observes a scene-index change, since a scene restart resets a fresh `ChapterScene`'s `timeScale` back to 1 (H2). **Only speeds up Phaser tweens/waits** — `cameraPan` and `wait` beats run faster, but `advanceUntil`'s own ~150ms poll loop and React-side timers (the dialogue typewriter) are untouched, so wall-clock savings are real but sub-linear, not proportional to `<n>`. Tested against `Rockville Syndicate: Origins` (37 cameraPan/wait beats, the heaviest in the repo) across repeated `--gauntlet` runs: `--speed 1`/`3`/`4` always completed (durations ranged 16s–278s run-to-run — this machine's background load dominates wall-clock noise more than `<n>` does), but `--speed 5` **crashed on one of two runs** (`page.evaluate: Execution context was destroyed, most likely because of a navigation`) even though the other run completed. That correctness flip (not the noisy timings) is the real signal. **Recommended max: 3** — the highest factor that was stable across every run tried. |
 | `--seed <number>` | Initialize the page with a specific random seed for determinism |
 | `--record <file>` | Record all executed commands and their timings into a file |
 | `--replay <file>` | Replay a recorded command log file with original timing delays |
-| `--gauntlet` | Run the full test gauntlet skipping minigame modes to verify all chapters |
+| `--gauntlet` | Run the full test gauntlet skipping minigame modes to verify all chapters. Each chapter attempt gets a **per-chapter timeout budget** computed from that chapter's own config — `45s + 0.75s × beats.length + 20s × (# minigame/bossFight beats) + 10s × (# scenes)`, capped at 300s — instead of one flat number, so a one-scene dialogue chapter fails fast and a multi-scene finale isn't falsely killed halfway through (H5). The computed budget is reported as `timeoutBudget` in the chapter's JSONL result. On a timeout, the failure is classified `stall: "soft-lock"` (beatIndex frozen ≥10s at the moment of failure — likely an engine bug; JSONL also includes `stuckBeatIndex` and, when available, `stuckBeatType`) or `stall: "global-timeout"` (beats were still advancing — the chapter needs a bigger budget, not a bug fix) (H1). A stalled result also carries a `diagnostics` dump straight from `advanceUntil` — player vs `walkTarget` position/distance, `movementFrozen`, `activeMode`, dialogue/choice visibility (H3) |
+| `--gauntlet-max <seconds>` | (with `--gauntlet`) hard override for the per-chapter timeout budget — bypasses the computed budget and its 300s cap entirely (H5) |
 | `--chapters <list>` | Run the gauntlet on a comma-separated list of chapters |
 | `--shots` | (with `--gauntlet`) capture a stabilized screenshot per scene + generate a contact-sheet `index.html` (N1) |
 | `--max-errors <n>` | (with `--gauntlet`) fail the run if any chapter's console error count exceeds `<n>` |
@@ -91,7 +94,7 @@ the CLI just loads the URL and leaves you on the menu (drive it yourself with
 | `--branches all\|<n>` | (with `--gauntlet`) replay each chapter once per option of its **first** choice beat (capped at `<n>` options if given instead of `all`) — the only automated way to catch branch-specific breakage (G7) |
 | `--parallel <n>` | (with `--gauntlet`) run up to `<n>` chapter/branch attempts concurrently, each in its own browser context — wall-clock only, doesn't change what's tested (G8) |
 | `--fuzz <seconds>` | Seeded random key/click/mode-launch mashing for `<seconds>`, stopping and reporting on the first new console error. Pair with `--record` for a committed, deterministic repro script of exactly what crashed it (I2) |
-| `--gif <file>` | Capture raw frames for the whole session and assemble a GIF at `<file>` via a system `ffmpeg` (must be on PATH; soft-fails with frames kept on disk if missing) (I3) |
+| `--gif <file>` | **The tool for animation/motion bugs** — flicker, stalled walk cycles, misaligned frames. Static `screenshot`/`observe --shot` PNGs are single frames and cannot show motion; if something looks wrong *over time*, reach for this before anything else. Captures raw frames for the whole session and assembles a GIF at `<file>` via a system `ffmpeg` (must be on PATH; soft-fails with frames kept on disk if missing) (I3). For a shorter clip scoped to just the moment you care about instead of the whole session, use the `gifstart`/`gifstop [file]` commands (H6) — don't combine them with `--gif`, they share one capture slot and `gifstart` will refuse to start a second one |
 | `-h`, `--help` | Print the usage menu |
 
 ### Commands (one per line; `;` also separates them inline)
@@ -116,8 +119,8 @@ Prefer lowercase movement keys.
 | `mousedown <x> <y> [left\|right]` | press and hold a button at (x,y) |
 | `mousemove <x> <y>` | move — a **drag step** if a button is held, else a hover |
 | `mouseup [x] [y] [left\|right]` | release (optionally move there first) |
-| `click <x> <y> [left\|right]` | down+up at one point |
-| `drag <sx> <sy> <ex> <ey> [ms]` | smooth click-drag — e.g. `drag 200 300 500 300 400` |
+| `click <x> <y> [left\|right] [--world]` | down+up at one point. `--world` treats `x`/`y` as **world coordinates** (the same ones `state`/`targets` report) instead of viewport pixels, translated via the same camera math as `clickworld`/`where` (C2) |
+| `drag <sx> <sy> <ex> <ey> [ms] [--world]` | smooth click-drag — e.g. `drag 200 300 500 300 400`. `--world` treats both endpoints as world coordinates (C2) |
 
 **State / bridge (spec §3)**
 
@@ -140,7 +143,9 @@ Prefer lowercase movement keys.
 | `savestate` | quick-save current game state in-memory (B2) |
 | `loadstate` | quick-restore saved game state (B2) |
 | `eval <js>` | run JS in the page and print the result — e.g. `eval window.__OMEGA_GAME__.scene.keys.length` |
-| `screenshot [name] [--annotate]` | save a PNG to `--out`, print its path; `--annotate` draws each visible actor's bounding box + name + depth, plus the active walk target, onto the image (N3) |
+| `screenshot [name] [--annotate]` | save a PNG to `--out`, print its path; `--annotate` draws each visible actor's bounding box + name + depth, plus the active walk target, onto the image (N3). Each box is drawn as a 3px black outline with a 1-2px accent-color (red for actors, yellow for the walk target) inline inside it, so boxes stay legible against both dark and light pixel art (C5) |
+| `gifstart` | begin a scoped GIF capture mid-session (H6) — same frame-capture plumbing as `--gif` below, just started/stopped on demand instead of for the whole session. Errors instead of crashing if `--gif` is already capturing, or a `gifstart` capture is already running |
+| `gifstop [file]` | stop a `gifstart` capture, assemble it into a GIF, and print the path. `file` resolves under `--out`; omitted defaults to a timestamped `gif-<timestamp>.gif`. Errors if no `gifstart` capture is running |
 | `reseed <seed>` | reseeds the Mulberry32 pseudo-random number generator on the fly |
 | `perf` | collect engine telemetry: FPS, memory (used JS heap), active tweens/children/sounds/textures |
 | `mode <modeId> [configJson]` | launch a registered minigame mode directly under ChapterScene context |
@@ -171,7 +176,7 @@ Prefer lowercase movement keys.
 
 | Command | Does |
 | --- | --- |
-| `advance [maxSeconds]` | skip dialogue/intro until the player has free walk control (default 60) |
+| `advance [maxSeconds]` | skip dialogue/intro until the player has free walk control AND no dialogue line is currently visible (default 60) (C1). If a chapter runs ambient/looping dialogue that never actually clears, `advance` bails out after ~3 consecutive ticks of "walk control ok, but a line is still showing" and returns anyway with `note: "dialogue-still-visible"` in its result — otherwise no `note` is present. On a timeout, the failure JSONL includes a `diagnostics` dump collected from the live scene (`beatIndex`/`beatType`, player vs `walkTarget` position + distance, `movementFrozen`, `activeMode`, and dialogue/choice visibility) so you don't have to guess whether it's a physics, UI, or mode problem (H3) |
 | `replay <file>` | execute commands recorded in `<file>` recreating original timing delays |
 | `wait <ms>` | sleep `<ms>` of real time |
 | `help` | print the menu |
@@ -254,6 +259,25 @@ efficiency win. The recommended loop:
    loop when you're blocked on a condition (e.g. waiting for HP to drop, a mode
    to complete) — one round-trip instead of several.
 
+### Verifying animation / motion
+
+A static `screenshot` (or `observe --shot`) is one frame — it cannot show
+flicker, a stalled walk cycle, or frames that are misaligned only while
+moving. If the bug report is about *motion* rather than a single frozen
+moment, reach for a GIF, not another screenshot:
+
+1. **Whole session:** pass `--gif <file>` at startup. It records raw frames
+   for the entire session and assembles them into a GIF on exit (soft-fails
+   to the kept frame directory if `ffmpeg` isn't on `PATH`) (I3).
+2. **Just one moment:** run `gifstart`, do the thing you want to inspect
+   (`press w 1500`, trigger the mode, walk through the doorway), then
+   `gifstop [file]` — scopes the capture to that window instead of the whole
+   session (H6). Don't mix this with `--gif`; only one capture can run at a
+   time and `gifstart` will error out if `--gif` already claimed it.
+3. Look at the resulting GIF frame-by-frame for the specific complaint
+   (stutter, sprite pop, flipX flicker) — a JSON state dump cannot express
+   this class of bug at all.
+
 ## 5. Copy-paste examples
 
 Walk right for 2s, then snapshot + screenshot:
@@ -284,6 +308,41 @@ npm run agent -- --chapter "The Spotify Family Insurgency" --headed --keep-open 
 # then type: advance ⏎  hold w ⏎  state ⏎  release w ⏎  quit ⏎
 ```
 
+Drive one long-lived session line-by-line from a script/agent process (C3) —
+pipe commands into stdin instead of chaining everything into one CLI string.
+`--repl` is `--keep-open` plus a `{"repl":"ready"}` line emitted once the stdin
+loop is actually listening, so the driving process knows exactly when to start
+writing:
+
+```bash
+npm run agent -- --chapter "The Spotify Family Insurgency" --repl <<'EOF'
+advance
+state
+press w 500
+state
+exit
+EOF
+```
+
+Fast-forward a chapter's cameraPan/wait beats for a quick manual smoke check
+(H2 — see the `--speed` flag table entry for what it does and doesn't speed up):
+
+```bash
+npm run agent -- --chapter "Rockville Syndicate: Origins" --speed 3 "advance; wait 30000; state"
+```
+
+Capture just a walk cycle as a GIF instead of the whole session (H6):
+
+```bash
+npm run agent -- --chapter "The Spotify Family Insurgency" --repl <<'EOF'
+advance
+gifstart
+press w 1500
+gifstop walk-cycle.gif
+exit
+EOF
+```
+
 Parse just the player position with `jq`:
 
 ```bash
@@ -300,13 +359,27 @@ npm run agent -- --chapter "The Spotify Family Insurgency" "advance; press d 100
   synthetic events.
 - **`step`/`pause` are dev-build only.** They rely on `window.__OMEGA_GAME__`,
   which `GameLayout.tsx` exposes under `import.meta.env.DEV`. `npm run dev` is dev.
-- **Coordinates are viewport pixels**, not Phaser world units. To click a
-  world-space object, read `state`/`eval` and convert with the camera (or use the `targets` command, which automatically includes pre-calculated page viewport coordinates).
+- **Coordinates are viewport pixels**, not Phaser world units, unless you pass
+  `--world` to `click`/`drag` (C2) — that translates world coordinates through
+  the same camera math as `clickworld`/`where`/`targets` for you. Without
+  `--world`, read `state`/`eval` and convert with the camera (or use the
+  `targets` command, which automatically includes pre-calculated page viewport
+  coordinates).
 - **No stuck keys.** The CLI calls `GameAgent.dispose()` on exit, releasing any
   held key/button — a held `w` never leaks between runs.
 - The underlying class is also usable directly in Playwright specs; see
   [`e2e_tests/agent/README.md`](../e2e_tests/agent/README.md) and the integration
   test `e2e_tests/agent/GameAgent.smoke.spec.ts`.
+- **Typed bridge accesses (H4).** [`e2e_tests/agent/DevBridge.ts`](../e2e_tests/agent/DevBridge.ts)
+  declares structural types for the subset of `window.__OMEGA_GAME__` /
+  `window.__OMEGA_DEV_BRIDGE__` the toolkit actually reads (no Phaser imports —
+  importing Phaser into the Node CLI crashes at import time). Adopted so far in
+  `helpers.ts`'s `advanceUntil` and a couple of the most-read `page.evaluate`
+  blocks in `cli.ts`/`GameAgent.ts`; the remaining `(window as any)
+  .__OMEGA_GAME__` sites are expected to migrate incrementally. These types
+  document the accesses and catch typos at compile time — they cannot catch
+  runtime drift if the game-side shape changes; the `GameAgent.smoke.spec.ts`
+  integration test remains the real guard against that.
 - **Deterministic Seeded RNG.** Using the `--seed <number>` flag mock-replaces `Math.random` in the browser with a seedable Mulberry32 generator before the game boots. You can also reseed on the fly using the `reseed <seed>` command mid-session.
 - **Timing-Preserved Playbacks.** By combining `--record <file>` with the `replay <file>` command, you can record a manual interaction path and replay it deterministic-style. The replayer parses the delay times between your commands and replicates them exactly.
 - **Visual Regression Checks.** The `golden save <name>` and `golden check <name>` commands let you capture PNG baselines and compare them on the fly. Diffing uses Jimp and fails if the pixel delta exceeds the specified threshold.

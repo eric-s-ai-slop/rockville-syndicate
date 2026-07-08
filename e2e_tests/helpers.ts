@@ -1,4 +1,42 @@
 import { expect, Page } from '@playwright/test';
+import type { DevBridgeWindow } from './agent/DevBridge';
+
+/**
+ * H3: diagnostics captured off the live scene at the moment `advanceUntil`
+ * gives up, so a caller doesn't have to blindly guess whether a timeout was a
+ * physics issue (player never reached walkTarget), a UI issue (a dialogue
+ * line or choice buttons stuck on screen), or a mode issue (activeMode never
+ * completed).
+ */
+export interface AdvanceTimeoutDiagnostics {
+  beatIndex: number | null;
+  beatType: string | null;
+  player: { x: number; y: number } | null;
+  walkTarget: { x: number; y: number; radius?: number } | null;
+  distanceToWalkTarget: number | null;
+  movementFrozen: boolean | null;
+  levelStarted: boolean | null;
+  activeModeId: string | null;
+  dialogueVisible: boolean;
+  choiceCount: number;
+}
+
+/**
+ * Thrown by `advanceUntil` on timeout instead of a bare Error, so callers
+ * (the `advance` command, the gauntlet) can attach `.diagnostics` to their
+ * JSONL/GauntletResult output without re-deriving it themselves (H3). The
+ * message still starts with the original `advanceUntil: timed out after Ns`
+ * text so any existing message-matching in tests keeps working.
+ */
+export class AdvanceTimeoutError extends Error {
+  diagnostics: AdvanceTimeoutDiagnostics;
+
+  constructor(maxSeconds: number, diagnostics: AdvanceTimeoutDiagnostics) {
+    super(`advanceUntil: timed out after ${maxSeconds}s ${JSON.stringify(diagnostics)}`);
+    this.name = 'AdvanceTimeoutError';
+    this.diagnostics = diagnostics;
+  }
+}
 
 /**
  * From the chapter-select screen, break every CLASSIFIED chapter's redaction
@@ -84,7 +122,7 @@ export async function advanceUntil(
     if (await condition()) return;
     if (onTick) {
       const info = await page.evaluate(() => {
-        const scene = (window as any).__OMEGA_GAME__?.scene.getScene('ChapterScene');
+        const scene = (window as unknown as DevBridgeWindow).__OMEGA_GAME__?.scene.getScene('ChapterScene');
         return {
           sceneIndex: typeof scene?.currentSceneIndex === 'number' ? scene.currentSceneIndex : null,
           mode: scene?.activeMode?.id ?? null,
@@ -94,7 +132,7 @@ export async function advanceUntil(
       await onTick(info);
     }
     await page.evaluate(({ skip, forceChoice }) => {
-      const scene = (window as any).__OMEGA_GAME__?.scene.getScene('ChapterScene');
+      const scene = (window as unknown as DevBridgeWindow).__OMEGA_GAME__?.scene.getScene('ChapterScene');
 
       // Auto-complete a foreground minigame that is blocking the flow.
       // '*' means "any mode" — for callers (like the agent CLI gauntlet) that
@@ -134,5 +172,35 @@ export async function advanceUntil(
     }, { skip: skipModes, forceChoice });
     await page.waitForTimeout(150);
   }
-  throw new Error(`advanceUntil: timed out after ${maxSeconds}s`);
+
+  // H3: one extra round-trip to collect stall diagnostics before throwing —
+  // kept flat (no nested named helper functions) per the esbuild/tsx `__name`
+  // trap noted in GameAgent.ts's getActorBoundingBoxes().
+  const diagnostics: AdvanceTimeoutDiagnostics = await page.evaluate(() => {
+    const scene = (window as unknown as DevBridgeWindow).__OMEGA_GAME__?.scene.getScene('ChapterScene');
+    const beatIndex = typeof scene?.beatIndex === 'number' ? scene.beatIndex : null;
+    const beatType = beatIndex !== null ? (scene?.chapter?.beats?.[beatIndex]?.type ?? null) : null;
+    const player = scene?.player ? { x: scene.player.x, y: scene.player.y } : null;
+    const walkTarget = scene?.walkTarget
+      ? { x: scene.walkTarget.x, y: scene.walkTarget.y, radius: scene.walkTarget.radius }
+      : null;
+    const distanceToWalkTarget =
+      player && walkTarget ? Math.hypot(player.x - walkTarget.x, player.y - walkTarget.y) : null;
+    const line = document.querySelector('p.font-pixel') as HTMLElement | null;
+    const dialogueVisible = !!(line && line.offsetParent !== null);
+    const choiceCount = document.querySelectorAll('[data-testid="dialogue-choice"]').length;
+    return {
+      beatIndex,
+      beatType,
+      player,
+      walkTarget,
+      distanceToWalkTarget,
+      movementFrozen: typeof scene?.movementFrozen === 'boolean' ? scene.movementFrozen : null,
+      levelStarted: typeof scene?.levelStarted === 'boolean' ? scene.levelStarted : null,
+      activeModeId: scene?.activeMode?.id ?? null,
+      dialogueVisible,
+      choiceCount,
+    };
+  });
+  throw new AdvanceTimeoutError(maxSeconds, diagnostics);
 }

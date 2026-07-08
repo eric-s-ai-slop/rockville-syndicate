@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { CHAPTERS } from '../../src/data/chapters';
 import { navigateToChapter } from '../helpers';
+import type { DevBridgeWindow } from './DevBridge';
 
 /**
  * GameAgent — stateful browser-automation toolkit for playtesting the Phaser 3
@@ -413,10 +414,10 @@ export class GameAgent {
   /** Convert world coordinates (x, y) with scrollFactor to viewport CSS pixels relative to the page. */
   async worldToViewport(worldX: number, worldY: number, scrollFactor = 1): Promise<{ x: number; y: number }> {
     return this.page.evaluate(({ worldX, worldY, scrollFactor }) => {
-      const game = (window as unknown as { __OMEGA_GAME__?: any }).__OMEGA_GAME__;
+      const game = (window as unknown as DevBridgeWindow).__OMEGA_GAME__;
       if (!game) return { x: 0, y: 0 };
       const chapter = game.scene.getScene('ChapterScene');
-      if (!chapter) return { x: 0, y: 0 };
+      if (!chapter?.cameras) return { x: 0, y: 0 };
       const cam = chapter.cameras.main;
       
       const cx = cam.width / 2;
@@ -607,6 +608,12 @@ export class GameAgent {
         scene.clearStoryDialogue();
       }
       scene.beatEngine.clearWalkTarget();
+
+      // Stop any in-flight crossfade/tween before warping — warpToScene() is about to
+      // fire its own crossfadeToMusic() for the target scene, and repeated warps in
+      // quick succession (goto/goto/goto) otherwise leave stale delayedCall/tween
+      // callbacks racing against a destroyed stageMusic (see docs/toolkit_complaints.md C4).
+      try { scene.audioController?.stopAllAudio(0); } catch {}
 
       // Find the first beat of target scene
       let beatIdx = 0;
@@ -1332,11 +1339,14 @@ export class GameAgent {
     fs.rmSync(rawFile, { force: true });
     const font = await loadFont(SANS_10_BLACK);
 
-    const drawRect = (x: number, y: number, w: number, h: number, color: number) => {
-      const x0 = Math.max(0, Math.min(image.bitmap.width - 1, Math.round(x)));
-      const y0 = Math.max(0, Math.min(image.bitmap.height - 1, Math.round(y)));
-      const x1 = Math.max(0, Math.min(image.bitmap.width - 1, Math.round(x + w)));
-      const y1 = Math.max(0, Math.min(image.bitmap.height - 1, Math.round(y + h)));
+    // Draws a single-pixel-thickness rectangle outline, inset by `inset` px on
+    // each side (used to nest a thin accent-color rect inside a thicker black
+    // one without the two outlines overlapping into a single blob).
+    const drawRect = (x: number, y: number, w: number, h: number, color: number, inset = 0) => {
+      const x0 = Math.max(0, Math.min(image.bitmap.width - 1, Math.round(x) + inset));
+      const y0 = Math.max(0, Math.min(image.bitmap.height - 1, Math.round(y) + inset));
+      const x1 = Math.max(0, Math.min(image.bitmap.width - 1, Math.round(x + w) - inset));
+      const y1 = Math.max(0, Math.min(image.bitmap.height - 1, Math.round(y + h) - inset));
       for (let px = x0; px <= x1; px++) {
         image.setPixelColor(color, px, y0);
         image.setPixelColor(color, px, y1);
@@ -1347,12 +1357,28 @@ export class GameAgent {
       }
     };
 
+    // C5: a flat 1-px outline in a single color reads fine against a
+    // contrasting background but disappears against pixel art that happens to
+    // match red/yellow tones. Draw a 3-px black "halo" outer rect first, then
+    // the existing accent color 1-2px in from it, so the box reads on both
+    // dark and light art regardless of what's directly under either stroke.
+    const drawHaloRect = (x: number, y: number, w: number, h: number, accentColor: number) => {
+      const BLACK = 0x000000ff;
+      // Outer halo: 3px black, drawn as three concentric 1px outlines.
+      drawRect(x, y, w, h, BLACK, -2);
+      drawRect(x, y, w, h, BLACK, -1);
+      drawRect(x, y, w, h, BLACK, 0);
+      // Inner accent: 1-2px in the original color, inset just inside the halo.
+      drawRect(x, y, w, h, accentColor, 1);
+      drawRect(x, y, w, h, accentColor, 2);
+    };
+
     const ACTOR_COLOR = 0xff3b30ff; // red
     const TARGET_COLOR = 0xffcc00ff; // yellow
 
     const boxes = await this.getActorBoundingBoxes();
     for (const box of boxes) {
-      drawRect(box.x, box.y, box.width, box.height, ACTOR_COLOR);
+      drawHaloRect(box.x, box.y, box.width, box.height, ACTOR_COLOR);
       image.print({
         x: Math.max(0, Math.round(box.x)),
         y: Math.max(0, Math.round(box.y) - 11),
@@ -1364,7 +1390,7 @@ export class GameAgent {
     const { walkTarget } = await this.dumpWalkAndNpcTargets();
     if (walkTarget) {
       const { x: wx, y: wy } = walkTarget.viewport;
-      drawRect(wx - 8, wy - 8, 16, 16, TARGET_COLOR);
+      drawHaloRect(wx - 8, wy - 8, 16, 16, TARGET_COLOR);
       image.print({
         x: Math.round(wx) + 10,
         y: Math.max(0, Math.round(wy) - 6),
