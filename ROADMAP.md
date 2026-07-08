@@ -19,6 +19,10 @@ Fine for the current fixed roster; revisit only if NPC count grows or art is add
 someone who can't edit TS. **Lightest fix when needed:** colocate the per-sheet metadata
 with the sheet asset rather than a JSON pipeline.
 
+### 🟠 Boss and combat AI behaviors are procedurally hardcoded
+`src/game/modes/` — Complex behaviors (boss attack loops, bullet patterns, NPC movement AI) are procedurally coded inside TypeScript files.
+**Future Plan:** Parse these behaviors from declarative configs (e.g., `boss_patterns.json`) using a state machine/behavior tree parser so LLM agents and designers can modify/add attack behaviors without modifying core engine logic.
+
 ### 🟡 `react-hooks/exhaustive-deps` warning in `GameLayout.tsx`
 Real stale-closure risk, unlike the rest of the ESLint warnings (~160 of `no-explicit-any` /
 `no-unused-vars`, which are low-value noise and not worth batching). Worth a real look on

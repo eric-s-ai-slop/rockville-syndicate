@@ -415,3 +415,14 @@ These are advanced tools to be built after the v2 core is completed, focusing on
 **Spec.**
 - CLI command: `modify <stat> <value>` (e.g. `modify hp 1` or `modify ledger 5000`)
 - Bridge: Programmatically edit the player's active stats in the `ChapterScene` or save blob.
+
+### D5. AST Context-Mapping CLI (`npm run agent:map --target=<domain>`) — **P2**
+**Problem.** When starting a new feature (e.g. adding a weapon or boss), an agent may waste context window tokens blindly searching files to locate registration points.
+**Spec.**
+- CLI command: `npm run agent:map --target=<domain>` (e.g. `weapon` or `boss`)
+- CLI tool: Runs a lightweight AST parser that outputs an LLM-friendly dependency map of all files touching the target domain, pointing the agent to exact modification sites.
+
+### D6. Telemetry Summarizer — **P1**
+**Problem.** Logging raw game telemetry streams on long-running test play sessions consumes massive context window tokens and introduces noise.
+**Spec.**
+- CLI integration: Aggregate state events in-memory during testing. On completion, output a dense, semantic YAML/JSON summary summarizing simulated time, total player movements, collisions, combat actions, and health drop progressions.
