@@ -19,6 +19,16 @@ crashing the session.
 > - Prefer **blocking waits with conditions** over poll loops the agent must
 >   drive itself (E6 `watch`).
 > - Output keys are short, flat, and stable so downstream prompts can rely on them.
+>
+> **Vision-forward, not vision-optional (correction to earlier framing).** The
+> driving agent is *multimodal* — Gemini is strong at judging screenshots. Token
+> efficiency means "don't make the agent poll or re-read unchanged state", it
+> does **not** mean "avoid images". JSON is for precision (coordinates, HP, beat
+> indices); screenshots are for judgment (does this look right?). The toolkit
+> should *push* fresh images at the agent when looking is likely to pay off
+> (scene transitions, mode boundaries) rather than waiting to be asked — see
+> N3 visual checkpoints. A test transcript that is all-green JSON with zero
+> images looked at is a coverage gap, not an efficiency win.
 
 Tools are grouped by theme and tagged with a priority tier:
 
@@ -33,8 +43,9 @@ Tools are grouped by theme and tagged with a priority tier:
 | A (observation) | A1 A2 A3 A4 A5 | — | — |
 | B (control) | B1 B4 B7 | B2 B3 B5 B6 | — |
 | C (regression) | C1 C2 C3 C4 C7 | C5 C6 | — |
+| **N (committed next batch)** | — | — | **N1 N2 N3 N4 ← build these, in order** |
 | D (v3 backlog) | — | — | D1–D6 (see revisions below) |
-| E–I (v2.1 additions) | — | — | all |
+| E–I (v2.1 additions) | — | — | all (menu — build on demand) |
 
 ---
 
@@ -75,6 +86,136 @@ respect these.
 6. **Console interception needs `requestfailed` too.** A missing Phaser texture
    renders as a green box with no exception; the failed network request is the
    only signal. `page.on('console'/'pageerror')` alone is not enough.
+
+---
+
+## ★ N. COMMITTED NEXT BATCH (v2.2) — build these four, in this order
+
+**This section is the work order.** Everything else in this document is a menu;
+these four items are committed. If you are the implementing agent: read the
+"Lessons learned" section above first — it is binding. Per cross-cutting rule 6,
+each item ships with updates to `AGENT_TOOLKIT.md`, `e2e_tests/agent/README.md`,
+and the CLI `--help` text, plus a green `npm run lint && npm run lint:es` and a
+live verification run (not just a typecheck — actually drive the CLI against
+`npm run dev` and paste the JSONL output as proof).
+
+**Why these four:** the toolkit's bottleneck is no longer missing observation
+tools — it is (a) nothing runs automatically, and (b) the visual layer (the
+single biggest source of real bugs found by the developer: mis-scaled sprites,
+misplaced actors, "the game looks wrong") has no automated coverage. N1/N2/N3
+fix those two problems using machinery that already exists; N4 makes the
+Antigravity driving loop cheaper. Explicitly **deferred, do not build now**:
+the sprite geometry linter (E8 — only if N3's vision review proves too noisy),
+the autonomous LLM loop (I1 — superseded; Antigravity *is* the loop), fuzz,
+parallel gauntlet, AST mapper.
+
+### N1. Gauntlet in CI with per-scene screenshots (`--shots`) — build first
+
+**Goal.** Every push to main plays every chapter end-to-end and produces a
+reviewable visual record, with zero human initiation.
+
+**Part 1 — `--shots` flag on the gauntlet.**
+- During each chapter's gauntlet run, detect scene-index changes (the
+  `advanceUntil` polling loop already reads scene state each tick; compare
+  `sceneIndex` between ticks) and capture a **stabilized** screenshot (via N2's
+  helper) on each new scene, plus one at chapter start.
+- Write to `agent-artifacts/gauntlet/<timestamp>/<chapter-slug>/scene-<n>.png`.
+- After all chapters: generate `index.html` in the run folder — a contact sheet
+  (chapter × scene thumbnail grid, each linking to the full PNG, stall/error
+  badges from the per-chapter results). Plain generated HTML, no framework.
+- Each capture also emits a JSONL line:
+  `{"cmd":"visual_checkpoint","path":"…","chapter":"…","sceneIndex":n}`.
+
+**Part 2 — CI job.** Extend `.github/workflows/ci.yml` with a third job
+(pattern-match the existing `e2e` job):
+```yaml
+gauntlet:
+  name: Chapter Gauntlet
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with: { node-version: 20, cache: npm }
+    - run: npm ci
+    - run: npx playwright install --with-deps chromium
+    - run: npm run dev &            # gauntlet does NOT auto-start a server
+    - run: npx wait-on http://localhost:3324 --timeout 60000
+    - run: npm run agent:audit      # static audit gates the browser run
+    - run: npm run agent -- --gauntlet --shots
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with: { name: gauntlet-shots, path: agent-artifacts/gauntlet/ }
+```
+(`wait-on` may be replaced with a curl retry loop to avoid a new dependency.
+**Note:** unlike the `e2e` job, Playwright's `webServer` config does not apply
+here — the CLI is not a Playwright test, so the workflow must start and
+health-check the dev server itself.)
+- Nonzero exit (already implemented for stalls) fails the job. Also fail if any
+  chapter's console **error** count exceeds a threshold flag
+  `--max-errors <n>` (default: unlimited, CI passes a number once the known
+  React background-style warning is fixed — see pending task on that bug).
+
+**Acceptance.** A push to main produces a downloadable contact sheet of every
+scene in every chapter, and a chapter that stalls or errors turns CI red.
+
+### N2. Golden / capture stabilization (fixes C5's known gap)
+
+**Goal.** Any programmatic screenshot intended for comparison or review is
+taken from a settled, deterministic frame — otherwise contact sheets and
+goldens flap and get ignored.
+
+- Add `GameAgent.stabilizedScreenshot(path)`: record current loop state →
+  `pauseLoop()` → `stepFrames(5)` → capture → restore prior loop state (resume
+  only if it was running). Reuse everywhere: `golden save`, `golden check`, and
+  N1's `--shots`.
+- `golden save` writes a sidecar `<name>.meta.json` `{width, height, seed}`
+  next to the baseline. `golden check` returns
+  `{"ok":false,"error":"viewport mismatch: baseline 1280x720, current …"}`
+  instead of producing a garbage diff when sizes differ.
+- Plain `screenshot` stays unstabilized (it documents "what does the live game
+  look like right now", which is sometimes the point).
+
+**Acceptance.** `golden save x; golden check x` twice in a row passes with
+diffPct 0 on an animated scene (idle bobbing, particles) where today it flaps.
+
+### N3. Visual checkpoints + `observe --shot` + `screenshot --annotate`
+
+**Goal.** Make the multimodal driver *look* at the game at the moments visual
+bugs appear, without being asked (see the vision-forward principle in the
+header).
+
+- **`--checkpoints` session flag** (default ON under `--gauntlet`, OFF
+  otherwise): auto-capture a stabilized screenshot on chapter load, scene
+  transition, mode start, and mode end. Emit
+  `{"cmd":"visual_checkpoint","path":"…","reason":"scene 3 entered"}` so the
+  driving agent knows a fresh image exists and why. Detection: poll
+  scene/mode identity inside the existing per-command tick or a lightweight
+  interval; do NOT patch game code to emit events (dev-only bridge reads,
+  cross-cutting rule 3).
+- **`observe --shot`** (spec'd in A5, never implemented): include
+  `"shot":"<path>"` in the observe result using a stabilized capture.
+- **`screenshot --annotate`**: after capture, draw each visible actor sprite's
+  bounding box + name + depth onto the PNG (Jimp is already a dependency;
+  boxes come from the bridge via the existing `worldToViewport` math). Gemini
+  saying "chris_rivas is mis-scaled" beats "something looks off". Also
+  annotate the walk target if present.
+- **Docs reframe (part of this item):** `AGENT_TOOLKIT.md` gets a short
+  "recommended playtest loop" section: `observe` each step for state; look at
+  every `visual_checkpoint` image; use `observe --shot` when confused;
+  `--annotate` when a sprite looks wrong.
+
+**Acceptance.** A gauntlet run emits a `visual_checkpoint` line per scene/mode
+boundary; an agent following the documented loop reviews every scene of every
+chapter visually without ever deciding to screenshot on its own.
+
+### N4. `diff` and `watch` (E5/E6) — cheaper driving loop
+
+Build exactly as spec'd in E5/E6 below. Summary: `diff` emits only what changed
+since the last observation (omit unchanged fields entirely); `watch <jsExpr>
+[timeoutMs]` blocks until a scene predicate is true (poll ~100ms inside one CLI
+command, per lesson 1 all evaluation happens via `page.evaluate`), returning a
+final observation on timeout so the stuck state is visible in the same
+round-trip.
 
 ---
 
@@ -409,7 +550,7 @@ biggest token-efficiency win available** — an LLM driver's per-step cost drops
 from a full world snapshot to a few lines. Implementation: keep the last
 composite in `GameAgent`, structural-diff in Node (not in the page).
 
-### E6. `watch <jsExpr> [timeoutMs]` — Condition Breakpoint — **P0 of this tier**
+### E6. `watch <jsExpr> [timeoutMs]` — Condition Breakpoint — **P0 of this tier, committed as N4**
 Block until a predicate on the live scene is true, then emit
 `{"cmd":"watch","ok":true,"waitedMs":…}` (or `ok:false` on timeout **with a
 final observation attached** so the agent sees the stuck state without a
@@ -423,6 +564,28 @@ return a text description or an answer to a specific question ("is any sprite
 visibly mis-scaled?"). The escape hatch for the one bug class JSON observation
 can't express: *it looks wrong*. Costs money per call — never part of
 `observe`, requires an explicit API key env var, fails soft without it.
+**Priority note:** with N3 (visual checkpoints) built, the multimodal *driver*
+does this review itself for free at every checkpoint — E7 only matters for
+unattended CI runs where no driving agent is watching. Defer accordingly.
+
+### E8. `sprites` — Sprite Geometry Linter — **P2, deliberately deferred**
+Walk every visible sprite and apply geometry heuristics, emitting findings as
+data: texture key `__MISSING`/`__DEFAULT`; display aspect ratio ≠ source frame
+aspect ratio (squash/stretch); `scaleX ≠ scaleY`; displayHeight z-score outlier
+vs sibling actors (mis-scale); position outside the map rect or at (0,0)
+(corner-floating actor); origin deviating from the foot-anchor convention;
+`alpha 0`/`visible false` while active; `anims.isPlaying false` while velocity
+≠ 0 (frozen frame). Optional escalation: declared-intent metadata (expected
+`displayHeight` per character in `src/data/entities/`) so checks compare
+against intent instead of guessing from siblings.
+**Why deferred (honest assessment):** the heuristics will false-positive on
+intentional design (bosses are *supposed* to be big; props legitimately vary),
+and intent metadata is ongoing maintenance. N3's checkpoint review by the
+multimodal driver covers the same bug class with zero new inference machinery.
+Build E8 only if, in practice, checkpoint review proves too noisy, too slow, or
+misses mechanical cases (missing textures are the likeliest gap — those are
+also caught by A1's `requestfailed` hook). Fold a `spriteIssues` count into
+`observe` if/when built.
 
 ---
 
@@ -447,12 +610,11 @@ and authoring (section H).
 
 ## G. Regression & CI v2.1
 
-### G1. `npm run agent:ci` — The One-Command Nightly — **P0 of this tier**
-Wrapper that runs: static audit (C6) → gauntlet across all chapters (C7) →
-Playwright smoke specs → a `perf` sample per chapter, and merges everything
-into one JSONL report + one human summary table, nonzero exit on any failure.
-**All the pieces already exist; only the wrapper doesn't.** Cheapest
-high-value item in this document.
+### G1. `npm run agent:ci` — The One-Command Nightly — **superseded by N1**
+N1 wires audit + gauntlet directly into the GitHub Actions workflow, which is
+where this belonged all along (a local wrapper script still requires someone to
+run it). If a local one-command equivalent proves useful later, it's a
+three-line npm script chaining what N1 already established.
 
 ### G2. Perf Budgets (`perf --assert "fps>50,heap<300000000"`) — **P1**
 Turn C4 samples into pass/fail lines. A leak becomes a red CI line instead of a
@@ -464,7 +626,7 @@ B4 provides the data; this makes QA checklist lines ("Scene 0 plays in
 silence", "BGM never returns post-snap") one-line script assertions with
 `ok:false` on violation.
 
-### G4. Golden Auto-Stabilization — **P1 (fix, not feature)**
+### G4. Golden Auto-Stabilization — **committed as N2** (see the N section for the full spec)
 Per C5's known gap: `golden save`/`check` internally pause → step ~5 frames →
 capture → restore loop state. Refuse to capture (`ok:false`) if the viewport
 size differs from the baseline's recorded size.
@@ -517,16 +679,16 @@ Attach to H1.
 
 ## I. Autonomous Testing *(the payoff tier)*
 
-### I1. Autonomous Playtest Loop — **P1**
-A wrapper (`npm run agent:auto -- --chapter …`) that feeds `observe`/`diff`
-output to an LLM (`@google/genai` is present) which picks the next CLI command,
-in a loop, until chapter end / stall / budget exhaustion; emits an annotated
-session log. This is the toolkit's founding thesis ("an LLM agent given only
-observe + input commands can complete a chapter") made runnable, and it finds
-what scripted gauntlets can't: soft-locks that require *wrong* play to trigger.
-**Prerequisites: E5 `diff` and E6 `watch`** — they are what make an LLM driver
-token-affordable. Antigravity can drive the CLI directly today; this tool is
-for unattended runs.
+### I1. Autonomous Playtest Loop — **DO NOT BUILD — superseded**
+Originally: a wrapper feeding `observe`/`diff` output to an LLM that picks the
+next CLI command in a loop. **Superseded by the actual workflow: Antigravity
+*is* the autonomous loop.** The developer points a multimodal agent at the CLI;
+building a second, worse LLM driver inside the toolkit duplicates that with
+extra API cost and no advantage. The toolkit's job is to make the external
+driver cheap and well-informed (N3 checkpoints, N4 `diff`/`watch`), not to
+replace it. Revisit only if truly unattended overnight exploration (no human
+launching an agent session) becomes a real need — and even then, a scheduled
+Antigravity/Claude session driving the existing CLI is likely simpler.
 
 ### I2. Fuzz Mode (`--fuzz <seconds>`) — **P2**
 Seeded random key-mashing, clicking, and mode launches with A1 watching for
@@ -549,12 +711,19 @@ instrumentation.
 
 ## Suggested build order (updated)
 
+The next batch is **committed** — see the ★ N section near the top for full
+specs and rationale. Batches beyond it are a menu, not a to-do list: build an
+item when something in practice demands it, not because it's listed.
+
 | Batch | Tools | Rationale |
 | --- | --- | --- |
 | ~~1~~ | ~~A1–A5~~ | **done** — observation loop closed |
 | ~~2~~ | ~~B1, B4, B5(core), B7, C1–C4, C5(core), C6(core), C7~~ | **done** — debugging + repro + CI kit cores |
-| 3 | F1 (finish B3), E5 `diff`, E6 `watch`, D4 `modify`, G1 `agent:ci` | small builds, each multiplies existing tools; unblocks I1 |
-| 4 | D3 `choose`, D2 `settings`, G4 golden fix, B5 `cam fit/follow`, B6 CLI verbs, A4/B1 warning fields, G3 audio asserts | ergonomics + hardening + honest transcripts |
-| 5 | B2 file-based save-state, D1 `walkto` (cheap), G5 `transcript`, H1 validate-chapter, E1–E3 | repro depth + authoring + render-order observability |
-| 6 | I1 autonomous loop, G2 perf budgets, G6 coverage, F2, F3 | unattended testing |
+| **3 (committed)** | **N1 gauntlet-in-CI + `--shots`, N2 capture stabilization, N3 visual checkpoints/`--shot`/`--annotate`, N4 `diff`+`watch`** | the tester runs itself; the visual layer gets coverage; the driver gets cheaper |
+| 4 | F1 (finish B3), D4 `modify`, D3 `choose`, D2 `settings`, A4/B1 warning fields | control ergonomics + honest transcripts |
+| 5 | B5 `cam fit/follow`, B6 CLI verbs, G3 audio asserts, B2 file-based save-state, G5 `transcript`, H1 validate-chapter | hardening + repro depth + authoring |
+| 6 | E1–E3, E8 sprites linter (only if N3 review proves noisy), G2 perf budgets, G6 coverage, D1 `walkto` (cheap), F2, F3 | deeper observability, on demand |
 | 7 | I2 fuzz, I3 gif, G7/G8 gauntlet variants, E4, E7, H2, H3, I4, D5 map | build when the need bites |
+
+Removed from the plan entirely: I1 autonomous loop (superseded — Antigravity is
+the loop), G1 `agent:ci` wrapper (superseded by N1's direct CI wiring).
