@@ -54,12 +54,33 @@ export async function navigateToChapter(
 export async function advanceUntil(
   page: Page,
   condition: () => Promise<boolean>,
-  options: { maxSeconds?: number; skipModes?: string[] } = {},
+  options: {
+    maxSeconds?: number;
+    skipModes?: string[];
+    /**
+     * Called once per tick, before the interaction step, with the live
+     * ChapterScene's current scene index and active mode id (N1). Used by the
+     * gauntlet's `--shots` to detect scene-index changes and capture a
+     * screenshot on each new scene without hand-rolling a second polling loop
+     * (lesson 3: reuse this helper, don't parallel it).
+     */
+    onTick?: (info: { sceneIndex: number | null; mode: string | null }) => Promise<void>;
+  } = {},
 ): Promise<void> {
-  const { maxSeconds = 90, skipModes = [] } = options;
+  const { maxSeconds = 90, skipModes = [], onTick } = options;
   const maxTicks = Math.ceil((maxSeconds * 1000) / 150);
   for (let i = 0; i < maxTicks; i++) {
     if (await condition()) return;
+    if (onTick) {
+      const info = await page.evaluate(() => {
+        const scene = (window as any).__OMEGA_GAME__?.scene.getScene('ChapterScene');
+        return {
+          sceneIndex: typeof scene?.currentSceneIndex === 'number' ? scene.currentSceneIndex : null,
+          mode: scene?.activeMode?.id ?? null,
+        };
+      });
+      await onTick(info);
+    }
     await page.evaluate((skip) => {
       const scene = (window as any).__OMEGA_GAME__?.scene.getScene('ChapterScene');
 

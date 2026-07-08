@@ -43,7 +43,7 @@ Tools are grouped by theme and tagged with a priority tier:
 | A (observation) | A1 A2 A3 A4 A5 | — | — |
 | B (control) | B1 B4 B7 | B2 B3 B5 B6 | — |
 | C (regression) | C1 C2 C3 C4 C7 | C5 C6 | — |
-| **N (committed next batch)** | — | — | **N1 N2 N3 N4 ← build these, in order** |
+| **N (committed batch, v2.2)** | **N1 N2 N3 N4** | — | — |
 | D (v3 backlog) | — | — | D1–D6 (see revisions below) |
 | E–I (v2.1 additions) | — | — | all (menu — build on demand) |
 
@@ -86,18 +86,30 @@ respect these.
 6. **Console interception needs `requestfailed` too.** A missing Phaser texture
    renders as a green box with no exception; the failed network request is the
    only signal. `page.on('console'/'pageerror')` alone is not enough.
+7. **Never define a named helper function/arrow inside a `page.evaluate(() =>
+   {...})` callback in `GameAgent.ts`.** `const foo = (x) => {...}` nested
+   inside an evaluate callback trips `ReferenceError: __name is not defined`
+   at runtime in the page — tsx/esbuild wraps named function bindings with a
+   `__name(fn, "fn")` call for stack-trace fidelity, and that helper only
+   exists in the outer Node bundle, not in the string Playwright re-evaluates
+   in the browser. Anonymous callbacks and loops over plain data are fine; a
+   nested *named* function/arrow is not. Bit N3's `getActorBoundingBoxes` —
+   fixed by flattening it into two loops (gather candidates as plain objects,
+   then convert) instead of inline named helpers. Factor logic as data
+   transformation, not as a named closure, inside these callbacks.
 
 ---
 
-## ★ N. COMMITTED NEXT BATCH (v2.2) — build these four, in this order
+## ★ N. COMMITTED BATCH (v2.2) — SHIPPED
 
-**This section is the work order.** Everything else in this document is a menu;
-these four items are committed. If you are the implementing agent: read the
-"Lessons learned" section above first — it is binding. Per cross-cutting rule 6,
-each item ships with updates to `AGENT_TOOLKIT.md`, `e2e_tests/agent/README.md`,
-and the CLI `--help` text, plus a green `npm run lint && npm run lint:es` and a
-live verification run (not just a typecheck — actually drive the CLI against
-`npm run dev` and paste the JSONL output as proof).
+**Status: implemented, verified live against `npm run dev`, and wired into
+CI.** All four items below are built, typechecked, eslint-clean, covered by the
+existing unit/Playwright/gauntlet suites, and documented in
+`AGENT_TOOLKIT.md` / `e2e_tests/agent/README.md` / the CLI `--help` text (per
+cross-cutting rule 6). Lesson 7 above (the `__name` esbuild trap) was
+discovered and fixed while building N3's `getActorBoundingBoxes`. The
+subsections below are kept as the design record; "As shipped" notes mark
+anything that landed slightly differently than originally spec'd.
 
 **Why these four:** the toolkit's bottleneck is no longer missing observation
 tools — it is (a) nothing runs automatically, and (b) the visual layer (the
@@ -109,7 +121,18 @@ the sprite geometry linter (E8 — only if N3's vision review proves too noisy),
 the autonomous LLM loop (I1 — superseded; Antigravity *is* the loop), fuzz,
 parallel gauntlet, AST mapper.
 
-### N1. Gauntlet in CI with per-scene screenshots (`--shots`) — build first
+### N1. Gauntlet in CI with per-scene screenshots (`--shots`) — implemented
+
+**As shipped:** matches the spec below. The `gauntlet` job uses a `curl` retry
+loop (30 attempts, 2s apart) instead of `wait-on`, per the note already in the
+sketch — no new dependency. Verified locally: `npm run agent -- --gauntlet
+--shots --chapters "The Spotify Family Insurgency"` produced a timestamped run
+folder, one `scene-0.png`, a `visual_checkpoint` JSONL line, and a contact-sheet
+`index.html` that renders the thumbnail + status badge. `--max-errors <n>`
+fails the process (exit 1) when a chapter's error count exceeds it — verified
+with `--max-errors 5` against the known ~11-error React background-style
+warning (still open; CI does not yet pass `--max-errors` for this reason, per
+the original design note below).
 
 **Goal.** Every push to main plays every chapter end-to-end and produces a
 reviewable visual record, with zero human initiation.
@@ -158,7 +181,16 @@ health-check the dev server itself.)
 **Acceptance.** A push to main produces a downloadable contact sheet of every
 scene in every chapter, and a chapter that stalls or errors turns CI red.
 
-### N2. Golden / capture stabilization (fixes C5's known gap)
+### N2. Golden / capture stabilization (fixes C5's known gap) — implemented
+
+**As shipped:** matches the spec below exactly — `GameAgent.stabilizedScreenshot()`
+is now the single capture path for `golden save`/`check`, N1's `--shots`, N3's
+`observe --shot`/`--checkpoints`/`--annotate`. `golden save` writes the
+`.meta.json` sidecar; `golden check` throws (surfacing as the CLI's normal
+`ok:false` path) on a viewport mismatch instead of diffing. Verified locally by
+deliberately corrupting a sidecar's recorded width and confirming `golden
+check` returned `{"ok":false,"error":"viewport mismatch: baseline
+9999x720, current 1280x720"}` without producing a diff image.
 
 **Goal.** Any programmatic screenshot intended for comparison or review is
 taken from a settled, deterministic frame — otherwise contact sheets and
@@ -178,11 +210,25 @@ goldens flap and get ignored.
 **Acceptance.** `golden save x; golden check x` twice in a row passes with
 diffPct 0 on an animated scene (idle bobbing, particles) where today it flaps.
 
-### N3. Visual checkpoints + `observe --shot` + `screenshot --annotate`
+### N3. Visual checkpoints + `observe --shot` + `screenshot --annotate` — implemented
 
-**Goal.** Make the multimodal driver *look* at the game at the moments visual
-bugs appear, without being asked (see the vision-forward principle in the
-header).
+**As shipped, with one scope clarification:** the gauntlet's `--shots` (N1)
+already emits `visual_checkpoint` on every scene boundary for gauntlet runs, so
+the CLI's `--checkpoints` flag is the mechanism for a normal (non-gauntlet)
+session — interactive/scripted/stdin — auto-capturing on chapter load, scene
+transition, and mode start/end, off by default (an interactive session pays for
+every extra screenshot in wall time). `observe --shot` and `screenshot
+--annotate` work in both gauntlet and normal sessions. `--annotate` draws a red
+box + `"name dN"` label per visible actor (including the player) and a yellow
+box + label on the active walk target, via Jimp (`SANS_10_BLACK` font from
+`jimp/fonts`). Verified locally end-to-end: `--checkpoints` on a normal session
+emitted a checkpoint on chapter load and again once `advance` reached
+`ChapterScene`; `screenshot --annotate` produced a PNG with a visible red box
+around the player and an NPC sprite.
+
+**Goal (original).** Make the multimodal driver *look* at the game at the
+moments visual bugs appear, without being asked (see the vision-forward
+principle in the header).
 
 - **`--checkpoints` session flag** (default ON under `--gauntlet`, OFF
   otherwise): auto-capture a stabilized screenshot on chapter load, scene
@@ -208,14 +254,21 @@ header).
 boundary; an agent following the documented loop reviews every scene of every
 chapter visually without ever deciding to screenshot on its own.
 
-### N4. `diff` and `watch` (E5/E6) — cheaper driving loop
+### N4. `diff` and `watch` (E5/E6) — cheaper driving loop — implemented
 
-Build exactly as spec'd in E5/E6 below. Summary: `diff` emits only what changed
-since the last observation (omit unchanged fields entirely); `watch <jsExpr>
-[timeoutMs]` blocks until a scene predicate is true (poll ~100ms inside one CLI
-command, per lesson 1 all evaluation happens via `page.evaluate`), returning a
-final observation on timeout so the stuck state is visible in the same
-round-trip.
+**As shipped:** `GameAgent.observeDiff()` keeps the last `observeComposite()`
+result and returns only the top-level `state`/`dom` fields and whole
+`canvas`/`walkTarget`/`npcs` arrays that changed (structural diff via
+`JSON.stringify` comparison, done in Node per the implementation note — not in
+the page); the first call in a session has no baseline, so it returns the full
+observation with `full:true`. `GameAgent.watch(jsExpr, timeoutMs)` evaluates
+`jsExpr` with `scene`/`game` in scope every ~100ms inside one call, returning
+`{ok:true, waitedMs}` on success or `{ok:false, waitedMs, observation}` on
+timeout. The CLI's `watch` command reads `jsExpr` from the raw command
+remainder (like `eval`) rather than whitespace-split args, since a comparison
+expression contains spaces — a trailing bare integer is pulled off as
+`timeoutMs` if present. Verified locally: `watch "scene.player.x > 0" 3000`
+returned `{"ok":true,"waitedMs":0}` immediately once the player had spawned.
 
 ---
 
@@ -711,16 +764,16 @@ instrumentation.
 
 ## Suggested build order (updated)
 
-The next batch is **committed** — see the ★ N section near the top for full
-specs and rationale. Batches beyond it are a menu, not a to-do list: build an
-item when something in practice demands it, not because it's listed.
+Batch 3 is **shipped** — see the ★ N section near the top for the full design
+record and "as shipped" notes. Batches beyond it are a menu, not a to-do list:
+build an item when something in practice demands it, not because it's listed.
 
 | Batch | Tools | Rationale |
 | --- | --- | --- |
 | ~~1~~ | ~~A1–A5~~ | **done** — observation loop closed |
 | ~~2~~ | ~~B1, B4, B5(core), B7, C1–C4, C5(core), C6(core), C7~~ | **done** — debugging + repro + CI kit cores |
-| **3 (committed)** | **N1 gauntlet-in-CI + `--shots`, N2 capture stabilization, N3 visual checkpoints/`--shot`/`--annotate`, N4 `diff`+`watch`** | the tester runs itself; the visual layer gets coverage; the driver gets cheaper |
-| 4 | F1 (finish B3), D4 `modify`, D3 `choose`, D2 `settings`, A4/B1 warning fields | control ergonomics + honest transcripts |
+| ~~3~~ | ~~N1 gauntlet-in-CI + `--shots`, N2 capture stabilization, N3 visual checkpoints/`--shot`/`--annotate`, N4 `diff`+`watch`~~ | **done** — the tester runs itself; the visual layer gets coverage; the driver gets cheaper |
+| 4 (next) | F1 (finish B3), D4 `modify`, D3 `choose`, D2 `settings`, A4/B1 warning fields | control ergonomics + honest transcripts |
 | 5 | B5 `cam fit/follow`, B6 CLI verbs, G3 audio asserts, B2 file-based save-state, G5 `transcript`, H1 validate-chapter | hardening + repro depth + authoring |
 | 6 | E1–E3, E8 sprites linter (only if N3 review proves noisy), G2 perf budgets, G6 coverage, D1 `walkto` (cheap), F2, F3 | deeper observability, on demand |
 | 7 | I2 fuzz, I3 gif, G7/G8 gauntlet variants, E4, E7, H2, H3, I4, D5 map | build when the need bites |

@@ -56,3 +56,49 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run e2e
+
+  # Plays every chapter end-to-end via the agent toolkit (npm run agent -- --gauntlet),
+  # capturing a stabilized screenshot per scene into a downloadable contact sheet. Unlike
+  # the `e2e` job above, this isn't a Playwright *test* — the CLI is a plain Node/tsx
+  # process, so Playwright's `webServer` config doesn't apply here and the dev server has
+  # to be started and health-checked by hand (docs/agent_toolkit_spec_v2.md N1).
+  gauntlet:
+    name: Chapter Gauntlet
+    runs-on: ubuntu-latest
+    continue-on-error: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+
+      - name: Start dev server
+        run: npm run dev &
+
+      - name: Wait for dev server
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3324 > /dev/null; then
+              echo "Dev server is up."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Dev server did not become ready in time" >&2
+          exit 1
+
+      - name: Static asset audit
+        run: npm run agent:audit
+
+      - name: Run gauntlet with per-scene screenshots
+        run: npm run agent -- --gauntlet --shots
+
+      - name: Upload gauntlet contact sheet + screenshots
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gauntlet-shots
+          path: agent-artifacts/gauntlet/

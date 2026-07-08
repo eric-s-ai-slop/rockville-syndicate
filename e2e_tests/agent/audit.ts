@@ -1,99 +1,82 @@
-import fs from 'node:fs';
-import path from 'node:path';
+/**
+ * Static asset audit (C6) — no browser needed. Verifies audio imports exist on
+ * disk, stage-music keys referenced by chapters/scenes/beats are registered,
+ * `ChapterScene` image imports exist, and every `minigame` beat's `modeId` is
+ * actually registered in `src/game/modes/index.ts`.
+ *
+ * Rewritten onto ts-morph (see `ast.ts`) instead of regex-parsing TS source —
+ * the original regex approach was brittle against reordering or reformatting
+ * (C6's documented known gap). Still never imports game *engine* code into
+ * this Node process (lesson 1); everything below is either data (`CHAPTERS`)
+ * or read as an AST, never executed.
+ */
 import { CHAPTERS } from '../../src/data/chapters';
+import { extractDefaultImportsByName, extractStringRecord, extractRegisteredModeIds } from './ast';
 
 function emit(obj: Record<string, unknown>): void {
   process.stdout.write(JSON.stringify(obj) + '\n');
 }
 
-async function runAudit() {
+function runAudit() {
   let hasErrors = false;
 
-  // 1. Parse src/game/audio.ts for imports and STAGE_MUSIC_URL keys
-  const audioPath = path.resolve('src/game/audio.ts');
-  const audioContent = fs.readFileSync(audioPath, 'utf8');
-
-  // Find imports like: import ch1Url from '../assets/audio/stage_music/commons1522(coffee beabadobee).mp3?url';
-  const audioImports = new Map<string, string>(); // varName -> filePath
-  const importRegex = /import\s+(\w+)\s+from\s+['"]([^'"]+)['"]/g;
-  let match;
-  while ((match = importRegex.exec(audioContent)) !== null) {
-    const [_, varName, importPath] = match;
-    const cleanPath = importPath.replace(/\?url$/, '');
-    const absolutePath = path.resolve('src/game', cleanPath);
-    audioImports.set(varName, absolutePath);
-
-    // Verify file exists on disk
-    if (!fs.existsSync(absolutePath)) {
-      emit({ type: 'audio_import', status: 'missing', path: cleanPath, fullPath: absolutePath });
+  // 1. Audio imports (src/game/audio.ts) actually exist on disk.
+  const audioImports = extractDefaultImportsByName('src/game/audio.ts');
+  for (const [varName, info] of Object.entries(audioImports)) {
+    if (!info.existsOnDisk) {
+      emit({ type: 'audio_import', status: 'missing', varName, path: info.importPath });
       hasErrors = true;
     }
   }
 
-  // Find stage music keys in STAGE_MUSIC_URL
-  const stageMusicKeys = new Set<string>();
-  const stageMusicRegex = /(\w+)\s*:\s*(\w+)/g;
-  const stageMusicSectionMatch = audioContent.match(/export\s+const\s+STAGE_MUSIC_URL[^{]*{([^}]+)}/);
-  if (stageMusicSectionMatch) {
-    const section = stageMusicSectionMatch[1];
-    let keyMatch;
-    while ((keyMatch = stageMusicRegex.exec(section)) !== null) {
-      stageMusicKeys.add(keyMatch[1]);
+  // 2. STAGE_MUSIC_URL keys resolve to an import that exists on disk.
+  const stageMusicUrl = extractStringRecord('src/game/audio.ts', 'STAGE_MUSIC_URL');
+  const stageMusicKeys = new Set(Object.keys(stageMusicUrl));
+  for (const [musicKey, varName] of Object.entries(stageMusicUrl)) {
+    const info = audioImports[varName];
+    if (!info || !info.existsOnDisk) {
+      emit({ type: 'stage_music_url', status: 'missing', key: musicKey, varName });
+      hasErrors = true;
     }
   }
 
-  // 2. Parse src/game/ChapterScene.ts for image imports
-  const scenePath = path.resolve('src/game/ChapterScene.ts');
-  const sceneContent = fs.readFileSync(scenePath, 'utf8');
-  let sceneMatch;
-  const sceneImportRegex = /import\s+(\w+)\s+from\s+['"]([^'"]+)['"]/g;
-  while ((sceneMatch = sceneImportRegex.exec(sceneContent)) !== null) {
-    const [_, varName, importPath] = sceneMatch;
-    if (importPath.endsWith('.jpg') || importPath.endsWith('.png')) {
-      const absolutePath = path.resolve('src/game', importPath);
-      if (!fs.existsSync(absolutePath)) {
-        emit({ type: 'image_import', status: 'missing', path: importPath, fullPath: absolutePath });
-        hasErrors = true;
-      }
+  // 3. ChapterScene.ts image imports exist on disk.
+  const sceneImports = extractDefaultImportsByName('src/game/ChapterScene.ts');
+  for (const [varName, info] of Object.entries(sceneImports)) {
+    if (/\.(jpg|png)$/.test(info.importPath) && !info.existsOnDisk) {
+      emit({ type: 'image_import', status: 'missing', varName, path: info.importPath });
+      hasErrors = true;
     }
   }
 
-  // 3. Check Chapters
-  const chapterMusicKeyMap = new Map<string, string>();
-  const chapterMusicSectionMatch = audioContent.match(/export\s+const\s+CHAPTER_MUSIC_KEY[^{]*{([^}]+)}/);
-  if (chapterMusicSectionMatch) {
-    const section = chapterMusicSectionMatch[1];
-    let cmMatch;
-    const cmRegex = /(\w+)\s*:\s*['"]([^'"]+)['"]/g;
-    while ((cmMatch = cmRegex.exec(section)) !== null) {
-      chapterMusicKeyMap.set(cmMatch[1].trim(), cmMatch[2].trim());
-    }
-  }
+  // 4. Every registered mode id, for cross-referencing minigame beats.
+  const registeredModeIds = new Set(extractRegisteredModeIds());
 
+  // 5. Per-chapter checks.
+  const chapterMusicKeyMap = extractStringRecord('src/game/audio.ts', 'CHAPTER_MUSIC_KEY');
   for (const chapter of CHAPTERS) {
-    const chapMusicKey = chapterMusicKeyMap.get(chapter.id);
+    const chapMusicKey = chapterMusicKeyMap[chapter.id];
     if (chapMusicKey && !stageMusicKeys.has(chapMusicKey)) {
       emit({ chapter: chapter.title, key: chapMusicKey, kind: 'music', status: 'missing' });
       hasErrors = true;
     }
 
-    // Check individual scene music keys
-    if (chapter.scenes) {
-      for (const scene of chapter.scenes) {
-        if (scene.music && !stageMusicKeys.has(scene.music)) {
-          emit({ chapter: chapter.title, key: scene.music, kind: 'music', status: 'missing' });
-          hasErrors = true;
-        }
+    const scenes = chapter.scenes ?? [{ map: chapter.map, actors: chapter.actors }];
+    for (const scene of scenes) {
+      if (scene.music && !stageMusicKeys.has(scene.music)) {
+        emit({ chapter: chapter.title, key: scene.music, kind: 'music', status: 'missing' });
+        hasErrors = true;
       }
     }
 
-    // Check changeMusic beat keys
-    if (chapter.beats) {
-      for (const beat of chapter.beats) {
-        if (beat.type === 'changeMusic' && beat.key && !stageMusicKeys.has(beat.key)) {
-          emit({ chapter: chapter.title, key: beat.key, kind: 'music', status: 'missing' });
-          hasErrors = true;
-        }
+    for (const beat of chapter.beats ?? []) {
+      if (beat.type === 'changeMusic' && beat.key && !stageMusicKeys.has(beat.key)) {
+        emit({ chapter: chapter.title, key: beat.key, kind: 'music', status: 'missing' });
+        hasErrors = true;
+      }
+      if (beat.type === 'minigame' && !registeredModeIds.has(beat.modeId)) {
+        emit({ chapter: chapter.title, modeId: beat.modeId, kind: 'mode', status: 'unregistered' });
+        hasErrors = true;
       }
     }
   }

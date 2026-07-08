@@ -34,6 +34,9 @@ interface Flags {
   record: string | null;
   gauntlet: boolean;
   chapters: string | null;
+  shots: boolean;
+  maxErrors: number | null;
+  checkpoints: boolean;
 }
 
 function parseFlags(argv: string[]): Flags {
@@ -52,6 +55,9 @@ function parseFlags(argv: string[]): Flags {
     record: null,
     gauntlet: false,
     chapters: null,
+    shots: false,
+    maxErrors: null,
+    checkpoints: false,
   };
   const positional: string[] = [];
   for (let i = 0; i < argv.length; i++) {
@@ -70,6 +76,9 @@ function parseFlags(argv: string[]): Flags {
       case '--record': f.record = argv[++i]; break;
       case '--gauntlet': f.gauntlet = true; break;
       case '--chapters': f.chapters = argv[++i]; break;
+      case '--shots': f.shots = true; break;
+      case '--max-errors': f.maxErrors = Number(argv[++i]); break;
+      case '--checkpoints': f.checkpoints = true; break;
       default:
         if (a.startsWith('--')) throw new Error(`Unknown flag: ${a}`);
         positional.push(a);
@@ -96,6 +105,14 @@ FLAGS
   --headed              Show the browser window (default headless)
   --slowmo <ms>         Delay every Playwright action by <ms> (visual debugging)
   --keep-open           After running inline/script commands, stay open and read stdin
+  --seed <n>            Boot with a seeded Mulberry32 PRNG (replaces Math.random) for determinism
+  --record <file>       Record executed commands + inter-command delays to <file>
+  --gauntlet            Run every chapter end-to-end via advanceUntil, report completed/stalled
+  --chapters "<list>"   Comma-separated chapter title/id filter for --gauntlet
+  --shots               (with --gauntlet) capture a stabilized screenshot per scene + a contact-sheet index.html (N1)
+  --max-errors <n>      (with --gauntlet) fail the run if any chapter's console error count exceeds <n>
+  --checkpoints         Auto-capture a stabilized screenshot + emit 'visual_checkpoint' on every
+                        chapter/scene/mode transition during a normal (non-gauntlet) session (N3)
   -h, --help            Show this menu
 
 COMMANDS (one per line; ';' also separates them on a single line)
@@ -115,19 +132,47 @@ COMMANDS (one per line; ';' also separates them on a single line)
     state                      print snapshotGameState() JSON (scene, player, velocity, hp, mode, loop)
     text                       extract visible text from Phaser canvas and DOM (A2)
     targets                    dump active walk target and NPCs with screen/world coordinates (A3)
-    observe | obs              print composite observation snapshot, incl. console errors/warnings since last observe (A5)
+    observe | obs [--shot]     print composite observation snapshot, incl. console errors/warnings since last observe (A5);
+                               --shot attaches a stabilized screenshot path as "shot" (N3)
+    diff                       like observe, but omits any field unchanged since the last diff/observe call (N4/E5)
+    watch <jsExpr> [timeoutMs] block until a predicate on the live scene is true (scene/game in scope), e.g.
+                               watch "scene.activeHp < 50" 10000 — polls ~100ms in one round-trip, attaches a
+                               final observation on timeout so the stuck state is visible (N4/E6)
     beat | beats               print current and upcoming narrative beats (A4)
     skipbeat [n]               force-advance n beats (default 1) past one that can never complete normally (A4)
     logs | console [clear]     print buffered console errors/warnings/failed requests since boot or last clear (A1)
     audio                      print playing audio state and master volume (B4)
+    audio assert silent | playing <key> | stopped <key>   scriptable audio assertion, ok:false on violation (G3)
     camera                     print camera zoom, center, and dimensions (B5)
     camera zoom <factor>       set camera zoom factor (B5)
     camera center <x> <y>      center camera on world coordinates (B5)
-    goto <sceneIndex>          jump to a specific scene index instantly (B1)
-    savestate                  quick-save current game state in-memory (B2)
-    loadstate                  quick-restore saved game state (B2)
+    camera fit                 stop follow, zoom+centerOn the whole current-scene map rect (B5)
+    camera follow              restore startFollow(player) at the chapter's configured zoom (B5)
+    goto <sceneIndex>          jump to a specific scene index instantly (B1) — mutates, carries a
+                               "skipped-state" warning: beats before the target scene didn't run
+    savestate [file]           quick-save current state in-memory, or dump to <file> incl. the
+                               omega-save-v2 blob if a path is given (B2)
+    loadstate [file]           quick-restore in-memory state, or restore + re-navigate from <file> (B2)
+    modes                      list every registered minigame mode id (B3)
+    winmode | losemode         force-complete the foreground mode via its own onCompleteCallback (B3/F1)
+    modify hp|ledger|shards <value>  directly set a stat, bypassing normal game logic (D4) — mutates,
+                               carries a "skipped-state" warning
+    choose <index|text>        click a dialogue-choice button by index or fuzzy text match (D3)
+    settings [key] [value]     print live settings, or patch one key via settings.ts's updateSettings (D2)
+    chapterflag [chapterId] [complete|uncomplete|freeplay-on|freeplay-off]   print/set Hall-of-Records
+                               progress via settings.ts (F2); omit args to print current progress
+    anim                       per-actor animation state: key, frame, isPlaying, flipX (E1)
+    depth [worldX worldY]      visible objects sorted by depth; filtered to a world point if given (E2)
+    hitreport <worldX> <worldY>  composite of depth + physics bodies + DOM element at a world point (E3)
+    fx                         camera flash/fade/shake running state + screen-tint effective alpha (E4)
+    walkto <worldX> <worldY> [radius] [maxSeconds]  cheap directional walk (hold + re-evaluate), no
+                               pathfinding — stops in radius or gives up with ok:false (D1) — mutates
+    injectbeat <json>          execute one beat object through the engine's own dispatch (F3) — mutates
+    clickworld <x> <y> [left|right]   convert world coords to viewport pixels and click there (B6)
+    where <x> <y>              print both world and viewport-pixel coordinates for a world point (B6)
     eval <js>                  run JS in the page, print the result (e.g. eval window.__OMEGA_GAME__.scene.keys.length)
-    screenshot [name]          save a PNG to --out, print its path
+    screenshot [name] [--annotate]  save a PNG to --out, print its path; --annotate draws each visible
+                               actor's bounding box + name + depth, and the walk target, onto the image (N3)
   Time (§4)
     pause | resume             sleep / wake the Phaser loop
     loop                       print whether the loop is running
@@ -140,6 +185,14 @@ COMMANDS (one per line; ';' also separates them on a single line)
     wait <ms>                  sleep <ms> of real time
     help                       print this menu
     quit | exit                close the browser and end
+
+OTHER SCRIPTS (no browser needed)
+  npm run agent:audit                          static asset audit (C6) — audio/image imports, music
+                                                keys, and minigame modeIds referenced by chapters, all
+                                                registered/on-disk
+  npm run agent:validate-chapter -- [id]       typed chapter linter (H1) — unknown speakers, unreachable
+                                                beats, broken goto targets, out-of-bounds walkTo, unknown
+                                                mode ids / music keys, missing map.theme (omit id for all)
 
 OUTPUT
   One JSON line per command on stdout: {"cmd":"...","ok":true, ...result}. Errors are
@@ -182,6 +235,56 @@ async function reachWalkControl(page: Page, maxSeconds: number): Promise<void> {
 }
 
 let screenshotCount = 0;
+
+// ── N3: visual checkpoints for a normal (non-gauntlet) session ────────────
+// Auto-captures a stabilized screenshot + emits a `visual_checkpoint` JSONL
+// line whenever the active scene/mode identity changes, so the multimodal
+// driver sees a fresh image at the moments visual bugs actually appear
+// without deciding to screenshot itself. Detection reads scene/mode identity
+// off the live bridge (dev-only) rather than patching game code to emit
+// events (cross-cutting rule 3). Gated behind --checkpoints; off by default
+// for scripted/inline sessions where every extra screenshot costs wall time.
+let checkpointCount = 0;
+let lastCheckpointState: { sceneKey: string | null; sceneIndex: number | null; mode: string | null } = {
+  sceneKey: null,
+  sceneIndex: null,
+  mode: null,
+};
+
+async function maybeEmitCheckpoint(agent: GameAgent, page: Page, flags: Flags): Promise<void> {
+  if (!flags.checkpoints) return;
+  const current = await page
+    .evaluate(() => {
+      const game = (window as unknown as { __OMEGA_GAME__?: any }).__OMEGA_GAME__;
+      if (!game) return { sceneKey: null, sceneIndex: null, mode: null };
+      const active = game.scene.getScenes(true);
+      const top = active[active.length - 1];
+      const chapterScene = game.scene.getScene('ChapterScene');
+      return {
+        sceneKey: top?.sys?.settings?.key ?? null,
+        sceneIndex: typeof chapterScene?.currentSceneIndex === 'number' ? chapterScene.currentSceneIndex : null,
+        mode: chapterScene?.activeMode?.id ?? null,
+      };
+    })
+    .catch(() => null);
+  if (!current) return;
+
+  let reason: string | null = null;
+  if (current.sceneKey !== lastCheckpointState.sceneKey) {
+    reason = current.sceneKey ? `scene "${current.sceneKey}" loaded` : 'scene unloaded';
+  } else if (current.sceneIndex !== lastCheckpointState.sceneIndex) {
+    reason = `chapter scene ${current.sceneIndex} entered`;
+  } else if (current.mode !== lastCheckpointState.mode) {
+    reason = current.mode ? `mode "${current.mode}" started` : 'mode ended';
+  }
+  lastCheckpointState = current;
+  if (!reason) return;
+
+  fs.mkdirSync(flags.out, { recursive: true });
+  const file = path.resolve(flags.out, `checkpoint-${String(++checkpointCount).padStart(3, '0')}.png`);
+  await agent.stabilizedScreenshot(file);
+  emit({ cmd: 'visual_checkpoint', ok: true, path: file, reason });
+}
 
 /** Execute one command line. Returns false to signal the session should end. */
 async function runCommand(
@@ -260,10 +363,13 @@ async function runCommand(
       }
       case 'screenshot': {
         fs.mkdirSync(flags.out, { recursive: true });
-        const name = args[0] || `shot-${String(++screenshotCount).padStart(3, '0')}.png`;
+        const annotate = args.includes('--annotate');
+        const nameArg = args.find(a => a !== '--annotate');
+        const name = nameArg || `shot-${String(++screenshotCount).padStart(3, '0')}.png`;
         const file = path.resolve(flags.out, name);
-        await page.screenshot({ path: file });
-        emit({ cmd: 'screenshot', ok: true, path: file });
+        if (annotate) await agent.annotateScreenshot(file);
+        else await page.screenshot({ path: file });
+        emit({ cmd: 'screenshot', ok: true, path: file, annotated: annotate });
         break;
       }
 
@@ -293,7 +399,37 @@ async function runCommand(
       }
       case 'observe': case 'obs': {
         const res = await agent.observeComposite();
-        emit({ cmd: 'observe', ok: true, ...res });
+        let shot: string | undefined;
+        if (args.includes('--shot')) {
+          fs.mkdirSync(flags.out, { recursive: true });
+          shot = path.resolve(flags.out, `observe-shot-${String(++screenshotCount).padStart(3, '0')}.png`);
+          await agent.stabilizedScreenshot(shot);
+        }
+        emit({ cmd: 'observe', ok: true, ...res, ...(shot ? { shot } : {}) });
+        break;
+      }
+      case 'diff': {
+        const res = await agent.observeDiff();
+        emit({ cmd: 'diff', ok: true, ...res });
+        break;
+      }
+      case 'watch': {
+        // jsExpr can contain spaces ('scene.activeHp < 50'), so read it from the
+        // raw remainder (like 'eval') rather than the whitespace-split args —
+        // pull a trailing bare integer off as timeoutMs if present.
+        if (!rest) throw new Error('Usage: watch <jsExpr> [timeoutMs]');
+        let expr = rest;
+        let timeoutMs = 5000;
+        const trailingMs = expr.match(/^(.*\S)\s+(\d+)$/);
+        if (trailingMs) {
+          expr = trailingMs[1];
+          timeoutMs = Number(trailingMs[2]);
+        }
+        if ((expr.startsWith('"') && expr.endsWith('"')) || (expr.startsWith("'") && expr.endsWith("'"))) {
+          expr = expr.slice(1, -1);
+        }
+        const res = await agent.watch(expr, timeoutMs);
+        emit({ cmd: 'watch', ...res });
         break;
       }
       case 'beat': case 'beats': {
@@ -304,7 +440,13 @@ async function runCommand(
       case 'skipbeat': {
         const n = args[0] ? num(0) : 1;
         const res = await agent.skipBeat(n);
-        emit({ cmd: 'skipbeat', ok: true, ...res, mutates: true });
+        emit({
+          cmd: 'skipbeat',
+          ok: true,
+          ...res,
+          mutates: true,
+          warning: 'skipped-state: beat side effects (ledger deltas, flags, spawns) between the skipped beats were not executed',
+        });
         break;
       }
       case 'logs': case 'console': {
@@ -320,8 +462,17 @@ async function runCommand(
         break;
       }
       case 'audio': {
-        const res = await agent.inspectAudio();
-        emit({ cmd: 'audio', ok: true, ...res });
+        if (args[0] === 'assert') {
+          const kind = args[1] as 'silent' | 'playing' | 'stopped';
+          if (!['silent', 'playing', 'stopped'].includes(kind)) {
+            throw new Error('Usage: audio assert silent | playing <key> | stopped <key>');
+          }
+          const res = await agent.assertAudio(kind, args[2]);
+          emit({ cmd: 'audio', ok: res.ok, action: 'assert', kind, key: args[2], ...res });
+        } else {
+          const res = await agent.inspectAudio();
+          emit({ cmd: 'audio', ok: true, ...res });
+        }
         break;
       }
       case 'camera': {
@@ -334,6 +485,12 @@ async function runCommand(
           const cy = num(2);
           await agent.setCameraCenter(cx, cy);
           emit({ cmd: 'camera', ok: true, action: 'center', x: cx, y: cy });
+        } else if (args[0] === 'fit') {
+          const res = await agent.cameraFit();
+          emit({ cmd: 'camera', ok: true, action: 'fit', ...res });
+        } else if (args[0] === 'follow') {
+          await agent.cameraFollow();
+          emit({ cmd: 'camera', ok: true, action: 'follow' });
         } else {
           const cam = await agent.inspectCamera();
           emit({ cmd: 'camera', ok: true, ...cam });
@@ -349,17 +506,37 @@ async function runCommand(
       case 'goto': {
         const idx = num(0);
         await agent.warpScene(idx);
-        emit({ cmd: 'goto', ok: true, sceneIndex: idx });
+        emit({
+          cmd: 'goto',
+          ok: true,
+          sceneIndex: idx,
+          mutates: true,
+          warning: 'skipped-state: side effects of beats before this scene (ledger deltas, flags, spawns) were not executed',
+        });
         break;
       }
       case 'savestate': {
-        await agent.saveQuickState();
-        emit({ cmd: 'savestate', ok: true });
+        const file = args[0];
+        if (file) {
+          const filePath = path.resolve(file);
+          await agent.saveFileState(filePath);
+          emit({ cmd: 'savestate', ok: true, file: filePath });
+        } else {
+          await agent.saveQuickState();
+          emit({ cmd: 'savestate', ok: true });
+        }
         break;
       }
       case 'loadstate': {
-        await agent.loadQuickState();
-        emit({ cmd: 'loadstate', ok: true });
+        const file = args[0];
+        if (file) {
+          const filePath = path.resolve(file);
+          await agent.loadFileState(filePath);
+          emit({ cmd: 'loadstate', ok: true, file: filePath, mutates: true });
+        } else {
+          await agent.loadQuickState();
+          emit({ cmd: 'loadstate', ok: true, mutates: true });
+        }
         break;
       }
       case 'mode': {
@@ -375,6 +552,131 @@ async function runCommand(
         }
         await agent.launchMinigame(modeId, config);
         emit({ cmd: 'mode', ok: true, modeId, config, mutates: true });
+        break;
+      }
+      case 'modes': {
+        const ids = await agent.listModes();
+        emit({ cmd: 'modes', ok: true, ids });
+        break;
+      }
+      case 'winmode': case 'losemode': {
+        const outcome = verb === 'winmode' ? 'win' : 'lose';
+        const res = await agent.completeMode(outcome);
+        emit({ cmd: verb, ok: true, ...res, mutates: true });
+        break;
+      }
+      case 'clickworld': {
+        const wx = num(0);
+        const wy = num(1);
+        const vp = await agent.worldToViewport(wx, wy);
+        await agent.mouseDown(vp.x, vp.y, btn(args[2]));
+        await agent.mouseUp(vp.x, vp.y, btn(args[2]));
+        emit({ cmd: 'clickworld', ok: true, world: { x: wx, y: wy }, viewport: vp });
+        break;
+      }
+      case 'where': {
+        const wx = num(0);
+        const wy = num(1);
+        const vp = await agent.worldToViewport(wx, wy);
+        emit({ cmd: 'where', ok: true, world: { x: wx, y: wy }, viewport: vp });
+        break;
+      }
+      case 'modify': {
+        const stat = args[0] as 'hp' | 'ledger' | 'shards';
+        if (!['hp', 'ledger', 'shards'].includes(stat)) {
+          throw new Error('Usage: modify hp|ledger|shards <value>');
+        }
+        const value = num(1);
+        const res = await agent.modifyStat(stat, value);
+        emit({
+          cmd: 'modify',
+          ok: true,
+          ...res,
+          mutates: true,
+          warning: 'skipped-state: this stat was set directly, bypassing whatever beat/combat logic would normally change it',
+        });
+        break;
+      }
+      case 'choose': {
+        if (!rest) throw new Error('Usage: choose <index|text>');
+        const res = await agent.chooseOption(rest);
+        emit({ cmd: 'choose', ok: true, ...res, mutates: true });
+        break;
+      }
+      case 'settings': {
+        if (!args[0]) {
+          const res = await agent.getSettingsBridge();
+          emit({ cmd: 'settings', ok: true, settings: res });
+        } else {
+          const key = args[0];
+          const rawValue = args.slice(1).join(' ');
+          let value: unknown = rawValue;
+          if (rawValue === 'true') value = true;
+          else if (rawValue === 'false') value = false;
+          else if (rawValue !== '' && !isNaN(Number(rawValue))) value = Number(rawValue);
+          const res = await agent.updateSettingsBridge({ [key]: value });
+          emit({ cmd: 'settings', ok: true, settings: res, mutates: true });
+        }
+        break;
+      }
+      case 'chapterflag': {
+        if (!args[0]) {
+          const res = await agent.getProgressBridge();
+          emit({ cmd: 'chapterflag', ok: true, progress: res });
+        } else {
+          const chapterId = args[0];
+          const action = args[1] as 'complete' | 'uncomplete' | 'freeplay-on' | 'freeplay-off';
+          if (!['complete', 'uncomplete', 'freeplay-on', 'freeplay-off'].includes(action)) {
+            throw new Error('Usage: chapterflag <chapterId> complete|uncomplete|freeplay-on|freeplay-off');
+          }
+          const res = await agent.setChapterFlag(chapterId, action);
+          emit({ cmd: 'chapterflag', ok: true, progress: res, mutates: true });
+        }
+        break;
+      }
+      case 'anim': {
+        const res = await agent.inspectAnimations();
+        emit({ cmd: 'anim', ok: true, actors: res });
+        break;
+      }
+      case 'depth': {
+        const wx = args[0] ? num(0) : undefined;
+        const wy = args[1] ? num(1) : undefined;
+        const res = await agent.inspectDepth(wx, wy);
+        emit({ cmd: 'depth', ok: true, objects: res });
+        break;
+      }
+      case 'hitreport': {
+        const wx = num(0);
+        const wy = num(1);
+        const res = await agent.hitReport(wx, wy);
+        emit({ cmd: 'hitreport', ok: true, world: { x: wx, y: wy }, ...res });
+        break;
+      }
+      case 'fx': {
+        const res = await agent.inspectFx();
+        emit({ cmd: 'fx', ok: true, ...res });
+        break;
+      }
+      case 'walkto': {
+        const wx = num(0);
+        const wy = num(1);
+        const radius = args[2] ? num(2) : 24;
+        const maxSeconds = args[3] ? num(3) : 8;
+        const res = await agent.walkTo(wx, wy, radius, maxSeconds);
+        emit({ cmd: 'walkto', ok: res.ok, target: { x: wx, y: wy }, player: res.player, mutates: true });
+        break;
+      }
+      case 'injectbeat': {
+        if (!rest) throw new Error('Usage: injectbeat <json>');
+        let beat: Record<string, unknown>;
+        try {
+          beat = JSON.parse(rest);
+        } catch (err) {
+          throw new Error(`Invalid beat JSON: ${err instanceof Error ? err.message : String(err)}`);
+        }
+        const res = await agent.injectBeat(beat);
+        emit({ cmd: 'injectbeat', ok: true, ...res, mutates: true });
         break;
       }
       case 'reseed': {
@@ -438,11 +740,70 @@ async function runCommand(
   return true;
 }
 
+/** Filesystem-safe folder name for a chapter title (N1 --shots per-chapter folder). */
+function slugify(title: string): string {
+  return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'chapter';
+}
+
+interface GauntletResult {
+  chapter: string;
+  status: 'completed' | 'stalled';
+  errors: number;
+  duration: number;
+  stallInfo?: string;
+  shots?: { sceneIndex: number; path: string }[];
+}
+
+/** Plain generated HTML contact sheet (N1) — chapter x scene thumbnail grid, no framework. */
+function writeContactSheet(runDir: string, results: GauntletResult[]): void {
+  const rows = results
+    .map((r) => {
+      const badge = r.status === 'completed' ? '✅ completed' : '❌ stalled';
+      const info = r.status === 'stalled' ? `<div class="stall">${escapeHtml(r.stallInfo ?? '')}</div>` : '';
+      const thumbs = (r.shots ?? [])
+        .map((s) => {
+          const rel = path.relative(runDir, s.path).split(path.sep).join('/');
+          return `<a href="${rel}" target="_blank"><figure><img src="${rel}" loading="lazy"><figcaption>scene ${s.sceneIndex}</figcaption></figure></a>`;
+        })
+        .join('\n');
+      return `<section>
+  <h2>${escapeHtml(r.chapter)} — ${badge} <small>(${r.errors} console errors, ${r.duration}s)</small></h2>
+  ${info}
+  <div class="thumbs">${thumbs || '<em>no screenshots captured</em>'}</div>
+</section>`;
+    })
+    .join('\n');
+
+  const html = `<!doctype html>
+<html><head><meta charset="utf-8"><title>Gauntlet contact sheet</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #111; color: #eee; margin: 2rem; }
+  h1 { font-size: 1.4rem; }
+  section { border-top: 1px solid #333; padding: 1rem 0; }
+  .stall { color: #ff6b6b; font-family: monospace; margin: 0.5rem 0; }
+  .thumbs { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+  figure { margin: 0; width: 220px; }
+  figure img { width: 100%; border: 1px solid #444; display: block; }
+  figcaption { font-size: 0.8rem; opacity: 0.8; text-align: center; }
+  a { color: inherit; text-decoration: none; }
+</style></head>
+<body>
+<h1>Chapter Gauntlet — ${new Date().toISOString()}</h1>
+${rows}
+</body></html>`;
+
+  fs.writeFileSync(path.resolve(runDir, 'index.html'), html);
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+}
+
 async function runGauntlet(flags: Flags): Promise<void> {
   const browser = await chromium.launch({ headless: !flags.headed, slowMo: flags.slowmo });
   const context = await browser.newContext({ baseURL: flags.url });
   const page = await context.newPage();
-  
+
   let consoleErrors = 0;
   page.on('console', (msg) => {
     if (msg.type() === 'error') {
@@ -455,21 +816,23 @@ async function runGauntlet(flags: Flags): Promise<void> {
     process.stderr.write(`[Browser Page Error] ${err.stack || err.message}\n`);
   });
 
-  const targetChapters = flags.chapters 
-    ? flags.chapters.split(',').map(s => s.trim()) 
+  const targetChapters = flags.chapters
+    ? flags.chapters.split(',').map(s => s.trim())
     : [];
 
-  const results: Array<{
-    chapter: string;
-    status: 'completed' | 'stalled';
-    errors: number;
-    duration: number;
-    stallInfo?: string;
-  }> = [];
+  // N1: --shots writes one timestamped run folder under agent-artifacts/gauntlet/,
+  // one subfolder per chapter, with a per-scene stabilized screenshot + a
+  // generated contact-sheet index.html at the end.
+  const runDir = flags.shots
+    ? path.resolve('agent-artifacts/gauntlet', new Date().toISOString().replace(/[:.]/g, '-'))
+    : null;
+  if (runDir) fs.mkdirSync(runDir, { recursive: true });
+
+  const results: GauntletResult[] = [];
 
   for (const chapter of CHAPTERS) {
-    const titleMatch = targetChapters.length === 0 || targetChapters.some(t => 
-      chapter.title.toLowerCase().includes(t.toLowerCase()) || 
+    const titleMatch = targetChapters.length === 0 || targetChapters.some(t =>
+      chapter.title.toLowerCase().includes(t.toLowerCase()) ||
       chapter.id.toLowerCase().includes(t.toLowerCase())
     );
     if (!titleMatch) continue;
@@ -479,6 +842,18 @@ async function runGauntlet(flags: Flags): Promise<void> {
     const start = Date.now();
     let status: 'completed' | 'stalled' = 'stalled';
     let stallInfo = '';
+    const shots: { sceneIndex: number; path: string }[] = [];
+
+    const chapterDir = runDir ? path.resolve(runDir, slugify(chapter.title)) : null;
+    if (chapterDir) fs.mkdirSync(chapterDir, { recursive: true });
+
+    const captureScene = async (agent: GameAgent, sceneIndex: number) => {
+      if (!chapterDir) return;
+      const shotPath = path.resolve(chapterDir, `scene-${sceneIndex}.png`);
+      await agent.stabilizedScreenshot(shotPath);
+      shots.push({ sceneIndex, path: shotPath });
+      emit({ cmd: 'visual_checkpoint', ok: true, path: shotPath, chapter: chapter.title, sceneIndex });
+    };
 
     let agent: GameAgent | null = null;
     try {
@@ -487,6 +862,8 @@ async function runGauntlet(flags: Flags): Promise<void> {
       await page.waitForSelector('canvas', { timeout: 15000 });
 
       agent = new GameAgent(page);
+      if (chapterDir) await captureScene(agent, 0); // one at chapter start (N1)
+      let lastSceneIndex = 0;
 
       // Reuse the proven advanceUntil per-tick logic (dismiss dialogue via a
       // trusted Space dispatch, click choices, auto-win skipModes, teleport onto
@@ -510,7 +887,18 @@ async function runGauntlet(flags: Flags): Promise<void> {
               // "beatIndex >= beats.length" alone can never fire once reached.
               return beats[scene.beatIndex]?.type === 'endChapter';
             }),
-          { maxSeconds: 45, skipModes: ['*'] },
+          {
+            maxSeconds: 45,
+            skipModes: ['*'],
+            onTick: chapterDir
+              ? async (info) => {
+                  if (info.sceneIndex !== null && info.sceneIndex !== lastSceneIndex) {
+                    lastSceneIndex = info.sceneIndex;
+                    await captureScene(agent!, info.sceneIndex);
+                  }
+                }
+              : undefined,
+          },
         );
         status = 'completed';
       } catch (timeoutErr) {
@@ -529,25 +917,34 @@ async function runGauntlet(flags: Flags): Promise<void> {
     }
 
     const duration = Math.round((Date.now() - start) / 1000);
-    const chapterRes = {
+    const chapterRes: GauntletResult = {
       chapter: chapter.title,
       status,
       errors: consoleErrors,
       duration,
-      ...(status === 'stalled' ? { stallInfo } : {})
+      ...(status === 'stalled' ? { stallInfo } : {}),
+      ...(chapterDir ? { shots } : {}),
     };
     results.push(chapterRes);
-    emit(chapterRes);
+    emit({ ...chapterRes });
   }
 
   await browser.close().catch(() => {});
 
-  process.stderr.write('\n=== GAUNTLET SUMMARY ===\n');
-  console.table(results);
+  if (runDir) {
+    writeContactSheet(runDir, results);
+    process.stderr.write(`\nContact sheet: ${path.resolve(runDir, 'index.html')}\n`);
+  }
 
-  const failed = results.some(r => r.status === 'stalled');
-  if (failed) {
-    process.stderr.write('Gauntlet failed! One or more chapters stalled.\n');
+  process.stderr.write('\n=== GAUNTLET SUMMARY ===\n');
+  console.table(results.map(({ shots, ...r }) => ({ ...r, shots: shots?.length ?? 0 })));
+
+  const anyStalled = results.some(r => r.status === 'stalled');
+  const overErrorBudget =
+    flags.maxErrors !== null && !Number.isNaN(flags.maxErrors) && results.some(r => r.errors > flags.maxErrors!);
+  if (anyStalled || overErrorBudget) {
+    if (anyStalled) process.stderr.write('Gauntlet failed! One or more chapters stalled.\n');
+    if (overErrorBudget) process.stderr.write(`Gauntlet failed! A chapter exceeded --max-errors ${flags.maxErrors}.\n`);
     process.exit(1);
   } else {
     process.stderr.write('Gauntlet passed successfully!\n');
@@ -563,6 +960,7 @@ async function readStdin(agent: GameAgent, page: Page, flags: Flags): Promise<vo
   if (interactive) process.stderr.write('agent> ');
   for await (const line of rl) {
     const keepGoing = await runCommand(agent, page, flags, line);
+    await maybeEmitCheckpoint(agent, page, flags);
     if (!keepGoing) break;
     if (interactive) process.stderr.write('agent> ');
   }
@@ -616,8 +1014,15 @@ async function main(): Promise<void> {
     }
     await page.waitForSelector('canvas', { timeout: 15000 }).catch(() => {});
     agent = new GameAgent(page);
-    await agent.focusCanvas();
+    if (flags.seed !== null) agent.setSeed(flags.seed);
+    // Soft-fail: a session with no --chapter (e.g. one whose first real
+    // command is `loadstate <file>`, which does its own navigation) starts on
+    // the canvas-less chapter-select menu — focusCanvas() would otherwise
+    // hang on Playwright's default actionability timeout waiting for a canvas
+    // that will never appear without a command running first.
+    await agent.focusCanvas().catch(() => {});
     emit({ cmd: 'ready', ok: true, url: flags.url, chapter: flags.chapter, seed: flags.seed });
+    await maybeEmitCheckpoint(agent, page, flags); // chapter-load checkpoint (N3)
 
     // Source of commands: --script file, inline positional, or stdin.
     let lines: string[] | null = null;
@@ -627,6 +1032,7 @@ async function main(): Promise<void> {
     if (lines) {
       for (const line of lines) {
         if (!(await runCommand(agent, page, flags, line))) break;
+        await maybeEmitCheckpoint(agent, page, flags);
       }
       if (flags.keepOpen) await readStdin(agent, page, flags);
     } else {

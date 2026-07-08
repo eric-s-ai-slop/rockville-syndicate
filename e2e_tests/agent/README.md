@@ -43,6 +43,12 @@ plugins see continuous input exactly like a human's.
 | §4 pause loop | `pauseLoop()` / `resumeLoop()` / `isLoopRunning()` |
 | §4 step N frames | `stepFrames(frames, fps?)` |
 | C1 physics debug | `setPhysicsDebug(enabled)` |
+| N2 stabilized capture | `stabilizedScreenshot(filePath)` |
+| N4/E5 observation delta | `observeDiff()` |
+| N4/E6 condition wait | `watch(jsExpr, timeoutMs?)` |
+| N3 actor bounding boxes | `getActorBoundingBoxes()` |
+| N3 annotated screenshot | `annotateScreenshot(filePath)` |
+| — bookkeeping for golden `.meta.json` | `setSeed(seed)` |
 | — teardown (release stuck holds) | `dispose()` |
 | — focus canvas before typing | `focusCanvas()` |
 
@@ -84,6 +90,18 @@ await agent.releaseKey('d');
 
 ## Notes / gotchas
 
+- **No named helper functions nested inside a `page.evaluate(() => {...})`
+  callback.** `const foo = (x) => {...}` (or a `function foo(){}` declaration)
+  defined *inside* an evaluate callback in this file trips a
+  `ReferenceError: __name is not defined` at runtime in the page — tsx/esbuild
+  wraps named function bindings with a `__name(fn, "fn")` call for stack-trace
+  fidelity, and that helper only exists in the outer Node bundle, not in the
+  string Playwright re-evaluates in the browser. Anonymous callbacks and
+  `for`/`while` loops over plain data are fine; a nested *named* function/arrow
+  is not. Bit `getActorBoundingBoxes` (N3) — fixed by flattening it into two
+  loops (gather candidates, then convert) instead of an inline `pushSprite`
+  helper. If you need to factor out logic, do it as data transformation
+  (arrays of plain objects), not as a named closure.
 - **Trusted events only.** We never `dispatchEvent(new KeyboardEvent(...))` —
   synthetic events are `isTrusted: false` and skip the mouse/pointer pairing.
 - **Focus first.** Call `focusCanvas()` once after boot; CDP key events need the

@@ -16,7 +16,12 @@
     "test": "vitest run",
     "e2e": "playwright test",
     "agent": "tsx e2e_tests/agent/cli.ts",
-    "agent:audit": "tsx e2e_tests/agent/audit.ts"
+    "agent:audit": "tsx e2e_tests/agent/audit.ts",
+    "agent:validate-chapter": "tsx e2e_tests/agent/validate-chapter.ts",
+    "agent:transcript": "tsx e2e_tests/agent/transcript.ts",
+    "agent:lint-dialogue": "tsx e2e_tests/agent/dialogue-lint.ts",
+    "agent:scaffold-mode": "tsx e2e_tests/agent/scaffold-mode.ts",
+    "agent:map": "tsx e2e_tests/agent/context-map.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
@@ -50,6 +55,7 @@
     "jsdom": "^29.1.1",
     "phaser3spectorjs": "^0.0.8",
     "tailwindcss": "^4.1.14",
+    "ts-morph": "^28.0.0",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
     "typescript-eslint": "^8.18.0",

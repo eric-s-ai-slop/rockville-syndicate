@@ -1,0 +1,34 @@
+{
+  "weapon": {
+    "description": "Where weapon data lives and how a new weapon gets registered.",
+    "registrationFile": "src/data/entities/combat.ts",
+    "registrationSymbol": "WEAPONS",
+    "relatedFiles": ["src/data/entities/types.ts"],
+    "relatedSymbols": ["Weapon"],
+    "howTo": "Add an entry to the WEAPONS array in src/data/entities/combat.ts, typed as Weapon (src/data/entities/types.ts). Referenced by hero/boss combat code and bossFight mode."
+  },
+  "boss": {
+    "description": "Where boss data lives and how a new boss gets registered.",
+    "registrationFile": "src/data/entities/bosses.ts",
+    "registrationSymbol": "BOSSES",
+    "relatedFiles": ["src/data/entities/types.ts", "src/game/modes/bossFight/index.ts"],
+    "relatedSymbols": ["BossConfig", "BossFightMode"],
+    "howTo": "Add an entry to the BOSSES array in src/data/entities/bosses.ts, typed as BossConfig. Reference the boss's id from a chapter's `bossFight` beat (bossId field)."
+  },
+  "mode": {
+    "description": "Where minigame modes are registered (the B3/H2 mode registry).",
+    "registrationFile": "src/game/modes/index.ts",
+    "registrationSymbol": "registerMode",
+    "relatedFiles": ["src/game/modes/types.ts", "src/game/modes/_template/index.ts", "src/game/modes/CLAUDE.md"],
+    "relatedSymbols": ["GameMode", "ModeContext", "ModeResult"],
+    "howTo": "Run `npm run agent:scaffold-mode -- <modeId>` (H2) to copy _template/, register it, and stub the CLAUDE.md doc row automatically. Manual recipe: docs/ADDING_A_MINIGAME.md."
+  },
+  "chapter": {
+    "description": "Where chapters are registered and what a chapter config looks like.",
+    "registrationFile": "src/data/chapters/index.ts",
+    "registrationSymbol": "CHAPTERS",
+    "relatedFiles": ["src/data/chapters/types.ts", "src/data/chapters/CLAUDE.md"],
+    "relatedSymbols": ["ChapterConfig", "Beat"],
+    "howTo": "Copy an existing chapter file in src/data/chapters/, configure map/beats, and append it to the CHAPTERS list in src/data/chapters/index.ts. Validate with `npm run agent:validate-chapter -- <id>` (H1)."
+  }
+}

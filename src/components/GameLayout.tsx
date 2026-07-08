@@ -4,7 +4,8 @@ import ChapterScene, { StoryDialoguePayload } from '../game/ChapterScene';
 import { CHARACTER_CLASSES, CharacterClass, BossConfig } from '../data/entities';
 import { ChapterConfig } from '../data/chapters';
 import { loadProgress, markChapterComplete, rememberHero, setFreePlay as persistFreePlay } from '../game/progress';
-import { useSettings, updateSettings, getSettings, saveRunRecord } from '../game/settings';
+import { useSettings, updateSettings, getSettings, saveRunRecord, getProgress, saveProgressData } from '../game/settings';
+import { listModeIds } from '../game/modes';
 import { computeRunScore, type RunRecord } from '../game/scoring';
 import shieldImg from '../assets/images/shield.jpg';
 import { Play } from 'lucide-react';
@@ -202,7 +203,23 @@ export default function GameLayout() {
               game.canvas.focus();
               game.sound.mute = getSettings().muted;
               game.sound.volume = getSettings().masterVolume;
-              if (import.meta.env.DEV) (window as unknown as { __OMEGA_GAME__?: Phaser.Game }).__OMEGA_GAME__ = game;
+              if (import.meta.env.DEV) {
+                (window as unknown as { __OMEGA_GAME__?: Phaser.Game }).__OMEGA_GAME__ = game;
+                // Dev-only introspection/mutation bridge for the agent playtesting
+                // toolkit (e2e_tests/agent). Exposes the mode registry (B3's `modes`
+                // command can't import Phaser-touching engine code into its Node
+                // process — see CLAUDE.md/agent_toolkit_spec_v2.md lesson 1) and the
+                // settings/progress singleton (D2 `settings`, F2 `chapterflag`) so the
+                // CLI can go through the same setters React/Phaser use instead of a
+                // parallel localStorage path (project hard rule).
+                (window as unknown as { __OMEGA_DEV_BRIDGE__?: unknown }).__OMEGA_DEV_BRIDGE__ = {
+                  listModeIds,
+                  getSettings,
+                  updateSettings,
+                  getProgress,
+                  saveProgressData,
+                };
+              }
               game.scene.add('ChapterScene', ChapterScene, true, {
                 hero: selectedHero,
                 chapter,
