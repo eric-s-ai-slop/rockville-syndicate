@@ -107,6 +107,20 @@ export default tseslint.config(
     },
   },
 
+  // e2e_tests/: the Playwright agent harness reads/writes the exact sanctioned
+  // 'omega-save-v2' key directly (savestate/loadstate testing) rather than going
+  // through settings.ts, since it's driving the game from Node, not shipped game
+  // code — same rationale as the *.test.{ts,tsx} carve-out above.
+  {
+    files: ['e2e_tests/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      'no-console': 'off',
+      'no-restricted-globals': 'off',
+      'no-restricted-syntax': 'off',
+    },
+  },
+
   // settings.ts IS the sanctioned persistence layer.
   {
     files: ['src/game/settings.ts'],
