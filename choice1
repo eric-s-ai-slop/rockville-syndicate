@@ -1,0 +1,12 @@
+{
+  "saveBlob": "{\"version\":2,\"settings\":{\"masterVolume\":1,\"musicVolume\":1,\"sfxVolume\":1,\"muted\":false,\"textScale\":1,\"textSpeedMs\":28,\"difficulty\":\"normal\",\"colorBlind\":false,\"reduceMotion\":false},\"progress\":{\"completedChapters\":[],\"hero\":\"eric\",\"freePlay\":true,\"rose_silence\":false,\"runRecords\":[],\"chapterBests\":{}}}",
+  "chapterId": "suds_and_soles_pool_party",
+  "sceneIndex": 0,
+  "beatIndex": 5,
+  "player": {
+    "x": 343.3333333333346,
+    "y": 524.5833333333346
+  },
+  "hp": 120,
+  "ledgerTotal": 0
+}

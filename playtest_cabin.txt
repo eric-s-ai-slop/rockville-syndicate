@@ -1,0 +1,24 @@
+advance
+observe --shot
+press w 1500
+observe --shot
+press w 1500
+observe --shot
+advance
+observe --shot
+click 350 300
+advance
+observe --shot
+wait 2000
+advance
+observe --shot
+click 350 400
+wait 2000
+observe --shot
+click 350 400
+wait 2000
+observe --shot
+click 350 400
+wait 2000
+advance
+observe --shot

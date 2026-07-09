@@ -730,7 +730,9 @@ export default class ChapterScene extends Phaser.Scene {
   /** Tear down all map visuals, physics, and actor sprites — ready for a new scene. */
   public teardownMap() {
     // Static walls group: clear + destroy all members
-    this.walls.clear(true, true);
+    if (this.walls?.children) {
+      this.walls.clear(true, true);
+    }
 
     // Physics-backed solid rectangles (mapCollidables)
     this.mapCollidables.forEach(obj => { try { obj.destroy(); } catch {} });

@@ -245,12 +245,13 @@ efficiency win. The recommended loop:
 
 1. Use `diff` for your per-step read once a baseline exists (`observe` the
    first time) — it omits anything unchanged, so most steps are a few lines.
-2. Pass `--checkpoints` at session start. Every chapter/scene/mode boundary
+2. **Your goal is to play through the game end-to-end interactively, stepping through everything manually to verify visual placement.** Do not rely solely on the gauntlet for visual verification; it validates logic, not visuals.
+3. Pass `--checkpoints` at session start. Every chapter/scene/mode boundary
    auto-captures a stabilized screenshot and emits a `visual_checkpoint` line —
    **look at every one of these images.** This is where mis-scaled sprites,
    misplaced actors, and "the game looks wrong" bugs actually show up; JSON
    state can't express them.
-3. Reach for `observe --shot` mid-scene when the JSON state is ambiguous and
+4. Reach for `observe --shot` mid-scene when the JSON state is ambiguous and
    you want to confirm what's actually rendered.
 4. Use `screenshot --annotate` specifically when a sprite looks wrong —
    bounding boxes + names + depth turn "something looks off" into "chris_rivas
