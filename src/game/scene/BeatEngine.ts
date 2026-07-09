@@ -315,6 +315,8 @@ export class BeatEngine {
 
     if (beat.background) {
       this.scene.activeMode = mode;
+      this.scene.activeModeBeatIndex = this.scene.beatIndex;
+      this.scene.activeModeBackground = true;
       if (mode.preload) {
         try {
           mode.preload(context);
@@ -330,6 +332,8 @@ export class BeatEngine {
         }
         if (this.scene.activeMode === mode) {
           this.scene.activeMode = null;
+          this.scene.activeModeBeatIndex = null;
+          this.scene.activeModeBackground = false;
         }
       };
       // See GameMode.harnessForceComplete: lets the E2E/gauntlet harness force this
@@ -356,6 +360,8 @@ export class BeatEngine {
       // unset, zones empty) during the intro card, throwing every frame and
       // wedging the game loop.
       this.scene.activeMode = mode;
+      this.scene.activeModeBeatIndex = this.scene.beatIndex;
+      this.scene.activeModeBackground = false;
       const onComplete = (result: ModeResult) => {
         this.lastMinigameResult = result;
         try {
@@ -364,6 +370,8 @@ export class BeatEngine {
           console.error(`[BeatEngine] Teardown failed for mode ${beat.modeId}:`, err);
         }
         this.scene.activeMode = null;
+        this.scene.activeModeBeatIndex = null;
+        this.scene.activeModeBackground = false;
         this.unfreeze();
         // On a loss, optionally jump back to a designated beat (e.g. restart the
         // car scene) instead of advancing into the post-win narration.
@@ -407,6 +415,8 @@ export class BeatEngine {
 
     const context = this.buildModeContext();
     this.scene.activeMode = mode;
+    this.scene.activeModeBeatIndex = this.scene.beatIndex;
+    this.scene.activeModeBackground = false;
 
     const onComplete = (_result: ModeResult) => {
       try {
@@ -415,6 +425,8 @@ export class BeatEngine {
         console.error(`[BeatEngine] Teardown failed for bossFight:`, err);
       }
       this.scene.activeMode = null;
+      this.scene.activeModeBeatIndex = null;
+      this.scene.activeModeBackground = false;
       this.unfreeze();
       this.advanceBeat();
     };

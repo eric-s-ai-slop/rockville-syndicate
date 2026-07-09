@@ -20,6 +20,17 @@ import { navigateToChapter, advanceUntil, AdvanceTimeoutError, AdvanceTimeoutDia
 import { CHAPTERS } from '../../src/data/chapters';
 import type { Beat } from '../../src/data/chapters/types';
 import type { DevBridgeWindow } from './DevBridge';
+import { classifyBeat } from './beatClassification';
+import { checkPlaytestPolicy, parseWatchExpression } from './playtestPolicy';
+import { deriveCoverageManifest, CoverageManifest } from './coverageManifest';
+import {
+  OMEGA_AGENT_PROTOCOL,
+  AgentCommand,
+  AgentCommandOptions,
+  CommandRequest,
+  parseAgentCommandLine,
+  parseLegacyCommandLine,
+} from './protocol';
 
 // ── Flags ────────────────────────────────────────────────────────────────────
 
@@ -50,6 +61,8 @@ interface Flags {
   gauntletMax: number | null; // hard override for the per-chapter gauntlet timeout budget (H5)
   speed: number | null; // Phaser time/tween/physics timeScale multiplier (H2)
   repl: boolean; // explicit alias for --keep-open's stdin loop, plus a ready signal (C3)
+  playtest: boolean; // restrict debug-only mutations and surface bypassed coverage
+  playtestSmoke: boolean; // chapter-agnostic playtest-mode advance() sweep, with --gauntlet
 }
 
 function parseFlags(argv: string[]): Flags {
@@ -80,6 +93,8 @@ function parseFlags(argv: string[]): Flags {
     gauntletMax: null,
     speed: null,
     repl: false,
+    playtest: false,
+    playtestSmoke: false,
   };
   const positional: string[] = [];
   for (let i = 0; i < argv.length; i++) {
@@ -110,12 +125,17 @@ function parseFlags(argv: string[]): Flags {
       case '--gauntlet-max': f.gauntletMax = Number(argv[++i]); break;
       case '--speed': f.speed = Number(argv[++i]); break;
       case '--repl': f.repl = true; f.keepOpen = true; break;
+      case '--playtest': f.playtest = true; break;
+      case '--playtest-smoke': f.playtestSmoke = true; break;
       default:
         if (a.startsWith('--')) throw new Error(`Unknown flag: ${a}`);
         positional.push(a);
-    } 
+    }
   }
   if (positional.length) f.inline = positional.join(' ');
+  if (f.playtestSmoke && !f.gauntlet) {
+    throw new Error('--playtest-smoke requires --gauntlet');
+  }
   return f;
 }
 
@@ -129,7 +149,10 @@ USAGE
 
 FLAGS
   --chapter "<title>"   Navigate to a chapter after boot (e.g. "The Spotify Family Insurgency")
-  --classified          Break the chapter's CLASSIFIED seal during navigation
+  --classified          Force-break the chapter's CLASSIFIED seal during navigation. Auto-detected from
+                         the chapter's config (ChapterConfig.classified) whenever --chapter resolves to a
+                         known chapter, so this flag is only needed for --url-only sessions or a --chapter
+                         value that doesn't match anything in src/data/chapters (e.g. a custom deployment)
   --url <url>           Base URL (default http://localhost:3324 — start it with 'npm run dev')
   --out <dir>           Folder for screenshots (default ./agent-artifacts)
   --script <file>       Read commands from a file (one per line; '#' comments allowed)
@@ -141,6 +164,17 @@ FLAGS
                         safe to start writing lines (C3). Same runCommand/JSONL/--record behavior
                         as --keep-open — no parallel implementation, just a ready signal + name.
                         'exit'/'quit'/EOF on stdin closes the browser and exits 0.
+  --playtest            Safety mode for autonomous chapter QA, enforced by playtestPolicy.ts's central
+                        gate. Blocks eval/injectbeat/modify/direct mode launch/goto, chapterflag writes
+                        (complete/uncomplete/freeplay-on/freeplay-off — bare reads still allowed),
+                        settings writes (bare reads still allowed), and rejects multi-beat skipbeat
+                        (only 'skipbeat 1' is allowed; larger skips throw). Also audits (allows but
+                        records) watch predicates (and separately rejects any watch expression that
+                        isn't read-only — e.g. '=', '++'/'--', or a compound-assignment operator),
+                        loadstate from a file (bare in-memory loadstate stays unaudited), and
+                        speed/timescale changes. Marks any skipbeat/winmode/losemode use as a bypass in
+                        session_summary's 'bypasses', and lists every audited command in its 'audit'
+                        array (both only emitted when --playtest is set). Use with --repl --checkpoints.
   --seed <n>            Boot with a seeded Mulberry32 PRNG (replaces Math.random) for determinism
   --record <file>       Record executed commands + inter-command delays to <file>
   --gauntlet            Run every chapter end-to-end via advanceUntil, report completed/stalled.
@@ -158,6 +192,20 @@ FLAGS
   --gauntlet-max <s>    (with --gauntlet) hard override for the per-chapter timeout budget — skips
                          the computed budget and its 300s cap entirely (H5)
   --chapters "<list>"   Comma-separated chapter title/id filter for --gauntlet
+  --playtest-smoke      (requires --gauntlet) chapter-agnostic sweep proving the playtest-mode
+                         reachWalkControl() classification never dead-ends, instead of driving each
+                         chapter to completion via advanceUntil({skipModes:['*']}). Per chapter, loops
+                         reachWalkControl (cap 200 iterations, same computed --gauntlet timeout budget):
+                         clicks option 0 on choice-present, real-walks (GameAgent.walkTo) on
+                         walk-target-present (teleport fallback + 'walkFallbacks' count on failure),
+                         force-completes via harnessForceComplete on mode-active, loops on
+                         ambient-dialogue, and fails the chapter if walk-control repeats on the same
+                         beatIndex 3 times in a row (a beat-driven chapter should always be progressing
+                         or stopping on something classified) or reachWalkControl itself times out.
+                         Emits one 'playtest_smoke' JSONL line per chapter (statusCounts, expected
+                         coverage from deriveCoverageManifest vs what was actually exercised, and a
+                         'finding' on failure) plus a final 'playtest_smoke_summary' line; exits
+                         non-zero if any chapter failed. --chapters still filters which chapters run.
   --shots               (with --gauntlet) capture a stabilized screenshot per scene + a contact-sheet index.html (N1)
   --max-errors <n>      (with --gauntlet) fail the run if any chapter's console error count exceeds <n>
   --coverage            (with --gauntlet) record which beats/modes/choice branches were exercised;
@@ -271,16 +319,18 @@ COMMANDS (one per line; ';' also separates them on a single line)
   Time (§4)
     pause | resume             sleep / wake the Phaser loop
     loop                       print whether the loop is running
+    restart | refresh          reload the page and re-enter --chapter after a React/Phaser unmount
     step <frames> [fps]        advance exactly <frames> fixed-timestep frames (loop auto-pauses)
     speed | timescale <num>    set timescale multiplier for physics/tweens/timers (B7)
   Debug (C1)
     debug on | off             toggle physics debug graphics
   Flow / misc
     advance [maxSeconds]       skip dialogue/intro until the player has free walk control AND no
-                               dialogue line is visible (default 60) (C1). Ambient/looping dialogue
-                               that never actually clears bails out after ~3 consecutive ticks of
-                               "walk-ok but a line is still showing" and returns anyway with
-                               note: 'dialogue-still-visible' in the result. On timeout, the failure
+                               dialogue line is visible (default 60) (C1). It waits for the first story
+                               beat to begin so the chapter's initial boot window is never mistaken for
+                               free play. It always stops before auto-selecting a dialogue choice and
+                               returns status: 'choice-present'.
+                               On timeout, the failure
                                line includes a 'diagnostics' dump (beatIndex/type, player vs
                                walkTarget position + distance, movementFrozen, activeMode, dialogue/
                                choice visibility) (H3)
@@ -300,6 +350,10 @@ OUTPUT
   One JSON line per command on stdout: {"cmd":"...","ok":true, ...result}. Errors are
   {"cmd":"...","ok":false,"error":"..."} and never crash the session. Screenshots are
   written to the --out folder and their absolute path is printed in the result.
+  External agents may send JSON lines:
+    {"protocol":"omega-agent-v1","cmd_id":"s1","action":"state","args":[]}
+  JSON commands emit accepted, then completed/failed with the same cmd_id. Options:
+    snapshot:"after", annotate:true, telemetry:true, console_delta:true
 
 EXAMPLES
   # Load a chapter, walk to control, hold W for 2s, dump state + a screenshot
@@ -316,9 +370,29 @@ EXAMPLES
 
 let recordStream: fs.WriteStream | null = null;
 let lastCommandTime = Date.now();
+let emitSink: ((obj: Record<string, unknown>) => void) | null = null;
+const playtestBypasses: { command: string; reason: string; timestamp: number }[] = [];
+// Commands that were allowed to run under --playtest but are worth surfacing
+// in session_summary (e.g. a read-only watch predicate, or a time-scale
+// change) — distinct from playtestBypasses, which is only ever a genuine
+// bypass of untested content (skipbeat/winmode/losemode).
+const playtestAudit: { command: string; note: string; timestamp: number }[] = [];
 
 function emit(obj: Record<string, unknown>): void {
+  if (emitSink) {
+    emitSink(obj);
+    return;
+  }
   process.stdout.write(JSON.stringify(obj) + '\n');
+}
+
+function recordPlaytestBypass(flags: Flags, command: string, reason: string): Record<string, unknown> {
+  if (!flags.playtest) return {};
+  playtestBypasses.push({ command, reason, timestamp: Date.now() });
+  return {
+    playtest_integrity: 'partially-bypassed',
+    bypasses: [...playtestBypasses],
+  };
 }
 
 /**
@@ -330,23 +404,39 @@ function emit(obj: Record<string, unknown>): void {
  * `offsetParent` check `advanceUntil` itself uses to decide whether to press
  * Space.
  *
- * Bail-out: some chapters run ambient/looping dialogue that never actually
- * clears (a new line replaces the dismissed one every tick), which would
- * otherwise hang `advance` for the full `maxSeconds` even though walk control
- * is effectively held. `onTick` runs once per tick before the interaction
- * step, so seeing "walk control ok, but dialogue visible" survive >= 3
- * consecutive ticks means Space is being pressed each tick and the strict
- * condition still isn't clearing — call it done anyway and let the caller
- * know via the returned note.
+ * The ChapterScene starts its first beat after a short delayed call. Track that
+ * the story has actually started before accepting a dialogue-free frame as
+ * walk control; otherwise a playtester can be returned during the boot window
+ * before the first dialogue mounts.
  */
 async function reachWalkControl(
   page: Page,
   maxSeconds: number,
-): Promise<{ note?: 'dialogue-still-visible' }> {
-  let consecutiveWalkOkButDialogueVisible = 0;
-  let bailedOnLoopingDialogue = false;
+): Promise<{
+  status:
+    | 'walk-control'
+    | 'choice-present'
+    | 'walk-target-present'
+    | 'mode-active'
+    | 'ambient-dialogue'
+    | 'chapter-ended';
+  modeId?: string | null;
+  beat?: { index: number | null; type: string | null; expectation: string | null };
+}> {
+  let storyStarted = false;
+  // Distinguishes *why* the condition below returned true: normal walk
+  // control reached vs. the ambient-dialogue bailout tripping. advanceUntil
+  // only ever reports back 'condition-met' for either case, so this closure
+  // flag is how the two are told apart afterward (same pattern the earlier,
+  // since-removed ambient bailout used).
+  let exitReason: 'walk-control' | 'ambient-dialogue' | null = null;
+  // Ticks since the very first observation, used only for the free-play
+  // escape below (distinct from ambientTicks, which counts *consecutive*
+  // ambient-dialogue ticks and resets whenever that pattern breaks).
+  let ticksSoFar = 0;
+  let ambientTicks = 0;
 
-  await advanceUntil(
+  const result = await advanceUntil(
     page,
     () =>
       page.evaluate(() => {
@@ -356,24 +446,79 @@ async function reachWalkControl(
         const walkOk = !!(s && s.levelStarted && s.player && !s.movementFrozen);
         const line = document.querySelector('p.font-pixel') as HTMLElement | null;
         const dialogueVisible = !!(line && line.offsetParent !== null);
-        return { walkOk, dialogueVisible };
-      }).then(({ walkOk, dialogueVisible }) => {
-        if (walkOk && !dialogueVisible) return true;
-        if (walkOk && dialogueVisible) {
-          consecutiveWalkOkButDialogueVisible++;
-          if (consecutiveWalkOkButDialogueVisible >= 3) {
-            bailedOnLoopingDialogue = true;
+        const choicePresent = document.querySelectorAll('[data-testid="dialogue-choice"]').length > 0;
+        const walkTargetPresent = !!s?.walkTarget;
+        const foregroundModeActive = !!(
+          s?.activeMode &&
+          s.activeModeBeatIndex === s.beatIndex &&
+          s.activeModeBackground !== true
+        );
+        const storyActive = !!(s?.beatActive || s?.dialogueOpen || choicePresent || s?.movementFrozen);
+        return { walkOk, dialogueVisible, choicePresent, walkTargetPresent, foregroundModeActive, storyActive };
+      }).then(({ walkOk, dialogueVisible, choicePresent, walkTargetPresent, foregroundModeActive, storyActive }) => {
+        // Never let the generic flow helper consume a branch or walk objective.
+        if (choicePresent || walkTargetPresent || foregroundModeActive) return false;
+        storyStarted ||= storyActive;
+        ticksSoFar++;
+
+        if (storyStarted && walkOk && !dialogueVisible) {
+          exitReason = 'walk-control';
+          return true;
+        }
+
+        // Free-play escape: chapters that boot straight into free play never
+        // raise a `storyActive` signal (no dialogue/choice/frozen movement
+        // ever observed), so the check above would otherwise never fire and
+        // `advance` would hang for the full timeout. Accept walk control once
+        // ~5 seconds (33 ticks at 150ms) have passed with no story start and
+        // the player is free to move with nothing on screen to read.
+        if (!storyStarted && ticksSoFar >= 33 && walkOk && !dialogueVisible) {
+          exitReason = 'walk-control';
+          return true;
+        }
+
+        // Bounded ambient-dialogue bailout: reinstated (more strictly than
+        // before) for chapters with looping ambient dialogue over otherwise-free
+        // walk control. Only counts ticks that can't possibly be a pending
+        // choice or walk target (both already excluded above), so this can
+        // never swallow one of those.
+        if (storyStarted && walkOk && dialogueVisible && !choicePresent && !walkTargetPresent) {
+          ambientTicks++;
+          if (ambientTicks >= 5) {
+            exitReason = 'ambient-dialogue';
             return true;
           }
         } else {
-          consecutiveWalkOkButDialogueVisible = 0;
+          ambientTicks = 0;
         }
+
         return false;
       }),
-    { maxSeconds },
+    { maxSeconds, stopOnChoice: true, stopOnWalkTarget: true, stopOnMode: true, stopOnChapterEnd: true },
   );
 
-  return bailedOnLoopingDialogue ? { note: 'dialogue-still-visible' } : {};
+  const beatInfo = await page.evaluate(() => {
+    const s = (window as unknown as DevBridgeWindow).__OMEGA_GAME__?.scene.getScene('ChapterScene');
+    const beatIndex = typeof s?.beatIndex === 'number' ? s.beatIndex : null;
+    const beat = beatIndex !== null ? s?.chapter?.beats?.[beatIndex] : undefined;
+    return {
+      beatIndex,
+      beatType: (beat?.type as string | undefined) ?? null,
+      background: !!beat?.background,
+    };
+  });
+  const beat = {
+    index: beatInfo.beatIndex,
+    type: beatInfo.beatType,
+    expectation: classifyBeat(beatInfo.beatType, { background: beatInfo.background }),
+  };
+
+  if (result.status === 'choice-present') return { status: 'choice-present', beat };
+  if (result.status === 'walk-target-present') return { status: 'walk-target-present', beat };
+  if (result.status === 'mode-active') return { status: 'mode-active', modeId: result.modeId, beat };
+  if (result.status === 'chapter-ended') return { status: 'chapter-ended', beat };
+  // 'condition-met': disambiguate via exitReason set inside the condition above.
+  return { status: exitReason ?? 'walk-control', beat };
 }
 
 let screenshotCount = 0;
@@ -402,10 +547,16 @@ async function maybeEmitCheckpoint(agent: GameAgent, page: Page, flags: Flags): 
       const active = game.scene.getScenes(true);
       const top = active[active.length - 1];
       const chapterScene = game.scene.getScene('ChapterScene');
+      const beatIndex = typeof chapterScene?.beatIndex === 'number' ? chapterScene.beatIndex : null;
+      const foregroundModeActive = !!(
+        chapterScene?.activeMode &&
+        chapterScene.activeModeBeatIndex === beatIndex &&
+        chapterScene.activeModeBackground !== true
+      );
       return {
         sceneKey: top?.sys?.settings?.key ?? null,
         sceneIndex: typeof chapterScene?.currentSceneIndex === 'number' ? chapterScene.currentSceneIndex : null,
-        mode: chapterScene?.activeMode?.id ?? null,
+        mode: foregroundModeActive ? chapterScene?.activeMode?.id ?? null : null,
       };
     })
     .catch(() => null);
@@ -423,9 +574,52 @@ async function maybeEmitCheckpoint(agent: GameAgent, page: Page, flags: Flags): 
   if (!reason) return;
 
   fs.mkdirSync(flags.out, { recursive: true });
-  const file = path.resolve(flags.out, `checkpoint-${String(++checkpointCount).padStart(3, '0')}.png`);
-  await agent.stabilizedScreenshot(file);
-  emit({ cmd: 'visual_checkpoint', ok: true, path: file, reason });
+  const checkpointId = ++checkpointCount;
+  const file = path.resolve(flags.out, `checkpoint-${String(checkpointId).padStart(3, '0')}.png`);
+  try {
+    await agent.stabilizedScreenshot(file);
+  } catch (err) {
+    // A React/Phaser unmount can happen between the bridge probe and the
+    // screenshot. Checkpoint capture is diagnostic and must never take down
+    // the REPL or hide the original command failure.
+    emit({
+      cmd: 'visual_checkpoint',
+      ok: false,
+      checkpointId,
+      error: err instanceof Error ? err.message : String(err),
+      reason,
+      sceneKey: current.sceneKey,
+      sceneIndex: current.sceneIndex,
+      mode: current.mode,
+    });
+    return;
+  }
+  emit({
+    cmd: 'visual_checkpoint',
+    ok: true,
+    checkpointId,
+    path: file,
+    reason,
+    sceneKey: current.sceneKey,
+    sceneIndex: current.sceneIndex,
+    mode: current.mode,
+  });
+}
+
+async function restartSession(page: Page, flags: Flags): Promise<void> {
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  if (!flags.chapter) {
+    await page.waitForLoadState('domcontentloaded').catch(() => {});
+    return;
+  }
+
+  const matchedChapter = CHAPTERS.find(
+    (c) => c.title.toLowerCase() === flags.chapter!.toLowerCase() || c.id.toLowerCase() === flags.chapter!.toLowerCase(),
+  );
+  await navigateToChapter(page, matchedChapter?.title ?? flags.chapter, {
+    classified: flags.classified || !!matchedChapter?.classified,
+  });
+  await page.waitForSelector('canvas', { timeout: 15000 });
 }
 
 // ── I3: session-to-GIF ────────────────────────────────────────────────────────
@@ -499,28 +693,43 @@ async function runCommand(
   agent: GameAgent,
   page: Page,
   flags: Flags,
-  line: string,
+  input: string | CommandRequest,
 ): Promise<boolean> {
-  const trimmed = line.trim();
-  if (!trimmed || trimmed.startsWith('#')) return true;
+  const request = typeof input === 'string' ? parseLegacyCommandLine(input) : input;
+  if (!request) return true;
 
-  if (recordStream && !trimmed.startsWith('replay') && !trimmed.startsWith('quit') && !trimmed.startsWith('exit')) {
+  if (
+    recordStream &&
+    !request.sourceLine.startsWith('replay') &&
+    !request.sourceLine.startsWith('quit') &&
+    !request.sourceLine.startsWith('exit')
+  ) {
     const now = Date.now();
     const delta = now - lastCommandTime;
     if (delta > 10) {
       recordStream.write(`wait ${delta}\n`);
     }
-    recordStream.write(`${trimmed}\n`);
+    recordStream.write(`${request.sourceLine}\n`);
     lastCommandTime = now;
   }
 
-  const verb = trimmed.split(/\s+/)[0].toLowerCase();
-  const rest = trimmed.slice(verb.length).trim(); // raw remainder (for eval)
-  const args = rest.length ? rest.split(/\s+/) : [];
+  const verb = request.action;
+  const rest = request.rest; // raw remainder (for eval)
+  const args = request.args;
   const num = (i: number) => Number(args[i]);
   const btn = (v: string | undefined): MouseButton => (v === 'right' ? 'right' : 'left');
 
   try {
+    if (flags.playtest) {
+      const decision = checkPlaytestPolicy(verb, args, rest);
+      if (decision.kind === 'blocked') {
+        throw new Error(decision.error);
+      }
+      if (decision.kind === 'audited') {
+        playtestAudit.push({ command: verb, note: decision.note, timestamp: Date.now() });
+      }
+    }
+
     switch (verb) {
       case 'help': process.stdout.write(HELP + '\n'); break;
 
@@ -580,10 +789,10 @@ async function runCommand(
         const world = args.includes('--world');
         const dargs = args.filter((a) => a !== '--world');
         const dnum = (i: number) => Number(dargs[i]);
-        let sx = dnum(0);
-        let sy = dnum(1);
-        let ex = dnum(2);
-        let ey = dnum(3);
+        const sx = dnum(0);
+        const sy = dnum(1);
+        const ex = dnum(2);
+        const ey = dnum(3);
         const ms = dargs[4] ? dnum(4) : 400;
         if (world) {
           const startVp = await agent.worldToViewport(sx, sy);
@@ -662,6 +871,12 @@ async function runCommand(
       case 'pause': await agent.pauseLoop(); emit({ cmd: 'pause', ok: true }); break;
       case 'resume': await agent.resumeLoop(); emit({ cmd: 'resume', ok: true }); break;
       case 'loop': emit({ cmd: 'loop', ok: true, running: await agent.isLoopRunning() }); break;
+      case 'restart': case 'refresh':
+        await agent.releaseAllKeys().catch(() => {});
+        await restartSession(page, flags);
+        agent.clearConsoleLogs();
+        emit({ cmd: verb, ok: true, chapter: flags.chapter, mutates: true });
+        break;
       case 'step': {
         const frames = await agent.stepFrames(num(0), args[1] ? num(1) : 60);
         emit({ cmd: 'step', ok: true, frames });
@@ -702,18 +917,12 @@ async function runCommand(
       case 'watch': {
         // jsExpr can contain spaces ('scene.activeHp < 50'), so read it from the
         // raw remainder (like 'eval') rather than the whitespace-split args —
-        // pull a trailing bare integer off as timeoutMs if present.
+        // parseWatchExpression pulls a trailing bare integer off as timeoutMs
+        // if present and strips surrounding quotes. Shared with playtestPolicy
+        // so the expression that's linted under --playtest is byte-for-byte
+        // the same one that actually runs here.
         if (!rest) throw new Error('Usage: watch <jsExpr> [timeoutMs]');
-        let expr = rest;
-        let timeoutMs = 5000;
-        const trailingMs = expr.match(/^(.*\S)\s+(\d+)$/);
-        if (trailingMs) {
-          expr = trailingMs[1];
-          timeoutMs = Number(trailingMs[2]);
-        }
-        if ((expr.startsWith('"') && expr.endsWith('"')) || (expr.startsWith("'") && expr.endsWith("'"))) {
-          expr = expr.slice(1, -1);
-        }
+        const { expr, timeoutMs } = parseWatchExpression(rest);
         const res = await agent.watch(expr, timeoutMs);
         emit({ cmd: 'watch', ...res });
         break;
@@ -725,6 +934,7 @@ async function runCommand(
       }
       case 'skipbeat': {
         const n = args[0] ? num(0) : 1;
+        if (!Number.isInteger(n) || n < 1) throw new Error('skipbeat count must be a positive integer.');
         const res = await agent.skipBeat(n);
         emit({
           cmd: 'skipbeat',
@@ -732,6 +942,7 @@ async function runCommand(
           ...res,
           mutates: true,
           warning: 'skipped-state: beat side effects (ledger deltas, flags, spawns) between the skipped beats were not executed',
+          ...recordPlaytestBypass(flags, 'skipbeat', 'A beat was force-skipped before natural verification.'),
         });
         break;
       }
@@ -848,7 +1059,13 @@ async function runCommand(
       case 'winmode': case 'losemode': {
         const outcome = verb === 'winmode' ? 'win' : 'lose';
         const res = await agent.completeMode(outcome);
-        emit({ cmd: verb, ok: true, ...res, mutates: true });
+        emit({
+          cmd: verb,
+          ok: true,
+          ...res,
+          mutates: true,
+          ...recordPlaytestBypass(flags, verb, `Minigame was force-completed with outcome "${outcome}".`),
+        });
         break;
       }
       case 'clickworld': {
@@ -950,6 +1167,11 @@ async function runCommand(
         const radius = args[2] ? num(2) : 24;
         const maxSeconds = args[3] ? num(3) : 8;
         const res = await agent.walkTo(wx, wy, radius, maxSeconds);
+        // walkTo uses deterministic frame stepping and leaves the Phaser loop
+        // paused. Wake real-time beats (camera pans, waits, tweens, dialogue)
+        // before returning to the REPL, otherwise the next `advance` appears
+        // to soft-lock on a passive beat.
+        await agent.resumeLoop().catch(() => {});
         emit({ cmd: 'walkto', ok: res.ok, target: { x: wx, y: wy }, player: res.player, mutates: true });
         break;
       }
@@ -1007,12 +1229,14 @@ async function runCommand(
       }
 
       case 'advance': {
-        const { note } = await reachWalkControl(page, args[0] ? num(0) : 60);
+        const advance = await reachWalkControl(page, args[0] ? num(0) : 60);
         emit({
           cmd: 'advance',
           ok: true,
+          status: advance.status,
+          ...(advance.modeId !== undefined ? { modeId: advance.modeId } : {}),
+          beat: advance.beat,
           state: await agent.snapshotGameState(),
-          ...(note ? { note } : {}),
         });
         break;
       }
@@ -1038,6 +1262,148 @@ async function runCommand(
     });
   }
   return true;
+}
+
+function protocolError(code: string, message: string): { code: string; message: string } {
+  return { code, message };
+}
+
+function protocolSafeName(value: string): string {
+  return value.replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64) || 'cmd';
+}
+
+async function captureProtocolArtifact(
+  agent: GameAgent,
+  flags: Flags,
+  command: AgentCommand,
+): Promise<{ type: 'image'; path: string; annotated?: boolean } | undefined> {
+  const options = command.options ?? {};
+  if (options.snapshot !== 'after' && !options.annotate) return undefined;
+
+  fs.mkdirSync(flags.out, { recursive: true });
+  const suffix = options.annotate ? 'annotated' : 'shot';
+  const file = path.resolve(
+    flags.out,
+    `protocol-${protocolSafeName(command.cmd_id)}-${suffix}-${String(++screenshotCount).padStart(3, '0')}.png`,
+  );
+  if (options.annotate) await agent.annotateScreenshot(file);
+  else await agent.stabilizedScreenshot(file);
+  return { type: 'image', path: file, ...(options.annotate ? { annotated: true } : {}) };
+}
+
+async function runProtocolCommand(
+  agent: GameAgent,
+  page: Page,
+  flags: Flags,
+  command: AgentCommand,
+  request: CommandRequest,
+): Promise<boolean> {
+  const startedAt = Date.now();
+  const consoleStart = agent.getConsoleLogs().length;
+  const outputs: Record<string, unknown>[] = [];
+
+  emit({ protocol: OMEGA_AGENT_PROTOCOL, cmd_id: command.cmd_id, status: 'accepted', timestamp: startedAt });
+
+  const previousSink = emitSink;
+  emitSink = (obj) => outputs.push(obj);
+  let keepGoing = true;
+  let thrown: unknown = null;
+  try {
+    keepGoing = await runCommand(agent, page, flags, request);
+  } catch (err) {
+    thrown = err;
+  } finally {
+    emitSink = previousSink;
+  }
+
+  const durationMs = Date.now() - startedAt;
+  const options: AgentCommandOptions = command.options ?? {};
+  const lastOutput = outputs[outputs.length - 1];
+  const outputFailed = outputs.some((obj) => obj.ok === false);
+  const status = thrown || outputFailed ? 'failed' : 'completed';
+  const extras: Record<string, unknown> = {};
+
+  if (options.snapshot === 'after' || options.annotate) {
+    try {
+      const artifact = await captureProtocolArtifact(agent, flags, command);
+      if (artifact) extras.artifact = artifact;
+    } catch (err) {
+      extras.artifact_error = err instanceof Error ? err.message : String(err);
+    }
+  }
+  if (options.telemetry) {
+    try {
+      extras.telemetry = await agent.inspectPerf();
+    } catch (err) {
+      extras.telemetry = { error: err instanceof Error ? err.message : String(err) };
+    }
+  }
+  if (options.console_delta) {
+    const entries = agent.getConsoleLogs().slice(consoleStart);
+    extras.console_delta = {
+      errors: entries.filter((e) => e.type === 'error').length,
+      warnings: entries.filter((e) => e.type === 'warning').length,
+      entries,
+    };
+  }
+
+  if (status === 'failed') {
+    const message = thrown instanceof Error
+      ? thrown.message
+      : thrown
+        ? String(thrown)
+        : typeof lastOutput?.error === 'string'
+          ? lastOutput.error
+          : 'Command failed.';
+    emit({
+      protocol: OMEGA_AGENT_PROTOCOL,
+      cmd_id: command.cmd_id,
+      status,
+      action: command.action,
+      duration_ms: durationMs,
+      error: protocolError(thrown ? 'COMMAND_ERROR' : 'COMMAND_FAILED', message),
+      ...extras,
+    });
+    return keepGoing;
+  }
+
+  emit({
+    protocol: OMEGA_AGENT_PROTOCOL,
+    cmd_id: command.cmd_id,
+    status,
+    action: command.action,
+    duration_ms: durationMs,
+    result: outputs.length === 0
+      ? { cmd: request.action, ok: true }
+      : outputs.length === 1
+        ? outputs[0]
+        : { outputs },
+    ...extras,
+  });
+  return keepGoing;
+}
+
+async function processCommandLine(
+  agent: GameAgent,
+  page: Page,
+  flags: Flags,
+  line: string,
+): Promise<boolean> {
+  const trimmed = line.trim();
+  if (trimmed.startsWith('{')) {
+    const parsed = parseAgentCommandLine(trimmed);
+    if (parsed.ok === false) {
+      emit({
+        protocol: OMEGA_AGENT_PROTOCOL,
+        cmd_id: parsed.cmd_id,
+        status: 'rejected',
+        error: protocolError(parsed.code, parsed.message),
+      });
+      return true;
+    }
+    return runProtocolCommand(agent, page, flags, parsed.command, parsed.request);
+  }
+  return runCommand(agent, page, flags, line);
 }
 
 /** Filesystem-safe folder name for a chapter title (N1 --shots per-chapter folder). */
@@ -1403,13 +1769,20 @@ async function runChapterAttempt(
     const shotPath = path.resolve(chapterDir, `scene-${sceneIndex}.png`);
     await agent.stabilizedScreenshot(shotPath);
     shots.push({ sceneIndex, path: shotPath });
-    emit({ cmd: 'visual_checkpoint', ok: true, path: shotPath, chapter: label, sceneIndex });
+    emit({
+      cmd: 'visual_checkpoint',
+      ok: true,
+      checkpointId: ++checkpointCount,
+      path: shotPath,
+      chapter: label,
+      sceneIndex,
+      mode: null,
+    });
   };
 
   let agent: GameAgent | null = null;
   try {
-    const isClassified = chapter.title.includes('Rose') || chapter.title.includes('UMBC');
-    await navigateToChapter(page, chapter.title, { classified: isClassified });
+    await navigateToChapter(page, chapter.title, { classified: !!chapter.classified });
     await page.waitForSelector('canvas', { timeout: 15000 });
 
     agent = new GameAgent(page);
@@ -1561,6 +1934,222 @@ async function runChapterAttempt(
   return result;
 }
 
+// ── --playtest-smoke: chapter-agnostic playtest-mode advance() sweep ──────────
+// Unlike the normal gauntlet (which drives advanceUntil with skipModes:['*']
+// all the way to chapter-ended), this proves that reachWalkControl's own
+// status classification — the same one the interactive `advance` command and
+// the omega-agent-v1 protocol's playtest mode rely on — never dead-ends for a
+// chapter. It resolves every status reachWalkControl can return instead of
+// letting a lower-level helper paper over a stuck one.
+
+interface PlaytestSmokeResult {
+  chapter: string;
+  id: string;
+  ok: boolean;
+  durationMs: number;
+  statusCounts: Record<string, number>;
+  coverage: {
+    expected: CoverageManifest;
+    exercised: { choices: number; walks: number; modesForced: number; walkFallbacks: number };
+  };
+  finding?: Record<string, unknown>;
+}
+
+async function runPlaytestSmokeAttempt(
+  browser: Browser,
+  flags: Flags,
+  chapter: (typeof CHAPTERS)[number],
+): Promise<PlaytestSmokeResult> {
+  const label = chapter.title;
+  process.stderr.write(`Playtest smoke running: ${label}...\n`);
+
+  const context = await browser.newContext({ baseURL: flags.url });
+  const page = await context.newPage();
+
+  const start = Date.now();
+  const timeoutBudget = computeGauntletBudget(chapter, flags);
+  const statusCounts: Record<string, number> = {};
+  const bump = (status: string) => { statusCounts[status] = (statusCounts[status] ?? 0) + 1; };
+
+  let ok = false;
+  let finding: Record<string, unknown> | undefined;
+  let choices = 0;
+  let walks = 0;
+  let modesForced = 0;
+  let walkFallbacks = 0;
+
+  let agent: GameAgent | null = null;
+  try {
+    await navigateToChapter(page, chapter.title, { classified: !!chapter.classified });
+    await page.waitForSelector('canvas', { timeout: 15000 });
+    agent = new GameAgent(page);
+
+    let lastBeatIndex: number | null | undefined;
+    let sameBeatStreak = 0;
+
+    for (let iter = 0; iter < 200; iter++) {
+      if (Date.now() - start > timeoutBudget * 1000) {
+        finding = { budgetExceeded: { timeoutBudget, iterationsSoFar: iter } };
+        break;
+      }
+
+      let step: Awaited<ReturnType<typeof reachWalkControl>>;
+      try {
+        step = await reachWalkControl(page, 60);
+      } catch (err) {
+        finding = {
+          stall: err instanceof AdvanceTimeoutError ? { diagnostics: err.diagnostics } : { message: err instanceof Error ? err.message : String(err) },
+        };
+        break;
+      }
+
+      bump(step.status);
+
+      if (step.status === 'chapter-ended') {
+        ok = true;
+        break;
+      }
+
+      // reachWalkControl's own generic walk-control condition (storyStarted
+      // && walkOk && !dialogueVisible) is polled *before* advanceUntil's
+      // specific stopOnChapterEnd check on every tick — and `runEndChapter()`
+      // (ChapterScene.ts) never sets `movementFrozen` during its ~1.7s
+      // victory-jingle/fade sequence, so that generic condition can resolve
+      // true first, reporting 'walk-control' while beatIndex is already
+      // sitting on the terminal `endChapter` beat instead of the more
+      // specific 'chapter-ended'. Recognize that directly off the beat type
+      // reachWalkControl already hands back, rather than trusting the raw
+      // status label, so this known race doesn't get misread as a stall.
+      if (step.beat?.type === 'endChapter') {
+        ok = true;
+        break;
+      }
+
+      if (step.status === 'choice-present') {
+        await page.evaluate(() => {
+          const el = document.querySelectorAll('[data-testid="dialogue-choice"]')[0] as HTMLElement | undefined;
+          el?.click();
+        });
+        choices++;
+        sameBeatStreak = 0;
+        continue;
+      }
+
+      if (step.status === 'walk-target-present') {
+        const target = await page.evaluate(() => {
+          const scene = (window as unknown as { __OMEGA_GAME__?: any }).__OMEGA_GAME__?.scene.getScene('ChapterScene');
+          const wt = scene?.walkTarget;
+          return wt ? { x: wt.x, y: wt.y, radius: wt.radius ?? 24 } : null;
+        });
+        sameBeatStreak = 0;
+        if (!target) continue; // walkTarget vanished between the check and the read — loop again
+        const res = await agent.walkTo(target.x, target.y, target.radius, 20);
+        // GameAgent.walkTo drives movement via stepFrames (fixed-timestep
+        // stepping while the Phaser RAF loop is asleep, for determinism) and
+        // — same as the interactive `walkto` command — leaves the loop
+        // asleep on return instead of waking it. Left alone, that silently
+        // freezes every subsequent wall-clock-driven beat (cameraPan's
+        // delayedCall, dialogue typewriters, tweens…), which otherwise reads
+        // as an unrelated soft-lock several beats later. Explicitly resume
+        // real-time ticking here so the sweep can keep progressing.
+        await agent.resumeLoop().catch(() => {});
+        if (res.ok) {
+          walks++;
+        } else {
+          const distance = res.player ? Math.hypot(res.player.x - target.x, res.player.y - target.y) : null;
+          finding = { walkFailure: { x: target.x, y: target.y, distance } };
+          // Recovery so the sweep can keep going: teleport onto the target,
+          // same mechanism advanceUntil itself uses for non-playtest sessions.
+          await page.evaluate(({ x, y }) => {
+            const scene = (window as unknown as { __OMEGA_GAME__?: any }).__OMEGA_GAME__?.scene.getScene('ChapterScene');
+            if (scene?.player) { scene.player.x = x; scene.player.y = y; }
+          }, { x: target.x, y: target.y });
+          walkFallbacks++;
+        }
+        continue;
+      }
+
+      if (step.status === 'mode-active') {
+        await page.evaluate(() => {
+          const scene = (window as unknown as { __OMEGA_GAME__?: any }).__OMEGA_GAME__?.scene.getScene('ChapterScene');
+          scene?.activeMode?.harnessForceComplete?.({ outcome: 'win' });
+        });
+        modesForced++;
+        sameBeatStreak = 0;
+        continue;
+      }
+
+      if (step.status === 'ambient-dialogue') {
+        sameBeatStreak = 0;
+        continue;
+      }
+
+      // 'walk-control': beat-driven chapters should always either keep
+      // progressing or stop on something classified above — three
+      // consecutive walk-control ticks on the same (unchanged) beatIndex
+      // means nothing is happening at all.
+      //
+      // Some beat types never freeze player movement (moveActor, screenTint,
+      // ledger, sfx, wait, changeMusic, stopAllAudio — see
+      // beatClassification.ts's 'passive' bucket), so reachWalkControl can
+      // legitimately hand back walk-control status while one of those is
+      // still mid-tween/timer. Polling it back-to-back can otherwise outrun
+      // a few-hundred-ms tween and see the same beatIndex 3 times before it
+      // ever advances — a false stall. A brief real-time settle before the
+      // next poll gives an in-flight non-blocking beat a chance to complete
+      // and move beatIndex forward, so the streak only fires for beats that
+      // are actually not progressing.
+      await page.waitForTimeout(400);
+      const beatIndex = step.beat?.index ?? null;
+      if (beatIndex !== null && beatIndex === lastBeatIndex) {
+        sameBeatStreak++;
+      } else {
+        sameBeatStreak = 1;
+        lastBeatIndex = beatIndex;
+      }
+      if (sameBeatStreak >= 3) {
+        finding = { stall: { beat: step.beat } };
+        break;
+      }
+    }
+  } catch (err) {
+    if (!finding) finding = { error: err instanceof Error ? err.message : String(err) };
+  } finally {
+    if (agent) await agent.dispose().catch(() => {});
+    await context.close().catch(() => {});
+  }
+
+  const durationMs = Date.now() - start;
+  const result: PlaytestSmokeResult = {
+    chapter: label,
+    id: chapter.id,
+    ok,
+    durationMs,
+    statusCounts,
+    coverage: {
+      expected: deriveCoverageManifest(chapter),
+      exercised: { choices, walks, modesForced, walkFallbacks },
+    },
+    ...(finding ? { finding } : {}),
+  };
+  emit({ cmd: 'playtest_smoke', ...result });
+  return result;
+}
+
+async function runPlaytestSmokeGauntlet(
+  browser: Browser,
+  flags: Flags,
+  chapters: (typeof CHAPTERS)[number][],
+): Promise<void> {
+  const results = await runPool(chapters, flags.parallel, (chapter) => runPlaytestSmokeAttempt(browser, flags, chapter));
+  await browser.close().catch(() => {});
+
+  const passed = results.filter((r) => r.ok).length;
+  const failed = results.filter((r) => !r.ok).map((r) => r.chapter);
+  emit({ cmd: 'playtest_smoke_summary', ok: failed.length === 0, chapters: results.length, passed, failed });
+  process.exit(failed.length === 0 ? 0 : 1);
+}
+
 async function runGauntlet(flags: Flags): Promise<void> {
   const browser = await chromium.launch({ headless: !flags.headed, slowMo: flags.slowmo });
 
@@ -1573,6 +2162,11 @@ async function runGauntlet(flags: Flags): Promise<void> {
       chapter.id.toLowerCase().includes(t.toLowerCase())
     )
   );
+
+  if (flags.playtestSmoke) {
+    await runPlaytestSmokeGauntlet(browser, flags, chapters);
+    return;
+  }
 
   // N1: --shots writes one timestamped run folder under agent-artifacts/gauntlet/,
   // one subfolder per chapter (or per-branch job), with a per-scene stabilized
@@ -1720,7 +2314,7 @@ async function readStdin(agent: GameAgent, page: Page, flags: Flags): Promise<vo
   // exact moment it's safe to start writing instead of guessing/sleeping.
   if (flags.repl) emit({ repl: 'ready' });
   for await (const line of rl) {
-    const keepGoing = await runCommand(agent, page, flags, line);
+    const keepGoing = await processCommandLine(agent, page, flags, line);
     await maybeEmitCheckpoint(agent, page, flags);
     if (!keepGoing) break;
     if (interactive) process.stderr.write('agent> ');
@@ -1769,7 +2363,18 @@ async function main(): Promise<void> {
 
     // Get to the game canvas.
     if (flags.chapter) {
-      await navigateToChapter(page, flags.chapter, { classified: flags.classified });
+      // Auto-detect classified from the chapter's own config so `--classified`
+      // doesn't need to be remembered/passed by hand for the UMBC/Rose
+      // chapters — but still honor an explicit --classified for a --chapter
+      // value that doesn't resolve to a known chapter (e.g. --url pointed at
+      // a custom deployment with its own chapter list).
+      const matchedChapter = CHAPTERS.find(
+        (c) =>
+          c.title.toLowerCase() === flags.chapter!.toLowerCase() ||
+          c.id.toLowerCase() === flags.chapter!.toLowerCase(),
+      );
+      const classified = flags.classified || !!matchedChapter?.classified;
+      await navigateToChapter(page, flags.chapter, { classified });
     } else {
       await page.goto(flags.url);
     }
@@ -1803,7 +2408,7 @@ async function main(): Promise<void> {
 
     if (lines) {
       for (const line of lines) {
-        if (!(await runCommand(agent, page, flags, line))) break;
+        if (!(await processCommandLine(agent, page, flags, line))) break;
         await maybeEmitCheckpoint(agent, page, flags);
       }
       if (flags.keepOpen) await readStdin(agent, page, flags);
@@ -1841,6 +2446,13 @@ async function main(): Promise<void> {
         ok: true,
         errors: entries.filter(e => e.type === 'error').length,
         warnings: entries.filter(e => e.type === 'warning').length,
+        ...(flags.playtest
+          ? {
+              playtest_integrity: playtestBypasses.length === 0 ? 'natural' : 'partially-bypassed',
+              bypasses: [...playtestBypasses],
+              audit: [...playtestAudit],
+            }
+          : {}),
       });
       await agent.dispose().catch(() => {});
     }

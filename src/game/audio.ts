@@ -51,6 +51,7 @@ export const CHAPTER_MUSIC_KEY: Record<string, string> = {
   spain_betrayal:       'music_ch7',
   cabin_basye:          'music_ch7',  // Dark Beach (Pastel Ghost) — moody night-cabin atmosphere
   suds_and_soles_pool_party: 'music_ch9',
+  'fixture-playtest': 'music_ch1',  // DEV-only fixture: reuses an already-loaded track, no new asset needed
   // cabin_from_hell_2025: no chapter-level key — per-scene music handles it via scenes[].music.
   //   Scene 0: 'music_ch11_spins' ("The Spins" — Mac Miller), crossfades to
   //   'music_ch11_space_song' ("Space Song" — Beach House) mid-scene via a

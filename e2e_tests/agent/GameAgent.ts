@@ -101,9 +101,10 @@ export class GameAgent {
    */
   async focusCanvas(): Promise<void> {
     const canvas = this.page.locator('canvas').first();
-    await canvas.click({ position: { x: 5, y: 5 } }).catch(() => {
+    if ((await canvas.count().catch(() => 0)) === 0) return;
+    await canvas.click({ position: { x: 5, y: 5 }, timeout: 1000 }).catch(() => {
       // Some overlays swallow the click; focusing the element is enough.
-      return canvas.focus();
+      return canvas.focus({ timeout: 1000 }).catch(() => {});
     });
   }
 
@@ -601,6 +602,8 @@ export class GameAgent {
       if (scene.activeMode) {
         try { scene.activeMode.teardown(); } catch {}
         scene.activeMode = null;
+        scene.activeModeBeatIndex = null;
+        scene.activeModeBackground = false;
       }
 
       // Clear dialogue UI
@@ -612,7 +615,7 @@ export class GameAgent {
       // Stop any in-flight crossfade/tween before warping — warpToScene() is about to
       // fire its own crossfadeToMusic() for the target scene, and repeated warps in
       // quick succession (goto/goto/goto) otherwise leave stale delayedCall/tween
-      // callbacks racing against a destroyed stageMusic (see docs/toolkit_complaints.md C4).
+      // callbacks racing against a destroyed stageMusic (see docs/archive/toolkit_complaints.resolved.md).
       try { scene.audioController?.stopAllAudio(0); } catch {}
 
       // Find the first beat of target scene
@@ -671,6 +674,8 @@ export class GameAgent {
       if (scene.activeMode) {
         try { scene.activeMode.teardown(); } catch {}
         scene.activeMode = null;
+        scene.activeModeBeatIndex = null;
+        scene.activeModeBackground = false;
       }
       if (typeof scene.clearStoryDialogue === 'function') {
         scene.clearStoryDialogue();
@@ -695,12 +700,10 @@ export class GameAgent {
       scene.ledgerTotal = saved.ledgerTotal;
       scene.onLedgerChange(saved.ledgerTotal, 'Restore Quick Save');
 
-      // Restore Beat index
-      scene.beatIndex = saved.beatIndex;
-      scene.beatActive = saved.beatActive;
-
-      // Start beat
-      scene.beatEngine.startBeat(saved.beatIndex);
+      // Restore the exact beat through the scene's restore path. This cancels
+      // the fresh scene's delayed beat-0 kickoff, which otherwise can fire
+      // after this load and resurrect an earlier walkTo beat.
+      scene.restoreBeat(saved.beatIndex);
     }, this.quickSaveState);
   }
 
@@ -1252,7 +1255,6 @@ export class GameAgent {
         const game = (window as unknown as { __OMEGA_GAME__?: any }).__OMEGA_GAME__ ?? null;
         const scene = game?.scene.getScene('ChapterScene') ?? null;
         try {
-          // eslint-disable-next-line no-new-func -- caller-supplied predicate, mirrors `eval`'s existing trust model
           return !!new Function('scene', 'game', `return (${expr});`)(scene, game);
         } catch {
           return false;
@@ -1435,6 +1437,11 @@ export class GameAgent {
       if (!scene) throw new Error('ChapterScene not found');
       const mode = scene.activeMode;
       if (!mode) throw new Error('No active mode — nothing to complete. Run "mode <id>" first.');
+      const isDirectMode = scene.activeModeBeatIndex === null;
+      const ownsCurrentBeat = scene.activeModeBeatIndex === scene.beatIndex;
+      if (!isDirectMode && (!ownsCurrentBeat || scene.activeModeBackground)) {
+        throw new Error(`Mode "${mode.id}" is not a current foreground beat; do not force-complete background or stale modes.`);
+      }
       if (typeof mode.harnessForceComplete !== 'function') {
         throw new Error(`Mode "${mode.id}" has no harnessForceComplete — cannot force-complete.`);
       }
@@ -1576,6 +1583,8 @@ export class GameAgent {
           // best-effort teardown of whatever mode was active pre-restore
         }
         scene.activeMode = null;
+        scene.activeModeBeatIndex = null;
+        scene.activeModeBackground = false;
       }
       if (typeof scene.clearStoryDialogue === 'function') scene.clearStoryDialogue();
       scene.beatEngine.clearWalkTarget();
@@ -1593,8 +1602,10 @@ export class GameAgent {
         scene.ledgerTotal = s.ledgerTotal;
         scene.onLedgerChange(s.ledgerTotal, 'Restore File Save');
       }
-      scene.beatIndex = s.beatIndex;
-      scene.beatEngine.startBeat(s.beatIndex);
+      // Restore the exact beat through the scene's restore path. This cancels
+      // the fresh scene's delayed beat-0 kickoff, which otherwise can fire
+      // after this load and resurrect an earlier walkTo beat.
+      scene.restoreBeat(s.beatIndex);
     }, saved);
   }
 

@@ -253,6 +253,12 @@ export default class ChapterScene extends Phaser.Scene {
   public atmosphere!: Atmosphere;
   public spriteLoader!: SpriteLoader;
   public activeMode: GameMode | null = null;
+  /** Beat index that launched activeMode; null means a direct toolkit launch. */
+  public activeModeBeatIndex: number | null = null;
+  /** True when activeMode belongs to a background beat and must not block flow. */
+  public activeModeBackground = false;
+  /** The delayed story kickoff must be cancellable when the agent restores a save. */
+  private initialBeatTimer: Phaser.Time.TimerEvent | null = null;
 
   constructor() {
     super({ key: 'ChapterScene' });
@@ -668,7 +674,10 @@ export default class ChapterScene extends Phaser.Scene {
       }
     }
     
-    this.time.delayedCall(300, () => this.startBeat(startBeatIndex));
+    this.initialBeatTimer = this.time.delayedCall(300, () => {
+      this.initialBeatTimer = null;
+      this.startBeat(startBeatIndex);
+    });
 
     // Clean up audio when the scene shuts down
     this.events.once('shutdown', () => {
@@ -693,6 +702,8 @@ export default class ChapterScene extends Phaser.Scene {
           console.error('[ChapterScene] activeMode teardown failed:', err);
         }
         this.activeMode = null;
+        this.activeModeBeatIndex = null;
+        this.activeModeBackground = false;
       }
     });
   }
@@ -819,6 +830,8 @@ export default class ChapterScene extends Phaser.Scene {
     if (this.activeMode) {
       try { this.activeMode.teardown(); } catch {}
       this.activeMode = null;
+      this.activeModeBeatIndex = null;
+      this.activeModeBackground = false;
     }
 
     const context = this.beatEngine.buildModeContext();
@@ -831,6 +844,8 @@ export default class ChapterScene extends Phaser.Scene {
     }
 
     this.activeMode = mode;
+    this.activeModeBeatIndex = null;
+    this.activeModeBackground = false;
     const onComplete = (result: ModeResult) => {
       try {
         mode.teardown();
@@ -839,6 +854,8 @@ export default class ChapterScene extends Phaser.Scene {
       }
       if (this.activeMode === mode) {
         this.activeMode = null;
+        this.activeModeBeatIndex = null;
+        this.activeModeBackground = false;
       }
       console.log(`[ChapterScene] Direct mode ${modeId} completed:`, result);
     };
@@ -1080,6 +1097,24 @@ export default class ChapterScene extends Phaser.Scene {
   // ─── Story Beat Engine ─────────────────────────────────────────────────────────
 
   public startBeat(index: number) {
+    this.beatEngine.startBeat(index);
+  }
+
+  /**
+   * Restore an exact narrative position after a toolkit save/load.
+   *
+   * A newly created scene schedules its normal beat-0 kickoff during create().
+   * A restore can happen before that 300ms timer fires, so simply assigning
+   * beatIndex and calling startBeat() is racy: the pending kickoff later
+   * rewinds the engine and can resurrect an old walkTo target. Cancel the
+   * kickoff and clear all completion state before starting the saved beat.
+   */
+  public restoreBeat(index: number) {
+    this.initialBeatTimer?.remove(false);
+    this.initialBeatTimer = null;
+    this.beatEngine.clearWalkTarget();
+    this.beatEngine.unfreeze();
+    this.movementFrozen = false;
     this.beatEngine.startBeat(index);
   }
 

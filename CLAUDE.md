@@ -10,6 +10,7 @@
 - **Run Unit Tests**: `npm test` (runs Vitest unit test suite)
 - **Run E2E Tests**: `npm run e2e` (runs Playwright integration tests)
 - **Drive the game from the terminal**: `npm run agent -- --help` (stateful playtesting CLI — hold keys, drag mouse, read live game state, step frames; see `docs/AGENT_TOOLKIT.md`)
+- **Drive via external agent protocol**: pipe JSONL commands with `protocol:"omega-agent-v1"` into `npm run agent -- --repl --checkpoints --playtest` for correlated `cmd_id` receipts, optional evidence bundling (`snapshot`, `annotate`, `telemetry`, `console_delta`), and guardrails against untracked QA bypasses.
 - **Build production assets**: `npm run build`
 
 ## 3. Directory Map (Where Things Live)
@@ -76,3 +77,7 @@ e2e_tests/
 ## 5. Development Recipes
 - **How to add a chapter**: Copy an existing chapter file inside `src/data/chapters/`, configure its map and narrative beats, and import/append it to the `CHAPTERS` list in `src/data/chapters/index.ts`.
 - **How to add a minigame**: Follow the recipe in `docs/ADDING_A_MINIGAME.md` using the copyable template at `src/game/modes/_template/`.
+
+## Imported Claude Cowork project instructions
+
+This is my repo for the rockville syndicate, which is the game for adventures that my friend group goes through.

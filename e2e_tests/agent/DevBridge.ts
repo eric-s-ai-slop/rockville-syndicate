@@ -6,7 +6,7 @@
  * `window.__OMEGA_DEV_BRIDGE__` (the settings/progress/mode-registry
  * surface the same postBoot callback attaches alongside it).
  *
- * Scope (H4 — docs/toolkit_complaints.md Triage/Blessing): this covers ONLY
+ * Scope (H4 — docs/archive/toolkit_complaints.resolved.md Triage/Blessing): this covers ONLY
  * the subset of scene state actually read across `e2e_tests/helpers.ts`,
  * `e2e_tests/agent/cli.ts`, and `e2e_tests/agent/GameAgent.ts` today —
  * `beatIndex`, `currentSceneIndex`, `levelStarted`, `movementFrozen`,
@@ -135,6 +135,8 @@ export interface ChapterSceneBridge {
   player?: BridgePlayer | null;
   walkTarget?: BridgeWalkTarget | null;
   activeMode?: BridgeActiveMode | null;
+  activeModeBeatIndex?: number | null;
+  activeModeBackground?: boolean;
   chapter?: BridgeChapterConfig;
   /** The BeatEngine instance driving beat dispatch — methods called by name
    * (`startBeat`, `clearWalkTarget`, `unfreeze`) rather than typed in full. */
@@ -144,6 +146,7 @@ export interface ChapterSceneBridge {
     unfreeze?: () => void;
     [key: string]: unknown;
   };
+  restoreBeat?: (index: number) => void;
   actorSprites?: Record<string, BridgeActorSprite>;
   cameras?: { main: BridgeCamera };
   activeHp?: number;

@@ -21,7 +21,7 @@ export class AudioController {
   // Bumped on every crossfadeToMusic()/stopAllAudio() call so stale delayedCall/tween
   // callbacks from a superseded crossfade can detect they've been overtaken and bail
   // instead of touching a destroyed/replaced stageMusic (goto/warpScene can trigger
-  // several crossfades in quick succession — see docs/toolkit_complaints.md C4).
+  // several crossfades in quick succession — see docs/archive/toolkit_complaints.resolved.md).
   private crossfadeToken = 0;
 
   constructor(scene: ChapterScene) {

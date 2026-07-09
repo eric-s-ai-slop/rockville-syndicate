@@ -84,6 +84,7 @@ Chapters are declarative config files in [`src/data/chapters/`](src/data/chapter
 | 9 | The Suds & Soles Pool Party | Nick F's Backyard | — | `chapter9.pool-party.ts` |
 | 11 | Cabin From Hell | Shenandoah cabin, July 4th | — | `chapter11.cabin-from-hell.ts` |
 | 12 | Rockville Syndicate: Origins | Rockville, MD — summer 2024 → tonight | — | `chapter12.origins.ts` |
+| 99 | Playtest Fixture *(DEV-only — never ships)* | Rockville Park (synthetic) | — | `chapterFixture.playtest.ts` |
 
 ---
 

@@ -191,8 +191,10 @@ export class BenTriviaMode implements GameMode<BenTriviaConfig> {
     window.addEventListener('keydown', this.keyListener);
 
     this.updateHud();
-    // Brief beat before the first card so the takeover fade reads.
-    ctx.time.delayedCall(450, () => this.showCard());
+    // Brief beat before the first card so the takeover fade reads. Tracked in
+    // timerEvent so a teardown inside this window (harnessForceComplete lands
+    // here in E2E runs) cancels it before it touches destroyed objects.
+    this.timerEvent = ctx.time.delayedCall(450, () => this.showCard());
     this.started = true;
   }
 
@@ -201,6 +203,11 @@ export class BenTriviaMode implements GameMode<BenTriviaConfig> {
   }
 
   teardown(): void {
+    // A forced completion (harnessForceComplete → onComplete → teardown)
+    // bypasses resolve(), which is otherwise the only place modeEnded is set —
+    // without this, any still-pending timer callback (showCard, the feedback
+    // delay) runs against destroyed objects and kills Phaser's render loop.
+    this.modeEnded = true;
     this.started = false;
     if (this.keyListener) {
       window.removeEventListener('keydown', this.keyListener);
