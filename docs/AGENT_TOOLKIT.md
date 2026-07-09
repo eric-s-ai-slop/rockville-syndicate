@@ -197,7 +197,7 @@ command then prints its own result.
 {"cmd":"state","ok":true,"state":{"scene":"ChapterScene","player":{"x":559.2,"y":560},"velocity":{"x":0,"y":0},"hp":120,"activeMode":null,"loopRunning":true}}
 {"cmd":"screenshot","ok":true,"path":"/abs/path/agent-artifacts/walked.png"}
 {"cmd":"eval","ok":true,"result":120}
-{"cmd":"visual_checkpoint","ok":true,"path":"/abs/path/agent-artifacts/checkpoint-002.png","reason":"chapter scene 1 entered"}
+{"cmd":"visual_checkpoint","ok":true,"checkpointId":2,"path":"/abs/path/agent-artifacts/checkpoint-002.png","reason":"chapter scene 1 entered","sceneIndex":1,"mode":null}
 {"cmd":"diff","ok":true,"state":{"player":{"x":580.1,"y":560}},"errorsSinceLastObserve":0,"warningsSinceLastObserve":0}
 {"cmd":"watch","ok":true,"waitedMs":420}
 {"cmd":"session_summary","ok":true,"errors":0,"warnings":0}
@@ -224,6 +224,7 @@ command then prints its own result.
 - **`visual_checkpoint` lines** appear whenever `--checkpoints` (or the
   gauntlet's `--shots`) captures a screenshot on its own initiative — chapter
   load, scene transition, mode start/end. `path` is where the PNG landed;
+  `checkpointId` is a monotonically increasing id for report citations, and
   `reason` says why it fired. Look at these; they're where "the game looks
   wrong" bugs actually surface (N3).
 - **`diff`** is `observe`'s cheaper sibling — same fields, but only the ones
@@ -233,6 +234,40 @@ command then prints its own result.
 
 > Tip: keep stdout clean for parsing by adding `2>/dev/null` — npm's banner and
 > the interactive `agent> ` prompt go to stderr, the JSONL goes to stdout.
+
+### JSON command envelope for external agents
+
+Human operators can keep typing legacy commands (`walkto 100 200`, `observe
+--shot`, etc.). External agents should prefer the versioned JSON envelope so
+each result can be correlated with the command that caused it:
+
+```json
+{"protocol":"omega-agent-v1","cmd_id":"walk-001","action":"walkto","args":[100,200],"options":{"snapshot":"after","telemetry":true,"console_delta":true}}
+```
+
+The CLI immediately validates the line and emits either `accepted` or
+`rejected`. After the existing command handler finishes, it emits a correlated
+`completed` or `failed` receipt. Commands remain serial; there is no
+`executing` state in V1.
+
+```jsonc
+{"protocol":"omega-agent-v1","cmd_id":"walk-001","status":"accepted","timestamp":1760000000000}
+{"protocol":"omega-agent-v1","cmd_id":"walk-001","status":"completed","action":"walkto","duration_ms":812,"result":{"cmd":"walkto","ok":true},"artifact":{"type":"image","path":"/abs/path/agent-artifacts/protocol-walk-001-shot-001.png"},"telemetry":{"fps":60},"console_delta":{"errors":0,"warnings":0,"entries":[]}}
+```
+
+Supported options:
+
+| Option | Meaning |
+| --- | --- |
+| `snapshot: "after"` | Attach a stabilized PNG after the command completes |
+| `annotate: true` | Attach an annotated screenshot instead of a plain stabilized PNG |
+| `telemetry: true` | Attach the same engine metrics returned by `perf` |
+| `console_delta: true` | Attach browser errors/warnings produced during the command |
+
+JSON `args` preserve structured values and strings with spaces. Object args are
+serialized into the same JSON text existing commands like `mode` and
+`injectbeat` already expect, so the JSON path remains a thin envelope over the
+same command handlers rather than a parallel command implementation.
 
 ---
 

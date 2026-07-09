@@ -16,6 +16,7 @@ export default tseslint.config(
     // Don't lint build output, deps, vendored/legacy code, or generated assets.
     ignores: [
       'dist/**',
+      '.claude/**',
       'node_modules/**',
       'test-results/**',
       'public/**',

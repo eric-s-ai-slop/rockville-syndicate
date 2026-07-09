@@ -86,6 +86,18 @@ Output is JSONL on stdout, one object per command; `session_summary` is the last
 line and reports total console errors/warnings. Add `2>/dev/null` to keep stdout
 clean for parsing.
 
+External agents should prefer the JSON command envelope when they need to cite
+specific actions in a report:
+
+```json
+{"protocol":"omega-agent-v1","cmd_id":"scene1-walk","action":"walkto","args":[100,200],"options":{"snapshot":"after","telemetry":true,"console_delta":true}}
+```
+
+The CLI emits a correlated `accepted` line, then a `completed` or `failed` line
+with the same `cmd_id`. Use `snapshot:"after"` / `annotate:true` / `telemetry:true`
+/ `console_delta:true` to bind evidence to a command without extra round trips.
+Legacy string commands are still fine for quick manual poking.
+
 ---
 
 ## The playthrough loop
@@ -94,7 +106,7 @@ clean for parsing.
 
 1. Confirm `npm run dev` is up (port 3324).
 2. Launch **interactively** with checkpoints:
-   `npm run agent -- --chapter "<Title>" --keep-open --checkpoints`
+   `npm run agent -- --chapter "<Title>" --repl --checkpoints`
    (add `--classified` for Rose / UMBC).
 3. `advance` to clear the intro, then loop: `diff` → decide → act. Read the
    state; **do not** fire a rigid pre-planned macro of `advance; choose; wait` —

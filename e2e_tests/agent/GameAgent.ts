@@ -101,9 +101,10 @@ export class GameAgent {
    */
   async focusCanvas(): Promise<void> {
     const canvas = this.page.locator('canvas').first();
-    await canvas.click({ position: { x: 5, y: 5 } }).catch(() => {
+    if ((await canvas.count().catch(() => 0)) === 0) return;
+    await canvas.click({ position: { x: 5, y: 5 }, timeout: 1000 }).catch(() => {
       // Some overlays swallow the click; focusing the element is enough.
-      return canvas.focus();
+      return canvas.focus({ timeout: 1000 }).catch(() => {});
     });
   }
 
@@ -1252,7 +1253,6 @@ export class GameAgent {
         const game = (window as unknown as { __OMEGA_GAME__?: any }).__OMEGA_GAME__ ?? null;
         const scene = game?.scene.getScene('ChapterScene') ?? null;
         try {
-          // eslint-disable-next-line no-new-func -- caller-supplied predicate, mirrors `eval`'s existing trust model
           return !!new Function('scene', 'game', `return (${expr});`)(scene, game);
         } catch {
           return false;

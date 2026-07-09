@@ -20,6 +20,14 @@ import { navigateToChapter, advanceUntil, AdvanceTimeoutError, AdvanceTimeoutDia
 import { CHAPTERS } from '../../src/data/chapters';
 import type { Beat } from '../../src/data/chapters/types';
 import type { DevBridgeWindow } from './DevBridge';
+import {
+  OMEGA_AGENT_PROTOCOL,
+  AgentCommand,
+  AgentCommandOptions,
+  CommandRequest,
+  parseAgentCommandLine,
+  parseLegacyCommandLine,
+} from './protocol';
 
 // ── Flags ────────────────────────────────────────────────────────────────────
 
@@ -300,6 +308,10 @@ OUTPUT
   One JSON line per command on stdout: {"cmd":"...","ok":true, ...result}. Errors are
   {"cmd":"...","ok":false,"error":"..."} and never crash the session. Screenshots are
   written to the --out folder and their absolute path is printed in the result.
+  External agents may send JSON lines:
+    {"protocol":"omega-agent-v1","cmd_id":"s1","action":"state","args":[]}
+  JSON commands emit accepted, then completed/failed with the same cmd_id. Options:
+    snapshot:"after", annotate:true, telemetry:true, console_delta:true
 
 EXAMPLES
   # Load a chapter, walk to control, hold W for 2s, dump state + a screenshot
@@ -316,8 +328,13 @@ EXAMPLES
 
 let recordStream: fs.WriteStream | null = null;
 let lastCommandTime = Date.now();
+let emitSink: ((obj: Record<string, unknown>) => void) | null = null;
 
 function emit(obj: Record<string, unknown>): void {
+  if (emitSink) {
+    emitSink(obj);
+    return;
+  }
   process.stdout.write(JSON.stringify(obj) + '\n');
 }
 
@@ -423,9 +440,19 @@ async function maybeEmitCheckpoint(agent: GameAgent, page: Page, flags: Flags): 
   if (!reason) return;
 
   fs.mkdirSync(flags.out, { recursive: true });
-  const file = path.resolve(flags.out, `checkpoint-${String(++checkpointCount).padStart(3, '0')}.png`);
+  const checkpointId = ++checkpointCount;
+  const file = path.resolve(flags.out, `checkpoint-${String(checkpointId).padStart(3, '0')}.png`);
   await agent.stabilizedScreenshot(file);
-  emit({ cmd: 'visual_checkpoint', ok: true, path: file, reason });
+  emit({
+    cmd: 'visual_checkpoint',
+    ok: true,
+    checkpointId,
+    path: file,
+    reason,
+    sceneKey: current.sceneKey,
+    sceneIndex: current.sceneIndex,
+    mode: current.mode,
+  });
 }
 
 // ── I3: session-to-GIF ────────────────────────────────────────────────────────
@@ -499,24 +526,29 @@ async function runCommand(
   agent: GameAgent,
   page: Page,
   flags: Flags,
-  line: string,
+  input: string | CommandRequest,
 ): Promise<boolean> {
-  const trimmed = line.trim();
-  if (!trimmed || trimmed.startsWith('#')) return true;
+  const request = typeof input === 'string' ? parseLegacyCommandLine(input) : input;
+  if (!request) return true;
 
-  if (recordStream && !trimmed.startsWith('replay') && !trimmed.startsWith('quit') && !trimmed.startsWith('exit')) {
+  if (
+    recordStream &&
+    !request.sourceLine.startsWith('replay') &&
+    !request.sourceLine.startsWith('quit') &&
+    !request.sourceLine.startsWith('exit')
+  ) {
     const now = Date.now();
     const delta = now - lastCommandTime;
     if (delta > 10) {
       recordStream.write(`wait ${delta}\n`);
     }
-    recordStream.write(`${trimmed}\n`);
+    recordStream.write(`${request.sourceLine}\n`);
     lastCommandTime = now;
   }
 
-  const verb = trimmed.split(/\s+/)[0].toLowerCase();
-  const rest = trimmed.slice(verb.length).trim(); // raw remainder (for eval)
-  const args = rest.length ? rest.split(/\s+/) : [];
+  const verb = request.action;
+  const rest = request.rest; // raw remainder (for eval)
+  const args = request.args;
   const num = (i: number) => Number(args[i]);
   const btn = (v: string | undefined): MouseButton => (v === 'right' ? 'right' : 'left');
 
@@ -580,10 +612,10 @@ async function runCommand(
         const world = args.includes('--world');
         const dargs = args.filter((a) => a !== '--world');
         const dnum = (i: number) => Number(dargs[i]);
-        let sx = dnum(0);
-        let sy = dnum(1);
-        let ex = dnum(2);
-        let ey = dnum(3);
+        const sx = dnum(0);
+        const sy = dnum(1);
+        const ex = dnum(2);
+        const ey = dnum(3);
         const ms = dargs[4] ? dnum(4) : 400;
         if (world) {
           const startVp = await agent.worldToViewport(sx, sy);
@@ -1040,6 +1072,148 @@ async function runCommand(
   return true;
 }
 
+function protocolError(code: string, message: string): { code: string; message: string } {
+  return { code, message };
+}
+
+function protocolSafeName(value: string): string {
+  return value.replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64) || 'cmd';
+}
+
+async function captureProtocolArtifact(
+  agent: GameAgent,
+  flags: Flags,
+  command: AgentCommand,
+): Promise<{ type: 'image'; path: string; annotated?: boolean } | undefined> {
+  const options = command.options ?? {};
+  if (options.snapshot !== 'after' && !options.annotate) return undefined;
+
+  fs.mkdirSync(flags.out, { recursive: true });
+  const suffix = options.annotate ? 'annotated' : 'shot';
+  const file = path.resolve(
+    flags.out,
+    `protocol-${protocolSafeName(command.cmd_id)}-${suffix}-${String(++screenshotCount).padStart(3, '0')}.png`,
+  );
+  if (options.annotate) await agent.annotateScreenshot(file);
+  else await agent.stabilizedScreenshot(file);
+  return { type: 'image', path: file, ...(options.annotate ? { annotated: true } : {}) };
+}
+
+async function runProtocolCommand(
+  agent: GameAgent,
+  page: Page,
+  flags: Flags,
+  command: AgentCommand,
+  request: CommandRequest,
+): Promise<boolean> {
+  const startedAt = Date.now();
+  const consoleStart = agent.getConsoleLogs().length;
+  const outputs: Record<string, unknown>[] = [];
+
+  emit({ protocol: OMEGA_AGENT_PROTOCOL, cmd_id: command.cmd_id, status: 'accepted', timestamp: startedAt });
+
+  const previousSink = emitSink;
+  emitSink = (obj) => outputs.push(obj);
+  let keepGoing = true;
+  let thrown: unknown = null;
+  try {
+    keepGoing = await runCommand(agent, page, flags, request);
+  } catch (err) {
+    thrown = err;
+  } finally {
+    emitSink = previousSink;
+  }
+
+  const durationMs = Date.now() - startedAt;
+  const options: AgentCommandOptions = command.options ?? {};
+  const lastOutput = outputs[outputs.length - 1];
+  const outputFailed = outputs.some((obj) => obj.ok === false);
+  const status = thrown || outputFailed ? 'failed' : 'completed';
+  const extras: Record<string, unknown> = {};
+
+  if (options.snapshot === 'after' || options.annotate) {
+    try {
+      const artifact = await captureProtocolArtifact(agent, flags, command);
+      if (artifact) extras.artifact = artifact;
+    } catch (err) {
+      extras.artifact_error = err instanceof Error ? err.message : String(err);
+    }
+  }
+  if (options.telemetry) {
+    try {
+      extras.telemetry = await agent.inspectPerf();
+    } catch (err) {
+      extras.telemetry = { error: err instanceof Error ? err.message : String(err) };
+    }
+  }
+  if (options.console_delta) {
+    const entries = agent.getConsoleLogs().slice(consoleStart);
+    extras.console_delta = {
+      errors: entries.filter((e) => e.type === 'error').length,
+      warnings: entries.filter((e) => e.type === 'warning').length,
+      entries,
+    };
+  }
+
+  if (status === 'failed') {
+    const message = thrown instanceof Error
+      ? thrown.message
+      : thrown
+        ? String(thrown)
+        : typeof lastOutput?.error === 'string'
+          ? lastOutput.error
+          : 'Command failed.';
+    emit({
+      protocol: OMEGA_AGENT_PROTOCOL,
+      cmd_id: command.cmd_id,
+      status,
+      action: command.action,
+      duration_ms: durationMs,
+      error: protocolError(thrown ? 'COMMAND_ERROR' : 'COMMAND_FAILED', message),
+      ...extras,
+    });
+    return keepGoing;
+  }
+
+  emit({
+    protocol: OMEGA_AGENT_PROTOCOL,
+    cmd_id: command.cmd_id,
+    status,
+    action: command.action,
+    duration_ms: durationMs,
+    result: outputs.length === 0
+      ? { cmd: request.action, ok: true }
+      : outputs.length === 1
+        ? outputs[0]
+        : { outputs },
+    ...extras,
+  });
+  return keepGoing;
+}
+
+async function processCommandLine(
+  agent: GameAgent,
+  page: Page,
+  flags: Flags,
+  line: string,
+): Promise<boolean> {
+  const trimmed = line.trim();
+  if (trimmed.startsWith('{')) {
+    const parsed = parseAgentCommandLine(trimmed);
+    if (parsed.ok === false) {
+      emit({
+        protocol: OMEGA_AGENT_PROTOCOL,
+        cmd_id: parsed.cmd_id,
+        status: 'rejected',
+        error: protocolError(parsed.code, parsed.message),
+      });
+      return true;
+    }
+    return runProtocolCommand(agent, page, flags, parsed.command, parsed.request);
+  }
+  return runCommand(agent, page, flags, line);
+}
+
 /** Filesystem-safe folder name for a chapter title (N1 --shots per-chapter folder). */
 function slugify(title: string): string {
   return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'chapter';
@@ -1403,7 +1577,15 @@ async function runChapterAttempt(
     const shotPath = path.resolve(chapterDir, `scene-${sceneIndex}.png`);
     await agent.stabilizedScreenshot(shotPath);
     shots.push({ sceneIndex, path: shotPath });
-    emit({ cmd: 'visual_checkpoint', ok: true, path: shotPath, chapter: label, sceneIndex });
+    emit({
+      cmd: 'visual_checkpoint',
+      ok: true,
+      checkpointId: ++checkpointCount,
+      path: shotPath,
+      chapter: label,
+      sceneIndex,
+      mode: null,
+    });
   };
 
   let agent: GameAgent | null = null;
@@ -1720,7 +1902,7 @@ async function readStdin(agent: GameAgent, page: Page, flags: Flags): Promise<vo
   // exact moment it's safe to start writing instead of guessing/sleeping.
   if (flags.repl) emit({ repl: 'ready' });
   for await (const line of rl) {
-    const keepGoing = await runCommand(agent, page, flags, line);
+    const keepGoing = await processCommandLine(agent, page, flags, line);
     await maybeEmitCheckpoint(agent, page, flags);
     if (!keepGoing) break;
     if (interactive) process.stderr.write('agent> ');
@@ -1803,7 +1985,7 @@ async function main(): Promise<void> {
 
     if (lines) {
       for (const line of lines) {
-        if (!(await runCommand(agent, page, flags, line))) break;
+        if (!(await processCommandLine(agent, page, flags, line))) break;
         await maybeEmitCheckpoint(agent, page, flags);
       }
       if (flags.keepOpen) await readStdin(agent, page, flags);
