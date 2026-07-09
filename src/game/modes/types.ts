@@ -70,6 +70,16 @@ export interface GameMode<Cfg = unknown> {
   preload?(ctx: ModeContext): void;
   /** Begin the mode. Call onComplete exactly once when the mode resolves. */
   start(ctx: ModeContext, config: Cfg, onComplete: (result: ModeResult) => void): void;
+  /**
+   * Not implemented by individual modes — the launch site (ChapterScene.launchMode,
+   * BeatEngine's mode-beat/bossFight runners) stores the exact `onComplete` closure
+   * it just passed to `start()` here, right before calling `start()`. This gives
+   * external tooling (the Playwright agent harness's `skipModes`/`--gauntlet`
+   * auto-win, e2e_tests/helpers.ts) a way to force a running mode to resolve
+   * without needing to simulate real player input, by calling
+   * `activeMode.harnessForceComplete({ outcome: 'win' })` directly.
+   */
+  harnessForceComplete?: (result: ModeResult) => void;
   /** Per-frame tick while the mode is active (forwarded from scene update()). */
   update?(time: number, delta: number): void;
   /** Restore the scene to story state (remove sprites, listeners, UI). */

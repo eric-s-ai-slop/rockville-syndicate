@@ -239,7 +239,7 @@ COMMANDS (one per line; ';' also separates them on a single line)
                                omega-save-v2 blob if a path is given (B2)
     loadstate [file]           quick-restore in-memory state, or restore + re-navigate from <file> (B2)
     modes                      list every registered minigame mode id (B3)
-    winmode | losemode         force-complete the foreground mode via its own onCompleteCallback (B3/F1)
+    winmode | losemode         force-complete the foreground mode via its own harnessForceComplete (B3/F1)
     modify hp|ledger|shards <value>  directly set a stat, bypassing normal game logic (D4) — mutates,
                                carries a "skipped-state" warning
     choose <index|text>        click a dialogue-choice button by index or fuzzy text match (D3)

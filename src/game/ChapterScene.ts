@@ -829,7 +829,7 @@ export default class ChapterScene extends Phaser.Scene {
     }
 
     this.activeMode = mode;
-    mode.start(context, config, (result) => {
+    const onComplete = (result: ModeResult) => {
       try {
         mode.teardown();
       } catch (err) {
@@ -839,7 +839,11 @@ export default class ChapterScene extends Phaser.Scene {
         this.activeMode = null;
       }
       console.log(`[ChapterScene] Direct mode ${modeId} completed:`, result);
-    });
+    };
+    // Stored so external tooling (the Playwright agent harness) can force this
+    // mode to resolve early — see the doc comment on GameMode.harnessForceComplete.
+    mode.harnessForceComplete = onComplete;
+    mode.start(context, config, onComplete);
   }
 
   // ─── Map building (data-driven) ───────────────────────────────────────────────

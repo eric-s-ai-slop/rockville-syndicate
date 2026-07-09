@@ -396,7 +396,7 @@ walk-and-talk beats with no image input.
 - **As shipped:** `mode <id> [configJson]` launches a registered mode with the
   real `ModeContext` via `ChapterScene.launchMode()`.
 - **Not yet built:** `modes` (list ids), `winmode` / `losemode` (complete the
-  foreground mode via `activeMode.onCompleteCallback({outcome})` — the exact
+  foreground mode via `activeMode.harnessForceComplete({outcome})` — the exact
   mechanism `advanceUntil` uses). **Implementation constraint from lesson 1:**
   `modes` must enumerate ids inside the browser via `page.evaluate` against the
   live registry — importing `listModeIds()` into the CLI crashes Node.

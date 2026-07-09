@@ -322,7 +322,7 @@ export class BeatEngine {
           console.error(`[BeatEngine] Preload failed for background mode ${beat.modeId}:`, err);
         }
       }
-      mode.start(context, beat.config, (result) => {
+      const onComplete = (result: ModeResult) => {
         try {
           mode.teardown();
         } catch (err) {
@@ -331,7 +331,11 @@ export class BeatEngine {
         if (this.scene.activeMode === mode) {
           this.scene.activeMode = null;
         }
-      });
+      };
+      // See GameMode.harnessForceComplete: lets the E2E/gauntlet harness force this
+      // mode to resolve instead of waiting out its full real-time timeline.
+      mode.harnessForceComplete = onComplete;
+      mode.start(context, beat.config, onComplete);
       return this.advanceBeat();
     }
 
@@ -352,7 +356,7 @@ export class BeatEngine {
       // unset, zones empty) during the intro card, throwing every frame and
       // wedging the game loop.
       this.scene.activeMode = mode;
-      mode.start(context, beat.config, (result) => {
+      const onComplete = (result: ModeResult) => {
         this.lastMinigameResult = result;
         try {
           mode.teardown();
@@ -368,7 +372,11 @@ export class BeatEngine {
         } else {
           this.advanceBeat();
         }
-      });
+      };
+      // See GameMode.harnessForceComplete: lets the E2E/gauntlet harness force this
+      // mode to resolve instead of waiting out its full real-time timeline.
+      mode.harnessForceComplete = onComplete;
+      mode.start(context, beat.config, onComplete);
     };
 
     if (beat.introLines && beat.introLines.length) {
@@ -400,7 +408,7 @@ export class BeatEngine {
     const context = this.buildModeContext();
     this.scene.activeMode = mode;
 
-    mode.start(context, beat, (result) => {
+    const onComplete = (_result: ModeResult) => {
       try {
         mode.teardown();
       } catch (err) {
@@ -409,6 +417,10 @@ export class BeatEngine {
       this.scene.activeMode = null;
       this.unfreeze();
       this.advanceBeat();
-    });
+    };
+    // See GameMode.harnessForceComplete: lets the E2E/gauntlet harness force this
+    // mode to resolve instead of waiting out its full real-time timeline.
+    mode.harnessForceComplete = onComplete;
+    mode.start(context, beat, onComplete);
   }
 }

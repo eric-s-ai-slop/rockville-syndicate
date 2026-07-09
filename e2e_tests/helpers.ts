@@ -139,8 +139,8 @@ export async function advanceUntil(
       // can't import the mode registry to enumerate real ids (it pulls in
       // Phaser at module scope, which crashes outside a browser context).
       const mode = scene?.activeMode;
-      if (mode && (skip.includes('*') || skip.includes(mode.id)) && typeof mode.onCompleteCallback === 'function') {
-        mode.onCompleteCallback({ outcome: 'win' });
+      if (mode && (skip.includes('*') || skip.includes(mode.id)) && typeof mode.harnessForceComplete === 'function') {
+        mode.harnessForceComplete({ outcome: 'win' });
         return;
       }
 

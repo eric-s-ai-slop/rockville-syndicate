@@ -258,6 +258,12 @@ efficiency win. The recommended loop:
 5. Use `watch <jsExpr> [timeoutMs]` instead of a manual `wait 500; state` poll
    loop when you're blocked on a condition (e.g. waiting for HP to drop, a mode
    to complete) — one round-trip instead of several.
+6. **Avoid blind, rigid macro scripts.** The game state is highly dynamic (e.g.
+   non-blocking dialogue that allows movement while typing, meaning `advance`
+   will instantly exit). Do not write a long, hardcoded sequence of `advance;
+   click; wait` commands assuming perfect timing. You must interactively read
+   the `observe` state and conditionally determine your next input, otherwise
+   your sequence will quickly desynchronize and fail the playtest.
 
 ### Verifying animation / motion
 

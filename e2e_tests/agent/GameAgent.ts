@@ -1420,10 +1420,12 @@ export class GameAgent {
   }
 
   /**
-   * Force-complete the foreground minigame via its own `onCompleteCallback`
+   * Force-complete the foreground minigame via its own `harnessForceComplete`
    * (the exact mechanism `advanceUntil`'s `skipModes` uses) instead of tearing
    * it down directly, so the engine's normal completion path (ledger deltas,
-   * beat advance) still runs.
+   * beat advance) still runs. Set by the launch site (ChapterScene.launchMode /
+   * BeatEngine's mode-beat and bossFight runners) right before `mode.start()` —
+   * see `GameMode.harnessForceComplete` in `src/game/modes/types.ts`.
    */
   async completeMode(outcome: 'win' | 'lose'): Promise<{ modeId: string }> {
     return this.page.evaluate((oc) => {
@@ -1433,11 +1435,11 @@ export class GameAgent {
       if (!scene) throw new Error('ChapterScene not found');
       const mode = scene.activeMode;
       if (!mode) throw new Error('No active mode — nothing to complete. Run "mode <id>" first.');
-      if (typeof mode.onCompleteCallback !== 'function') {
-        throw new Error(`Mode "${mode.id}" has no onCompleteCallback — cannot force-complete.`);
+      if (typeof mode.harnessForceComplete !== 'function') {
+        throw new Error(`Mode "${mode.id}" has no harnessForceComplete — cannot force-complete.`);
       }
       const modeId = mode.id;
-      mode.onCompleteCallback({ outcome: oc });
+      mode.harnessForceComplete({ outcome: oc });
       return { modeId };
     }, outcome);
   }

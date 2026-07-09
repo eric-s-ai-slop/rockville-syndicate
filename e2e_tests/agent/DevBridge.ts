@@ -11,7 +11,7 @@
  * `e2e_tests/agent/cli.ts`, and `e2e_tests/agent/GameAgent.ts` today —
  * `beatIndex`, `currentSceneIndex`, `levelStarted`, `movementFrozen`,
  * `player.x/y`, `walkTarget {x,y,radius}`, `activeMode {id,
- * onCompleteCallback}`, `chapter {beats, scenes}`, `beatEngine`,
+ * harnessForceComplete}`, `chapter {beats, scenes}`, `beatEngine`,
  * `actorSprites`, and `cameras.main {width,height,scrollX,scrollY,zoom}`.
  * It is NOT a full typing of `ChapterScene` — fields not listed here should
  * still be read through an index signature or a fresh `as any` cast rather
@@ -69,12 +69,14 @@ export interface BridgeChapterConfig {
 }
 
 /** `scene.activeMode` — the foreground minigame mode instance, or null/undefined
- * when the player is just walking the map. `onCompleteCallback` is how
+ * when the player is just walking the map. `harnessForceComplete` is how
  * `advanceUntil`'s `skipModes` and the `winmode`/`losemode` commands force a
- * mode to finish without playing it out. */
+ * mode to finish without playing it out (set by the launch site — ChapterScene.
+ * launchMode / BeatEngine's mode-beat and bossFight runners — right before
+ * calling `mode.start()`; see GameMode.harnessForceComplete in src/game/modes/types.ts). */
 export interface BridgeActiveMode {
   id?: string;
-  onCompleteCallback?: (result: { outcome: 'win' | 'lose'; [key: string]: unknown }) => void;
+  harnessForceComplete?: (result: { outcome: 'win' | 'lose'; [key: string]: unknown }) => void;
   [key: string]: unknown;
 }
 
