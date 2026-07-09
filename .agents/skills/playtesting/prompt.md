@@ -9,4 +9,4 @@
 >
 > Do not end after a minigame. Verify the post-mode sequence and the chapter's `endChapter` state at runtime. End with the required report format from the skill, including command IDs, evidence paths, coverage, and `session_summary.playtest_integrity`. Write the report to `qa/<chapter-id>/report.md` (the chapter's `id` from its config, e.g. `qa/spain_betrayal/report.md`); keep artifacts in the matching `qa/<chapter-id>/` folder.
 >
-> If you have any complaints with the test harness itself, append those to `/docs/toolkit_complaints.md`, given that those complaints don't already exist within the file. 
+> If you find a new complaint with the test harness itself, create or update `docs/toolkit_complaints.md`; once resolved, archive it under `docs/archive/` with a verification note.

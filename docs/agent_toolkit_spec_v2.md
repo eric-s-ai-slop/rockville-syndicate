@@ -11,6 +11,11 @@ command or flag** on `e2e_tests/agent/cli.ts`, backed where needed by a helper o
 command on stdout** (`{"cmd":"…","ok":true,…}`), errors as `ok:false` without
 crashing the session.
 
+> Current-status note (2026-07-09): this document began as a v2 design record.
+> The shipped command surface and current usage are maintained in
+> [`AGENT_TOOLKIT.md`](AGENT_TOOLKIT.md); entries below marked “As shipped” are
+> authoritative, while remaining backlog notes are intentionally future work.
+
 > **Primary consumer: an LLM agent (Antigravity), not a human.** The toolkit is
 > driven by an AI agent piping commands in and reading JSONL out. This makes
 > **token efficiency a hard design requirement**, on par with correctness:
@@ -41,7 +46,7 @@ Tools are grouped by theme and tagged with a priority tier:
 | Tier | Shipped | Partial | Not started |
 | --- | --- | --- | --- |
 | A (observation) | A1 A2 A3 A4 A5 | — | — |
-| B (control) | B1 B4 B7 | B2 B3 B5 B6 | — |
+| B (control) | B1–B7 | — | — |
 | C (regression) | C1 C2 C3 C4 C7 | C5 C6 | — |
 | **N (committed batch, v2.2)** | **N1 N2 N3 N4** | — | — |
 | D (v3 backlog) | — | — | D1–D6 (see revisions below) |
@@ -348,10 +353,8 @@ condition that can't fire." Diagnosing that from pixels is hopeless.
 - Companion command: `skipbeat [n]` — force-advance 1 (or n) beats, with the
   cleanup sequence from lesson 5 before each advance.
 
-**Known gap (carry into next batch):** `skipbeat` bypasses beat side effects
-(ledger deltas, flags, spawns) but does not yet emit the `"warning":
-"skipped-state: …"` field that B1's `goto` was spec'd to carry. Add the same
-warning field to both so transcripts are honest about state validity.
+**As shipped:** `skipbeat` bypasses beat side effects (ledger deltas, flags,
+spawns) and emits a `warning` field describing the skipped-state limitation.
 
 ---
 
@@ -379,28 +382,22 @@ walk-and-talk beats with no image input.
   <y>` command, and the `"warning":"skipped-state"` field on forward jumps.
   These remain spec'd; the warning field is the priority (see A4 gap).
 
-### B2. Save-State Snapshot / Restore — **P1** — **partial**
+### B2. Save-State Snapshot / Restore — **P1** — **implemented**
 
-- **As shipped:** `savestate` / `loadstate` are **in-memory within one session**
-  — quick-save/quick-restore of live scene state.
-- **Not yet built (the bigger half):** file-based persistence
-  (`savestate <file>` / `loadstate <file>`) that survives across sessions:
-  dump `{saveBlob, chapterId, sceneIndex, beatIndex, player, hp}` where the blob
-  is the `omega-save-v2` localStorage value (via `settings.ts` semantics —
-  never a parallel persistence path), then on load: write blob → reload →
-  re-navigate → `goto` → `skipbeat` → teleport. Emulator-style ergonomics:
-  capture once right before a bug, restore in every subsequent run.
+As shipped, `savestate`/`loadstate` support both in-memory quick-save and
+file-based cross-session restore. File saves contain `{saveBlob, chapterId,
+sceneIndex, beatIndex, player, hp, ledgerTotal}`; restore re-navigates to the
+chapter and dispatches the exact saved beat through the scene restore path,
+cancelling stale startup timers and walk targets.
 
-### B3. Minigame Launcher — **P1** — **partial**
+### B3. Minigame Launcher — **P1** — **implemented**
 
 - **As shipped:** `mode <id> [configJson]` launches a registered mode with the
   real `ModeContext` via `ChapterScene.launchMode()`.
-- **Not yet built:** `modes` (list ids), `winmode` / `losemode` (complete the
-  foreground mode via `activeMode.harnessForceComplete({outcome})` — the exact
-  mechanism `advanceUntil` uses). **Implementation constraint from lesson 1:**
-  `modes` must enumerate ids inside the browser via `page.evaluate` against the
-  live registry — importing `listModeIds()` into the CLI crashes Node.
-- Output should include the mode's `ModeResult` on completion.
+`modes` lists registered ids, and `winmode` / `losemode` complete only the
+current foreground mode through `activeMode.harnessForceComplete({outcome})`.
+Background modes and stale mode instances are explicitly rejected by the
+harness; mode ownership is tracked by beat index.
 
 ### B4. Audio Inspector — **P1** — **implemented**
 
@@ -409,23 +406,18 @@ walk-and-talk beats with no image input.
 - **Follow-up spec'd in G3:** `audio assert …` to turn QA checklist lines
   ("Scene 0 opens in silence") into one-line scriptable assertions.
 
-### B5. Camera Commands — **P1** — **partial**
+### B5. Camera Commands — **P1** — **implemented**
 
-- **As shipped:** `camera` (inspect), `camera zoom <z>`, `camera center <x> <y>`.
-- **Not yet built:** `cam fit` (stop follow, zoom to fit the whole map rect —
-  the `qa_capture.cjs` recipe that found the collision-rect bugs) and
-  `cam follow` (restore `startFollow(player)` at `chapter.cameraZoom ?? 2.0`).
-  These are the two highest-value camera verbs; the shipped primitives are
-  their building blocks.
+- **As shipped:** `camera` (inspect), `camera zoom <z>`, `camera center <x> <y>`,
+  `camera fit`, and `camera follow`.
 - **Hard rule:** never call `cameras.main.setBounds(…)` (lint-enforced project
   gotcha); fit is achieved purely via zoom + centerOn.
 
-### B6. World↔Viewport Converter — **P1** — **partial**
+### B6. World↔Viewport Converter — **P1** — **implemented**
 
 - **As shipped:** the `worldToViewport()` helper on `GameAgent`, reused by
-  A2/A3 `screen` fields.
-- **Not yet built:** the CLI verbs `clickworld <x> <y>` (convert + click) and
-  `where <x> <y>` (print both conversions). Cheap — the helper exists; wire it.
+  A2/A3 `screen` fields, plus the CLI verbs `clickworld <x> <y>` and
+  `where <x> <y>`.
 
 ### B7. Time Scale / Fast-Forward — **P2** — **implemented**
 
@@ -463,17 +455,14 @@ walk-and-talk beats with no image input.
   so successive samples diff trivially.
 - **Follow-up spec'd in G2:** assertable budgets.
 
-### C5. Golden-Frame Screenshot Diffing — **P2** — **implemented, needs hardening**
+### C5. Golden-Frame Screenshot Diffing — **P2** — **implemented**
 
 - **As shipped:** `golden save <name> [threshold]` / `golden check <name>
   [threshold]` — Jimp pixel-diff against
   `e2e_tests/agent/goldens/<chapter>/<name>.png` (directory is gitignored;
   commit baselines deliberately, not accidentally).
-- **Known gap — build next:** the stabilization requirements (pause loop, fixed
-  viewport, seed set, animations settled) are documented but **not enforced**.
-  `golden` should *itself* pause → step ~5 frames → capture → resume, every
-  time, rather than trusting the caller. Unstabilized goldens flap and erode
-  trust in the whole mechanism.
+- Golden capture enforces stabilization by pausing the loop, stepping five
+  deterministic frames, capturing, and restoring the prior loop state.
 
 ### C6. Static Asset Audit — **P2** — **implemented (shallow)**
 
@@ -528,12 +517,12 @@ walk-and-talk beats with no image input.
 Statuses and designs updated; several items are re-scoped based on what testing
 actually showed.
 
-### D1. Pathfinding Auto-Walk (`walkto <x> <y>`) — **P2, descoped**
-Build the *cheap* version first: hold the dominant direction key toward the
-target, re-evaluate every ~10 frames, stop inside the radius, give up after N
-seconds with `ok:false` and the final position. No A*/navmesh — current maps
-are open rooms with perimeter walls; full pathfinding is over-engineering until
-a maze-like map exists. Emits `mutates:true`.
+### D1. Pathfinding Auto-Walk (`walkto <x> <y>`) — **P2, cheap version shipped**
+The cheap version is shipped: it holds the dominant direction key toward the
+target, re-evaluates every ~10 frames, stops inside the radius, and gives up
+after N seconds with `ok:false` and the final position. It intentionally has no
+A*/navmesh pathfinding; current maps are open rooms with perimeter walls.
+It emits `mutates:true` and resumes the real-time Phaser loop before returning.
 
 ### D2. Settings Controller (`settings <key> <value>`) — **promoted to P1**
 Trivial via the bridge + `settings.ts` setters, and the only way to make "text
@@ -644,16 +633,17 @@ also caught by A1's `requestfailed` hook). Fold a `spriteIssues` count into
 
 ## F. Control v2.1
 
-### F1. Finish B3 (`modes`, `winmode`, `losemode`) — **P0 of this tier**
-Highest-value unbuilt control item; design and constraints under B3 above.
+### F1. `modes`, `winmode`, `losemode` — **shipped**
+See B3. These commands use the live browser mode registry and the owning
+foreground beat's completion hook.
 
-### F2. `chapterflag` — Progress/Unlock Editor — **P2**
-Set Hall-of-Records and chapter unlock state in the `omega-save-v2` blob (via
+### F2. `chapterflag` — Progress/Unlock Editor — **shipped**
+Sets Hall-of-Records and chapter unlock state in the `omega-save-v2` blob (via
 `settings.ts` semantics) so "chapter N unlocked but not completed" is
 constructable without playing N−1 chapters. Pairs with B2's file-based
 save-state.
 
-### F3. `injectbeat <json>` — One-Off Beat Executor — **P2**
+### F3. `injectbeat <json>` — One-Off Beat Executor — **shipped**
 Execute a single beat object (a `dialogue`, `sfx`, `screenTint`, …) in the live
 scene through the engine's own dispatch (lesson 3). Lets a chapter author
 preview a beat *before* writing it into a chapter file — bridges playtesting
@@ -804,7 +794,10 @@ cleanly on a chapter with a real minigame branch.
 
 ---
 
-## Suggested build order (updated)
+## Historical build order (updated)
+
+The original sequencing is retained for provenance. The current implementation
+status above and the command reference in `AGENT_TOOLKIT.md` take precedence.
 
 Batch 3 is **shipped** — see the ★ N section near the top for the full design
 record and "as shipped" notes. Batches beyond it are a menu, not a to-do list:
@@ -815,10 +808,10 @@ build an item when something in practice demands it, not because it's listed.
 | ~~1~~ | ~~A1–A5~~ | **done** — observation loop closed |
 | ~~2~~ | ~~B1, B4, B5(core), B7, C1–C4, C5(core), C6(core), C7~~ | **done** — debugging + repro + CI kit cores |
 | ~~3~~ | ~~N1 gauntlet-in-CI + `--shots`, N2 capture stabilization, N3 visual checkpoints/`--shot`/`--annotate`, N4 `diff`+`watch`~~ | **done** — the tester runs itself; the visual layer gets coverage; the driver gets cheaper |
-| 4 (next) | F1 (finish B3), D4 `modify`, D3 `choose`, D2 `settings`, A4/B1 warning fields | control ergonomics + honest transcripts |
-| 5 | B5 `cam fit/follow`, B6 CLI verbs, G3 audio asserts, B2 file-based save-state, G5 `transcript`, H1 validate-chapter | hardening + repro depth + authoring |
-| 6 | E1–E3, E8 sprites linter (only if N3 review proves noisy), G2 perf budgets, ~~G6 coverage~~, D1 `walkto` (cheap), F2, F3 | deeper observability, on demand |
-| 7 | ~~I2 fuzz~~, ~~I3 gif~~, ~~G7/G8 gauntlet variants~~, E4, E7, H2, H3, ~~I4~~, D5 map | build when the need bites |
+| ~~4~~ | ~~F1, D4 `modify`, D3 `choose`, D2 `settings`, A4/B1 warning fields~~ | shipped — control ergonomics + honest transcripts |
+| ~~5~~ | ~~B5 `camera fit/follow`, B6 CLI verbs, G3 audio asserts, B2 file save-state, G5 `transcript`, H1 validate-chapter~~ | shipped — hardening + repro depth + authoring |
+| 6 | E8 sprites linter, G2 perf budgets, E7 vision summaries | remaining optional backlog |
+| ~~7~~ | ~~I2 fuzz, I3 gif, G7/G8 gauntlet variants, E1–E4, H2, H3, I4, D1 `walkto`, F2, F3~~ | shipped on demand |
 
 Removed from the plan entirely: I1 autonomous loop (superseded — Antigravity is
 the loop), G1 `agent:ci` wrapper (superseded by N1's direct CI wiring).

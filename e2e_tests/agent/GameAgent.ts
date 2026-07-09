@@ -615,7 +615,7 @@ export class GameAgent {
       // Stop any in-flight crossfade/tween before warping — warpToScene() is about to
       // fire its own crossfadeToMusic() for the target scene, and repeated warps in
       // quick succession (goto/goto/goto) otherwise leave stale delayedCall/tween
-      // callbacks racing against a destroyed stageMusic (see docs/toolkit_complaints.md C4).
+      // callbacks racing against a destroyed stageMusic (see docs/archive/toolkit_complaints.resolved.md).
       try { scene.audioController?.stopAllAudio(0); } catch {}
 
       // Find the first beat of target scene
