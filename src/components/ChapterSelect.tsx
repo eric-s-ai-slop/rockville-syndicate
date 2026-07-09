@@ -90,9 +90,9 @@ const KIND_TAG: Record<ChapterConfig['kind'], string> = {
   flashback: 'FLASHBACK',
 };
 
-// These chapters are shown as redacted/CLASSIFIED entries. One click cracks the
-// seal, a second shatters it — after which they render as normal, playable cards.
-const CLASSIFIED_IDS = ['umbc_incident', 'rose_florida'];
+// Chapters flagged `classified: true` in their config (src/data/chapters/types.ts)
+// are shown as redacted/CLASSIFIED entries. One click cracks the seal, a second
+// shatters it — after which they render as normal, playable cards.
 type SealState = 'intact' | 'cracked' | 'broken';
 
 const THEME_COLOR: Record<MapTheme, string> = {
@@ -160,7 +160,7 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
         e.preventDefault();
         const ch = CHAPTERS[selectedIndex];
         if (!ch) return;
-        if (CLASSIFIED_IDS.includes(ch.id) && sealStateFor(ch.id) !== 'broken') {
+        if (ch.classified && sealStateFor(ch.id) !== 'broken') {
           if (isChapterUnlocked(ch.id, completed, localFreePlay)) {
             interactSeal(ch.id);
           }
@@ -230,7 +230,7 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
         <div className="flex flex-col gap-3">
           {CHAPTERS.map((ch, idx) => {
             const isDone = completed.includes(ch.id);
-            const isClassified = CLASSIFIED_IDS.includes(ch.id);
+            const isClassified = !!ch.classified;
             const isFlashback = ch.kind === 'flashback';
             const prevIsFlashback = idx > 0 && CHAPTERS[idx - 1].kind === 'flashback';
             const flashbackBadge = isFlashback

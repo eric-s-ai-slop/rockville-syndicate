@@ -602,6 +602,8 @@ export class GameAgent {
       if (scene.activeMode) {
         try { scene.activeMode.teardown(); } catch {}
         scene.activeMode = null;
+        scene.activeModeBeatIndex = null;
+        scene.activeModeBackground = false;
       }
 
       // Clear dialogue UI
@@ -672,6 +674,8 @@ export class GameAgent {
       if (scene.activeMode) {
         try { scene.activeMode.teardown(); } catch {}
         scene.activeMode = null;
+        scene.activeModeBeatIndex = null;
+        scene.activeModeBackground = false;
       }
       if (typeof scene.clearStoryDialogue === 'function') {
         scene.clearStoryDialogue();
@@ -696,12 +700,10 @@ export class GameAgent {
       scene.ledgerTotal = saved.ledgerTotal;
       scene.onLedgerChange(saved.ledgerTotal, 'Restore Quick Save');
 
-      // Restore Beat index
-      scene.beatIndex = saved.beatIndex;
-      scene.beatActive = saved.beatActive;
-
-      // Start beat
-      scene.beatEngine.startBeat(saved.beatIndex);
+      // Restore the exact beat through the scene's restore path. This cancels
+      // the fresh scene's delayed beat-0 kickoff, which otherwise can fire
+      // after this load and resurrect an earlier walkTo beat.
+      scene.restoreBeat(saved.beatIndex);
     }, this.quickSaveState);
   }
 
@@ -1435,6 +1437,11 @@ export class GameAgent {
       if (!scene) throw new Error('ChapterScene not found');
       const mode = scene.activeMode;
       if (!mode) throw new Error('No active mode — nothing to complete. Run "mode <id>" first.');
+      const isDirectMode = scene.activeModeBeatIndex === null;
+      const ownsCurrentBeat = scene.activeModeBeatIndex === scene.beatIndex;
+      if (!isDirectMode && (!ownsCurrentBeat || scene.activeModeBackground)) {
+        throw new Error(`Mode "${mode.id}" is not a current foreground beat; do not force-complete background or stale modes.`);
+      }
       if (typeof mode.harnessForceComplete !== 'function') {
         throw new Error(`Mode "${mode.id}" has no harnessForceComplete — cannot force-complete.`);
       }
@@ -1576,6 +1583,8 @@ export class GameAgent {
           // best-effort teardown of whatever mode was active pre-restore
         }
         scene.activeMode = null;
+        scene.activeModeBeatIndex = null;
+        scene.activeModeBackground = false;
       }
       if (typeof scene.clearStoryDialogue === 'function') scene.clearStoryDialogue();
       scene.beatEngine.clearWalkTarget();
@@ -1593,8 +1602,10 @@ export class GameAgent {
         scene.ledgerTotal = s.ledgerTotal;
         scene.onLedgerChange(s.ledgerTotal, 'Restore File Save');
       }
-      scene.beatIndex = s.beatIndex;
-      scene.beatEngine.startBeat(s.beatIndex);
+      // Restore the exact beat through the scene's restore path. This cancels
+      // the fresh scene's delayed beat-0 kickoff, which otherwise can fire
+      // after this load and resurrect an earlier walkTo beat.
+      scene.restoreBeat(s.beatIndex);
     }, saved);
   }
 

@@ -21,6 +21,13 @@ export interface AdvanceTimeoutDiagnostics {
   choiceCount: number;
 }
 
+export type AdvanceUntilResult =
+  | { status: 'condition-met' }
+  | { status: 'choice-present' }
+  | { status: 'walk-target-present' }
+  | { status: 'mode-active'; modeId: string | null }
+  | { status: 'chapter-ended' };
+
 /**
  * Thrown by `advanceUntil` on timeout instead of a bare Error, so callers
  * (the `advance` command, the gauntlet) can attach `.diagnostics` to their
@@ -96,6 +103,31 @@ export async function advanceUntil(
     maxSeconds?: number;
     skipModes?: string[];
     /**
+     * Interactive playtesting must inspect and choose branches deliberately.
+     * When enabled, stop before the helper's normal auto-choice behavior.
+     */
+    stopOnChoice?: boolean;
+    /**
+     * Playtest advancement must leave movement objectives for the agent to
+     * complete through real keyboard input rather than teleporting the player.
+     */
+    stopOnWalkTarget?: boolean;
+    /**
+     * Stop before a foreground (non-background) minigame or bossFight beat is
+     * auto-completed, so the agent can attempt it deliberately. Defaults to
+     * false — existing callers (the gauntlet, other specs) that don't pass
+     * this must see no behavior change. Background minigames (`background:
+     * true`) never trigger this: BeatEngine doesn't hold the flow on them, so
+     * `activeMode` being set is not by itself "blocking" — see
+     * beatClassification.ts's file header.
+     */
+    stopOnMode?: boolean;
+    /**
+     * Stop once the live beat reaches `endChapter`, before any further Space
+     * presses / teleports run against it. Defaults to false.
+     */
+    stopOnChapterEnd?: boolean;
+    /**
      * Called once per tick, before the interaction step, with the live
      * ChapterScene's current scene index, active mode id, and beat index (N1;
      * beatIndex added for G6 coverage tracking). Used by the gauntlet's
@@ -115,11 +147,20 @@ export async function advanceUntil(
      */
     forceChoice?: { beatIndex: number; optionIndex: number };
   } = {},
-): Promise<void> {
-  const { maxSeconds = 90, skipModes = [], onTick, forceChoice = null } = options;
+): Promise<AdvanceUntilResult> {
+  const {
+    maxSeconds = 90,
+    skipModes = [],
+    stopOnChoice = false,
+    stopOnWalkTarget = false,
+    stopOnMode = false,
+    stopOnChapterEnd = false,
+    onTick,
+    forceChoice = null,
+  } = options;
   const maxTicks = Math.ceil((maxSeconds * 1000) / 150);
   for (let i = 0; i < maxTicks; i++) {
-    if (await condition()) return;
+    if (await condition()) return { status: 'condition-met' };
     if (onTick) {
       const info = await page.evaluate(() => {
         const scene = (window as unknown as DevBridgeWindow).__OMEGA_GAME__?.scene.getScene('ChapterScene');
@@ -131,45 +172,85 @@ export async function advanceUntil(
       });
       await onTick(info);
     }
-    await page.evaluate(({ skip, forceChoice }) => {
-      const scene = (window as unknown as DevBridgeWindow).__OMEGA_GAME__?.scene.getScene('ChapterScene');
+    const stopReason = await page.evaluate(
+      ({ skip, forceChoice, stopOnChoice, stopOnWalkTarget, stopOnMode, stopOnChapterEnd }) => {
+        const scene = (window as unknown as DevBridgeWindow).__OMEGA_GAME__?.scene.getScene('ChapterScene');
+        const beatType = scene?.chapter?.beats?.[scene.beatIndex ?? -1]?.type ?? null;
+        const beatBackground = !!scene?.chapter?.beats?.[scene.beatIndex ?? -1]?.background;
 
-      // Auto-complete a foreground minigame that is blocking the flow.
-      // '*' means "any mode" — for callers (like the agent CLI gauntlet) that
-      // can't import the mode registry to enumerate real ids (it pulls in
-      // Phaser at module scope, which crashes outside a browser context).
-      const mode = scene?.activeMode;
-      if (mode && (skip.includes('*') || skip.includes(mode.id)) && typeof mode.harnessForceComplete === 'function') {
-        mode.harnessForceComplete({ outcome: 'win' });
-        return;
-      }
-
-      // Choice beats can't be dismissed with Space — pick an option. Default
-      // to the first rendered one; forceChoice overrides the pick only for
-      // its designated beatIndex (G7).
-      const choices = document.querySelectorAll('[data-testid="dialogue-choice"]');
-      if (choices.length) {
-        let pick = 0;
-        if (forceChoice && scene?.beatIndex === forceChoice.beatIndex && choices.length > forceChoice.optionIndex) {
-          pick = forceChoice.optionIndex;
+        // Stop as soon as the live beat is the chapter's terminal beat, before
+        // any Space-press/teleport below runs against it.
+        if (stopOnChapterEnd && beatType === 'endChapter') {
+          return { stop: 'chapter-ended' as const };
         }
-        (choices[pick] as HTMLElement).click();
-        return;
-      }
 
-      // A normal dialogue line: advance it (skips the typewriter, then proceeds).
-      const line = document.querySelector('p.font-pixel') as HTMLElement | null;
-      if (line && line.offsetParent !== null) {
-        window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space', key: ' ' }));
-        return;
-      }
+        // Auto-complete a foreground minigame that is blocking the flow.
+        // '*' means "any mode" — for callers (like the agent CLI gauntlet) that
+        // can't import the mode registry to enumerate real ids (it pulls in
+        // Phaser at module scope, which crashes outside a browser context).
+        const mode = scene?.activeMode;
+        const modeOwnsCurrentBeat = scene?.activeModeBeatIndex === scene?.beatIndex;
+        const foregroundModeActive = modeOwnsCurrentBeat && scene?.activeModeBackground !== true;
+        if (
+          mode &&
+          foregroundModeActive &&
+          (skip.includes('*') || skip.includes(mode.id)) &&
+          typeof mode.harnessForceComplete === 'function'
+        ) {
+          mode.harnessForceComplete({ outcome: 'win' });
+          return null;
+        }
 
-      // Nothing to read: walk to the active marker by teleporting onto it.
-      if (scene?.walkTarget) {
-        scene.player.x = scene.walkTarget.x;
-        scene.player.y = scene.walkTarget.y;
-      }
-    }, { skip: skipModes, forceChoice });
+        // A foreground (non-background) minigame or bossFight beat holds the
+        // flow until it completes — background minigames do NOT (BeatEngine
+        // continues past the launching beat immediately), so only stop here
+        // when the CURRENT beat's classification is actually blocking, never
+        // from `activeMode` being truthy alone (see beatClassification.ts).
+        if (
+          stopOnMode &&
+          mode &&
+          foregroundModeActive &&
+          !(skip.includes('*') || skip.includes(mode.id)) &&
+          (beatType === 'bossFight' || (beatType === 'minigame' && !beatBackground))
+        ) {
+          return { stop: 'mode-active' as const, modeId: mode.id ?? null };
+        }
+
+        // Choice beats can't be dismissed with Space — pick an option. Default
+        // to the first rendered one; forceChoice overrides the pick only for
+        // its designated beatIndex (G7).
+        const choices = document.querySelectorAll('[data-testid="dialogue-choice"]');
+        if (choices.length) {
+          if (stopOnChoice) return { stop: 'choice-present' as const };
+          let pick = 0;
+          if (forceChoice && scene?.beatIndex === forceChoice.beatIndex && choices.length > forceChoice.optionIndex) {
+            pick = forceChoice.optionIndex;
+          }
+          (choices[pick] as HTMLElement).click();
+          return null;
+        }
+
+        // A normal dialogue line: advance it (skips the typewriter, then proceeds).
+        const line = document.querySelector('p.font-pixel') as HTMLElement | null;
+        if (line && line.offsetParent !== null) {
+          window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space', key: ' ' }));
+          return null;
+        }
+
+        // Nothing to read: walk to the active marker by teleporting onto it.
+        if (scene?.walkTarget) {
+          if (stopOnWalkTarget) return { stop: 'walk-target-present' as const };
+          scene.player.x = scene.walkTarget.x;
+          scene.player.y = scene.walkTarget.y;
+        }
+        return null;
+      },
+      { skip: skipModes, forceChoice, stopOnChoice, stopOnWalkTarget, stopOnMode, stopOnChapterEnd },
+    );
+    if (stopReason?.stop === 'choice-present') return { status: 'choice-present' };
+    if (stopReason?.stop === 'walk-target-present') return { status: 'walk-target-present' };
+    if (stopReason?.stop === 'mode-active') return { status: 'mode-active', modeId: stopReason.modeId };
+    if (stopReason?.stop === 'chapter-ended') return { status: 'chapter-ended' };
     await page.waitForTimeout(150);
   }
 

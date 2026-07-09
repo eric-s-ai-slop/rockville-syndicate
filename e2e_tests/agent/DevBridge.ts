@@ -135,6 +135,8 @@ export interface ChapterSceneBridge {
   player?: BridgePlayer | null;
   walkTarget?: BridgeWalkTarget | null;
   activeMode?: BridgeActiveMode | null;
+  activeModeBeatIndex?: number | null;
+  activeModeBackground?: boolean;
   chapter?: BridgeChapterConfig;
   /** The BeatEngine instance driving beat dispatch — methods called by name
    * (`startBeat`, `clearWalkTarget`, `unfreeze`) rather than typed in full. */
@@ -144,6 +146,7 @@ export interface ChapterSceneBridge {
     unfreeze?: () => void;
     [key: string]: unknown;
   };
+  restoreBeat?: (index: number) => void;
   actorSprites?: Record<string, BridgeActorSprite>;
   cameras?: { main: BridgeCamera };
   activeHp?: number;

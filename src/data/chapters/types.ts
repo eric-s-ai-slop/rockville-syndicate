@@ -206,6 +206,14 @@ export interface ChapterConfig {
   /** Suppress the end-of-chapter victory celebration (jingle, flash, victory anim).
    *  The chapter fades out silently. */
   quietEnd?: boolean;
+  /**
+   * Renders as a redacted/CLASSIFIED card on the chapter-select screen that
+   * must have its seal broken (two clicks: intact -> cracked -> broken)
+   * before it can be played. The agent CLI auto-breaks the seal for these
+   * chapters when driving them (see `navigateToChapter`'s `classified` option
+   * in e2e_tests/helpers.ts and cli.ts's auto-detection off this field).
+   */
+  classified?: boolean;
   usePoolSheet?: boolean;
   ambientSfx?: { onDoor?: string };
   chaseTextureSwaps?: Array<{ propKey: string; targetTexture: string; fallbackTexture?: string }>;

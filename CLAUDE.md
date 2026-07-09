@@ -10,7 +10,7 @@
 - **Run Unit Tests**: `npm test` (runs Vitest unit test suite)
 - **Run E2E Tests**: `npm run e2e` (runs Playwright integration tests)
 - **Drive the game from the terminal**: `npm run agent -- --help` (stateful playtesting CLI — hold keys, drag mouse, read live game state, step frames; see `docs/AGENT_TOOLKIT.md`)
-- **Drive via external agent protocol**: pipe JSONL commands with `protocol:"omega-agent-v1"` into `npm run agent -- --repl --checkpoints` for correlated `cmd_id` receipts and optional evidence bundling (`snapshot`, `annotate`, `telemetry`, `console_delta`).
+- **Drive via external agent protocol**: pipe JSONL commands with `protocol:"omega-agent-v1"` into `npm run agent -- --repl --checkpoints --playtest` for correlated `cmd_id` receipts, optional evidence bundling (`snapshot`, `annotate`, `telemetry`, `console_delta`), and guardrails against untracked QA bypasses.
 - **Build production assets**: `npm run build`
 
 ## 3. Directory Map (Where Things Live)

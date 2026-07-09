@@ -79,6 +79,7 @@ the CLI just loads the URL and leaves you on the menu (drive it yourself with
 | `--slowmo <ms>` | Delay every action by `<ms>` — watch it happen |
 | `--keep-open` | After inline/script commands, stay open and read stdin |
 | `--repl` | Alias for `--keep-open` that also emits `{"repl":"ready"}` once the stdin loop is actually listening, so a process piping commands in line-by-line knows exactly when it's safe to start writing (C3). Same `runCommand`/JSONL/`--record` behavior as `--keep-open` underneath — this only adds the ready signal and the name. `exit`/`quit`/EOF on stdin closes the browser and exits 0 |
+| `--playtest` | Autonomous-QA safety mode. Blocks `eval`, `injectbeat`, `modify`, direct `mode` launch, `goto`, `chapterflag` writes, `settings` writes, and any `watch` expression that isn't read-only; rejects multi-beat `skipbeat`; records `skipbeat`/`winmode`/`losemode` as a bypass and every `watch`/`loadstate <file>`/`speed` use in `session_summary.audit`. The whole policy is one pure function — `e2e_tests/agent/playtestPolicy.ts` (unit-tested in `playtestPolicy.test.ts`). Use with `--repl --checkpoints`. |
 | `--speed <n>` | Set Phaser's `scene.time` / `scene.tweens` / arcade-physics `timeScale` to `<n>` via `GameAgent.setTimeScale()`, once the chapter scene has booted. Works for both normal sessions and `--gauntlet` runs; for the gauntlet it's re-applied whenever `advanceUntil`'s `onTick` observes a scene-index change, since a scene restart resets a fresh `ChapterScene`'s `timeScale` back to 1 (H2). **Only speeds up Phaser tweens/waits** — `cameraPan` and `wait` beats run faster, but `advanceUntil`'s own ~150ms poll loop and React-side timers (the dialogue typewriter) are untouched, so wall-clock savings are real but sub-linear, not proportional to `<n>`. Tested against `Rockville Syndicate: Origins` (37 cameraPan/wait beats, the heaviest in the repo) across repeated `--gauntlet` runs: `--speed 1`/`3`/`4` always completed (durations ranged 16s–278s run-to-run — this machine's background load dominates wall-clock noise more than `<n>` does), but `--speed 5` **crashed on one of two runs** (`page.evaluate: Execution context was destroyed, most likely because of a navigation`) even though the other run completed. That correctness flip (not the noisy timings) is the real signal. **Recommended max: 3** — the highest factor that was stable across every run tried. |
 | `--seed <number>` | Initialize the page with a specific random seed for determinism |
 | `--record <file>` | Record all executed commands and their timings into a file |
@@ -127,13 +128,14 @@ Prefer lowercase movement keys.
 | Command | Does |
 | --- | --- |
 | `state` | print the game-state snapshot (see §3 below) |
+| `restart` / `refresh` | reload the page and re-enter the `--chapter` session, if one was supplied; use after a React/Phaser unmount |
 | `text` | extract visible text from Phaser canvas and DOM (A2) |
 | `targets` | dump active walk target and NPCs with screen/world coordinates (A3) |
 | `observe` / `obs` [`--shot`] | print composite observation snapshot, including console errors/warnings seen since the last `observe` (A5); `--shot` attaches a stabilized screenshot path as `"shot"` (N3) |
 | `diff` | like `observe`, but omits any field unchanged since the last `diff`/`observe` call — the cheap per-step read for a driving agent (N4/E5) |
 | `watch <jsExpr> [timeoutMs]` | block until a predicate on the live scene is true (`scene`/`game` in scope), e.g. `watch scene.activeHp < 50 10000`; polls ~100ms inside one round-trip and attaches a final observation on timeout (N4/E6) |
 | `beat` / `beats` | print current and upcoming narrative beats (A4) |
-| `skipbeat [n]` | force-advance `n` beats (default 1) past one that can never complete normally — a walk target that can't be reached, a mode stuck without calling `onComplete` (A4) |
+| `skipbeat [n]` | force-advance `n` beats (default 1) past one that can never complete normally — a walk target that can't be reached, a mode stuck without calling `onComplete` (A4). In `--playtest`, only `skipbeat 1` is permitted and the session is marked partially bypassed. |
 | `logs` / `console [clear]` | print buffered console errors/warnings/failed asset requests captured since boot (or the last `clear`) (A1) |
 | `audio` | print playing audio state and master volume (B4) |
 | `camera` | print camera zoom, center, and dimensions (B5) |
@@ -176,7 +178,7 @@ Prefer lowercase movement keys.
 
 | Command | Does |
 | --- | --- |
-| `advance [maxSeconds]` | skip dialogue/intro until the player has free walk control AND no dialogue line is currently visible (default 60) (C1). If a chapter runs ambient/looping dialogue that never actually clears, `advance` bails out after ~3 consecutive ticks of "walk control ok, but a line is still showing" and returns anyway with `note: "dialogue-still-visible"` in its result — otherwise no `note` is present. On a timeout, the failure JSONL includes a `diagnostics` dump collected from the live scene (`beatIndex`/`beatType`, player vs `walkTarget` position + distance, `movementFrozen`, `activeMode`, and dialogue/choice visibility) so you don't have to guess whether it's a physics, UI, or mode problem (H3) |
+| `advance [maxSeconds]` | dismiss ordinary dialogue until something classified happens (default 60s). Always exits with a named `status`: `walk-control` (free play reached), `choice-present` (stops **before** selecting), `walk-target-present` (stops **before** teleporting — inspect `targets`, then real key-driven `walkto`), `mode-active` + `modeId` (a foreground minigame/bossFight beat holds the flow; `background: true` modes never trigger this), `ambient-dialogue` (looping dialogue over free walk control — not a block), or `chapter-ended` (the `endChapter` beat is live). Each result carries the live beat's `{index, type, expectation}`, where `expectation` comes from the exhaustive per-beat-type classification in `e2e_tests/agent/beatClassification.ts` — adding a new beat type to `types.ts` fails `npm run lint` until that map is taught how the playtest loop should treat it. Waits for the first story beat so the chapter boot window isn't mistaken for free play (with a ~5s escape for chapters that genuinely boot into free play). Slow dialogue is not permission to skip beats. On a timeout, the failure JSONL includes a `diagnostics` dump collected from the live scene (`beatIndex`/`beatType`, player vs `walkTarget` position + distance, `movementFrozen`, `activeMode`, and dialogue/choice visibility) so you don't have to guess whether it's a physics, UI, or mode problem (H3) |
 | `replay <file>` | execute commands recorded in `<file>` recreating original timing delays |
 | `wait <ms>` | sleep `<ms>` of real time |
 | `help` | print the menu |
@@ -200,7 +202,7 @@ command then prints its own result.
 {"cmd":"visual_checkpoint","ok":true,"checkpointId":2,"path":"/abs/path/agent-artifacts/checkpoint-002.png","reason":"chapter scene 1 entered","sceneIndex":1,"mode":null}
 {"cmd":"diff","ok":true,"state":{"player":{"x":580.1,"y":560}},"errorsSinceLastObserve":0,"warningsSinceLastObserve":0}
 {"cmd":"watch","ok":true,"waitedMs":420}
-{"cmd":"session_summary","ok":true,"errors":0,"warnings":0}
+{"cmd":"session_summary","ok":true,"errors":0,"warnings":0,"playtest_integrity":"natural","bypasses":[],"audit":[]}
 ```
 
 - **Errors never crash the session.** A bad command prints
@@ -209,6 +211,10 @@ command then prints its own result.
   stdin, or the process ending) — total console errors/warnings/failed asset
   requests captured for the whole session (A1). A scripted run can assert "zero
   console errors" by checking this one line instead of scanning the whole log.
+  In `--playtest` mode it also records `playtest_integrity` as `natural` or
+  `partially-bypassed`, every permitted bypass, and an `audit` array of every
+  `watch`/`loadstate <file>`/`speed` use; a bypassed run cannot support a
+  natural full-chapter completion claim.
   Read the full list any time mid-session with `logs`.
 - **`state` payload** (`snapshotGameState`): read straight off the live scene, no
   computer vision needed —

@@ -10,6 +10,7 @@ const chapter3b: ChapterConfig = {
   description:
     'Ben washes out of LMU, goes to a UMBC frat party with Maharko, and burns his last bridge — while the person who brought him there tells a story that keeps himself out of the ashes.',
   kind: 'chapter',
+  classified: true,
 
   map: {
     width: 920,

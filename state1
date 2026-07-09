@@ -1,0 +1,12 @@
+{
+  "saveBlob": "{\"version\":2,\"settings\":{\"masterVolume\":1,\"musicVolume\":1,\"sfxVolume\":1,\"muted\":false,\"textScale\":1,\"textSpeedMs\":28,\"difficulty\":\"normal\",\"colorBlind\":false,\"reduceMotion\":false},\"progress\":{\"completedChapters\":[],\"hero\":\"eric\",\"freePlay\":true,\"rose_silence\":false,\"runRecords\":[],\"chapterBests\":{}}}",
+  "chapterId": "cabin_from_hell_2025",
+  "sceneIndex": 0,
+  "beatIndex": 19,
+  "player": {
+    "x": 350,
+    "y": 412.91666666666856
+  },
+  "hp": 120,
+  "ledgerTotal": 0
+}
