@@ -1,6 +1,6 @@
 # Playtesting Skill Implementation Plan
 
-Status: PR 1 implementation in progress — core snapshot path implemented; unsafe-background-mode fixture coverage remains  
+Status: PR 1 complete; PR 2 intentionally not started
 Date: 2026-07-12  
 Source review: `docs/PLAYTESTING_SKILL_REVIEW.md`
 
@@ -10,10 +10,11 @@ The first implementation slice now has a structured in-memory snapshot path for
 scene/beat/player/scalar state, rendered actor state, unified progress, and all
 Maria Brooke stats. `savestate` reports `branchSafe` and `unsafeReasons`, while
 `loadstate` refuses unsafe in-memory restores with a fresh-run instruction. The
-fixture live check verified choice save/restore returns to the exact choice beat
-without the delayed beat-0 kickoff rewinding it. Remaining PR 1 work is focused
-on explicit actor-side-effect assertions and a live background-mode save that
-proves `branchSafe: false`; no gameplay timing or mode behavior has been changed.
+fixture and focused Playwright coverage now verify choice save/restore returns to
+the exact choice beat without delayed beat-0 rewind, restores actor/scalar/
+Maria/progress state, preserves the existing file save/load contract, and rejects
+unsafe in-memory saves at an active background mode. No gameplay timing or mode
+behavior has been changed.
 
 ## Objective
 

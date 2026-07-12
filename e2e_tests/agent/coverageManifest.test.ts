@@ -131,15 +131,16 @@ describe('deriveCoverageManifest — real CHAPTERS list', () => {
   // gate) — verified numbers against src/data/chapters/chapterFixture.playtest.ts:
   // one foreground `minigame` (benTrivia) + one `bossFight` (boss_eric) = 2
   // foregroundModes; one background `minigame` (poolParty) = 1 backgroundModes;
-  // the main choice + the branch-block's single-option converge choice + the
-  // background-mode save-safety boundary = 3 choiceBeats; one `walkTo` = 1
-  // walkTargets; top-level `scenes: [...]` has 2 entries.
+  // the main choice + the actor-state save boundary + the branch-block's
+  // single-option converge choice + the background-mode save-safety boundary
+  // = 4 choiceBeats; one `walkTo` = 1 walkTargets; top-level `scenes: [...]`
+  // has 2 entries.
   it('the fixture chapter (fixture-playtest) matches its known beat vocabulary', () => {
     const fixture = CHAPTERS.find((c) => c.id === 'fixture-playtest');
     expect(fixture, 'fixture-playtest should be registered in this (non-production) test context').toBeDefined();
     expect(deriveCoverageManifest(fixture!)).toEqual({
-      choiceBeats: 3,
-      choiceOptions: 5,
+      choiceBeats: 4,
+      choiceOptions: 7,
       foregroundModes: 2,
       backgroundModes: 1,
       walkTargets: 1,

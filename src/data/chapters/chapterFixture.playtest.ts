@@ -169,7 +169,21 @@ const chapterFixturePlaytest: ChapterConfig = {
     // ── hideActor / showActor / moveActor ───────────────────────────────────
     { type: 'hideActor', id: 'jordan' },
     { type: 'showActor', id: 'jordan' },
-    { type: 'moveActor', id: 'jordan', x: 450, y: 250, durationMs: 500 },
+    // Move left so the saved visual state has a non-default facing value.
+    { type: 'moveActor', id: 'jordan', x: 350, y: 250, durationMs: 500 },
+
+    // Stable safe branch boundary after actor mutations. The two options
+    // exercise both kinds of side effect that PR 1 must restore: a transient
+    // Maria Brooke stat and the persisted rose_silence progress flag.
+    {
+      type: 'choice',
+      speaker: 'narrator',
+      prompt: '[fixture] actor mutations complete; test safe branch save now',
+      options: [
+        { text: '[fixture] increment Maria lookup', sideEffect: 'maria_lookup' },
+        { text: '[fixture] persist Rose silence', sideEffect: 'rose_silence' },
+      ],
+    },
 
     // ── Foreground minigame (benTrivia — unwired mode, fully optional config) ─
     {
