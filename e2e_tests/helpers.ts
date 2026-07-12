@@ -136,7 +136,14 @@ export async function advanceUntil(
      * exercised, without hand-rolling a second polling loop (lesson 3: reuse
      * this helper, don't parallel it).
      */
-    onTick?: (info: { sceneIndex: number | null; mode: string | null; beatIndex: number | null }) => Promise<void>;
+    onTick?: (info: {
+      sceneIndex: number | null;
+      mode: string | null;
+      beatIndex: number | null;
+      beatType: string | null;
+      background: boolean;
+      modeKind: 'foreground' | 'background' | null;
+    }) => Promise<void>;
     /**
      * G7: force a specific choice beat to click a specific option index
      * instead of always the first. Only applies when the live beatIndex
@@ -164,10 +171,19 @@ export async function advanceUntil(
     if (onTick) {
       const info = await page.evaluate(() => {
         const scene = (window as unknown as DevBridgeWindow).__OMEGA_GAME__?.scene.getScene('ChapterScene');
+        const beatIndex = typeof scene?.beatIndex === 'number' ? scene.beatIndex : null;
+        const beat = beatIndex !== null ? scene?.chapter?.beats?.[beatIndex] : undefined;
+        const modeOwnsCurrentBeat = scene?.activeModeBeatIndex === beatIndex;
+        const modeKind = scene?.activeMode && modeOwnsCurrentBeat
+          ? scene.activeModeBackground === true ? 'background' as const : 'foreground' as const
+          : null;
         return {
           sceneIndex: typeof scene?.currentSceneIndex === 'number' ? scene.currentSceneIndex : null,
           mode: scene?.activeMode?.id ?? null,
-          beatIndex: typeof scene?.beatIndex === 'number' ? scene.beatIndex : null,
+          beatIndex,
+          beatType: (beat?.type as string | undefined) ?? null,
+          background: beat?.background === true,
+          modeKind,
         };
       });
       await onTick(info);

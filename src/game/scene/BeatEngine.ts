@@ -19,6 +19,7 @@ export class BeatEngine {
     this.scene.beatIndex = index;
     this.scene.beatActive = true;
     const beat = this.scene.chapter.beats[index];
+    if (import.meta.env.DEV) this.scene.recordPlaytestBeatStart?.(index, beat.type);
 
     switch (beat.type) {
       case 'dialogue': return this.runDialogueBeat(beat);

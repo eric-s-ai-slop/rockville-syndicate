@@ -1,6 +1,6 @@
 # Playtesting Skill Implementation Plan
 
-Status: PR 2 complete; PR 3 intentionally not started
+Status: PR 3 complete; PR 4 intentionally not started
 Date: 2026-07-12  
 Source review: `docs/PLAYTESTING_SKILL_REVIEW.md`
 
@@ -14,11 +14,14 @@ fixture and focused Playwright coverage now verify choice save/restore returns t
 the exact choice beat without delayed beat-0 rewind, restores actor/scalar/
 Maria/progress state, preserves the existing file save/load contract, and rejects
 unsafe in-memory saves at an active background mode. No gameplay timing or mode
-behavior has been changed. The checkpoint harness now keeps foreground and
+behavior has been changed in production; the DEV fixture's passive beats are
+intentionally sustained for live evidence. The checkpoint harness now keeps foreground and
 background mode identity/beat indexes separate, emits deduplicated lifecycle
 receipts for both, counts background receipts in visual QA, and keeps them out
 of foreground bypass gates. Compact state also reports whether the active mode
 is background. No arbitrary mode internals or additional storage keys are used.
+PR3 adds a bounded DEV-only structural beat trace and passive visual-risk
+evidence batching; production builds do not record the trace.
 
 ## Objective
 

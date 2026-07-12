@@ -10,6 +10,8 @@
  * the full usage menu. See docs/AGENT_TOOLKIT.md for the walkthrough.
  */
 import { chromium, Browser, Page } from '@playwright/test';
+import { Jimp, loadFont } from 'jimp';
+import { SANS_10_BLACK } from 'jimp/fonts';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -19,7 +21,7 @@ import { GameAgent, MouseButton } from './GameAgent';
 import { navigateToChapter, advanceUntil, AdvanceTimeoutError, AdvanceTimeoutDiagnostics } from '../helpers';
 import { CHAPTERS } from '../../src/data/chapters';
 import type { Beat } from '../../src/data/chapters/types';
-import type { DevBridgeWindow } from './DevBridge';
+import type { BridgeBeatTraceEntry, DevBridgeWindow } from './DevBridge';
 import { classifyBeat } from './beatClassification';
 import { checkPlaytestPolicy, parseWatchExpression } from './playtestPolicy';
 import { PlaytestCompliance, playtestCompletionVerdict } from './playtestCompliance';
@@ -27,6 +29,11 @@ import { deriveCoverageManifest, CoverageManifest } from './coverageManifest';
 import {
   checkpointIdentity,
   checkpointTransitions,
+  contactSheetChunks,
+  passiveVisualEventKey,
+  visualEventsFromBeatTrace,
+  type PassiveVisualBeatType,
+  type PassiveVisualEvent,
   type CheckpointIdentity,
 } from './visualCheckpoint';
 import {
@@ -436,6 +443,16 @@ function recordPlaytestBypass(flags: Flags, command: string, reason: string): Re
 async function reachWalkControl(
   page: Page,
   maxSeconds: number,
+  options: {
+    onTick?: (info: {
+      sceneIndex: number | null;
+      mode: string | null;
+      beatIndex: number | null;
+      beatType: string | null;
+      background: boolean;
+      modeKind: 'foreground' | 'background' | null;
+    }) => Promise<void>;
+  } = {},
 ): Promise<{
   status:
     | 'walk-control'
@@ -526,7 +543,14 @@ async function reachWalkControl(
 
         return false;
       }),
-    { maxSeconds, stopOnChoice: true, stopOnWalkTarget: true, stopOnMode: true, stopOnChapterEnd: true },
+    {
+      maxSeconds,
+      stopOnChoice: true,
+      stopOnWalkTarget: true,
+      stopOnMode: true,
+      stopOnChapterEnd: true,
+      onTick: options.onTick,
+    },
   );
 
   const beatInfo = await page.evaluate(() => {
@@ -566,8 +590,51 @@ let screenshotCount = 0;
 let checkpointCount = 0;
 let lastCheckpointState: CheckpointIdentity | null = null;
 
-async function maybeEmitCheckpoint(agent: GameAgent, page: Page, flags: Flags): Promise<void> {
-  if (!flags.checkpoints) return;
+type PassiveEvidenceStatus = 'captured' | 'missed' | 'boundary';
+
+interface PassiveEvidenceRecord {
+  status: PassiveEvidenceStatus;
+  evidence: 'live' | 'post-advance' | 'boundary' | 'missed';
+  path?: string;
+}
+
+interface PassiveEvidenceFrame {
+  path: string;
+  label: string;
+}
+
+const SUSTAINED_PASSIVE_TYPES = new Set<PassiveVisualBeatType>([
+  'cameraPan',
+  'moveActor',
+  'chase',
+  'screenTint',
+]);
+const PERSISTENT_PASSIVE_TYPES = new Set<PassiveVisualBeatType>([
+  'hideActor',
+  'showActor',
+  'ledger',
+]);
+const passiveEvidence = new Map<string, PassiveEvidenceRecord>();
+let passiveSourceCount = 0;
+let passiveContactCount = 0;
+let lastDeliveredBeatTraceSequence = 0;
+
+function resetPassiveEvidence(): void {
+  passiveEvidence.clear();
+  passiveSourceCount = 0;
+  passiveContactCount = 0;
+  lastDeliveredBeatTraceSequence = 0;
+}
+
+function passiveLabel(event: Pick<PassiveVisualEvent, 'sceneIndex' | 'beatIndex' | 'beatType'>): string {
+  return `scene ${event.sceneIndex} beat ${event.beatIndex} ${event.beatType}`;
+}
+
+function safeArtifactName(value: string): string {
+  return value.replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80) || 'visual';
+}
+
+async function readCheckpointIdentity(page: Page): Promise<CheckpointIdentity | null> {
   const probe = await page
     .evaluate(() => {
       const game = (window as unknown as DevBridgeWindow).__OMEGA_GAME__;
@@ -586,8 +653,201 @@ async function maybeEmitCheckpoint(agent: GameAgent, page: Page, flags: Flags): 
       };
     })
     .catch(() => null);
-  if (!probe) return;
-  const current = checkpointIdentity(probe);
+  return probe ? checkpointIdentity(probe) : null;
+}
+
+async function readBeatTrace(page: Page): Promise<BridgeBeatTraceEntry[]> {
+  return page
+    .evaluate(() => {
+      const scene = (window as unknown as DevBridgeWindow).__OMEGA_GAME__?.scene.getScene('ChapterScene');
+      return Array.isArray(scene?.playtestBeatTrace) ? scene.playtestBeatTrace : [];
+    })
+    .catch(() => []);
+}
+
+async function readCurrentBeatInfo(page: Page): Promise<{
+  sceneIndex: number | null;
+  beatIndex: number | null;
+  beatType: string | null;
+}> {
+  return page
+    .evaluate(() => {
+      const scene = (window as unknown as DevBridgeWindow).__OMEGA_GAME__?.scene.getScene('ChapterScene');
+      const beatIndex = typeof scene?.beatIndex === 'number' ? scene.beatIndex : null;
+      const beat = beatIndex !== null ? scene?.chapter?.beats?.[beatIndex] : undefined;
+      return {
+        sceneIndex: typeof scene?.currentSceneIndex === 'number' ? scene.currentSceneIndex : null,
+        beatIndex,
+        beatType: (beat?.type as string | undefined) ?? null,
+      };
+    })
+    .catch(() => ({ sceneIndex: null, beatIndex: null, beatType: null }));
+}
+
+function traceEntriesAfter(trace: BridgeBeatTraceEntry[], sequence: number): BridgeBeatTraceEntry[] {
+  return trace.filter(entry => entry.sequence > sequence);
+}
+
+class PassiveEvidenceCollector {
+  private readonly frames: PassiveEvidenceFrame[] = [];
+  private readonly missed: PassiveVisualEvent[] = [];
+
+  constructor(
+    private readonly agent: GameAgent,
+    private readonly flags: Flags,
+  ) {}
+
+  async observeTick(info: {
+    sceneIndex: number | null;
+    beatIndex: number | null;
+    beatType: string | null;
+  }): Promise<void> {
+    if (!this.flags.checkpoints || info.sceneIndex === null || info.beatIndex === null || !info.beatType) return;
+    if (!(SUSTAINED_PASSIVE_TYPES as Set<string>).has(info.beatType)) return;
+    const event = {
+      sceneIndex: info.sceneIndex,
+      beatIndex: info.beatIndex,
+      beatType: info.beatType as PassiveVisualBeatType,
+    };
+    const key = passiveVisualEventKey(event);
+    if (passiveEvidence.has(key)) return;
+
+    const file = path.resolve(
+      this.flags.out,
+      `passive-source-${String(++passiveSourceCount).padStart(3, '0')}-${safeArtifactName(passiveLabel(event))}.png`,
+    );
+    fs.mkdirSync(this.flags.out, { recursive: true });
+    try {
+      await this.agent.liveScreenshot(file);
+      passiveEvidence.set(key, { status: 'captured', evidence: 'live', path: file });
+      this.frames.push({ path: file, label: passiveLabel(event) });
+    } catch {
+      passiveEvidence.set(key, { status: 'missed', evidence: 'missed' });
+      this.missed.push({ ...event, captureMissed: true, evidence: 'missed' });
+    }
+  }
+
+  async finish(
+    entries: BridgeBeatTraceEntry[],
+    boundaryCovered: boolean,
+  ): Promise<{ events: PassiveVisualEvent[]; frames: PassiveEvidenceFrame[]; missed: PassiveVisualEvent[] }> {
+    const events = visualEventsFromBeatTrace(entries);
+    if (!this.flags.checkpoints) return { events, frames: this.frames, missed: this.missed };
+    const persistent = events.filter(event => PERSISTENT_PASSIVE_TYPES.has(event.beatType));
+    const uncapturedPersistent = persistent.filter(event => !passiveEvidence.has(passiveVisualEventKey(event)));
+
+    if (this.flags.checkpoints && uncapturedPersistent.length > 0 && !boundaryCovered) {
+      const file = path.resolve(
+        this.flags.out,
+        `passive-source-${String(++passiveSourceCount).padStart(3, '0')}-post-advance.png`,
+      );
+      fs.mkdirSync(this.flags.out, { recursive: true });
+      try {
+        await this.agent.liveScreenshot(file);
+        const label = `post-advance: ${uncapturedPersistent.map(passiveLabel).join(', ')}`;
+        this.frames.push({ path: file, label });
+        for (const event of uncapturedPersistent) {
+          passiveEvidence.set(passiveVisualEventKey(event), { status: 'captured', evidence: 'post-advance', path: file });
+        }
+      } catch {
+        for (const event of uncapturedPersistent) {
+          passiveEvidence.set(passiveVisualEventKey(event), { status: 'missed', evidence: 'missed' });
+          this.missed.push({ ...event, captureMissed: true, evidence: 'missed' });
+        }
+      }
+    }
+
+    for (const event of events) {
+      const key = passiveVisualEventKey(event);
+      let record = passiveEvidence.get(key);
+      if (!record) {
+        if (boundaryCovered && PERSISTENT_PASSIVE_TYPES.has(event.beatType)) {
+          record = { status: 'boundary', evidence: 'boundary' };
+        } else {
+          record = { status: 'missed', evidence: 'missed' };
+          passiveEvidence.set(key, record);
+          this.missed.push({ ...event, captureMissed: true, evidence: 'missed' });
+        }
+      }
+      if (record.status === 'missed') {
+        event.captureMissed = true;
+        event.evidence = 'missed';
+      } else {
+        event.evidence = record.evidence;
+      }
+    }
+
+    return { events, frames: this.frames, missed: this.missed };
+  }
+}
+
+async function writePassiveContactSheet(
+  flags: Flags,
+  frames: PassiveEvidenceFrame[],
+): Promise<string> {
+  const tileWidth = 400;
+  const tileHeight = 225;
+  const labelHeight = 28;
+  const columns = Math.min(3, frames.length);
+  const rows = Math.ceil(frames.length / columns);
+  const sheet = new Jimp({
+    width: columns * tileWidth,
+    height: rows * (tileHeight + labelHeight),
+    color: 0xffffffff,
+  });
+  const font = await loadFont(SANS_10_BLACK);
+  for (let index = 0; index < frames.length; index++) {
+    const frame = frames[index];
+    const image = await Jimp.read(frame.path);
+    image.resize({ w: tileWidth, h: tileHeight });
+    const x = (index % columns) * tileWidth;
+    const y = Math.floor(index / columns) * (tileHeight + labelHeight);
+    sheet.print({ x: x + 4, y: y + 4, text: frame.label, font });
+    sheet.composite(image, x, y + labelHeight);
+  }
+  fs.mkdirSync(flags.out, { recursive: true });
+  const file = path.resolve(flags.out, `passive-contact-${String(++passiveContactCount).padStart(3, '0')}.png`);
+  await sheet.write(file as `${string}.${string}`);
+  return file;
+}
+
+async function emitPassiveEvidence(
+  flags: Flags,
+  result: { events: PassiveVisualEvent[]; frames: PassiveEvidenceFrame[]; missed: PassiveVisualEvent[] },
+  current: CheckpointIdentity | null,
+): Promise<void> {
+  if (!flags.checkpoints || result.frames.length === 0) return;
+  const chunks = contactSheetChunks(result.frames);
+  for (const chunk of chunks) {
+    const pathName = chunk.length === 1 ? chunk[0].path : await writePassiveContactSheet(flags, chunk);
+    const checkpointId = ++checkpointCount;
+    const captureMissed = result.missed.length > 0;
+    emit({
+      cmd: 'visual_checkpoint',
+      ok: true,
+      checkpointId,
+      path: pathName,
+      reason: `passive visual evidence: ${chunk.map(frame => frame.label).join(', ')}`,
+      sceneKey: current?.sceneKey ?? null,
+      sceneIndex: current?.sceneIndex ?? null,
+      mode: null,
+      modeKind: null,
+      modeBeatIndex: null,
+      passive: true,
+      captureMissed,
+      missedEvents: captureMissed ? result.missed : [],
+      sourceFrames: chunk,
+      review_required: flags.playtest,
+      review_command: `reviewcheckpoint ${checkpointId} clear|issue-found|inconclusive <observation-note>`,
+    });
+    playtestCompliance.captureCheckpoint(checkpointId, current?.foregroundModeId ?? null, null);
+  }
+}
+
+async function maybeEmitCheckpoint(agent: GameAgent, page: Page, flags: Flags): Promise<void> {
+  if (!flags.checkpoints) return;
+  const current = await readCheckpointIdentity(page);
+  if (!current) return;
 
   const transitions = checkpointTransitions(lastCheckpointState, current);
   lastCheckpointState = current;
@@ -648,6 +908,8 @@ async function maybeEmitCheckpoint(agent: GameAgent, page: Page, flags: Flags): 
 }
 
 async function restartSession(page: Page, flags: Flags): Promise<void> {
+  resetPassiveEvidence();
+  lastCheckpointState = null;
   await page.reload({ waitUntil: 'domcontentloaded' });
   if (!flags.chapter) {
     await page.waitForLoadState('domcontentloaded').catch(() => {});
@@ -1283,13 +1545,36 @@ async function runCommand(
       }
 
       case 'advance': {
-        const advance = await reachWalkControl(page, args[0] ? num(0) : 60);
+        const traceCursor = lastDeliveredBeatTraceSequence;
+        const identityBefore = await readCheckpointIdentity(page);
+        const passiveCapture = new PassiveEvidenceCollector(agent, flags);
+        await passiveCapture.observeTick(await readCurrentBeatInfo(page));
+        const advance = await reachWalkControl(page, args[0] ? num(0) : 60, {
+          onTick: info => passiveCapture.observeTick(info),
+        });
+        // `advanceUntil` checks its stop condition before invoking onTick. If
+        // a sustained beat begins on the final tick, take its current live
+        // frame here before reporting it as missed; this still never pauses,
+        // steps, or retimes the Phaser loop.
+        await passiveCapture.observeTick(await readCurrentBeatInfo(page));
+        const traceAfter = await readBeatTrace(page);
+        const tracedEntries = traceEntriesAfter(traceAfter, traceCursor);
+        lastDeliveredBeatTraceSequence = traceAfter.reduce(
+          (max, entry) => Math.max(max, entry.sequence),
+          traceCursor,
+        );
+        const identityAfter = await readCheckpointIdentity(page);
+        const boundaryCovered = !!identityBefore && !!identityAfter &&
+          checkpointTransitions(identityBefore, identityAfter).length > 0;
+        const passiveEvidence = await passiveCapture.finish(tracedEntries, boundaryCovered);
+        await emitPassiveEvidence(flags, passiveEvidence, identityAfter);
         emit({
           cmd: 'advance',
           ok: true,
           status: advance.status,
           ...(advance.modeId !== undefined ? { modeId: advance.modeId } : {}),
           beat: advance.beat,
+          ...(passiveEvidence.events.length > 0 ? { visual_events: passiveEvidence.events } : {}),
           state: await agent.snapshotGameState(),
           ...(advance.status === 'mode-active'
             ? {

@@ -159,18 +159,20 @@ const chapterFixturePlaytest: ChapterConfig = {
 
     // ── walkTo / cameraPan / wait / sfx / ledger / screenTint / stopAllAudio ─
     { type: 'walkTo', x: 400, y: 300, radius: 60, markerLabel: '[fixture] walk to bench' },
-    { type: 'cameraPan', x: 400, y: 200, durationMs: 400, holdMs: 200 },
+    // Deliberately sustained in the DEV fixture so passive visual evidence can
+    // capture a live frame without stepping or retiming the game.
+    { type: 'cameraPan', x: 400, y: 200, durationMs: 5000, holdMs: 1000 },
     { type: 'wait', ms: 300 },
     { type: 'sfx', key: 'ui_select', volume: 0.7 },
     { type: 'ledger', delta: 1, note: '[fixture] ledger beat' },
-    { type: 'screenTint', color: 0x000000, alpha: 0.3, durationMs: 200 },
+    { type: 'screenTint', color: 0x000000, alpha: 0.3, durationMs: 1000 },
     { type: 'stopAllAudio', fadeMs: 200 },
 
     // ── hideActor / showActor / moveActor ───────────────────────────────────
     { type: 'hideActor', id: 'jordan' },
     { type: 'showActor', id: 'jordan' },
     // Move left so the saved visual state has a non-default facing value.
-    { type: 'moveActor', id: 'jordan', x: 350, y: 250, durationMs: 500 },
+    { type: 'moveActor', id: 'jordan', x: 350, y: 250, durationMs: 3000 },
 
     // Stable safe branch boundary after actor mutations. The two options
     // exercise both kinds of side effect that PR 1 must restore: a transient

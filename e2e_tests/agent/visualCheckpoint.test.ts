@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   checkpointIdentity,
   checkpointTransitions,
+  contactSheetChunks,
+  passiveVisualEventKey,
+  visualEventsFromBeatTrace,
   type CheckpointIdentity,
 } from './visualCheckpoint';
 
@@ -89,5 +92,33 @@ describe('checkpointTransitions', () => {
       modeId: 'benTrivia',
       reason: 'Foreground mode "benTrivia" ended',
     }]);
+  });
+});
+
+describe('passive visual beat trace projection', () => {
+  it('keeps only risk beat types and deduplicates by scene, beat, and type', () => {
+    expect(visualEventsFromBeatTrace([
+      { sequence: 1, beatIndex: 5, beatType: 'cameraPan', sceneIndex: 0, timestamp: 1 },
+      { sequence: 2, beatIndex: 6, beatType: 'dialogue', sceneIndex: 0, timestamp: 2 },
+      { sequence: 3, beatIndex: 7, beatType: 'hideActor', sceneIndex: 0, timestamp: 3 },
+      { sequence: 4, beatIndex: 7, beatType: 'hideActor', sceneIndex: 0, timestamp: 4 },
+      { sequence: 5, beatIndex: 8, beatType: 'ledger', sceneIndex: 1, timestamp: 5 },
+    ])).toEqual([
+      { sceneIndex: 0, beatIndex: 5, beatType: 'cameraPan' },
+      { sceneIndex: 0, beatIndex: 7, beatType: 'hideActor' },
+      { sceneIndex: 1, beatIndex: 8, beatType: 'ledger' },
+    ]);
+  });
+
+  it('uses the documented dedupe key', () => {
+    expect(passiveVisualEventKey({ sceneIndex: 2, beatIndex: 14, beatType: 'chase' })).toBe('2:14:chase');
+  });
+
+  it('caps contact-sheet batches at six tiles', () => {
+    expect(contactSheetChunks(Array.from({ length: 13 }, (_, index) => index))).toEqual([
+      [0, 1, 2, 3, 4, 5],
+      [6, 7, 8, 9, 10, 11],
+      [12],
+    ]);
   });
 });

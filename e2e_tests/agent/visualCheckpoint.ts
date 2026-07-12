@@ -33,6 +33,65 @@ export interface CheckpointTransition {
   identity: CheckpointIdentity;
 }
 
+export const PASSIVE_VISUAL_BEAT_TYPES = [
+  'cameraPan',
+  'moveActor',
+  'hideActor',
+  'showActor',
+  'chase',
+  'screenTint',
+  'ledger',
+] as const;
+
+export type PassiveVisualBeatType = (typeof PASSIVE_VISUAL_BEAT_TYPES)[number];
+
+export interface BeatTraceEntry {
+  sequence: number;
+  beatIndex: number;
+  beatType: string;
+  sceneIndex: number;
+  timestamp: number;
+}
+
+export interface PassiveVisualEvent {
+  sceneIndex: number;
+  beatIndex: number;
+  beatType: PassiveVisualBeatType;
+  captureMissed?: boolean;
+  evidence?: 'live' | 'post-advance' | 'boundary' | 'missed';
+}
+
+export function passiveVisualEventKey(event: Pick<PassiveVisualEvent, 'sceneIndex' | 'beatIndex' | 'beatType'>): string {
+  return `${event.sceneIndex}:${event.beatIndex}:${event.beatType}`;
+}
+
+export function visualEventsFromBeatTrace(entries: BeatTraceEntry[]): PassiveVisualEvent[] {
+  const events: PassiveVisualEvent[] = [];
+  const seen = new Set<string>();
+  for (const entry of entries) {
+    if (!(PASSIVE_VISUAL_BEAT_TYPES as readonly string[]).includes(entry.beatType)) continue;
+    const event = {
+      sceneIndex: entry.sceneIndex,
+      beatIndex: entry.beatIndex,
+      beatType: entry.beatType as PassiveVisualBeatType,
+    };
+    const key = passiveVisualEventKey(event);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    events.push(event);
+  }
+  return events;
+}
+
+export function contactSheetChunks<T>(items: T[], maxTiles = 6): T[][] {
+  if (!Number.isInteger(maxTiles) || maxTiles < 1) throw new Error('maxTiles must be a positive integer');
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += maxTiles) {
+    chunks.push(items.slice(index, index + maxTiles));
+  }
+  return chunks;
+}
+
 export function checkpointIdentity(probe: CheckpointProbe): CheckpointIdentity {
   const modeId = probe.activeModeId;
   const beatIndex = modeId ? probe.activeModeBeatIndex : null;

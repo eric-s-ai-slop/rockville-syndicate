@@ -159,6 +159,14 @@ export interface PlaytestSceneSnapshot {
   safety: PlaytestSnapshotSafety;
 }
 
+export interface PlaytestBeatTraceEntry {
+  sequence: number;
+  beatIndex: number;
+  beatType: string;
+  sceneIndex: number;
+  timestamp: number;
+}
+
 export default class ChapterScene extends Phaser.Scene {
   public playerClass!: CharacterClass;
   public currentLevelIndex: number = 0;
@@ -282,6 +290,9 @@ export default class ChapterScene extends Phaser.Scene {
   public activeModeBeatIndex: number | null = null;
   /** True when activeMode belongs to a background beat and must not block flow. */
   public activeModeBackground = false;
+  /** DEV-only bounded trace consumed by the terminal playtest evidence harness. */
+  public playtestBeatTrace: PlaytestBeatTraceEntry[] = [];
+  private playtestBeatTraceSequence = 0;
   /** The delayed story kickoff must be cancellable when the agent restores a save. */
   private initialBeatTimer: Phaser.Time.TimerEvent | null = null;
 
@@ -1123,6 +1134,21 @@ export default class ChapterScene extends Phaser.Scene {
 
   public startBeat(index: number) {
     this.beatEngine.startBeat(index);
+  }
+
+  /** Record only structural beat identity; never narrative/config payloads. */
+  public recordPlaytestBeatStart(index: number, beatType: string): void {
+    if (!import.meta.env.DEV) return;
+    this.playtestBeatTrace.push({
+      sequence: ++this.playtestBeatTraceSequence,
+      beatIndex: index,
+      beatType,
+      sceneIndex: this.currentSceneIndex,
+      timestamp: Date.now(),
+    });
+    if (this.playtestBeatTrace.length > 256) {
+      this.playtestBeatTrace.splice(0, this.playtestBeatTrace.length - 256);
+    }
   }
 
   /**

@@ -250,6 +250,16 @@ command then prints its own result.
   receipts require visual review but never satisfy foreground-mode bypass
   gates. Look at these; they're where "the game looks wrong" bugs actually
   surface (N3).
+- **Passive visual-risk evidence** is attached to `advance` as compact
+  `visual_events` for camera pans, actor movement/visibility, chases, tints,
+  and ledger feedback. Sustained effects use one raw live frame; instantaneous
+  effects use at most one post-advance frame unless a scene/mode checkpoint
+  already covers the final state. Multiple frames are batched into labeled
+  contact sheets of at most six tiles, while full-resolution source frames are
+  retained. `captureMissed: true` explicitly marks a short effect that polling
+  did not catch; it is not visually verified. GIF recording remains manual.
+- The DEV-only beat trace behind these events is structural and bounded to 256
+  entries; production builds do not record it.
 - **`diff`** is `observe`'s cheaper sibling — same fields, but only the ones
   that changed since the last `diff`/`observe` call. The first call in a
   session has no baseline to compare against, so it returns everything with

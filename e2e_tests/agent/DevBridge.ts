@@ -12,6 +12,7 @@
  * `beatIndex`, `currentSceneIndex`, `levelStarted`, `movementFrozen`,
  * `player.x/y`, `walkTarget {x,y,radius}`, `activeMode {id,
  * harnessForceComplete}`, `activeModeBeatIndex`, `activeModeBackground`,
+ * `playtestBeatTrace {sequence, beatIndex, beatType, sceneIndex, timestamp}`,
  * `chapter {beats, scenes}`, `beatEngine`,
  * `actorSprites`, and `cameras.main {width,height,scrollX,scrollY,zoom}`.
  * It is NOT a full typing of `ChapterScene` — fields not listed here should
@@ -58,6 +59,14 @@ export interface BridgeBeat {
   id?: string;
   type?: string;
   [key: string]: unknown;
+}
+
+export interface BridgeBeatTraceEntry {
+  sequence: number;
+  beatIndex: number;
+  beatType: string;
+  sceneIndex: number;
+  timestamp: number;
 }
 
 /** The subset of a chapter config the CLI reads off the live scene (not the
@@ -178,6 +187,7 @@ export interface ChapterSceneBridge {
   activeMode?: BridgeActiveMode | null;
   activeModeBeatIndex?: number | null;
   activeModeBackground?: boolean;
+  playtestBeatTrace?: BridgeBeatTraceEntry[];
   chapter?: BridgeChapterConfig;
   /** The BeatEngine instance driving beat dispatch — methods called by name
    * (`startBeat`, `clearWalkTarget`, `unfreeze`) rather than typed in full. */

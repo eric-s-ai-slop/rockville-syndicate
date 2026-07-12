@@ -384,6 +384,11 @@ export class GameAgent {
     if (wasRunning) await this.resumeLoop();
   }
 
+  /** Capture the current live frame without pausing, stepping, or retiming the game. */
+  async liveScreenshot(filePath: string): Promise<void> {
+    await this.page.screenshot({ path: filePath });
+  }
+
   // ── C1 Physics Debug ─────────────────────────────────────────────────────
 
   /** Toggle Phaser's Arcade physics debug rendering on or off. */
