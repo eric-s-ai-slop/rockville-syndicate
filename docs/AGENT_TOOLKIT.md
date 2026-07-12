@@ -234,7 +234,8 @@ command then prints its own result.
   - `player` — `{x, y}` world position (or `null` before spawn)
   - `velocity` — `{x, y}` — proves a held key is actually moving them
   - `hp` — current player HP (`ChapterScene.activeHp`)
-  - `activeMode` — id of the foreground minigame, or `null` when walking
+  - `activeMode` — id of the active minigame, or `null` when walking
+  - `activeModeBackground` — `true` when `activeMode` is a concurrent background mode; background modes do not block `advance`
   - `loopRunning` — `false` after `pause`/`step`
 - **Screenshots** are PNGs written to `--out` (default `./agent-artifacts/`,
   auto-created). Named `shot-001.png`, `shot-002.png`, … unless you pass a name.
@@ -243,8 +244,12 @@ command then prints its own result.
   gauntlet's `--shots`) captures a screenshot on its own initiative — chapter
   load, scene transition, mode start/end. `path` is where the PNG landed;
   `checkpointId` is a monotonically increasing id for report citations, and
-  `reason` says why it fired. Look at these; they're where "the game looks
-  wrong" bugs actually surface (N3).
+  `reason` says why it fired. Each receipt includes `modeKind` (`foreground`,
+  `background`, or `null`), the relevant `mode`/`modeBeatIndex`, and separate
+  foreground/background mode identity fields. Background start/end/replacement
+  receipts require visual review but never satisfy foreground-mode bypass
+  gates. Look at these; they're where "the game looks wrong" bugs actually
+  surface (N3).
 - **`diff`** is `observe`'s cheaper sibling — same fields, but only the ones
   that changed since the last `diff`/`observe` call. The first call in a
   session has no baseline to compare against, so it returns everything with

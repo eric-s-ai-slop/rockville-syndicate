@@ -1,12 +1,12 @@
 # Playtesting Skill Implementation Plan
 
-Status: PR 1 complete; PR 2 intentionally not started
+Status: PR 2 complete; PR 3 intentionally not started
 Date: 2026-07-12  
 Source review: `docs/PLAYTESTING_SKILL_REVIEW.md`
 
 ## Current implementation note
 
-The first implementation slice now has a structured in-memory snapshot path for
+The implementation now has a structured in-memory snapshot path for
 scene/beat/player/scalar state, rendered actor state, unified progress, and all
 Maria Brooke stats. `savestate` reports `branchSafe` and `unsafeReasons`, while
 `loadstate` refuses unsafe in-memory restores with a fresh-run instruction. The
@@ -14,7 +14,11 @@ fixture and focused Playwright coverage now verify choice save/restore returns t
 the exact choice beat without delayed beat-0 rewind, restores actor/scalar/
 Maria/progress state, preserves the existing file save/load contract, and rejects
 unsafe in-memory saves at an active background mode. No gameplay timing or mode
-behavior has been changed.
+behavior has been changed. The checkpoint harness now keeps foreground and
+background mode identity/beat indexes separate, emits deduplicated lifecycle
+receipts for both, counts background receipts in visual QA, and keeps them out
+of foreground bypass gates. Compact state also reports whether the active mode
+is background. No arbitrary mode internals or additional storage keys are used.
 
 ## Objective
 

@@ -25,6 +25,11 @@ import { checkPlaytestPolicy, parseWatchExpression } from './playtestPolicy';
 import { PlaytestCompliance, playtestCompletionVerdict } from './playtestCompliance';
 import { deriveCoverageManifest, CoverageManifest } from './coverageManifest';
 import {
+  checkpointIdentity,
+  checkpointTransitions,
+  type CheckpointIdentity,
+} from './visualCheckpoint';
+import {
   OMEGA_AGENT_PROTOCOL,
   AgentCommand,
   AgentCommandOptions,
@@ -559,81 +564,87 @@ let screenshotCount = 0;
 // events (cross-cutting rule 3). Gated behind --checkpoints; off by default
 // for scripted/inline sessions where every extra screenshot costs wall time.
 let checkpointCount = 0;
-let lastCheckpointState: { sceneKey: string | null; sceneIndex: number | null; mode: string | null } = {
-  sceneKey: null,
-  sceneIndex: null,
-  mode: null,
-};
+let lastCheckpointState: CheckpointIdentity | null = null;
 
 async function maybeEmitCheckpoint(agent: GameAgent, page: Page, flags: Flags): Promise<void> {
   if (!flags.checkpoints) return;
-  const current = await page
+  const probe = await page
     .evaluate(() => {
       const game = (window as unknown as DevBridgeWindow).__OMEGA_GAME__;
-      if (!game) return { sceneKey: null, sceneIndex: null, mode: null };
+      if (!game) return null;
       const active = game.scene.getScenes(true);
       const top = active[active.length - 1];
       const chapterScene = game.scene.getScene('ChapterScene');
-      const beatIndex = typeof chapterScene?.beatIndex === 'number' ? chapterScene.beatIndex : null;
-      const foregroundModeActive = !!(
-        chapterScene?.activeMode &&
-        chapterScene.activeModeBeatIndex === beatIndex &&
-        chapterScene.activeModeBackground !== true
-      );
       return {
         sceneKey: top?.sys?.settings?.key ?? null,
         sceneIndex: typeof chapterScene?.currentSceneIndex === 'number' ? chapterScene.currentSceneIndex : null,
-        mode: foregroundModeActive ? chapterScene?.activeMode?.id ?? null : null,
+        activeModeId: chapterScene?.activeMode?.id ?? null,
+        activeModeBeatIndex: typeof chapterScene?.activeModeBeatIndex === 'number'
+          ? chapterScene.activeModeBeatIndex
+          : null,
+        activeModeBackground: chapterScene?.activeModeBackground === true,
       };
     })
     .catch(() => null);
-  if (!current) return;
+  if (!probe) return;
+  const current = checkpointIdentity(probe);
 
-  let reason: string | null = null;
-  if (current.sceneKey !== lastCheckpointState.sceneKey) {
-    reason = current.sceneKey ? `scene "${current.sceneKey}" loaded` : 'scene unloaded';
-  } else if (current.sceneIndex !== lastCheckpointState.sceneIndex) {
-    reason = `chapter scene ${current.sceneIndex} entered`;
-  } else if (current.mode !== lastCheckpointState.mode) {
-    reason = current.mode ? `mode "${current.mode}" started` : 'mode ended';
-  }
+  const transitions = checkpointTransitions(lastCheckpointState, current);
   lastCheckpointState = current;
-  if (!reason) return;
-
-  fs.mkdirSync(flags.out, { recursive: true });
-  const checkpointId = ++checkpointCount;
-  const file = path.resolve(flags.out, `checkpoint-${String(checkpointId).padStart(3, '0')}.png`);
-  try {
-    await agent.stabilizedScreenshot(file);
-  } catch (err) {
-    // A React/Phaser unmount can happen between the bridge probe and the
-    // screenshot. Checkpoint capture is diagnostic and must never take down
-    // the REPL or hide the original command failure.
+  for (const transition of transitions) {
+    fs.mkdirSync(flags.out, { recursive: true });
+    const checkpointId = ++checkpointCount;
+    const file = path.resolve(flags.out, `checkpoint-${String(checkpointId).padStart(3, '0')}.png`);
+    try {
+      await agent.stabilizedScreenshot(file);
+    } catch (err) {
+      // A React/Phaser unmount can happen between the bridge probe and the
+      // screenshot. Checkpoint capture is diagnostic and must never take down
+      // the REPL or hide the original command failure.
+      emit({
+        cmd: 'visual_checkpoint',
+        ok: false,
+        checkpointId,
+        error: err instanceof Error ? err.message : String(err),
+        reason: transition.reason,
+        sceneKey: current.sceneKey,
+        sceneIndex: current.sceneIndex,
+        mode: transition.modeId,
+        modeKind: transition.modeKind,
+        modeBeatIndex: transition.modeBeatIndex,
+        foregroundModeId: current.foregroundModeId,
+        foregroundModeBeatIndex: current.foregroundModeBeatIndex,
+        backgroundModeId: current.backgroundModeId,
+        backgroundModeBeatIndex: current.backgroundModeBeatIndex,
+      });
+      continue;
+    }
     emit({
       cmd: 'visual_checkpoint',
-      ok: false,
+      ok: true,
       checkpointId,
-      error: err instanceof Error ? err.message : String(err),
-      reason,
+      path: file,
+      reason: transition.reason,
       sceneKey: current.sceneKey,
       sceneIndex: current.sceneIndex,
-      mode: current.mode,
+      mode: transition.modeId,
+      modeKind: transition.modeKind,
+      modeBeatIndex: transition.modeBeatIndex,
+      foregroundModeId: current.foregroundModeId,
+      foregroundModeBeatIndex: current.foregroundModeBeatIndex,
+      backgroundModeId: current.backgroundModeId,
+      backgroundModeBeatIndex: current.backgroundModeBeatIndex,
+      review_required: flags.playtest,
+      review_command: `reviewcheckpoint ${checkpointId} clear|issue-found|inconclusive <observation-note>`,
     });
-    return;
+    // A background checkpoint remains in visual QA, but it is deliberately
+    // invisible to the foreground-mode input/bypass state machine.
+    playtestCompliance.captureCheckpoint(
+      checkpointId,
+      current.foregroundModeId,
+      transition.modeKind,
+    );
   }
-  emit({
-    cmd: 'visual_checkpoint',
-    ok: true,
-    checkpointId,
-    path: file,
-    reason,
-    sceneKey: current.sceneKey,
-    sceneIndex: current.sceneIndex,
-    mode: current.mode,
-    review_required: flags.playtest,
-    review_command: `reviewcheckpoint ${checkpointId} clear|issue-found|inconclusive <observation-note>`,
-  });
-  playtestCompliance.captureCheckpoint(checkpointId, current.mode);
 }
 
 async function restartSession(page: Page, flags: Flags): Promise<void> {
@@ -1858,6 +1869,8 @@ async function runChapterAttempt(
       chapter: label,
       sceneIndex,
       mode: null,
+      modeKind: null,
+      modeBeatIndex: null,
     });
   };
 

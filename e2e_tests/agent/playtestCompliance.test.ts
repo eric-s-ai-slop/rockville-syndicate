@@ -102,6 +102,29 @@ describe('PlaytestCompliance', () => {
     expect(() => compliance.assertBypassAllowed('losemode')).toThrow('Attempt active foreground mode');
   });
 
+  it('counts background checkpoints in visual QA without changing foreground input attempts', () => {
+    const compliance = new PlaytestCompliance();
+    compliance.captureCheckpoint(7, 'doubleCall', 'foreground');
+    compliance.reviewCheckpoint(7, 'clear', 'Foreground mode layout and controls are visible.');
+    compliance.recordSuccessfulCommand('click');
+
+    compliance.captureCheckpoint(8, null, 'background');
+    expect(compliance.summary(true)).toMatchObject({ captured: 2, reviewed: 1, pending: [8] });
+    compliance.reviewCheckpoint(8, 'clear', 'Background actors remain visible beside story text.');
+    expect(() => compliance.assertBypassAllowed('winmode')).not.toThrow();
+  });
+
+  it('does not let a background checkpoint reset an active foreground gate', () => {
+    const compliance = new PlaytestCompliance();
+    compliance.captureCheckpoint(7, 'doubleCall', 'foreground');
+    compliance.reviewCheckpoint(7, 'clear', 'Foreground mode layout and controls are visible.');
+    compliance.recordSuccessfulCommand('click');
+
+    compliance.captureCheckpoint(8, null, 'background');
+    compliance.reviewCheckpoint(8, 'clear', 'Background mode is visible without blocking story flow.');
+    expect(() => compliance.assertBypassAllowed('losemode')).not.toThrow();
+  });
+
   it('marks a run without --checkpoints incomplete', () => {
     expect(new PlaytestCompliance().summary(false)).toMatchObject({
       status: 'incomplete',

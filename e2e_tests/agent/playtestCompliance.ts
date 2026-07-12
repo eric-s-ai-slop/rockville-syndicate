@@ -1,3 +1,5 @@
+import type { CheckpointModeKind } from './visualCheckpoint';
+
 export type CheckpointVerdict = 'clear' | 'issue-found' | 'inconclusive';
 
 export interface CheckpointReview {
@@ -104,10 +106,19 @@ export class PlaytestCompliance {
   private activeMode: string | null = null;
   private activeModeAttempted = false;
 
-  captureCheckpoint(checkpointId: number, mode: string | null): void {
+  /**
+   * Record every visual checkpoint, but only synchronize the foreground-mode
+   * bypass gate. Background receipts are evidence obligations, not mode-input
+   * state, so they cannot clear or reset a foreground attempt.
+   */
+  captureCheckpoint(
+    checkpointId: number,
+    foregroundModeId: string | null,
+    modeKind: CheckpointModeKind = foregroundModeId ? 'foreground' : null,
+  ): void {
     this.checkpointIds.push(checkpointId);
-    if (mode !== this.activeMode) {
-      this.activeMode = mode;
+    if (modeKind !== 'background' && foregroundModeId !== this.activeMode) {
+      this.activeMode = foregroundModeId;
       this.activeModeAttempted = false;
     }
   }

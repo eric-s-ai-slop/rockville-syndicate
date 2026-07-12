@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { advanceUntil, navigateToChapter } from './helpers';
 import fixture from '../src/data/chapters/chapterFixture.playtest';
+import { GameAgent } from './agent';
 
 test.describe.configure({ timeout: 90_000 });
 
@@ -62,6 +63,45 @@ test('safe advance stops at the walk target without teleporting', async ({ page 
 
 test.describe('mode boundary', () => {
   test.describe.configure({ timeout: 180_000 });
+
+  test('background poolParty remains observable without returning mode-active', async ({ page }) => {
+    const agent = new GameAgent(page);
+    try {
+      await navigateToChapter(page, fixture.title);
+      await expect(page.locator('canvas')).toBeVisible({ timeout: 15_000 });
+
+      const boundary = await advanceUntil(
+        page,
+        async () => {
+          return page.evaluate(() => {
+            const prompt = document.querySelector('p.font-pixel')?.textContent?.trim() ?? '';
+            return prompt === '[fixture] background mode is active; test unsafe branch save now';
+          });
+        },
+        { maxSeconds: 90, skipModes: ['benTrivia'], stopOnMode: true },
+      );
+      expect(boundary.status).toBe('condition-met');
+      expect(boundary).not.toEqual(expect.objectContaining({ status: 'mode-active' }));
+
+      const state = await agent.snapshotGameState();
+      expect(state).toMatchObject({ activeMode: 'poolParty', activeModeBackground: true });
+      const observed = await agent.observeComposite();
+      expect(observed.state).toMatchObject({ activeMode: 'poolParty', activeModeBackground: true });
+
+      // Consume the boundary normally. The next blocking result is the
+      // foreground boss fight, never the concurrent poolParty mode.
+      const next = await advanceUntil(page, async () => false, {
+        maxSeconds: 60,
+        skipModes: ['benTrivia'],
+        stopOnMode: true,
+        stopOnChapterEnd: true,
+      });
+      expect(next).toEqual({ status: 'mode-active', modeId: 'bossFight' });
+      expect(next).not.toEqual(expect.objectContaining({ modeId: 'poolParty' }));
+    } finally {
+      await agent.dispose();
+    }
+  });
 
   test('foreground modes stop the loop, background modes do not, and the chapter ends', async ({ page }) => {
     const pageErrors: Error[] = [];

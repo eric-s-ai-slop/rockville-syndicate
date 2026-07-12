@@ -47,8 +47,10 @@ export interface GameStateSnapshot {
   velocity: { x: number; y: number } | null;
   /** Current player HP (`ChapterScene.activeHp`), or null if unavailable. */
   hp: number | null;
-  /** Id of the foreground minigame mode, or null when walking the map. */
+  /** Id of the active minigame mode, or null when walking the map. */
   activeMode: string | null;
+  /** True when activeMode is a concurrent background mode, not a blocking beat. */
+  activeModeBackground: boolean;
   /** Whether the Phaser main loop is currently ticking (see pauseLoop). */
   loopRunning: boolean;
 }
@@ -280,6 +282,7 @@ export class GameAgent {
         velocity: null,
         hp: null,
         activeMode: null,
+        activeModeBackground: false,
         loopRunning: false,
       };
       if (!game) return empty;
@@ -298,6 +301,7 @@ export class GameAgent {
         velocity: body ? { x: body.velocity.x, y: body.velocity.y } : null,
         hp: typeof chapter?.activeHp === 'number' ? chapter.activeHp : null,
         activeMode: chapter?.activeMode?.id ?? null,
+        activeModeBackground: chapter?.activeModeBackground === true,
         loopRunning: !!game.loop?.running,
       };
     }, CHAPTER_SCENE_KEY);
@@ -795,6 +799,7 @@ export class GameAgent {
           velocity: (scene.player && scene.player.body) ? { x: scene.player.body.velocity.x, y: scene.player.body.velocity.y } : null,
           hp: typeof scene.activeHp === 'number' ? scene.activeHp : null,
           activeMode: scene.activeMode ? scene.activeMode.id : null,
+          activeModeBackground: scene.activeModeBackground === true,
           loopRunning: game.loop.running
         };
       } else {
@@ -805,6 +810,7 @@ export class GameAgent {
           velocity: null,
           hp: null,
           activeMode: null,
+          activeModeBackground: false,
           loopRunning: game.loop.running
         };
       }
@@ -1192,7 +1198,15 @@ export class GameAgent {
     };
 
     const stateDiff: Record<string, unknown> = {};
-    const stateKeys: (keyof GameStateSnapshot)[] = ['scene', 'player', 'velocity', 'hp', 'activeMode', 'loopRunning'];
+    const stateKeys: (keyof GameStateSnapshot)[] = [
+      'scene',
+      'player',
+      'velocity',
+      'hp',
+      'activeMode',
+      'activeModeBackground',
+      'loopRunning',
+    ];
     for (const key of stateKeys) {
       const a = prev.state ? prev.state[key] : null;
       const b = current.state ? current.state[key] : null;

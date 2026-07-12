@@ -11,7 +11,8 @@
  * `e2e_tests/agent/cli.ts`, and `e2e_tests/agent/GameAgent.ts` today —
  * `beatIndex`, `currentSceneIndex`, `levelStarted`, `movementFrozen`,
  * `player.x/y`, `walkTarget {x,y,radius}`, `activeMode {id,
- * harnessForceComplete}`, `chapter {beats, scenes}`, `beatEngine`,
+ * harnessForceComplete}`, `activeModeBeatIndex`, `activeModeBackground`,
+ * `chapter {beats, scenes}`, `beatEngine`,
  * `actorSprites`, and `cameras.main {width,height,scrollX,scrollY,zoom}`.
  * It is NOT a full typing of `ChapterScene` — fields not listed here should
  * still be read through an index signature or a fresh `as any` cast rather
