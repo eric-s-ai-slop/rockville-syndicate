@@ -70,6 +70,7 @@ if you want something not here, it's `--help`, not a guess.
 | Read what changed since last look (cheap) | `diff` |
 | Full observation snapshot | `observe` / `obs` |
 | **Snapshot + screenshot** (look at the PNG!) | `observe --shot` |
+| Acknowledge a checkpoint after looking at its PNG | `reviewcheckpoint <id> clear\|issue-found\|inconclusive <observation-note>` |
 | Read a dialogue choice and pick it | `text` then `choose <index\|text>` |
 | Walk to a point (real key-driven walking) | `walkto <x> <y>` |
 | Hold / release / tap a key | `hold w` / `release w` / `tap Space` |
@@ -137,15 +138,19 @@ specific task-management tools exist.
 
 1. Confirm `npm run dev` is up (port 3324).
 2. Launch **interactively** with checkpoints and QA safeguards:
-   `npm run agent -- --chapter "<Title>" --repl --checkpoints --playtest --out "agent-artifacts/<chapter-id>"`
+   `npm run agent -- --chapter "<Title>" --repl --checkpoints --playtest --out "agent-artifacts/<chapter-id>" --transcript "agent-artifacts/<chapter-id>/session.jsonl"`
    (CLASSIFIED chapters are handled automatically).
 3. Use `advance` to dismiss dialogue, then respond to its exit `status` per
    the status table above — every exit is named, none of them is a block.
    Never skip beats because pacing feels slow.
 4. At every scene, run `observe --shot` and **actually look at the PNG.** Look
-   at every `visual_checkpoint` image `--checkpoints` emits. Record each image
-   as reviewed, issue found, or inconclusive; a scene is not visually verified
-   until an image was actually inspected.
+   at every `visual_checkpoint` image `--checkpoints` emits, then immediately
+   send `reviewcheckpoint <id> clear|issue-found|inconclusive <observation-note>`.
+   Every verdict requires a concrete note about what was visible. A scene
+   is not visually verified until its image has both been inspected and given
+   a review receipt; `session_summary.visual_qa.pending` must be empty.
+   The CLI blocks progression commands while any checkpoint is pending and
+   rejects placeholder notes such as `skip`, `looks fine`, or `scene entered`.
 5. When a sprite looks off, `screenshot --annotate` to turn "something's wrong"
    into "chris_rivas is mis-scaled at depth 12."
 6. For motion bugs (walk-cycle stutter, flipX flicker), `gifstart` → do the
@@ -165,11 +170,13 @@ Full reference: [`docs/AGENT_TOOLKIT.md`](../../docs/AGENT_TOOLKIT.md) §4.
 
 Getting physically stuck (an NPC body blocking a `walkTo`, a beat that never
 completes, a minigame you can't beat) is a finding, not an excuse to skip ahead.
-Before any bypass, capture `observe --shot`, `beats`, and visible text. Slow or
-looping dialogue is not a proven block.
+Before any bypass, capture `observe --shot`, `beats`, and visible text. Review
+the latest checkpoint first. Slow or looping dialogue is not a proven block.
 
-1. `skipbeat 1` — force past one proven stuck beat only.
-2. `winmode` / `losemode` — force-complete a minigame only after a normal attempt.
+1. `skipbeat 1` — force past one proven stuck non-mode beat only. Never chain it
+   through a foreground minigame.
+2. `winmode` / `losemode` — force-complete a minigame only after reviewing its
+   checkpoint and attempting its visible UI with normal keyboard/mouse input.
 3. Stop and report the run as blocked. Do not use `goto` in an autonomous QA run.
 
 Each permitted bypass is both a finding and a run-integrity downgrade. The CLI
@@ -211,11 +218,22 @@ Reached: <scene/beat you got to> of <total> — <COMPLETED | BLOCKED at scene N>
 - Scenes reached: <X/Y>; checkpoint IDs inspected: <...>
 - Choices: <options tested per choice>; minigames: <normally attempted / bypassed>
 - Run integrity: <natural | partially-bypassed>, plus `bypasses` and `audit`,
-  quoted from the `session_summary` line — never self-tallied
+  and `visual_qa` quoted from the `session_summary` line — never self-tallied
+- Raw execution trace: `agent-artifacts/<chapter-id>/session.jsonl`
 ```
 
 Write the report to `qa/<chapter-id>/report.md` (the chapter's `id` from its
 config), with artifacts in the matching `agent-artifacts/<chapter-id>/` folder.
+
+Then verify the report against the authoritative trace:
+
+```bash
+npm run agent:verify-report -- qa/<chapter-id>/report.md agent-artifacts/<chapter-id>/session.jsonl
+```
+
+In `--playtest`, incomplete visual QA at `quit`/EOF emits
+`session_summary.ok: false`, sets `completion_status: "incomplete-visual-qa"`,
+and exits nonzero. It is an incomplete run even if the terminal beat was reached.
 
 If you got stuck and couldn't finish, the report says exactly that. "I reached
 scene 3, the walk to the desk soft-locked, I `skipbeat`'d past it and continued

@@ -41,6 +41,18 @@ describe('omega agent protocol parsing', () => {
     if (parsed.ok === true) return;
     expect(parsed.code).toBe('INVALID_JSON');
     expect(parsed.cmd_id).toBeNull();
+    expect(parsed.message).toContain('one newline-terminated command at a time');
+  });
+
+  it('rejects concatenated JSON objects with an actionable framing error', () => {
+    const first = JSON.stringify({ protocol: OMEGA_AGENT_PROTOCOL, cmd_id: 'one', action: 'state' });
+    const second = JSON.stringify({ protocol: OMEGA_AGENT_PROTOCOL, cmd_id: 'two', action: 'state' });
+    const parsed = parseAgentCommandLine(first + second);
+
+    expect(parsed.ok).toBe(false);
+    if (parsed.ok === true) return;
+    expect(parsed.code).toBe('INVALID_JSON');
+    expect(parsed.message).toContain('wait for its completed/failed receipt');
   });
 
   it('rejects commands missing cmd_id or action', () => {

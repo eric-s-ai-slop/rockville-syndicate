@@ -1,3 +1,13 @@
+export interface MariaBrookeStatsSnapshot {
+  laughs: number;
+  truthsTyped: number;
+  firstTruthPhase: 'early' | 'mid' | 'late' | null;
+  lookUps: number;
+  pressureIgnored: number;
+  finalResolve: number;
+  messagesSent: number;
+}
+
 export class MariaBrookeStats {
   public laughs: number = 0;
   public truthsTyped: number = 0;
@@ -6,6 +16,28 @@ export class MariaBrookeStats {
   public pressureIgnored: number = 0;
   public finalResolve: number = 0;
   public messagesSent: number = 0;
+
+  public snapshot(): MariaBrookeStatsSnapshot {
+    return {
+      laughs: this.laughs,
+      truthsTyped: this.truthsTyped,
+      firstTruthPhase: this.firstTruthPhase,
+      lookUps: this.lookUps,
+      pressureIgnored: this.pressureIgnored,
+      finalResolve: this.finalResolve,
+      messagesSent: this.messagesSent,
+    };
+  }
+
+  public restore(snapshot: MariaBrookeStatsSnapshot): void {
+    this.laughs = snapshot.laughs;
+    this.truthsTyped = snapshot.truthsTyped;
+    this.firstTruthPhase = snapshot.firstTruthPhase;
+    this.lookUps = snapshot.lookUps;
+    this.pressureIgnored = snapshot.pressureIgnored;
+    this.finalResolve = snapshot.finalResolve;
+    this.messagesSent = snapshot.messagesSent;
+  }
 
   public reset(): void {
     this.laughs = 0;

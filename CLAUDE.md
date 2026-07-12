@@ -11,6 +11,7 @@
 - **Run E2E Tests**: `npm run e2e` (runs Playwright integration tests)
 - **Drive the game from the terminal**: `npm run agent -- --help` (stateful playtesting CLI — hold keys, drag mouse, read live game state, step frames; see `docs/AGENT_TOOLKIT.md`)
 - **Drive via external agent protocol**: pipe JSONL commands with `protocol:"omega-agent-v1"` into `npm run agent -- --repl --checkpoints --playtest` for correlated `cmd_id` receipts, optional evidence bundling (`snapshot`, `annotate`, `telemetry`, `console_delta`), and guardrails against untracked QA bypasses.
+- **Prove the playtest harness against every chapter**: `npm run agent -- --gauntlet --playtest-smoke` (chapter-agnostic sweep — every `advance` must exit with a named status and every chapter must reach `chapter-ended`; see `docs/AGENT_TOOLKIT.md`)
 - **Build production assets**: `npm run build`
 
 ## 3. Directory Map (Where Things Live)

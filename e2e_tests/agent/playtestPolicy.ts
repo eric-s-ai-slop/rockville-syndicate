@@ -89,7 +89,7 @@ export function checkPlaytestPolicy(verb: string, args: string[], rest: string):
     case 'mode':
       return {
         kind: 'blocked',
-        error: 'mode is unavailable in --playtest mode; reach minigames through the chapter flow.',
+        error: 'mode is unavailable in --playtest mode; it launches a mode directly and is not a bypass. Reach minigames through chapter flow, attempt the visible UI, then use winmode/losemode only if blocked.',
       };
     case 'modify':
       return {

@@ -2,6 +2,15 @@ import Phaser from 'phaser';
 import type ChapterScene from '../ChapterScene';
 import { ActorPlacement, resolveSpeaker } from '../../data/chapters';
 
+export interface ActorVisualState {
+  id: string;
+  x: number;
+  y: number;
+  visible: boolean;
+  flipX?: boolean;
+  frame?: string | number;
+}
+
 export class Actors {
   private scene: ChapterScene;
 
@@ -76,6 +85,53 @@ export class Actors {
   /** Show an ambient actor. */
   public showActor(id: string) {
     (this.scene.actorSprites[id] ?? []).forEach(o => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(true));
+  }
+
+  public snapshotRenderedState(): ActorVisualState[] {
+    return Object.entries(this.scene.actorSprites).map(([id, entry]) => {
+      const sprite = entry[0] as Phaser.GameObjects.GameObject & {
+        x?: number;
+        y?: number;
+        visible?: boolean;
+        flipX?: boolean;
+        frame?: { name?: string | number };
+      };
+      return {
+        id,
+        x: sprite.x ?? 0,
+        y: sprite.y ?? 0,
+        visible: sprite.visible ?? false,
+        ...(typeof sprite.flipX === 'boolean' ? { flipX: sprite.flipX } : {}),
+        ...(sprite.frame?.name !== undefined ? { frame: sprite.frame.name } : {}),
+      };
+    });
+  }
+
+  public restoreRenderedState(states: ActorVisualState[]): void {
+    for (const state of states) {
+      const entry = this.scene.actorSprites[state.id];
+      const sprite = entry?.[0] as (Phaser.GameObjects.Sprite | Phaser.GameObjects.Image) | undefined;
+      const nameplate = entry?.[1] as Phaser.GameObjects.Text | undefined;
+      const shadow = entry?.[2] as Phaser.GameObjects.Image | undefined;
+      if (!sprite || !nameplate || !shadow) continue;
+
+      sprite.setPosition(state.x, state.y);
+      nameplate.setPosition(state.x, state.y - 38);
+      shadow.setPosition(state.x, state.y + 18);
+      sprite.setDepth(state.y);
+      nameplate.setDepth(state.y + 200);
+      shadow.setDepth(state.y - 1);
+
+      if (state.flipX !== undefined && 'setFlipX' in sprite) {
+        (sprite as Phaser.GameObjects.Sprite).setFlipX(state.flipX);
+      }
+      if (state.frame !== undefined && 'setFrame' in sprite) {
+        (sprite as Phaser.GameObjects.Sprite).setFrame(state.frame);
+      }
+      sprite.setVisible(state.visible);
+      nameplate.setVisible(state.visible);
+      shadow.setVisible(state.visible);
+    }
   }
 
   /** Tween a static actor to a new point, playing its walk anim en route and

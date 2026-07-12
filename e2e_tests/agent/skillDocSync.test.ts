@@ -32,7 +32,7 @@ describe('playtesting docs stay in sync with the advance status vocabulary', () 
   }
 
   it('SKILL.md command table covers the commands its own loop prescribes', () => {
-    for (const cmd of ['savestate', 'loadstate', 'advance', 'walkto', 'observe', 'skipbeat 1', 'restart']) {
+    for (const cmd of ['savestate', 'loadstate', 'advance', 'walkto', 'observe', 'reviewcheckpoint', 'skipbeat 1', 'restart']) {
       expect(SKILL).toContain(cmd);
     }
   });
@@ -45,5 +45,41 @@ describe('playtesting docs stay in sync with the advance status vocabulary', () 
       expect(doc).toContain('partially-bypassed');
       expect(doc).toContain('audit');
     }
+  });
+
+  it('the reusable prompt keeps reports and artifacts on their canonical repo-relative paths', () => {
+    expect(PROMPT).toContain('--out "agent-artifacts/<chapter-id>"');
+    expect(PROMPT).toContain('--transcript "agent-artifacts/<chapter-id>/session.jsonl"');
+    expect(PROMPT).not.toMatch(/--out\s+"\//);
+    expect(PROMPT).toContain('qa/<chapter-id>/report.md');
+    expect(PROMPT).toContain('agent-artifacts/<chapter-id>/');
+  });
+
+  it('the reusable prompt distinguishes permitted bypass commands from blocked mutations', () => {
+    expect(PROMPT).toContain('There is no command named `_bypass` or `bypass`');
+    expect(PROMPT).toContain('exactly `skipbeat 1` for a proven stuck non-mode beat and `winmode`/`losemode`');
+    expect(PROMPT).toContain('never chain `skipbeat 1` through a minigame');
+    expect(PROMPT).toContain('quote the exact command and error');
+  });
+
+  it('the reusable prompt requires checkpoint receipts and complete visual QA', () => {
+    expect(PROMPT).toContain('reviewcheckpoint <id> clear|issue-found|inconclusive <observation-note>');
+    expect(PROMPT).toContain('Every verdict, including `clear`, requires a concrete note');
+    expect(PROMPT).toContain('`visual_qa.pending` must be empty');
+    expect(PROMPT).toContain('one newline-terminated JSONL command at a time');
+    expect(PROMPT).toContain('The CLI blocks progression while checkpoints are pending');
+    expect(PROMPT).toContain('`quit`/EOF fails closed and exits nonzero');
+  });
+
+  it('all playtesting instruction surfaces require fail-closed report verification', () => {
+    for (const doc of [SKILL, PROMPT, TOOLKIT]) {
+      expect(doc).toContain('agent:verify-report');
+      expect(doc).toContain('incomplete visual QA');
+    }
+  });
+
+  it('the reusable prompt authorizes direct toolkit-complaint updates', () => {
+    expect(PROMPT).toContain('create or update `docs/toolkit_complaints.md` directly');
+    expect(PROMPT).toContain('do not ask for permission again');
   });
 });

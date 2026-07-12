@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { MapBuilder } from './scene/MapBuilder';
-import { Actors } from './scene/Actors';
+import { Actors, type ActorVisualState } from './scene/Actors';
 import { AudioController } from './scene/AudioController';
 import { BeatEngine } from './scene/BeatEngine';
 import { PlayerController } from './scene/PlayerController';
@@ -10,7 +10,7 @@ import type { GameMode, ModeResult } from './modes/types';
 import { getMode } from './modes';
 import { hitStop } from './modes/hitStop';
 import { screenSpace } from './modes/screenSpace';
-import { mariaBrookeStats } from './modes/mariaBrookeStats';
+import { mariaBrookeStats, type MariaBrookeStatsSnapshot } from './modes/mariaBrookeStats';
 import {
   CharacterClass,
   CHARACTER_CLASSES,
@@ -20,7 +20,7 @@ import {
   POWER_UPS,
   DIFFICULTY_MODS,
 } from '../data/entities';
-import { getSettings } from './settings';
+import { getProgress, getSettings, saveProgressData, type ProgressData } from './settings';
 import plasmaShieldImg from '../assets/images/plasma_shield_1781235159690.jpg';
 import shieldImg from '../assets/images/shield.jpg';
 import heroEricImg from '../assets/images/hero_eric_1781236098529.jpg';
@@ -132,6 +132,31 @@ export interface StoryDialoguePayload {
   lines: string[];
   /** When present, the box shows choice buttons after the last line. */
   choices?: { text: string }[];
+}
+
+export interface PlaytestSnapshotSafety {
+  branchSafe: boolean;
+  unsafeReasons: string[];
+  activeModeId: string | null;
+  activeModeBackground: boolean;
+  chaseActive: boolean;
+  qteActive: boolean;
+  externalMode: boolean;
+}
+
+export interface PlaytestSceneSnapshot {
+  version: 1;
+  sceneIndex: number;
+  beatIndex: number;
+  beatActive: boolean;
+  player: { x: number; y: number; velocityX: number; velocityY: number } | null;
+  hp: number;
+  shardsCollected: number;
+  ledgerTotal: number;
+  actors: ActorVisualState[];
+  progress: ProgressData;
+  mariaBrookeStats: MariaBrookeStatsSnapshot;
+  safety: PlaytestSnapshotSafety;
 }
 
 export default class ChapterScene extends Phaser.Scene {
@@ -1116,6 +1141,123 @@ export default class ChapterScene extends Phaser.Scene {
     this.beatEngine.unfreeze();
     this.movementFrozen = false;
     this.beatEngine.startBeat(index);
+  }
+
+  /**
+   * Capture the state needed to replay a choice branch from the same visible
+   * point. This is a dev-tool seam, not a second persistence format: progress
+   * is copied from the unified settings store and restored through that store.
+   */
+  public capturePlaytestSnapshot(): PlaytestSceneSnapshot {
+    const activeModeId = this.activeMode?.id ?? null;
+    const externalMode = activeModeId === 'battleiq-battle';
+    const unsafeReasons: string[] = [];
+    if (activeModeId) {
+      unsafeReasons.push(
+        `${this.activeModeBackground ? 'Background' : 'Foreground'} mode "${activeModeId}" is active and cannot be reconstructed safely.`,
+      );
+    }
+    if (externalMode) unsafeReasons.push('An external iframe mode is mounted and cannot be restored in memory.');
+    if (this.chaseActive) unsafeReasons.push('A chase is active and its timer/pursuer state is not snapshotted.');
+    if (this.qteActive) unsafeReasons.push('A QTE is active and its React bridge state is not snapshotted.');
+    if (this.isBossActive && !activeModeId) unsafeReasons.push('A boss encounter is active without an owned foreground mode.');
+
+    const progress = getProgress();
+    const progressCopy: ProgressData = {
+      ...progress,
+      completedChapters: [...progress.completedChapters],
+      ...(progress.runRecords ? { runRecords: progress.runRecords.map(record => ({ ...record })) } : {}),
+      ...(progress.chapterBests ? { chapterBests: { ...progress.chapterBests } } : {}),
+    };
+    const velocity = this.player?.body?.velocity;
+
+    return {
+      version: 1,
+      sceneIndex: this.currentSceneIndex,
+      beatIndex: this.beatIndex,
+      beatActive: this.beatActive,
+      player: this.player
+        ? {
+            x: this.player.x,
+            y: this.player.y,
+            velocityX: velocity?.x ?? 0,
+            velocityY: velocity?.y ?? 0,
+          }
+        : null,
+      hp: this.activeHp,
+      shardsCollected: this.shardsCollected,
+      ledgerTotal: this.ledgerTotal,
+      actors: this.actorsSystem.snapshotRenderedState(),
+      progress: progressCopy,
+      mariaBrookeStats: mariaBrookeStats.snapshot(),
+      safety: {
+        branchSafe: unsafeReasons.length === 0,
+        unsafeReasons,
+        activeModeId,
+        activeModeBackground: this.activeModeBackground,
+        chaseActive: this.chaseActive,
+        qteActive: this.qteActive,
+        externalMode,
+      },
+    };
+  }
+
+  /** Restore a safe in-memory branch snapshot captured by the playtest bridge. */
+  public restorePlaytestSnapshot(snapshot: PlaytestSceneSnapshot): void {
+    if (!snapshot.safety.branchSafe) {
+      throw new Error(
+        `Cannot restore unsafe branch save: ${snapshot.safety.unsafeReasons.join('; ')} ` +
+        'Start a fresh natural run for this branch.',
+      );
+    }
+
+    if (this.activeMode) {
+      try { this.activeMode.teardown(); } catch {}
+      this.activeMode = null;
+      this.activeModeBeatIndex = null;
+      this.activeModeBackground = false;
+    }
+    if (this.chaseTimer) {
+      this.chaseTimer.remove();
+      this.chaseTimer = null;
+    }
+    this.chaseSprite?.destroy();
+    this.chaseShadow?.destroy();
+    this.chaseSprite = null;
+    this.chaseShadow = null;
+    this.chaseActive = false;
+    this.chasePursuerId = null;
+    this.qteActive = false;
+    this.isBossActive = false;
+    this.spawnedBoss?.destroy();
+    this.spawnedBoss = null;
+    this.enemies?.clear(true, true);
+    this.enemyProjectiles?.clear(true, true);
+    this.projectiles?.clear(true, true);
+    this.lootShards?.clear(true, true);
+    this.activePowerUpCleanups.forEach(fn => fn());
+    this.activePowerUpCleanups = [];
+    this.setControlsInverted(false);
+    this.clearStoryDialogue();
+    this.beatEngine.clearWalkTarget();
+
+    this.warpToScene(snapshot.sceneIndex);
+    if (this.player && snapshot.player) {
+      this.player.setPosition(snapshot.player.x, snapshot.player.y);
+      this.player.setVelocity(snapshot.player.velocityX, snapshot.player.velocityY);
+    }
+    this.activeHp = snapshot.hp;
+    this.onHpChange(snapshot.hp);
+    this.shardsCollected = snapshot.shardsCollected;
+    this.ledgerTotal = snapshot.ledgerTotal;
+    this.onLedgerChange(snapshot.ledgerTotal, 'Restore Quick Save');
+    this.actorsSystem.restoreRenderedState(snapshot.actors);
+    saveProgressData(snapshot.progress);
+    mariaBrookeStats.restore(snapshot.mariaBrookeStats);
+
+    // This cancels the newly-created scene's delayed beat-0 kickoff and then
+    // recreates the exact saved dialogue/choice/walk boundary.
+    this.restoreBeat(snapshot.beatIndex);
   }
 
   public advanceBeat() {

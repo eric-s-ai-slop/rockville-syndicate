@@ -40,4 +40,20 @@ describe('MariaBrookeStats', () => {
     expect(stats.finalResolve).toBe(0);
     expect(stats.messagesSent).toBe(0);
   });
+
+  it('snapshots and restores every field without selectively merging state', () => {
+    stats.laughs = 5;
+    stats.truthsTyped = 3;
+    stats.firstTruthPhase = 'late';
+    stats.lookUps = 10;
+    stats.pressureIgnored = 2;
+    stats.finalResolve = 1;
+    stats.messagesSent = 20;
+
+    const snapshot = stats.snapshot();
+    stats.reset();
+    stats.restore(snapshot);
+
+    expect(stats.snapshot()).toEqual(snapshot);
+  });
 });

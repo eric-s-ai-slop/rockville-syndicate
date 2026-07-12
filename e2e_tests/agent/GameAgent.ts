@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { CHAPTERS } from '../../src/data/chapters';
 import { navigateToChapter } from '../helpers';
-import type { DevBridgeWindow } from './DevBridge';
+import type { BridgePlaytestSnapshot, DevBridgeWindow } from './DevBridge';
 
 /**
  * GameAgent — stateful browser-automation toolkit for playtesting the Phaser 3
@@ -63,7 +63,7 @@ export class GameAgent {
   /** Last known pointer position, so mouseUp/dragMouse can default to it. */
   private pointer = { x: 0, y: 0 };
   /** Quick-save state slot. */
-  private quickSaveState: any = null;
+  private quickSaveState: BridgePlaytestSnapshot | null = null;
   /** Intercepted browser console log logs. */
   private readonly consoleLogs: { type: string; text: string }[] = [];
   /** Index into consoleLogs as of the last observeComposite() call (A5 error-count field). */
@@ -638,73 +638,47 @@ export class GameAgent {
     }, sceneIndex);
   }
 
-  /** Quick-save the current state in-memory. */
-  async saveQuickState(): Promise<void> {
-    this.quickSaveState = await this.page.evaluate(() => {
-      const game = (window as unknown as { __OMEGA_GAME__?: any }).__OMEGA_GAME__;
+  /** Quick-save the current state in-memory, including branch-safety metadata. */
+  async saveQuickState(): Promise<{ branchSafe: boolean; unsafeReasons: string[] }> {
+    this.quickSaveState = await this.page.evaluate<BridgePlaytestSnapshot>(() => {
+      const game = (window as unknown as DevBridgeWindow).__OMEGA_GAME__;
       if (!game) throw new Error('Game not initialized');
       const scene = game.scene.getScene('ChapterScene');
       if (!scene) throw new Error('ChapterScene not found');
-
-      return {
-        sceneIndex: scene.currentSceneIndex,
-        beatIndex: scene.beatIndex,
-        beatActive: scene.beatActive,
-        playerX: scene.player ? scene.player.x : 0,
-        playerY: scene.player ? scene.player.y : 0,
-        hp: scene.activeHp,
-        ledgerTotal: scene.ledgerTotal
-      };
+      if (typeof scene.capturePlaytestSnapshot !== 'function') {
+        throw new Error('Playtest snapshot bridge unavailable; restart the dev server and try again.');
+      }
+      return scene.capturePlaytestSnapshot();
     });
+    return {
+      branchSafe: this.quickSaveState.safety.branchSafe,
+      unsafeReasons: [...this.quickSaveState.safety.unsafeReasons],
+    };
   }
 
-  /** Quick-load the saved state. */
-  async loadQuickState(): Promise<void> {
+  /** Quick-load the saved state when its runtime state is reconstructible. */
+  async loadQuickState(): Promise<{ branchSafe: true }> {
     if (!this.quickSaveState) {
       throw new Error('No quick-save state exists. Run "savestate" first.');
     }
+    if (!this.quickSaveState.safety.branchSafe) {
+      throw new Error(
+        `Cannot restore unsafe branch save: ${this.quickSaveState.safety.unsafeReasons.join('; ')} ` +
+        'Start a fresh natural run for this branch.',
+      );
+    }
 
-    await this.page.evaluate((saved) => {
-      const game = (window as unknown as { __OMEGA_GAME__?: any }).__OMEGA_GAME__;
+    await this.page.evaluate((saved: BridgePlaytestSnapshot) => {
+      const game = (window as unknown as DevBridgeWindow).__OMEGA_GAME__;
       if (!game) throw new Error('Game not initialized');
       const scene = game.scene.getScene('ChapterScene');
       if (!scene) throw new Error('ChapterScene not found');
-
-      // Clean up active modes and overlays
-      if (scene.activeMode) {
-        try { scene.activeMode.teardown(); } catch {}
-        scene.activeMode = null;
-        scene.activeModeBeatIndex = null;
-        scene.activeModeBackground = false;
+      if (typeof scene.restorePlaytestSnapshot !== 'function') {
+        throw new Error('Playtest snapshot restore bridge unavailable; restart the dev server and try again.');
       }
-      if (typeof scene.clearStoryDialogue === 'function') {
-        scene.clearStoryDialogue();
-      }
-      scene.beatEngine.clearWalkTarget();
-
-      // Warp to correct scene index
-      scene.warpToScene(saved.sceneIndex);
-
-      // Set player position and restore physics
-      if (scene.player) {
-        scene.player.setPosition(saved.playerX, saved.playerY);
-        if (scene.player.body) {
-          scene.player.body.setVelocity(0, 0);
-        }
-      }
-
-      // Restore HP & Ledger
-      scene.activeHp = saved.hp;
-      scene.onHpChange(saved.hp);
-
-      scene.ledgerTotal = saved.ledgerTotal;
-      scene.onLedgerChange(saved.ledgerTotal, 'Restore Quick Save');
-
-      // Restore the exact beat through the scene's restore path. This cancels
-      // the fresh scene's delayed beat-0 kickoff, which otherwise can fire
-      // after this load and resurrect an earlier walkTo beat.
-      scene.restoreBeat(saved.beatIndex);
+      scene.restorePlaytestSnapshot(saved);
     }, this.quickSaveState);
+    return { branchSafe: true };
   }
 
   getConsoleLogs(): { type: string; text: string }[] {

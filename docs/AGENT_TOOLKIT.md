@@ -58,9 +58,11 @@ flag does the whole hero-select → Free Play → chapter-card flow for you:
 npm run agent -- --chapter "The Spotify Family Insurgency" "state"
 ```
 
-Add `--classified` for a chapter behind a CLASSIFIED seal. Without `--chapter`
-the CLI just loads the URL and leaves you on the menu (drive it yourself with
-`click`/`eval`).
+Chapters behind a CLASSIFIED seal are auto-detected from their config
+(`classified: true` in `src/data/chapters/`) and the seal is broken during
+navigation; `--classified` only matters for raw `--url` sessions. Without
+`--chapter` the CLI just loads the URL and leaves you on the menu (drive it
+yourself with `click`/`eval`).
 
 ---
 
@@ -71,18 +73,20 @@ the CLI just loads the URL and leaves you on the menu (drive it yourself with
 | Flag | Meaning |
 | --- | --- |
 | `--chapter "<title>"` | Navigate into this chapter after boot |
-| `--classified` | Break the chapter's CLASSIFIED seal while navigating |
+| `--classified` | Break the chapter's CLASSIFIED seal while navigating. Auto-detected from chapter config (`classified: true`) when `--chapter` is used — only needed for raw `--url` sessions |
 | `--url <url>` | Base URL (default `http://localhost:3324`) |
 | `--out <dir>` | Folder for screenshots (default `./agent-artifacts`) |
 | `--script <file>` | Read commands from a file instead of args/stdin |
 | `--headed` | Show the browser window (default headless) |
 | `--slowmo <ms>` | Delay every action by `<ms>` — watch it happen |
 | `--keep-open` | After inline/script commands, stay open and read stdin |
-| `--repl` | Alias for `--keep-open` that also emits `{"repl":"ready"}` once the stdin loop is actually listening, so a process piping commands in line-by-line knows exactly when it's safe to start writing (C3). Same `runCommand`/JSONL/`--record` behavior as `--keep-open` underneath — this only adds the ready signal and the name. `exit`/`quit`/EOF on stdin closes the browser and exits 0 |
-| `--playtest` | Autonomous-QA safety mode. Blocks `eval`, `injectbeat`, `modify`, direct `mode` launch, `goto`, `chapterflag` writes, `settings` writes, and any `watch` expression that isn't read-only; rejects multi-beat `skipbeat`; records `skipbeat`/`winmode`/`losemode` as a bypass and every `watch`/`loadstate <file>`/`speed` use in `session_summary.audit`. The whole policy is one pure function — `e2e_tests/agent/playtestPolicy.ts` (unit-tested in `playtestPolicy.test.ts`). Use with `--repl --checkpoints`. |
+| `--repl` | Alias for `--keep-open` that also emits `{"repl":"ready"}` once the stdin loop is actually listening, so a process piping commands in line-by-line knows exactly when it's safe to start writing (C3). Same `runCommand`/JSONL/`--record` behavior as `--keep-open` underneath — this only adds the ready signal and the name. `exit`/`quit`/EOF closes the browser; an incomplete `--playtest` exits nonzero. |
+| `--playtest` | Autonomous-QA safety mode. Blocks `eval`, `injectbeat`, `modify`, direct `mode` launch, `goto`, `chapterflag` writes, `settings` writes, and any `watch` expression that isn't read-only; rejects multi-beat `skipbeat`; records `skipbeat`/`winmode`/`losemode` as a bypass and every `watch`/`loadstate <file>`/`speed` use in `session_summary.audit`. Every `visual_checkpoint` requires a concrete `reviewcheckpoint` receipt. While any checkpoint is pending, progression/state-changing commands are blocked; vague review notes are rejected. `quit`/EOF fails closed with `session_summary.ok:false` and a nonzero exit when visual QA is incomplete. `skipbeat` cannot bypass an active foreground mode, and `winmode`/`losemode` require a successful normal keyboard/mouse attempt first. The policy gate lives in `e2e_tests/agent/playtestPolicy.ts`; stateful compliance lives in `e2e_tests/agent/playtestCompliance.ts`. Use with `--repl --checkpoints`. |
+| `--playtest-smoke` | (requires `--gauntlet`) Chapter-agnostic sweep proving the playtest-mode `advance` classification never dead-ends: for every chapter (enumerated from `CHAPTERS` at runtime — a new chapter is swept automatically), it loops `advance` and resolves each named status generically (choice 0, **real key-driven** `walkTo` with teleport-recovery fallback, `harnessForceComplete` for foreground modes) until `chapter-ended`. Emits one `playtest_smoke` JSONL line per chapter with `statusCounts` plus a `coverage` diff of exercised interactions vs. the config-derived manifest (`e2e_tests/agent/coverageManifest.ts`), then a `playtest_smoke_summary`; exits non-zero if any chapter fails. Run it after changing any beat type, mode lifecycle, or the harness itself. |
 | `--speed <n>` | Set Phaser's `scene.time` / `scene.tweens` / arcade-physics `timeScale` to `<n>` via `GameAgent.setTimeScale()`, once the chapter scene has booted. Works for both normal sessions and `--gauntlet` runs; for the gauntlet it's re-applied whenever `advanceUntil`'s `onTick` observes a scene-index change, since a scene restart resets a fresh `ChapterScene`'s `timeScale` back to 1 (H2). **Only speeds up Phaser tweens/waits** — `cameraPan` and `wait` beats run faster, but `advanceUntil`'s own ~150ms poll loop and React-side timers (the dialogue typewriter) are untouched, so wall-clock savings are real but sub-linear, not proportional to `<n>`. Tested against `Rockville Syndicate: Origins` (37 cameraPan/wait beats, the heaviest in the repo) across repeated `--gauntlet` runs: `--speed 1`/`3`/`4` always completed (durations ranged 16s–278s run-to-run — this machine's background load dominates wall-clock noise more than `<n>` does), but `--speed 5` **crashed on one of two runs** (`page.evaluate: Execution context was destroyed, most likely because of a navigation`) even though the other run completed. That correctness flip (not the noisy timings) is the real signal. **Recommended max: 3** — the highest factor that was stable across every run tried. |
 | `--seed <number>` | Initialize the page with a specific random seed for determinism |
 | `--record <file>` | Record all executed commands and their timings into a file |
+| `--transcript <file>` | Mirror every public JSONL receipt to a durable raw trace, including protocol lifecycle receipts, `visual_checkpoint` events, failures, and the final `session_summary`. Use this for autonomous QA; unlike a retrospective agent summary, it preserves the exact commands and errors that occurred |
 | `--replay <file>` | Replay a recorded command log file with original timing delays |
 | `--gauntlet` | Run the full test gauntlet skipping minigame modes to verify all chapters. Each chapter attempt gets a **per-chapter timeout budget** computed from that chapter's own config — `45s + 0.75s × beats.length + 20s × (# minigame/bossFight beats) + 10s × (# scenes)`, capped at 300s — instead of one flat number, so a one-scene dialogue chapter fails fast and a multi-scene finale isn't falsely killed halfway through (H5). The computed budget is reported as `timeoutBudget` in the chapter's JSONL result. On a timeout, the failure is classified `stall: "soft-lock"` (beatIndex frozen ≥10s at the moment of failure — likely an engine bug; JSONL also includes `stuckBeatIndex` and, when available, `stuckBeatType`) or `stall: "global-timeout"` (beats were still advancing — the chapter needs a bigger budget, not a bug fix) (H1). A stalled result also carries a `diagnostics` dump straight from `advanceUntil` — player vs `walkTarget` position/distance, `movementFrozen`, `activeMode`, dialogue/choice visibility (H3) |
 | `--gauntlet-max <seconds>` | (with `--gauntlet`) hard override for the per-chapter timeout budget — bypasses the computed budget and its 300s cap entirely (H5) |
@@ -132,10 +136,11 @@ Prefer lowercase movement keys.
 | `text` | extract visible text from Phaser canvas and DOM (A2) |
 | `targets` | dump active walk target and NPCs with screen/world coordinates (A3) |
 | `observe` / `obs` [`--shot`] | print composite observation snapshot, including console errors/warnings seen since the last `observe` (A5); `--shot` attaches a stabilized screenshot path as `"shot"` (N3) |
+| `reviewcheckpoint <id> clear\|issue-found\|inconclusive <observation-note>` | record that an emitted `visual_checkpoint` PNG was inspected. Every verdict requires a concrete visual note of at least 20 characters; placeholders such as `skip`, `looks fine`, or `scene entered` are rejected. In `--playtest`, progression stays blocked until every pending checkpoint is reviewed; coverage is emitted in `session_summary.visual_qa`. |
 | `diff` | like `observe`, but omits any field unchanged since the last `diff`/`observe` call — the cheap per-step read for a driving agent (N4/E5) |
 | `watch <jsExpr> [timeoutMs]` | block until a predicate on the live scene is true (`scene`/`game` in scope), e.g. `watch scene.activeHp < 50 10000`; polls ~100ms inside one round-trip and attaches a final observation on timeout (N4/E6) |
 | `beat` / `beats` | print current and upcoming narrative beats (A4) |
-| `skipbeat [n]` | force-advance `n` beats (default 1) past one that can never complete normally — a walk target that can't be reached, a mode stuck without calling `onComplete` (A4). In `--playtest`, only `skipbeat 1` is permitted and the session is marked partially bypassed. |
+| `skipbeat [n]` | force-advance `n` beats (default 1) past one that can never complete normally — such as an unreachable walk target (A4). In `--playtest`, only `skipbeat 1` is permitted, it cannot bypass an active foreground mode, and the session is marked partially bypassed. Use `winmode`/`losemode` for a blocking mode after reviewing its checkpoint and attempting normal input. |
 | `logs` / `console [clear]` | print buffered console errors/warnings/failed asset requests captured since boot (or the last `clear`) (A1) |
 | `audio` | print playing audio state and master volume (B4) |
 | `camera` | print camera zoom, center, and dimensions (B5) |
@@ -182,14 +187,16 @@ Prefer lowercase movement keys.
 | `replay <file>` | execute commands recorded in `<file>` recreating original timing delays |
 | `wait <ms>` | sleep `<ms>` of real time |
 | `help` | print the menu |
-| `quit` / `exit` | close the browser and end |
+| `quit` / `exit` | close the browser and end. In `--playtest`, incomplete visual QA returns a failed command receipt, `session_summary.ok:false`, and a nonzero process exit. |
 
 ---
 
 ## 3. How it returns data to you
 
-**stdout is JSONL** — exactly one JSON object per command, so you can read it by
-eye or pipe it into `jq`/a script. On startup you get a `ready` line; every
+**stdout is JSONL** — exactly one newline-terminated JSON object per command,
+sent one at a time. Wait for the correlated terminal receipt before sending the
+next command. Concatenated objects are rejected with `INVALID_JSON`; the parser
+does not guess record boundaries. On startup you get a `ready` line; every
 command then prints its own result.
 
 ```jsonc
@@ -214,7 +221,12 @@ command then prints its own result.
   In `--playtest` mode it also records `playtest_integrity` as `natural` or
   `partially-bypassed`, every permitted bypass, and an `audit` array of every
   `watch`/`loadstate <file>`/`speed` use; a bypassed run cannot support a
-  natural full-chapter completion claim.
+  natural full-chapter completion claim. It also emits `visual_qa` with every
+  checkpoint review and any pending checkpoint IDs; pending reviews or a run
+  started without `--checkpoints` make visual QA incomplete, set
+  `completion_status: "incomplete-visual-qa"`, make `ok` false, and exit nonzero.
+  Verify the final Markdown report against this line with
+  `npm run agent:verify-report -- <report.md> <session.jsonl>`.
   Read the full list any time mid-session with `logs`.
 - **`state` payload** (`snapshotGameState`): read straight off the live scene, no
   computer vision needed —

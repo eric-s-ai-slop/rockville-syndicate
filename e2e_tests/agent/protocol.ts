@@ -65,11 +65,14 @@ export function parseAgentCommandLine(line: string): AgentCommandParseResult {
   try {
     parsed = JSON.parse(line);
   } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
     return {
       ok: false,
       cmd_id: null,
       code: 'INVALID_JSON',
-      message: err instanceof Error ? err.message : String(err),
+      message:
+        `${detail} JSONL requires one newline-terminated command at a time; ` +
+        'wait for its completed/failed receipt before sending the next command.',
     };
   }
 

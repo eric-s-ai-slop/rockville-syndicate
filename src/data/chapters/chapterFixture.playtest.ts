@@ -175,7 +175,10 @@ const chapterFixturePlaytest: ChapterConfig = {
     {
       type: 'minigame',
       modeId: 'benTrivia',
-      config: { count: 3, strikesAllowed: 3, seed: 1 },
+      // Keep the DEV fixture independent of agent/image-review latency. The
+      // normal game defaults stay fast; this synthetic mode waits long enough
+      // for its required checkpoint to be inspected before normal input.
+      config: { count: 3, perPromptMs: 60_000, minPromptMs: 60_000, strikesAllowed: 3, seed: 1 },
       introLines: ['[fixture] testing foreground minigame beat (benTrivia).'],
       loseGoto: 'fixtureRejoin',
     },
@@ -186,6 +189,16 @@ const chapterFixturePlaytest: ChapterConfig = {
       modeId: 'poolParty',
       background: true,
       introLines: ['[fixture] testing background minigame beat (poolParty, inert here).'],
+    },
+
+    // Stable interactive boundary while the background mode is still active.
+    // PR 1 uses this point to prove `savestate` reports branchSafe:false
+    // instead of pretending it can reconstruct arbitrary mode internals.
+    {
+      type: 'choice',
+      speaker: 'narrator',
+      prompt: '[fixture] background mode is active; test unsafe branch save now',
+      options: [{ text: '[fixture] continue to scene 2' }],
     },
 
     // ── changeScene ──────────────────────────────────────────────────────────

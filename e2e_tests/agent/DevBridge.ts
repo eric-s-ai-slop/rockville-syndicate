@@ -120,6 +120,46 @@ export interface BridgeActorSprite {
   [key: string]: unknown;
 }
 
+export interface BridgeActorVisualState {
+  id: string;
+  x: number;
+  y: number;
+  visible: boolean;
+  flipX?: boolean;
+  frame?: string | number;
+}
+
+export interface BridgePlaytestSnapshot {
+  version: 1;
+  sceneIndex: number;
+  beatIndex: number;
+  beatActive: boolean;
+  player: { x: number; y: number; velocityX: number; velocityY: number } | null;
+  hp: number;
+  shardsCollected: number;
+  ledgerTotal: number;
+  actors: BridgeActorVisualState[];
+  progress: Record<string, unknown>;
+  mariaBrookeStats: {
+    laughs: number;
+    truthsTyped: number;
+    firstTruthPhase: 'early' | 'mid' | 'late' | null;
+    lookUps: number;
+    pressureIgnored: number;
+    finalResolve: number;
+    messagesSent: number;
+  };
+  safety: {
+    branchSafe: boolean;
+    unsafeReasons: string[];
+    activeModeId: string | null;
+    activeModeBackground: boolean;
+    chaseActive: boolean;
+    qteActive: boolean;
+    externalMode: boolean;
+  };
+}
+
 /**
  * `game.scene.getScene('ChapterScene')` — the live orchestrator instance from
  * `src/game/ChapterScene.ts`. This does NOT attempt to model every field on
@@ -147,6 +187,8 @@ export interface ChapterSceneBridge {
     [key: string]: unknown;
   };
   restoreBeat?: (index: number) => void;
+  capturePlaytestSnapshot?: () => BridgePlaytestSnapshot;
+  restorePlaytestSnapshot?: (snapshot: BridgePlaytestSnapshot) => void;
   actorSprites?: Record<string, BridgeActorSprite>;
   cameras?: { main: BridgeCamera };
   activeHp?: number;

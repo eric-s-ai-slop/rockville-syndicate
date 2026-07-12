@@ -22,6 +22,7 @@ import type { Beat } from '../../src/data/chapters/types';
 import type { DevBridgeWindow } from './DevBridge';
 import { classifyBeat } from './beatClassification';
 import { checkPlaytestPolicy, parseWatchExpression } from './playtestPolicy';
+import { PlaytestCompliance, playtestCompletionVerdict } from './playtestCompliance';
 import { deriveCoverageManifest, CoverageManifest } from './coverageManifest';
 import {
   OMEGA_AGENT_PROTOCOL,
@@ -47,6 +48,7 @@ interface Flags {
   inline: string | null; // positional command(s), ';'-separated
   seed: number | null;
   record: string | null;
+  transcript: string | null;
   gauntlet: boolean;
   chapters: string | null;
   shots: boolean;
@@ -79,6 +81,7 @@ function parseFlags(argv: string[]): Flags {
     inline: null,
     seed: null,
     record: null,
+    transcript: null,
     gauntlet: false,
     chapters: null,
     shots: false,
@@ -111,6 +114,7 @@ function parseFlags(argv: string[]): Flags {
       case '--slowmo': f.slowmo = Number(argv[++i]) || 0; break;
       case '--seed': f.seed = Number(argv[++i]); break;
       case '--record': f.record = argv[++i]; break;
+      case '--transcript': f.transcript = argv[++i]; break;
       case '--gauntlet': f.gauntlet = true; break;
       case '--chapters': f.chapters = argv[++i]; break;
       case '--shots': f.shots = true; break;
@@ -163,7 +167,8 @@ FLAGS
                         loop is actually listening, so a driving process knows exactly when it's
                         safe to start writing lines (C3). Same runCommand/JSONL/--record behavior
                         as --keep-open — no parallel implementation, just a ready signal + name.
-                        'exit'/'quit'/EOF on stdin closes the browser and exits 0.
+                        'exit'/'quit'/EOF closes the browser. In --playtest, incomplete visual QA
+                        emits session_summary.ok:false and exits nonzero.
   --playtest            Safety mode for autonomous chapter QA, enforced by playtestPolicy.ts's central
                         gate. Blocks eval/injectbeat/modify/direct mode launch/goto, chapterflag writes
                         (complete/uncomplete/freeplay-on/freeplay-off — bare reads still allowed),
@@ -174,9 +179,15 @@ FLAGS
                         loadstate from a file (bare in-memory loadstate stays unaudited), and
                         speed/timescale changes. Marks any skipbeat/winmode/losemode use as a bypass in
                         session_summary's 'bypasses', and lists every audited command in its 'audit'
-                        array (both only emitted when --playtest is set). Use with --repl --checkpoints.
+                        array (both only emitted when --playtest is set). Every visual_checkpoint must
+                        be acknowledged with a concrete reviewcheckpoint note; while any checkpoint is
+                        pending, state-changing/progression commands are blocked. Incomplete visual QA
+                        makes quit/session_summary fail closed. skipbeat cannot bypass a foreground mode,
+                        and winmode/losemode require a normal input attempt first. Use with --repl --checkpoints.
   --seed <n>            Boot with a seeded Mulberry32 PRNG (replaces Math.random) for determinism
   --record <file>       Record executed commands + inter-command delays to <file>
+  --transcript <file>   Mirror every public JSONL receipt (including visual_checkpoint and
+                        session_summary) to a durable raw execution trace
   --gauntlet            Run every chapter end-to-end via advanceUntil, report completed/stalled.
                          Each attempt gets a per-chapter timeout budget computed from the chapter's
                          own beat/scene count (base 45s + 0.75s/beat + 20s per minigame/bossFight
@@ -267,6 +278,10 @@ COMMANDS (one per line; ';' also separates them on a single line)
     targets                    dump active walk target and NPCs with screen/world coordinates (A3)
     observe | obs [--shot]     print composite observation snapshot, incl. console errors/warnings since last observe (A5);
                                --shot attaches a stabilized screenshot path as "shot" (N3)
+    reviewcheckpoint <id> clear|issue-found|inconclusive <concrete-visual-note>
+                               acknowledge that an emitted visual_checkpoint PNG was inspected;
+                               vague placeholders are rejected. In --playtest, progression is
+                               blocked until every pending checkpoint has a review receipt
     diff                       like observe, but omits any field unchanged since the last diff/observe call (N4/E5)
     watch <jsExpr> [timeoutMs] block until a predicate on the live scene is true (scene/game in scope), e.g.
                                watch "scene.activeHp < 50" 10000 — polls ~100ms in one round-trip, attaches a
@@ -369,6 +384,7 @@ EXAMPLES
 // ── Command execution ─────────────────────────────────────────────────────────
 
 let recordStream: fs.WriteStream | null = null;
+let transcriptStream: fs.WriteStream | null = null;
 let lastCommandTime = Date.now();
 let emitSink: ((obj: Record<string, unknown>) => void) | null = null;
 const playtestBypasses: { command: string; reason: string; timestamp: number }[] = [];
@@ -377,13 +393,16 @@ const playtestBypasses: { command: string; reason: string; timestamp: number }[]
 // change) — distinct from playtestBypasses, which is only ever a genuine
 // bypass of untested content (skipbeat/winmode/losemode).
 const playtestAudit: { command: string; note: string; timestamp: number }[] = [];
+const playtestCompliance = new PlaytestCompliance();
 
 function emit(obj: Record<string, unknown>): void {
   if (emitSink) {
     emitSink(obj);
     return;
   }
-  process.stdout.write(JSON.stringify(obj) + '\n');
+  const line = JSON.stringify(obj) + '\n';
+  process.stdout.write(line);
+  transcriptStream?.write(line);
 }
 
 function recordPlaytestBypass(flags: Flags, command: string, reason: string): Record<string, unknown> {
@@ -453,11 +472,19 @@ async function reachWalkControl(
           s.activeModeBeatIndex === s.beatIndex &&
           s.activeModeBackground !== true
         );
+        // runEndChapter() doesn't freeze movement, so without this the generic
+        // walk-control acceptance below can win the per-tick race against
+        // advanceUntil's stopOnChapterEnd check and report `walk-control`
+        // while sitting on the terminal beat.
+        const chapterEnded =
+          (s?.chapter?.beats?.[s.beatIndex ?? -1]?.type ?? null) === 'endChapter';
         const storyActive = !!(s?.beatActive || s?.dialogueOpen || choicePresent || s?.movementFrozen);
-        return { walkOk, dialogueVisible, choicePresent, walkTargetPresent, foregroundModeActive, storyActive };
-      }).then(({ walkOk, dialogueVisible, choicePresent, walkTargetPresent, foregroundModeActive, storyActive }) => {
-        // Never let the generic flow helper consume a branch or walk objective.
-        if (choicePresent || walkTargetPresent || foregroundModeActive) return false;
+        return { walkOk, dialogueVisible, choicePresent, walkTargetPresent, foregroundModeActive, chapterEnded, storyActive };
+      }).then(({ walkOk, dialogueVisible, choicePresent, walkTargetPresent, foregroundModeActive, chapterEnded, storyActive }) => {
+        // Never let the generic flow helper consume a branch, walk objective,
+        // blocking mode, or the terminal beat — the interaction step inside
+        // advanceUntil classifies each of those into its named status.
+        if (choicePresent || walkTargetPresent || foregroundModeActive || chapterEnded) return false;
         storyStarted ||= storyActive;
         ticksSoFar++;
 
@@ -603,7 +630,10 @@ async function maybeEmitCheckpoint(agent: GameAgent, page: Page, flags: Flags): 
     sceneKey: current.sceneKey,
     sceneIndex: current.sceneIndex,
     mode: current.mode,
+    review_required: flags.playtest,
+    review_command: `reviewcheckpoint ${checkpointId} clear|issue-found|inconclusive <observation-note>`,
   });
+  playtestCompliance.captureCheckpoint(checkpointId, current.mode);
 }
 
 async function restartSession(page: Page, flags: Flags): Promise<void> {
@@ -721,12 +751,16 @@ async function runCommand(
 
   try {
     if (flags.playtest) {
+      playtestCompliance.assertCommandAllowed(verb, args);
       const decision = checkPlaytestPolicy(verb, args, rest);
       if (decision.kind === 'blocked') {
         throw new Error(decision.error);
       }
       if (decision.kind === 'audited') {
         playtestAudit.push({ command: verb, note: decision.note, timestamp: Date.now() });
+      }
+      if (verb === 'skipbeat' || verb === 'winmode' || verb === 'losemode') {
+        playtestCompliance.assertBypassAllowed(verb);
       }
     }
 
@@ -909,6 +943,15 @@ async function runCommand(
         emit({ cmd: 'observe', ok: true, ...res, ...(shot ? { shot } : {}) });
         break;
       }
+      case 'reviewcheckpoint': {
+        const checkpointId = num(0);
+        if (!Number.isInteger(checkpointId) || checkpointId < 1) {
+          throw new Error('Usage: reviewcheckpoint <id> clear|issue-found|inconclusive <observation-note>');
+        }
+        const review = playtestCompliance.reviewCheckpoint(checkpointId, args[1] ?? '', args.slice(2).join(' '));
+        emit({ cmd: 'reviewcheckpoint', ok: true, review });
+        break;
+      }
       case 'diff': {
         const res = await agent.observeDiff();
         emit({ cmd: 'diff', ok: true, ...res });
@@ -1019,8 +1062,8 @@ async function runCommand(
           await agent.saveFileState(filePath);
           emit({ cmd: 'savestate', ok: true, file: filePath });
         } else {
-          await agent.saveQuickState();
-          emit({ cmd: 'savestate', ok: true });
+          const save = await agent.saveQuickState();
+          emit({ cmd: 'savestate', ok: true, ...save });
         }
         break;
       }
@@ -1031,8 +1074,8 @@ async function runCommand(
           await agent.loadFileState(filePath);
           emit({ cmd: 'loadstate', ok: true, file: filePath, mutates: true });
         } else {
-          await agent.loadQuickState();
-          emit({ cmd: 'loadstate', ok: true, mutates: true });
+          const load = await agent.loadQuickState();
+          emit({ cmd: 'loadstate', ok: true, mutates: true, ...load });
         }
         break;
       }
@@ -1237,6 +1280,24 @@ async function runCommand(
           ...(advance.modeId !== undefined ? { modeId: advance.modeId } : {}),
           beat: advance.beat,
           state: await agent.snapshotGameState(),
+          ...(advance.status === 'mode-active'
+            ? {
+                required_next: [
+                  'Inspect the emitted visual_checkpoint PNG and acknowledge it with reviewcheckpoint.',
+                  'Attempt the visible minigame with normal keyboard or mouse input.',
+                  'Use winmode/losemode only if it remains blocking; skipbeat is not a minigame bypass.',
+                ],
+              }
+            : {}),
+          ...(advance.status === 'chapter-ended'
+            ? {
+                required_next: [
+                  'Review every pending visual_checkpoint.',
+                  'Quit to obtain the authoritative session_summary.',
+                  'Write the required report to qa/<chapter-id>/report.md using SKILL.md\'s template.',
+                ],
+              }
+            : {}),
         });
         break;
       }
@@ -1245,11 +1306,31 @@ async function runCommand(
         emit({ cmd: 'wait', ok: true, ms: num(0) });
         break;
 
-      case 'quit': case 'exit': return false;
+      case 'quit': case 'exit': {
+        if (flags.playtest) {
+          const visualQa = playtestCompliance.summary(flags.checkpoints);
+          const completion = playtestCompletionVerdict(visualQa);
+          if (!completion.ok) {
+            process.exitCode = completion.exitCode;
+            emit({
+              cmd: verb,
+              ok: false,
+              error:
+                `Cannot complete playtest with incomplete visual QA: ${visualQa.reasons.join('; ')}. ` +
+                'The session will close as unsuccessful and preserve the authoritative session_summary.',
+              visual_qa: visualQa,
+            });
+            return false;
+          }
+        }
+        emit({ cmd: verb, ok: true });
+        return false;
+      }
 
       default:
         emit({ cmd: verb, ok: false, error: `unknown command (try 'help')` });
     }
+    playtestCompliance.recordSuccessfulCommand(verb);
   } catch (err) {
     // H3: surface advanceUntil's stall diagnostics on the failure line so a
     // caller doesn't have to blindly guess why 'advance' (or any other
@@ -2010,16 +2091,12 @@ async function runPlaytestSmokeAttempt(
         break;
       }
 
-      // reachWalkControl's own generic walk-control condition (storyStarted
-      // && walkOk && !dialogueVisible) is polled *before* advanceUntil's
-      // specific stopOnChapterEnd check on every tick — and `runEndChapter()`
-      // (ChapterScene.ts) never sets `movementFrozen` during its ~1.7s
-      // victory-jingle/fade sequence, so that generic condition can resolve
-      // true first, reporting 'walk-control' while beatIndex is already
-      // sitting on the terminal `endChapter` beat instead of the more
-      // specific 'chapter-ended'. Recognize that directly off the beat type
-      // reachWalkControl already hands back, rather than trusting the raw
-      // status label, so this known race doesn't get misread as a stall.
+      // Belt-and-braces: reachWalkControl's condition now refuses to accept
+      // walk-control while the live beat is `endChapter` (the race where
+      // `runEndChapter()` never freezes movement, so the generic condition
+      // could beat advanceUntil's stopOnChapterEnd check), but recognize the
+      // terminal beat off the returned beat type anyway so a future condition
+      // regression degrades this sweep's accuracy, not its verdict.
       if (step.beat?.type === 'endChapter') {
         ok = true;
         break;
@@ -2313,11 +2390,19 @@ async function readStdin(agent: GameAgent, page: Page, flags: Flags): Promise<vo
   // listening, so a process piping commands into stdin line-by-line knows the
   // exact moment it's safe to start writing instead of guessing/sleeping.
   if (flags.repl) emit({ repl: 'ready' });
-  for await (const line of rl) {
-    const keepGoing = await processCommandLine(agent, page, flags, line);
-    await maybeEmitCheckpoint(agent, page, flags);
-    if (!keepGoing) break;
-    if (interactive) process.stderr.write('agent> ');
+  try {
+    for await (const line of rl) {
+      const keepGoing = await processCommandLine(agent, page, flags, line);
+      if (!keepGoing) break;
+      await maybeEmitCheckpoint(agent, page, flags);
+      if (interactive) process.stderr.write('agent> ');
+    }
+  } finally {
+    // `readline` over a PTY leaves stdin in flowing mode after an early
+    // `quit`/`exit` break on some Node versions. That keeps the otherwise-
+    // finished CLI alive after session_summary, hiding its final exit code.
+    rl.close();
+    process.stdin.pause();
   }
 }
 
@@ -2336,6 +2421,11 @@ async function main(): Promise<void> {
   let browser: Browser | null = null;
   let agent: GameAgent | null = null;
   try {
+    if (flags.transcript) {
+      const transcriptPath = path.resolve(flags.transcript);
+      fs.mkdirSync(path.dirname(transcriptPath), { recursive: true });
+      transcriptStream = fs.createWriteStream(transcriptPath);
+    }
     browser = await chromium.launch({ headless: !flags.headed, slowMo: flags.slowmo });
     const context = await browser.newContext({ baseURL: flags.url });
     const page = await context.newPage();
@@ -2441,20 +2531,30 @@ async function main(): Promise<void> {
     }
     if (agent) {
       const entries = agent.getConsoleLogs();
+      const visualQa = flags.playtest ? playtestCompliance.summary(flags.checkpoints) : null;
+      const completion = visualQa === null ? null : playtestCompletionVerdict(visualQa);
+      const sessionOk = completion?.ok ?? true;
+      if (completion && !completion.ok) process.exitCode = completion.exitCode;
       emit({
         cmd: 'session_summary',
-        ok: true,
+        ok: sessionOk,
         errors: entries.filter(e => e.type === 'error').length,
         warnings: entries.filter(e => e.type === 'warning').length,
         ...(flags.playtest
           ? {
+              completion_status: completion!.status,
               playtest_integrity: playtestBypasses.length === 0 ? 'natural' : 'partially-bypassed',
               bypasses: [...playtestBypasses],
               audit: [...playtestAudit],
+              visual_qa: visualQa,
             }
           : {}),
       });
       await agent.dispose().catch(() => {});
+    }
+    if (transcriptStream) {
+      await new Promise<void>((resolve) => transcriptStream!.end(resolve));
+      transcriptStream = null;
     }
     if (browser) await browser.close().catch(() => {});
   }

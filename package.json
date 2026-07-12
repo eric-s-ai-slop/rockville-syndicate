@@ -19,6 +19,7 @@
     "agent:audit": "tsx e2e_tests/agent/audit.ts",
     "agent:validate-chapter": "tsx e2e_tests/agent/validate-chapter.ts",
     "agent:transcript": "tsx e2e_tests/agent/transcript.ts",
+    "agent:verify-report": "tsx e2e_tests/agent/verify-playtest-report.ts",
     "agent:lint-dialogue": "tsx e2e_tests/agent/dialogue-lint.ts",
     "agent:scaffold-mode": "tsx e2e_tests/agent/scaffold-mode.ts",
     "agent:map": "tsx e2e_tests/agent/context-map.ts"
