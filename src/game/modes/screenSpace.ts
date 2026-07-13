@@ -1,4 +1,4 @@
-import type Phaser from 'phaser';
+import type { Cameras } from 'phaser';
 
 /**
  * Screen-space placement for scrollFactor(0) HUD under a zoomed camera.
@@ -32,7 +32,7 @@ export interface ScreenSpace {
   s: (size: number) => number;
 }
 
-export function screenSpace(cam: Phaser.Cameras.Scene2D.Camera): ScreenSpace {
+export function screenSpace(cam: Cameras.Scene2D.Camera): ScreenSpace {
   const z = cam.zoom || 1;
   const cx = cam.width / 2;
   const cy = cam.height / 2;
