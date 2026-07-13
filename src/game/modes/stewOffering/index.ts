@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { GameMode, ModeContext, ModeResult } from '../types';
 
-export class StewOfferingMode implements GameMode {
+export class StewOfferingMode {
   id = 'stewOffering';
   private ctx!: ModeContext;
   private onCompleteCallback: ((result: ModeResult) => void) | null = null;
@@ -285,5 +285,5 @@ export class StewOfferingMode implements GameMode {
   }
 }
 
-export const stewOfferingMode = new StewOfferingMode();
+export const stewOfferingMode: GameMode = new StewOfferingMode();
 export default stewOfferingMode;
