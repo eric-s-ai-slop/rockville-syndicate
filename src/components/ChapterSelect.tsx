@@ -133,8 +133,7 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
       playUi('crack', 0.6);
       setSealStates(prev => ({ ...prev, [id]: 'cracked' }));
     } else if (state === 'cracked') {
-      // Play 8 overlapping instances at full volume to massively multiply amplitude
-      for (let i = 0; i < 8; i++) playUi('shatter', 1.0);
+      playUi('shatter', 1.0);
       setSealStates(prev => ({ ...prev, [id]: 'broken' }));
       setJustShattered(id);
       setTimeout(() => { setJustShattered(null); }, 600);
