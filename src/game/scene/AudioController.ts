@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import type ChapterScene from '../ChapterScene';
+import type { AudioContext } from './contracts';
 import { CHAPTERS } from '../../data/chapters';
 import {
   CHAPTER_MUSIC_KEY, STAGE_MUSIC_URL, BOSS_MUSIC_URL, BOSS_LOOP_URL,
@@ -15,7 +15,7 @@ const BOSS_MIX   = 0.42;
 const CH6_MIX    = 0.70;
 
 export class AudioController {
-  private scene: ChapterScene;
+  private scene: AudioContext;
   private settingsUnsub: (() => void) | null = null;
   private currentStageMix = STAGE_MIX;
   // Bumped on every crossfadeToMusic()/stopAllAudio() call so stale delayedCall/tween
@@ -24,7 +24,7 @@ export class AudioController {
   // several crossfades in quick succession — see docs/archive/toolkit_complaints.resolved.md).
   private crossfadeToken = 0;
 
-  constructor(scene: ChapterScene) {
+  constructor(scene: AudioContext) {
     this.scene = scene;
     this.settingsUnsub = subscribeSettings(() => this.applyVolumeToLiveSounds());
   }
@@ -66,10 +66,17 @@ export class AudioController {
         if (url) this.safeLoadAudio(scene.music, url);
       }
     }
+
+    for (const beat of this.scene.chapter.beats ?? []) {
+      if (beat.type === 'changeMusic') {
+        const url = STAGE_MUSIC_URL[beat.key];
+        if (url) this.safeLoadAudio(beat.key, url);
+      }
+    }
     this.safeLoadAudio('boss_sting', BOSS_MUSIC_URL);
     this.safeLoadAudio('boss_loop', BOSS_LOOP_URL);
 
-    const variant = THEME_FOOTSTEP[(this.scene.chapter.map as any).theme ?? 'apartment'] ?? 'carpet';
+    const variant = THEME_FOOTSTEP[this.scene.getActiveSceneConfig().map.theme ?? 'apartment'] ?? 'carpet';
     this.scene.footstepKeys = (FOOTSTEP_URLS[variant] ?? []).map((url, i) => {
       const key = `footstep_${i}`;
       this.safeLoadAudio(key, url);

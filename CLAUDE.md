@@ -20,8 +20,11 @@ Run without a target to list supported domains. The map returns canonical entryp
 - `npm test` — Vitest
 - `npm run e2e` — Playwright
 - `npm run build` — production build
+- `npm run check:agent` — compact full validation
+- `npm run agent:check -- <changed-file...>` — compact focused validation
 - `npm run agent -- --help` — terminal playtesting toolkit
 - `npm run agent:validate-chapter -- <id>` — validate one chapter
+- `npm run agent:scaffold-chapter -- <index> <slug>` — create a minimal unregistered chapter
 - `npm run agent:scaffold-mode -- <id>` — scaffold a minigame
 - `npm run agent -- --gauntlet --playtest-smoke` — all-chapter harness smoke test
 
@@ -30,10 +33,13 @@ Run without a target to list supported domains. The map returns canonical entryp
 - `src/data/chapters/` — typed chapter maps and beats; read its scoped `CLAUDE.md` when editing there.
 - `src/data/entities/` — heroes, bosses, weapons, power-ups, and barks.
 - `src/game/ChapterScene.ts` — Phaser lifecycle and subsystem wiring.
-- `src/game/scene/` — actors, audio, beats, maps, player control, sprites, and atmosphere.
+- `src/game/scene/contracts.ts` — narrow structural contracts for scene subsystems.
+- `src/game/scene/` — actors, audio, beats, chase, maps, player control, sprites, and atmosphere.
+- `src/game/assets/chapter/` — typed chapter-specific image manifests; shared assets remain in `ChapterScene`.
 - `src/game/modes/` — isolated minigames behind `GameMode`/`ModeContext`; read its scoped `CLAUDE.md`.
 - `src/game/settings.ts` — the only persistence layer (`omega-save-v2`).
 - `src/components/GameLayout.tsx` — React↔Phaser host bridge.
+- `src/components/game/` — focused story/QTE bridge hooks and tests.
 - `e2e_tests/agent/` — terminal agent, protocol, validation, and evidence tooling.
 - `docs/AGENT_TOOLKIT.md` and `docs/ADDING_A_MINIGAME.md` — detailed recipes, loaded only when relevant.
 

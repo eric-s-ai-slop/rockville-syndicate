@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
-import type ChapterScene from '../ChapterScene';
 import type { MapConfig } from '../../data/chapters';
+import type { AtmosphereContext } from './contracts';
 
 /**
  * Atmosphere & floating-VFX subsystem.
@@ -13,7 +13,7 @@ import type { MapConfig } from '../../data/chapters';
  * (MapBuilder also contributes to it) so the scene owns their teardown.
  */
 export class Atmosphere {
-  private scene: ChapterScene;
+  private scene: AtmosphereContext;
 
   private ambientOverlay: Phaser.GameObjects.Rectangle | null = null;
   private vignetteOverlay: Phaser.GameObjects.Image | null = null;
@@ -22,7 +22,7 @@ export class Atmosphere {
   private letterboxBottom: Phaser.GameObjects.Rectangle | null = null;
   private screenTintOverlay: Phaser.GameObjects.Rectangle | null = null;
 
-  constructor(scene: ChapterScene) {
+  constructor(scene: AtmosphereContext) {
     this.scene = scene;
   }
 

@@ -15,11 +15,12 @@ Run before opening a PR — CI enforces all four:
 ```bash
 npm run lint        # tsc --noEmit
 npm run lint:es     # eslint
-npm test            # vitest (200+ tests)
+npm test            # vitest (500+ tests)
 npm run build       # vite client + esbuild server bundle
 ```
 
-Or all at once: `npm run ci`.
+Use `npm run check:agent` for the same full gate with compact output, or
+`npm run agent:check -- <changed-file...>` for safe focused unit selection.
 
 CI runs automatically on every push and PR to `main` (see `.github/workflows/ci.yml`).
 
@@ -31,7 +32,8 @@ CI runs automatically on every push and PR to `main` (see `.github/workflows/ci.
    in dev — this skipped every other story beat once. Mirror to a ref, run the effect outside.
 2. **Phaser overlap/collider callbacks: identify by group membership**, never argument order
    (`group.contains(a) ? a : b`). Positional assumptions have destroyed the wrong object.
-3. **Every asset:** `safeLoadImage`/`safeLoadAudio` + an existence check + a graceful fallback.
+3. **Every asset:** chapter-only images belong in `src/game/assets/chapter/`; shared images use
+   `safeLoadImage`, audio uses `AudioController`, and all paths keep existence checks/fallbacks.
    Filenames with spaces/parens use Vite **`?url` imports**, never hand-built paths.
 4. **All Phaser text through the `label()` helper** (DPR-aware). No `RoundedRect`, no `rounded-*`
    Tailwind classes on Phaser canvases. `image-rendering: pixelated`.
@@ -47,8 +49,8 @@ CI runs automatically on every push and PR to `main` (see `.github/workflows/ci.
 
 ## Architecture conventions
 
-- **Keep `ChapterScene` thin** (~2,700 lines). New behavior → a `src/game/scene/` subsystem
-  (`MapBuilder`, `Actors`, `AudioController`, `BeatEngine`, `PlayerController`) or a
+- **Keep `ChapterScene` a lifecycle host** (~1,500 lines and trending down). New behavior → a
+  `src/game/scene/` subsystem behind a narrow contract in `scene/contracts.ts`, or a
   `src/game/modes/` mode — not a new method on the scene.
 - **Minigames talk to the scene only through `ModeContext`** (`modes/types.ts`). Need something
   new? Extend the façade; don't reach into scene internals.

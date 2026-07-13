@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
-import type ChapterScene from '../ChapterScene';
 import { WEAPONS } from '../../data/entities';
 import { getSettings } from '../settings';
+import type { PlayerControllerContext } from './contracts';
 
 /**
  * Owns player input → movement → dash → autofire → footstep logic.
@@ -10,7 +10,7 @@ import { getSettings } from '../settings';
  * 150+ lines of player-controller code inline.
  */
 export class PlayerController {
-  private scene: ChapterScene;
+  private scene: PlayerControllerContext;
 
   // ── Dash state ──────────────────────────────────────────────────────────────
   private _dashCooldown = false;
@@ -27,7 +27,7 @@ export class PlayerController {
   // ── Footstep timing ──────────────────────────────────────────────────────────
   private lastFootstepTime = 0;
 
-  constructor(scene: ChapterScene) {
+  constructor(scene: PlayerControllerContext) {
     this.scene = scene;
   }
 

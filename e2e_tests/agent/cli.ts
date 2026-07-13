@@ -2515,16 +2515,19 @@ async function runPlaytestSmokeAttempt(
       // consecutive walk-control ticks on the same (unchanged) beatIndex
       // means nothing is happening at all.
       //
-      // Some beat types never freeze player movement (moveActor, screenTint,
-      // ledger, sfx, wait, changeMusic, stopAllAudio — see
-      // beatClassification.ts's 'passive' bucket), so reachWalkControl can
-      // legitimately hand back walk-control status while one of those is
-      // still mid-tween/timer. Polling it back-to-back can otherwise outrun
-      // a few-hundred-ms tween and see the same beatIndex 3 times before it
-      // ever advances — a false stall. A brief real-time settle before the
-      // next poll gives an in-flight non-blocking beat a chance to complete
-      // and move beatIndex forward, so the streak only fires for beats that
-      // are actually not progressing.
+      // Passive beats intentionally resolve on their own while player movement
+      // remains available. Some are short tweens, but chase/wait timelines can
+      // last several seconds; applying the three-poll walk-control stall rule
+      // to them creates a false failure long before their timer is due. Let the
+      // chapter budget bound passive waits and reserve the streak detector for
+      // beats that are expected to stop on an interaction/status.
+      if (step.beat?.expectation === 'passive') {
+        await page.waitForTimeout(400);
+        sameBeatStreak = 0;
+        lastBeatIndex = step.beat.index;
+        continue;
+      }
+
       await page.waitForTimeout(400);
       const beatIndex = step.beat?.index ?? null;
       if (beatIndex !== null && beatIndex === lastBeatIndex) {

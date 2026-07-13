@@ -11,7 +11,7 @@ Project Omega is a story-driven pixel RPG where gameplay consists of linear narr
 ### Key Architectural Pillars
 
 1. **Separation of Concerns**: React 19 manages the overlay UI (dialogue, choices, QTE prompts, difficulty settings, Hall of Records screen) while Phaser 3.88.2 handles the physical world (camera, physics, sprite animations, collisions).
-2. **Subsystem Delegation**: The main Phaser scene (`ChapterScene.ts`) acts as a thin orchestrator. It coordinates lifecycle events and delegates to specialized subsystems: `MapBuilder`, `Actors`, `AudioController`, `BeatEngine`, and `PlayerController`.
+2. **Subsystem Delegation**: The main Phaser scene (`ChapterScene.ts`) is the lifecycle host. It delegates to focused systems including `MapBuilder`, `Actors`, `AudioController`, `BeatEngine`, `PlayerController`, `Atmosphere`, `SpriteLoader`, and `ChaseController`. Six systems depend on narrow structural contracts rather than the entire scene class.
 3. **Modular Extensibility (GameModes)**: Combat encounters and custom interactive segments implement the `GameMode` contract and interact with the scene strictly through a controlled `ModeContext` façade.
 4. **Unified Persistence**: All save state — settings, story progress, and Hall of Records history — lives in a single versioned `localStorage` blob (`omega-save-v2`) managed by `src/game/settings.ts`. No new ad-hoc keys.
 
@@ -24,7 +24,7 @@ Project Omega is a story-driven pixel RPG where gameplay consists of linear narr
 - **Styling**: Tailwind CSS v4 + global custom CSS
 - **Build / Packaging**: Vite (client) + esbuild (server bundle)
 - **Save State**: `localStorage` key `omega-save-v2` — unified blob (settings + progress + Hall of Records)
-- **Tests**: Vitest (200+ unit tests) + Playwright (E2E)
+- **Tests**: Vitest (500+ unit tests) + Playwright (E2E)
 - **Quality gate**: ESLint 9 + typescript-eslint; GitHub Actions CI runs on every push/PR
 
 ---
@@ -39,6 +39,8 @@ graph TD
     HostScene -->|Stage & Boss Tracks| Aud[AudioController.ts]
     HostScene -->|Executes Narrative Flow| BeatEng[BeatEngine.ts]
     HostScene -->|Movement / Dash / Fire| PC[PlayerController.ts]
+    HostScene -->|Pre-boss Pursuit| Chase[ChaseController.ts]
+    HostScene -->|Active Chapter Images| Assets[Chapter Asset Manifest]
     BeatEng -->|Lookup Registry| ModeReg[GameMode Registry]
     ModeReg -->|Initializes| ActiveMode[Active GameMode]
     ActiveMode -->|Interacts Safely via| Façade[ModeContext Façade]
@@ -46,11 +48,11 @@ graph TD
 
 ### 3.1 Host Scene (`ChapterScene.ts`)
 
-Coordinates preloading, setup, and frame updates. It delegates work to subsystems and never grows new methods that could live elsewhere.
+Coordinates preloading, setup, and frame updates. New cohesive behavior belongs in a subsystem rather than growing the host.
 
-- **Preload**: Registers texture files and invokes `preload` on any game modes required by the chapter beats.
+- **Preload**: Loads shared textures plus only the active chapter's typed image manifest, then invokes `preload` on required game modes.
 - **Create**: Sets up physics boundaries, collision groups (`projectiles`, `enemies`, `enemyProjectiles`, `lootShards`, `walls`), and instantiates all subsystems.
-- **Update**: Resolves input → velocity → delegates to `PlayerController.update()`, then handles walk-to triggers, chase AI, and active-mode ticks.
+- **Update**: Resolves input → delegates to `PlayerController`, checks walk targets, and ticks `ChaseController` and the active mode.
 
 ### 3.2 Map Builder (`scene/MapBuilder.ts`)
 
@@ -90,6 +92,16 @@ Owns all player-input → game-state logic extracted from ChapterScene:
 - **Footsteps**: dust puff + sound every 250 ms while moving.
 
 Exposes `isInvuln(now)`, `resetDashCooldown()`, `cancelAttackAnim()`, and `playerInvulnUntil` for the few callers outside the controller (`damagePlayer`, `applyPowerUp`).
+
+### 3.7 Chase Controller and Narrow Scene Contracts
+
+`scene/ChaseController.ts` owns pre-boss chase start/update/finish/reset state. Its reset path never advances narrative state; catch and duration completion converge on one exactly-once finish.
+
+`scene/contracts.ts` defines the actual host surface used by `MapBuilder`, `Actors`, `AudioController`, `PlayerController`, `Atmosphere`, `SpriteLoader`, and `ChaseController`. These structural interfaces prevent subsystem work from depending on the full `ChapterScene` API. `BeatEngine` remains the broad narrative orchestrator until mode hosting is extracted cleanly.
+
+### 3.8 React Bridge Hooks
+
+`components/GameLayout.tsx` hosts Phaser and screen composition. Focused hooks in `components/game/` own story-dialogue and QTE lifecycles. Both mirror callback-bearing state into refs and invoke Phaser side effects outside React state updaters, preserving StrictMode safety.
 
 ---
 
@@ -176,11 +188,12 @@ Run records are emitted from `ChapterScene` via `onChapterCompleted({ shardsColl
 
 ## 7. Asset Preprocessing & Packing
 
-Assets are preprocessed inside the browser on startup to keep resource footprint low:
+Shared assets and active-chapter assets are registered separately. `game/assets/chapter/` maps chapter ids to typed image manifests, so an active chapter does not preload unrelated chapter art. Assets are then preprocessed inside the browser:
 
-1. **Background Color Keying (`SpritePreprocessor.ts`)**: Samples top-left pixels of JPG prop textures and keys out matching colors (within Euclidean tolerances) to make backgrounds transparent.
-2. **Texture Canvas Extraction**: Crops transparent sprites to their tight bounding boxes and registers them as independent Phaser textures (appending `_crop` suffix).
-3. **Atlas Packing (`packSpriteAtlas.ts`)**: Tiles multiple prop textures into a single cached atlas sheet at boot time to reduce GPU draw calls.
+1. **Manifest Selection (`game/assets/chapter/index.ts`)**: Returns only the image keys/URLs for the active chapter.
+2. **Background Color Keying (`SpritePreprocessor.ts`)**: Samples top-left pixels of JPG prop textures and keys out matching colors.
+3. **Texture Canvas Extraction**: Crops transparent sprites to tight bounds and registers independent Phaser textures.
+4. **Atlas Packing (`packSpriteAtlas.ts`)**: Tiles shared prop textures into a cached atlas. Atlas sources that must exist before first construction remain shared.
 
 ---
 
@@ -188,11 +201,12 @@ Assets are preprocessed inside the browser on startup to keep resource footprint
 
 ### 8.1 How to Add a New Chapter
 
-1. **Create Chapter Config**: Add `src/data/chapters/chapterX.name.ts` implementing `ChapterConfig`.
+1. **Create Chapter Config**: Run `npm run agent:scaffold-chapter -- <index> <slug>` and replace its TODO content.
 2. **Configure Map & Beats**: Declare dimensions, spawn positions, wall coordinates, and the linear `beats` array.
 3. **Export Chapter**: Open `src/data/chapters/index.ts`, import the new config, and append it to `CHAPTERS`.
 4. **Register Music**: Import the MP3 in `src/game/audio.ts` and add its mapping to `CHAPTER_MUSIC_KEY`.
-5. **Preload Sprites**: Add any custom sprite files in `ChapterScene.preload()`.
+5. **Register Chapter Images**: Add a typed manifest under `src/game/assets/chapter/` and map the chapter id in its `index.ts`.
+6. **Validate Efficiently**: Run `npm run agent:check -- <chapter-file>` and the chapter validator before playtesting.
 
 See [`docs/chapter-pipeline/`](docs/chapter-pipeline/) for the full authoring pipeline.
 

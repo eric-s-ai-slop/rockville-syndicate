@@ -16,6 +16,12 @@ plugins see continuous input exactly like a human's.
 > [`docs/AGENT_TOOLKIT.md`](../../docs/AGENT_TOOLKIT.md). The rest of this file is
 > for calling `GameAgent` directly from Playwright specs.
 
+## Token-efficient repository checks
+
+- `npm run agent:check -- <changed-file...>` runs typecheck, ESLint, and the smallest safe Vitest set. Unknown or cross-cutting source files fall back to the full unit suite.
+- `npm run check:agent` runs the complete typecheck, ESLint, unit, and build gate with compact output. Full stage logs are kept under ignored `agent-artifacts/check/` for failures.
+- `npm run agent:scaffold-chapter -- <index> <slug>` creates a minimal typed chapter config without registering incomplete content.
+
 ## Spec → API map
 
 | Spec capability | Method |

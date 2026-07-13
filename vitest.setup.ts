@@ -16,6 +16,15 @@ Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock, wri
 
 // Mock phaser to prevent loading phaser3spectorjs
 import { vi } from 'vitest';
+
+// jsdom intentionally leaves media controls unimplemented and logs one noisy
+// warning per pause. Tests only need deterministic no-op controls.
+Object.defineProperties(HTMLMediaElement.prototype, {
+  pause: { configurable: true, value: vi.fn() },
+  play: { configurable: true, value: vi.fn(() => Promise.resolve()) },
+  load: { configurable: true, value: vi.fn() },
+});
+
 vi.mock('phaser', () => {
     return {
         default: { Scene: class {}, Game: class {}, Math: { Between: () => 0 }, Utils: { Array: { Shuffle: () => [] } }, Scale: { RESIZE: "RESIZE" }, AUTO: "AUTO" },

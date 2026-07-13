@@ -6,7 +6,7 @@
     "relatedFiles": ["src/data/entities/types.ts", "src/game/modes/bossFight/index.ts"],
     "relatedSymbols": ["Weapon", "WEAPONS"],
     "howTo": "Edit the typed WEAPONS registry; keep weapon execution in the combat mode.",
-    "verificationCommands": ["npm test -- src/data/entities.test.ts", "npm run lint"]
+    "verificationCommands": ["npm test -- src/data/chapters.test.ts src/game/modes/bossFight/bossFight.test.ts", "npm run lint"]
   },
   "boss": {
     "description": "Add or change a boss definition or fight behavior.",
@@ -30,10 +30,10 @@
     "description": "Add or change declarative chapter content.",
     "registrationFile": "src/data/chapters/index.ts",
     "registrationSymbol": "CHAPTERS",
-    "relatedFiles": ["src/data/chapters/types.ts", "src/data/chapters/CLAUDE.md", "src/data/chapters.test.ts"],
+    "relatedFiles": ["src/data/chapters/types.ts", "src/data/chapters/CLAUDE.md", "src/data/chapters.test.ts", "e2e_tests/agent/scaffold-chapter.ts"],
     "relatedSymbols": ["ChapterConfig", "Beat", "CHAPTERS"],
-    "howTo": "Edit one chapter config, register new chapters in CHAPTERS, then run the chapter validator and content tests.",
-    "verificationCommands": ["npm run agent:validate-chapter -- <chapterId>", "npm test -- src/data/chapters.test.ts"]
+    "howTo": "Run `npm run agent:scaffold-chapter -- <index> <slug>` for a minimal config, then register it after content and music are ready.",
+    "verificationCommands": ["npm run agent:validate-chapter -- <chapterId>", "npm run agent:check -- <chapterFile>"]
   },
   "persistence": {
     "description": "Change settings, progress, save migration, or Hall of Records persistence.",
@@ -48,16 +48,16 @@
     "description": "Change communication between React UI and the Phaser scene.",
     "registrationFile": "src/components/GameLayout.tsx",
     "registrationSymbol": "GameLayout",
-    "relatedFiles": ["src/game/ChapterScene.ts", "src/components/GameLayout.tsx", "src/components/GameLayout.test.tsx", "src/components/ExternalGameFrame.tsx"],
-    "relatedSymbols": ["StoryDialoguePayload", "activeStoryRef", "ExternalGameFrame"],
-    "howTo": "Keep bridge callbacks stable through refs and run side effects outside React state updaters.",
-    "verificationCommands": ["npm test -- src/components/GameLayout.test.tsx", "npm run lint"]
+    "relatedFiles": ["src/game/ChapterScene.ts", "src/components/GameLayout.tsx", "src/components/GameLayout.test.tsx", "src/components/ExternalGameFrame.tsx", "src/components/game/useStoryDialogue.ts", "src/components/game/useQte.ts"],
+    "relatedSymbols": ["StoryDialoguePayload", "useStoryDialogue", "useQte", "ExternalGameFrame"],
+    "howTo": "Keep GameLayout as the host; put callback-bearing story/QTE lifecycles in focused hooks using refs and effects outside state updaters.",
+    "verificationCommands": ["npm test -- src/components/GameLayout.test.tsx src/components/game", "npm run lint"]
   },
   "dialogue": {
     "description": "Change dialogue, choices, beat routing, or narrative progression.",
     "registrationFile": "src/game/scene/BeatEngine.ts",
     "registrationSymbol": "BeatEngine",
-    "relatedFiles": ["src/data/chapters/types.ts", "src/data/chapters/CLAUDE.md", "src/components/GameLayout.tsx", "src/game/scene/BeatEngine.test.ts"],
+    "relatedFiles": ["src/data/chapters/types.ts", "src/data/chapters/CLAUDE.md", "src/components/game/useStoryDialogue.ts", "src/game/scene/BeatEngine.test.ts"],
     "relatedSymbols": ["Beat", "StoryDialogue", "runDialogueBeat"],
     "howTo": "Define story flow with typed beats; keep execution in BeatEngine and presentation in GameLayout/DialogueBox.",
     "verificationCommands": ["npm test -- src/game/scene/BeatEngine.test.ts src/data/chapters.test.ts", "npm run agent:lint-dialogue"]
@@ -66,8 +66,8 @@
     "description": "Change map themes, procedural scenery, props, walls, or scene layout.",
     "registrationFile": "src/game/scene/MapBuilder.ts",
     "registrationSymbol": "MapBuilder",
-    "relatedFiles": ["src/data/chapters/types.ts", "src/data/chapters/CLAUDE.md", "src/game/scene/Atmosphere.ts"],
-    "relatedSymbols": ["MapConfig", "MapTheme", "Atmosphere"],
+    "relatedFiles": ["src/data/chapters/types.ts", "src/data/chapters/CLAUDE.md", "src/game/scene/Atmosphere.ts", "src/game/scene/contracts.ts"],
+    "relatedSymbols": ["MapConfig", "MapTheme", "Atmosphere", "MapBuilderContext"],
     "howTo": "Keep layout declarative in chapter map configs and reusable rendering behavior in MapBuilder/Atmosphere.",
     "verificationCommands": ["npm test -- src/data/chapters.test.ts", "npm run lint:es"]
   },
@@ -75,19 +75,19 @@
     "description": "Add or change music, sound effects, loading, or volume mixing.",
     "registrationFile": "src/game/audio.ts",
     "registrationSymbol": "CHAPTER_MUSIC_KEY",
-    "relatedFiles": ["src/game/scene/AudioController.ts", "src/game/audio.test.ts", "src/data/chapters/CLAUDE.md"],
-    "relatedSymbols": ["AudioController", "STAGE_MUSIC_URL", "changeMusic"],
+    "relatedFiles": ["src/game/scene/AudioController.ts", "src/game/scene/contracts.ts", "src/game/audio.test.ts", "src/data/chapters/CLAUDE.md"],
+    "relatedSymbols": ["AudioController", "AudioContext", "STAGE_MUSIC_URL", "changeMusic"],
     "howTo": "Register URLs and chapter keys in audio.ts; keep playback and per-track mixing in AudioController.",
     "verificationCommands": ["npm test -- src/game/audio.test.ts src/data/chapters.test.ts", "npm run lint"]
   },
   "assets": {
     "description": "Add or change Phaser image, sprite, prop, or chapter asset loading.",
-    "registrationFile": "src/game/ChapterScene.ts",
-    "registrationSymbol": "ChapterScene",
-    "relatedFiles": ["src/game/scene/SpriteLoader.ts", "src/game/furnitureCatalog.ts", "src/game/packSpriteAtlas.ts"],
-    "relatedSymbols": ["SpriteLoader", "buildFurnitureAtlas", "buildPackAtlas"],
-    "howTo": "Register source assets in the loading pipeline, then keep runtime extraction and atlas work in the focused asset modules.",
-    "verificationCommands": ["npm test -- src/game/packSpriteAtlas.test.ts", "npm run build"]
+    "registrationFile": "src/game/assets/chapter/index.ts",
+    "registrationSymbol": "getChapterAssets",
+    "relatedFiles": ["src/game/assets/chapter/types.ts", "src/game/assets/chapter/chapterAssets.test.ts", "src/game/ChapterScene.ts", "src/game/scene/SpriteLoader.ts", "src/game/packSpriteAtlas.ts"],
+    "relatedSymbols": ["ChapterAssetManifest", "CHAPTER_ASSETS", "SpriteLoader", "buildPackAtlas"],
+    "howTo": "Put chapter-only image keys/URLs in a typed chapter manifest; keep reused images and first-build atlas sources in the shared loading pipeline.",
+    "verificationCommands": ["npm test -- src/game/assets/chapter/chapterAssets.test.ts src/game/packSpriteAtlas.test.ts", "npm run build"]
   },
   "sprites": {
     "description": "Change sprite-sheet preprocessing, segmentation, or animation extraction.",
@@ -115,6 +115,15 @@
     "relatedSymbols": ["OMEGA_AGENT_PROTOCOL", "AgentCommand", "GameStateSnapshot"],
     "howTo": "Use GameAgent for browser control, protocol.ts for JSONL contracts, and cli.ts only for command orchestration.",
     "verificationCommands": ["npm test -- e2e_tests/agent", "npm run agent -- --help"]
+  },
+  "validation": {
+    "description": "Choose and run compact verification for changed code.",
+    "registrationFile": "e2e_tests/agent/check-selection.ts",
+    "registrationSymbol": "selectTests",
+    "relatedFiles": ["e2e_tests/agent/check-selection.ts", "e2e_tests/agent/check.ts", "e2e_tests/agent/check-selection.test.ts", "package.json", "e2e_tests/agent/README.md"],
+    "relatedSymbols": ["CheckSelection", "check:agent", "agent:check"],
+    "howTo": "Pass changed files to agent:check for focused verification; use check:agent for the compact full type, lint, unit, and build gate.",
+    "verificationCommands": ["npm test -- e2e_tests/agent/check-selection.test.ts", "npm run check:agent"]
   },
   "external-game": {
     "description": "Change iframe-hosted minigames or their postMessage bridge.",

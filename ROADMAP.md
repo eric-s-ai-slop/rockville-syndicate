@@ -1,5 +1,12 @@
 # Roadmap
 
+## Current Foundations
+
+- Agent work routes through a drift-tested context map covering code domains and verification commands.
+- Compact validation selects focused tests from changed files and safely falls back to the full suite.
+- Chapters have a minimal scaffolder and typed per-chapter image manifests.
+- React story/QTE bridges and Phaser chase behavior live in focused modules; scene subsystems use narrow structural contracts.
+
 ## Tech Debt
 
 ### 🟠 Boss and combat AI behaviors are procedurally hardcoded

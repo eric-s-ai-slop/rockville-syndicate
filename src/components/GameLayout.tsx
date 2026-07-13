@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Phaser from 'phaser';
 import ChapterScene, { StoryDialoguePayload } from '../game/ChapterScene';
-import { CHARACTER_CLASSES, CharacterClass, BossConfig } from '../data/entities';
+import { CHARACTER_CLASSES, CharacterClass } from '../data/entities';
 import { ChapterConfig } from '../data/chapters';
 import { loadProgress, markChapterComplete, rememberHero, setFreePlay as persistFreePlay } from '../game/progress';
 import { useSettings, updateSettings, getSettings, saveRunRecord, getProgress, saveProgressData } from '../game/settings';
@@ -16,6 +16,8 @@ import SettingsModal from './SettingsModal';
 import HallOfRecords from './HallOfRecords';
 import ChapterCompleteScreen from './ChapterCompleteScreen';
 import { playUi } from '../game/uiSound';
+import { useStoryDialogue } from './game/useStoryDialogue';
+import { useQte } from './game/useQte';
 
 type GameStatus = 'hero' | 'chapters' | 'playing' | 'chapterComplete' | 'gameover' | 'records';
 
@@ -25,12 +27,6 @@ interface TitleCardData {
   title: string;
   subtitle: string;
   location: string;
-}
-
-interface ActiveStory {
-  payload: StoryDialoguePayload;
-  done: (choiceIndex?: number) => void;
-  lineIndex: number;
 }
 
 export default function GameLayout() {
@@ -43,14 +39,8 @@ export default function GameLayout() {
   const [lastRunRecord, setLastRunRecord] = useState<RunRecord | null>(null);
   const [prevBest, setPrevBest] = useState<number>(0);
 
-  const [activeQte, setActiveQte] = useState<{
-    boss: BossConfig;
-    callback: (success: boolean, damage: number) => void;
-    selectedDamage: number;
-  } | null>(null);
-  const [qteTimer, setQteTimer] = useState(8);
-
-  const [activeStory, setActiveStory] = useState<ActiveStory | null>(null);
+  const { activeQte, qteTimer, triggerQte, respondToQte, clearQte } = useQte();
+  const { activeStory, showStory, clearStory, advanceStory, chooseStory } = useStoryDialogue();
   const [activeExternalGame, setActiveExternalGame] = useState<{ gameId: string, config: unknown, onDone: (r: any) => void } | null>(null);
   const [titleCard, setTitleCard] = useState<TitleCardData | null>(null);
   const [titleCardVisible, setTitleCardVisible] = useState(false);
@@ -75,11 +65,6 @@ export default function GameLayout() {
 
   const phaserGameRef = useRef<Phaser.Game | null>(null);
   const resizeCleanupRef = useRef<(() => void) | null>(null);
-  // Phaser captures this once at boot — route through a ref so it always calls
-  // the latest handler.
-  const storyRef = useRef<(payload: StoryDialoguePayload, done: (i?: number) => void) => void>(() => {});
-  // Mirror of activeStory for reading the latest value outside setState updaters.
-  const activeStoryRef = useRef<ActiveStory | null>(null);
   const activeExternalGameRef = useRef<{ onDone: (r: any) => void } | null>(null);
 
   // Load saved progress on mount.
@@ -126,53 +111,6 @@ export default function GameLayout() {
     // Fade out card after 2.8s total (0.6 in + 1.6 hold + 0.6 out via CSS)
     setTimeout(() => setTitleCardVisible(false), 2200);
     setTimeout(() => setTitleCard(null), 2900);
-  };
-
-  // ─── Story dialogue handling ────────────────────────────────────────────────
-
-  const handleStoryDialogue = useCallback(
-    (payload: StoryDialoguePayload, done: (choiceIndex?: number) => void) => {
-      const next = { payload, done, lineIndex: 0 };
-      activeStoryRef.current = next;
-      setActiveStory(next);
-    },
-    []
-  );
-  useEffect(() => {
-    storyRef.current = handleStoryDialogue;
-  }, [handleStoryDialogue]);
-  // Keep the ref in lockstep with state so advance/choose read the live value.
-  useEffect(() => {
-    activeStoryRef.current = activeStory;
-  }, [activeStory]);
-
-  // The scene's `done` callback drives the beat engine — it MUST run exactly once
-  // per dialogue/choice. It is a side effect, so it can never live inside a
-  // setState updater: React StrictMode double-invokes updaters in dev, which would
-  // fire `done()` twice and skip a beat (e.g. walkTo beats vanish, leaving a stale
-  // walkTarget and a soft-locked confrontation). Read the latest story via a ref
-  // and perform the side effect outside the updater.
-  const advanceStory = () => {
-    const cur = activeStoryRef.current;
-    if (!cur) return;
-    const last = cur.lineIndex >= cur.payload.lines.length - 1;
-    if (!last) {
-      setActiveStory({ ...cur, lineIndex: cur.lineIndex + 1 });
-      return;
-    }
-    // On the last line: if there are choices, wait for a pick; otherwise finish.
-    if (cur.payload.choices && cur.payload.choices.length) return;
-    activeStoryRef.current = null;
-    setActiveStory(null);
-    cur.done();
-  };
-
-  const chooseStory = (idx: number) => {
-    const cur = activeStoryRef.current;
-    if (!cur) return;
-    activeStoryRef.current = null;
-    setActiveStory(null);
-    cur.done(idx);
   };
 
   // ─── Phaser boot ─────────────────────────────────────────────────────────────
@@ -226,29 +164,11 @@ export default function GameLayout() {
                 playerHp: selectedHero.maxHp,
                 onHpChange: (hp: number) => setPlayerHp(hp),
                 clearStoryDialogue: () => {
-                  activeStoryRef.current = null;
-                  setActiveStory(null);
+                  clearStory();
                 },
-                onTriggerQTE: (boss: BossConfig, callback: (success: boolean, damage: number) => void) => {
-                  setQteTimer(8);
-                  const shuffledBoss = { ...boss };
-
-                  const selectedQTE = boss.qtePool
-                    ? boss.qtePool[Phaser.Math.Between(0, boss.qtePool.length - 1)]
-                    : boss.weaknessQTE;
-
-                  const selectedDamage = selectedQTE?.damage ?? boss.weaknessQTE.damage;
-
-                  if (selectedQTE) {
-                    shuffledBoss.weaknessQTE = {
-                      ...selectedQTE,
-                      options: Phaser.Utils.Array.Shuffle([...selectedQTE.options])
-                    };
-                  }
-                  setActiveQte({ boss: shuffledBoss, callback, selectedDamage });
-                },
+                onTriggerQTE: triggerQte,
                 onStoryDialogue: (payload: StoryDialoguePayload, done: (i?: number) => void) =>
-                  storyRef.current(payload, done),
+                  showStory(payload, done),
                 mountExternalGame: (opts: { gameId: string; config?: unknown }, onDone: (r: any) => void) => {
                   activeExternalGameRef.current = { onDone };
                   setActiveExternalGame({ gameId: opts.gameId, config: opts.config, onDone });
@@ -336,36 +256,12 @@ export default function GameLayout() {
         phaserGameRef.current = null;
       }
     };
-  }, [gameStatus, selectedHero, activeChapter]);
-
-  // ─── QTE countdown ───────────────────────────────────────────────────────────
-
-  useEffect(() => {
-    if (!activeQte) return;
-    const timer = setInterval(() => {
-      setQteTimer(prev => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          activeQte.callback(false, 0);
-          setActiveQte(null);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [activeQte]);
-
-  const handleQteResponse = (option: string) => {
-    if (!activeQte) return;
-    activeQte.callback(option === activeQte.boss.weaknessQTE.correctAnswer, activeQte.selectedDamage);
-    setActiveQte(null);
-  };
+  }, [gameStatus, selectedHero, activeChapter, clearStory, showStory, triggerQte]);
 
   const teardownGame = () => {
     if (phaserGameRef.current) { phaserGameRef.current.destroy(true); phaserGameRef.current = null; }
-    setActiveQte(null);
-    setActiveStory(null);
+    clearQte();
+    clearStory();
   };
 
   const returnToChapters = () => {
@@ -586,7 +482,7 @@ export default function GameLayout() {
                     {activeQte.boss.weaknessQTE.options.map((option, idx) => (
                       <button
                         key={idx}
-                        onClick={() => { playUi('pick'); handleQteResponse(option); }}
+                        onClick={() => { playUi('pick'); respondToQte(option); }}
                         className="w-full text-left px-3 py-2 cursor-pointer transition-colors duration-100 font-pixel text-[10px]"
                         style={{ background: '#0f1c09', border: '2px solid #3a5520', color: '#c8e89a' }}
                         onMouseEnter={e => {

@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
-import type ChapterScene from '../ChapterScene';
 import { ActorPlacement, resolveSpeaker } from '../../data/chapters';
+import type { ActorsContext } from './contracts';
 
 export interface ActorVisualState {
   id: string;
@@ -12,9 +12,9 @@ export interface ActorVisualState {
 }
 
 export class Actors {
-  private scene: ChapterScene;
+  private scene: ActorsContext;
 
-  constructor(scene: ChapterScene) {
+  constructor(scene: ActorsContext) {
     this.scene = scene;
   }
 

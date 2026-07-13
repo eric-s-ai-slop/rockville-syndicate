@@ -102,26 +102,29 @@ Chapters are declarative config files in [`src/data/chapters/`](src/data/chapter
 
 ## Architecture at a Glance
 
-React 19 manages the overlay UI (dialogue, choices, QTE prompts, difficulty settings, Hall of Records) while Phaser 3.88 owns the physical world (camera, physics, sprites, collisions). The main scene is a thin controller that delegates to specialized subsystems.
+React 19 manages overlay UI while Phaser 3.88 owns the physical world. `GameLayout` and `ChapterScene` are lifecycle hosts that delegate callback-heavy UI and gameplay behavior to focused hooks and subsystems.
 
 ```
 GameLayout.tsx  <-- event bridge / callbacks -->  ChapterScene.ts
                                                         |
    +----------------+----------------+------------+-----+----------+
    |                |                |            |               |
-MapBuilder.ts   Actors.ts   AudioController  BeatEngine   PlayerController
-(floors,props) (spawn/anim)  (music/SFX)   (narrative)  (dash/fire/steps)
+MapBuilder   Actors   AudioController   BeatEngine   PlayerController   ChaseController
+(map/props) (spawn)    (music/SFX)      (beats/modes)  (dash/fire)       (pursuit)
                                                   |
                                             ModeContext façade
                                             (safe API for minigames)
 ```
 
-- **`ChapterScene.ts`** — Phaser scene orchestrator. Preloads textures, sets up physics/collision groups, instantiates subsystems, and forwards per-frame ticks.
+- **`ChapterScene.ts`** — Phaser lifecycle host. Loads shared plus active-chapter assets, sets up physics, and forwards ticks to focused systems.
 - **`scene/MapBuilder.ts`** — Interprets a chapter's `MapConfig` to draw floors, scattered nature, collision walls, and interactive props.
 - **`scene/Actors.ts`** — Spawns actor sprites, resolves class stats, applies directional walk animations, and processes understudy substitutions.
 - **`scene/AudioController.ts`** — Manages stage music crossfades, boss loops, and SFX stings. Volume is settings-driven (live subscription to the save store).
 - **`scene/BeatEngine.ts`** — Dispatches story beats: `dialogue`, `choice`, `walkTo`, `cameraPan`, and `minigame`.
-- **`scene/PlayerController.ts`** — Owns player movement, dash i-frames, auto-fire, and footsteps. Extracted from ChapterScene to keep the scene thin.
+- **`scene/PlayerController.ts`** — Owns player movement, dash i-frames, auto-fire, and footsteps so the lifecycle host stays focused.
+- **`scene/ChaseController.ts` / `scene/contracts.ts`** — Own the chase lifecycle and define narrow subsystem dependencies without importing the whole scene.
+- **`game/assets/chapter/`** — Typed per-chapter image manifests; only the active chapter's direct images are loaded.
+- **`components/game/`** — StrictMode-safe story-dialogue and QTE bridge hooks extracted from `GameLayout`.
 - **`SpritePreprocessor.ts` / `PropExtractor.ts` / `packSpriteAtlas.ts`** — Boot-time, in-browser asset pipeline: background color-keying of JPG props, tight bounding-box crops, and atlas packing to cut GPU draw calls.
 
 For the full design narrative, diagrams, and gotchas, see [`ARCHITECTURE.md`](ARCHITECTURE.md) and [`CLAUDE.md`](CLAUDE.md).
@@ -160,7 +163,7 @@ The [`modes/_template/`](src/game/modes/_template/) directory is a copyable refe
 - **Animation/UI libs**: `motion`, `lucide-react`
 - **Assets**: LimeZu Interiors tileset, Kenney impact SFX pack, original artwork, generated voice lines
 - **Build/tooling**: Vite (client) + esbuild (server bundle), `tsx` for dev/server execution
-- **Tests**: Vitest (unit, 200+ tests) + Playwright (E2E)
+- **Tests**: Vitest (unit, 500+ tests) + Playwright (E2E)
 - **Save system**: `localStorage` key `omega-save-v2` — unified blob: settings + progress + Hall of Records
 
 ---
@@ -195,7 +198,8 @@ project-omega_-the-rockville-syndicate/
 │   ├── index.css                    # Global styles (Tailwind v4)
 │   │
 │   ├── components/
-│   │   ├── GameLayout.tsx           # React<->Phaser bridge, overlay host, Hall of Records
+│   │   ├── GameLayout.tsx           # React<->Phaser lifecycle host and screen composition
+│   │   ├── game/                    # Story-dialogue and QTE bridge hooks + tests
 │   │   ├── ChapterSelect.tsx        # Chapter-select map UI
 │   │   ├── DialogueBox.tsx          # Dialogue/choice overlay
 │   │   └── DialogueBox.test.tsx
@@ -207,10 +211,11 @@ project-omega_-the-rockville-syndicate/
 │   │       ├── index.ts             # CHAPTERS barrel + getChapter() lookup
 │   │       ├── types.ts             # Config types (Speaker, MapRect, Beat, ...)
 │   │       ├── palette.ts           # Shared color palette
-│   │       └── chapter0–9.*.ts      # Per-chapter configs
+│   │       └── chapter*.ts          # Per-chapter configs (0–12 + interludes/fixture)
 │   │
 │   ├── game/
-│   │   ├── ChapterScene.ts          # Phaser scene orchestrator (~2,700 lines)
+│   │   ├── ChapterScene.ts          # Phaser lifecycle host (~1,500 lines)
+│   │   ├── assets/chapter/          # Typed active-chapter image manifests
 │   │   ├── settings.ts              # Unified save store (save-schema-v2): settings + progress + HoR
 │   │   ├── settings.test.ts
 │   │   ├── scoring.ts               # Run score formula, ghost targets, Hall of Records types
@@ -229,7 +234,9 @@ project-omega_-the-rockville-syndicate/
 │   │   │   ├── AudioController.ts   # Music crossfades, boss loops, SFX (settings-driven)
 │   │   │   ├── BeatEngine.ts        # Narrative beat dispatcher
 │   │   │   ├── BeatEngine.test.ts
-│   │   │   └── PlayerController.ts  # Dash, i-frames, auto-fire, footsteps
+│   │   │   ├── PlayerController.ts  # Dash, i-frames, auto-fire, footsteps
+│   │   │   ├── ChaseController.ts   # Pre-boss pursuit lifecycle
+│   │   │   └── contracts.ts         # Narrow scene subsystem host interfaces
 │   │   └── modes/
 │   │       ├── types.ts             # GameMode interface + ModeContext façade
 │   │       ├── index.ts             # Mode registry: registerMode/getMode
@@ -311,9 +318,12 @@ The dev server (`tsx server.ts`) runs at **`http://localhost:3324`**.
 | `npm run lint:es` | Run ESLint (style/quality gate) |
 | `npm run lint:fix` | Auto-fix ESLint issues |
 | `npm run ci` | Full gate: typecheck + eslint + tests + build |
+| `npm run check:agent` | Same full gate with compact, token-efficient output |
+| `npm run agent:check -- <files...>` | Typecheck/lint plus safe focused tests; unknown cross-cutting files fall back to full |
 | `npm test` | Run the Vitest unit-test suite |
 | `npm run e2e` | Run the Playwright E2E suite |
 | `npm run agent -- --help` | Terminal playtesting CLI — hold keys, drag-mouse, read live game state, step frames (see [`docs/AGENT_TOOLKIT.md`](docs/AGENT_TOOLKIT.md)) |
+| `npm run agent:scaffold-chapter -- <index> <slug>` | Create a minimal typed, intentionally unregistered chapter config |
 | `npm run clean` | Remove `dist/` and stray `server.js` |
 | `npm run voice:extract` | Extract dialogue lines for the voice-gen pipeline |
 
@@ -321,7 +331,7 @@ The dev server (`tsx server.ts`) runs at **`http://localhost:3324`**.
 
 ## Testing
 
-- **Unit tests** (Vitest, 200+) live alongside source as `*.test.ts(x)` — covering settings/save, scoring, boss fight logic, beat engine routing, UI sound, sprite preprocessing, and more. Run with `npm test`.
+- **Unit tests** (Vitest, 500+) live alongside source as `*.test.ts(x)` — covering settings/save, scoring, boss fight logic, beat routing, bridge hooks, asset manifests, validation selection, sprite preprocessing, and more.
 - **E2E tests** (Playwright) live in [`e2e_tests/`](e2e_tests/) and exercise full gameplay flows. Run with `npm run e2e`.
 - **Manual/agent playtesting**: [`e2e_tests/agent/`](e2e_tests/agent/) exposes the same stateful Playwright toolkit as a terminal CLI (`npm run agent -- --help`) — hold keys, click-drag, read exact game state (position, HP, scene, active mode) as JSON, and step the Phaser loop frame-by-frame, all without screenshots. See [`docs/AGENT_TOOLKIT.md`](docs/AGENT_TOOLKIT.md).
 - **CI** (GitHub Actions) runs `lint → lint:es → test → build` on every push and PR to `main`.

@@ -1,11 +1,11 @@
 import Phaser from 'phaser';
-import type ChapterScene from '../ChapterScene';
 import { MapConfig, resolveSpeaker } from '../../data/chapters';
 import { furnitureFrame, furnitureAspect, FURNITURE_ATLAS_KEY } from '../furnitureCatalog';
 import { packFrame, packSize, PACK_ATLAS_KEY } from '../packSpriteAtlas';
+import type { MapBuilderContext } from './contracts';
 
 export class MapBuilder {
-  public scene: ChapterScene;
+  public scene: MapBuilderContext;
 
   // Watchwater crop display size overrides
   private static readonly PROP_DISPLAY: Record<string, { w: number; h: number }> = {
@@ -19,7 +19,7 @@ export class MapBuilder {
     bed: 'bed_double', bench: 'bench', window: 'window',
   };
 
-  constructor(scene: ChapterScene) {
+  constructor(scene: MapBuilderContext) {
     this.scene = scene;
   }
 

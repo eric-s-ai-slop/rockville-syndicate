@@ -66,7 +66,9 @@ caleb | vs | anastasia | sophia | sam_ferretti | sean | alex | leo | benji`. Unk
 
 ## Register + verify
 
-1. Create `chapterN.slug.ts` exporting a `ChapterConfig`; import + append in [index.ts](index.ts).
-2. `npm test` — `src/data/chapters.test.ts` content-lints all chapters: dangling `goto`/
+1. Run `npm run agent:scaffold-chapter -- <index> <kebab-case-slug>` (or create `chapterN.slug.ts` manually), then replace its TODO content.
+2. Put chapter-only image keys/URLs in a manifest under `src/game/assets/chapter/` and map the chapter id in its `index.ts`; keep truly shared assets centralized.
+3. Add music or an intentional-silence justification, import + append in [index.ts](index.ts), and add the finished title to the README chapter table.
+4. `npm test` — `src/data/chapters.test.ts` content-lints all chapters: dangling `goto`/
    `loseGoto`/`bossId`/`modeId` refs and music coverage.
-3. Playtest at `npm run dev` (port 3324); restart the server after edits (Vite cache).
+5. Playtest at `npm run dev` (port 3324); restart the server after edits (Vite cache).

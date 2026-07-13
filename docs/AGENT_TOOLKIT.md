@@ -464,6 +464,8 @@ npm run agent -- --chapter "The Spotify Family Insurgency" "advance; press d 100
 - **Chapter Gauntlet Runner.** Running `npm run agent -- --gauntlet` runs a background gauntlet where dialogue is clicked through, and complex minigames are mocked out, verifying that all chapters run successfully to completion without stalling.
   > **WARNING:** The gauntlet validates logic, NOT visuals. Agents MUST still use `screenshot` to manually verify rendering, sprite scaling, and UI layout.
 - **Static Asset Audit.** Running `npm run agent:audit` statically parses and audits all chapters to ensure that all speakers and audio assets mentioned in chapter definitions are correctly defined and exist as static files in the repository.
+- **Compact code validation.** `npm run agent:check -- <changed-file...>` runs typecheck, ESLint, and a safe focused unit set; `npm run check:agent` adds the full unit suite and production build while keeping successful output to one line per stage. Detailed logs stay under ignored `agent-artifacts/check/`.
+- **Chapter scaffolding.** `npm run agent:scaffold-chapter -- <index> <slug>` creates the smallest typed chapter config without registering incomplete content. Finish its assets/music/README entries before adding it to `CHAPTERS`.
 - **Gauntlet runs in CI on every push to main** (the `gauntlet` job in
   `.github/workflows/ci.yml`) via `npm run agent -- --gauntlet --shots`. It
   starts and health-checks `npm run dev` itself (unlike the `e2e` job, this

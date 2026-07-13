@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import type ChapterScene from '../ChapterScene';
+import type { SpriteLoaderContext } from './contracts';
 import {
   preprocessShowcaseSheet,
   preprocessColumnFirstSheet,
@@ -20,9 +20,9 @@ import {
  * everything here runs against already-loaded textures.
  */
 export class SpriteLoader {
-  private scene: ChapterScene;
+  private scene: SpriteLoaderContext;
 
-  constructor(scene: ChapterScene) {
+  constructor(scene: SpriteLoaderContext) {
     this.scene = scene;
   }
 

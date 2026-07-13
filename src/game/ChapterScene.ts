@@ -6,6 +6,7 @@ import { BeatEngine } from './scene/BeatEngine';
 import { PlayerController } from './scene/PlayerController';
 import { Atmosphere } from './scene/Atmosphere';
 import { SpriteLoader } from './scene/SpriteLoader';
+import { ChaseController } from './scene/ChaseController';
 import type { GameMode, ModeResult } from './modes/types';
 import { getMode } from './modes';
 import { hitStop } from './modes/hitStop';
@@ -14,7 +15,6 @@ import { mariaBrookeStats, type MariaBrookeStatsSnapshot } from './modes/mariaBr
 import {
   CharacterClass,
   CHARACTER_CLASSES,
-  BOSSES,
   BossConfig,
   LORE_BARKS,
   POWER_UPS,
@@ -29,12 +29,6 @@ import heroNickFImg from '../assets/images/hero_nick_f_1781236122782.jpg';
 import heroNickHImg from '../assets/images/hero_nick_h_1781236135006.jpg';
 import heroJordanImg from '../assets/images/hero_jordan.jpg';
 import heroMaharkoImg from '../assets/images/hero_maharko.jpg';
-import npcAlexSheet from '../assets/images/npc_alex_sheet.jpg';
-import npcBenjiSheet from '../assets/images/npc_benji_sheet.jpg';
-import npcRoseSheet from '../assets/images/npc_rose_sheet.jpg';
-import npcRoseSisterSheet from '../assets/images/npc_rose_sister_sheet.jpg';
-import stageCarInterior from '../assets/images/game_decor/stages/stage_car_interior.jpg';
-import stageFloridaHouseNight from '../assets/images/game_decor/stages/stage_florida_house_night.jpg';
 import enemyTicketmasterImg from '../assets/images/enemy_ticketmaster.jpg';
 import enemyDishesImg from '../assets/images/enemy_dishes.jpg';
 import enemyZombieImg from '../assets/images/enemy_zombie.jpg';
@@ -53,69 +47,23 @@ import shardImg from '../assets/images/shard.jpg';
 import { extractPropSubject } from './PropExtractor';
 import { buildFurnitureAtlas } from './furnitureCatalog';
 import { buildPackAtlas } from './packSpriteAtlas';
-import { ChapterConfig, Beat, ActorPlacement, resolveSpeaker, MapConfig, CHAPTERS } from '../data/chapters';
+import { getChapterAssets } from './assets/chapter';
+import { ChapterConfig, Beat, ActorPlacement, resolveSpeaker, MapConfig } from '../data/chapters';
 import {
-  CHAPTER_MUSIC_KEY, STAGE_MUSIC_URL, BOSS_MUSIC_URL, BOSS_LOOP_URL,
-  THEME_FOOTSTEP, FOOTSTEP_URLS,
-  UI_SELECT_URL, VICTORY_JINGLE_URL, KNOCK_URL,
   CROWD_MURMUR_URL, CRICKET_AMBIENT_URL,
   SFX_MESSAGE_DING_URL, ULTRAPHONK_URL,
 } from './audio';
-
-// ─── R1/R2: Stage & car prop images (Vite ?url for special-char filenames) ──────
-import propHospitalBedUrl from '../assets/images/game_decor/stages/audrey_hopsital/hospital_bed.jpg?url';
-import propIvDripUrl from '../assets/images/game_decor/stages/audrey_hopsital/iv-drip.jpg?url';
-import propCabinetUrl from '../assets/images/game_decor/stages/audrey_hopsital/cabinant.jpg?url';
-import propRedToiletUrl from '../assets/images/game_decor/stages/audrey_hopsital/red_toliet(evidence).jpg?url';
-import propJungleGymUrl from '../assets/images/game_decor/stages/beall/jungle gym.jpg?url';
-import propWatchwaterUrl from '../assets/images/game_decor/stages/dingdongditchben/watchwater_scene.jpg?url';
-import propWatchwaterOpenUrl from '../assets/images/game_decor/stages/dingdongditchben/watchwater_scene_open.jpg?url';
-import propJordanMustangUrl from "../assets/images/game_decor/special/cars/jordan's mustang.jpg?url";
-import propMaharkoCameroUrl from "../assets/images/game_decor/special/cars/maharko's camero.jpg?url";
-import propNickFCorollaUrl from "../assets/images/game_decor/special/cars/nick f's corolla.jpg?url";
 
 import natureFlower1Url from '../assets/images/game_decor/nature/Flower 1/Flower 1 - RED.png?url';
 import natureFlower2Url from '../assets/images/game_decor/nature/Flower 2/Flower 2 - MAGENTA.png?url';
 import natureBush1Url from '../assets/images/game_decor/nature/Bush 1/Bush 1 - GREEN.png?url';
 import natureBush2Url from '../assets/images/game_decor/nature/Bush 1/Bush 1 - WARM GREEN.png?url';
+// Required before the shared pack atlas is first built; unlike direct chapter
+// textures, atlas source sheets cannot be added after that atlas is cached.
+import propJungleGymUrl from '../assets/images/game_decor/stages/beall/jungle gym.jpg?url';
 
 // Sprint 2: LimeZu furniture tilesheet — sliced into the furniture_atlas at runtime.
 import interiors48Url from '../assets/images/game_decor/Interiors_free/48x48/Interiors_free_48x48.png?url';
-
-// Ch0: Maria Brooke stage images
-import stageWjClassroomUrl from '../assets/chapters/maria_brooke/stage_wj_classroom.jpg?url';
-import stageWjTrackUrl     from '../assets/chapters/maria_brooke/stage_wj_track.jpg?url';
-
-// Ch3b: UMBC Incident stage images + NPC silhouette
-import umbcBasementStageUrl  from '../assets/chapters/umbc incident/umbc_basement.jpg?url';
-import parkingLotNightUrl    from '../assets/chapters/umbc incident/stage_parking_log_night.jpg?url';
-import npcGirlSilhouetteUrl  from '../assets/images/npc_girl_silhouette.jpg?url';
-
-// Ch9: Suds & Soles Pool Party character portraits + map
-import ericPoolUrl       from '../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/Eric(pool).jpg?url';
-import nickHPoolUrl      from '../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/Nick_H(Pool).jpg?url';
-import jacobPoolUrl      from '../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/jacob(pool).jpg?url';
-import nickFPoolUrl      from '../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/nick_f(pool).jpg?url';
-import anastasiaPoolUrl  from '../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/anastasia(pool).jpg?url';
-import sophiaPoolUrl     from '../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/sophia(pool).jpg?url';
-import samPoolUrl        from '../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/sam_f(pool).jpg?url';
-import poolMapDayUrl     from '../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/pool_map(day).jpg?url';
-import poolMapNightUrl   from '../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/pool_map(night).jpg?url';
-
-// Ch11: Cabin From Hell — OC balcony + Shenandoah cabin stage images
-import stageOcBalconyNightUrl from '../assets/images/game_decor/stages/stage_oc_balcony_night.jpg?url';
-import stageCabinInteriorUrl  from '../assets/images/game_decor/stages/stage_cabin_interior.jpg?url';
-import stageCabinDeckUrl      from '../assets/images/game_decor/stages/stage_cabin_deck.jpg?url';
-
-// Ch12: Origins — McDonald's / void islands / Dogwood Park stage images + dialer prop
-import stageMcdonaldsNightUrl   from '../assets/images/game_decor/stages/origins/stage_mcdonalds_night.jpg?url';
-import stageEricRoomPresentUrl  from '../assets/images/game_decor/stages/origins/stage_eric_room_present.jpg?url';
-import stageVoidNickfRoomUrl    from '../assets/images/game_decor/stages/origins/stage_void_nickf_room.jpg?url';
-import stageVoidJacobRoomUrl    from '../assets/images/game_decor/stages/origins/stage_void_jacob_room.jpg?url';
-import stageVoidEricRoomUrl     from '../assets/images/game_decor/stages/origins/stage_void_eric_room.jpg?url';
-import stageDogwoodLookoutUrl   from '../assets/images/game_decor/stages/origins/stage_dogwood_lookout_night.jpg?url';
-import propDialerSiteUrl        from '../assets/images/game_decor/stages/origins/prop_dialer_site.jpg?url';
-import npcChrisRivasSheet       from '../assets/images/npc_chris_rivas_sheet.jpg';
 
 // RUN-3: owner-added asset-pack JPGs (gray bg, extracted at runtime via packSpriteAtlas)
 import packTollboothUrl from '../assets/images/game_decor/special/toolbooth.jpg?url';
@@ -229,14 +177,6 @@ export default class ChapterScene extends Phaser.Scene {
   public lootShards!: Phaser.Physics.Arcade.Group;
   public walls!: Phaser.Physics.Arcade.StaticGroup;
 
-  // R8: pre-boss chase phase — pursuer separate from spawnedBoss
-  private chaseSprite: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody | null = null;
-  private chaseShadow: Phaser.GameObjects.Image | null = null;
-  private chaseActive: boolean = false;
-  private chaseCooldown: number = 0;
-  private chaseTimer: Phaser.Time.TimerEvent | null = null;
-  private chasePursuerId: string | null = null;
-
   // Game state
   public spawnedBoss: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody | null = null;
   public isBossActive: boolean = false;
@@ -285,6 +225,7 @@ export default class ChapterScene extends Phaser.Scene {
   public beatEngine!: BeatEngine;
   public atmosphere!: Atmosphere;
   public spriteLoader!: SpriteLoader;
+  public chaseController!: ChaseController;
   public activeMode: GameMode | null = null;
   /** Beat index that launched activeMode; null means a direct toolkit launch. */
   public activeModeBeatIndex: number | null = null;
@@ -303,6 +244,7 @@ export default class ChapterScene extends Phaser.Scene {
     this.audioController = new AudioController(this);
     this.beatEngine = new BeatEngine(this);
     this.atmosphere = new Atmosphere(this);
+    this.chaseController = new ChaseController(this);
   }
 
   public init(data: {
@@ -350,10 +292,7 @@ export default class ChapterScene extends Phaser.Scene {
     this.lastBossAttackTime = 0;
     this.spawnedBoss = null;
     this.isBossActive = false;
-    this.chaseSprite = null;
-    this.chaseShadow = null;
-    this.chaseActive = false;
-    this.chaseCooldown = 0;
+    this.chaseController.reset();
     this.levelStarted = false;
     this.mapCollidables = [];
     this.mapObjects = [];
@@ -411,34 +350,10 @@ export default class ChapterScene extends Phaser.Scene {
     this.safeLoadImage('enemy_dishes_raw', enemyDishesImg);
     this.safeLoadImage('enemy_zombie_raw', enemyZombieImg);
     this.safeLoadImage('enemy_frat_bro_raw', enemyFratBroImg);
-    // R1: hospital props (Ch3)
-    this.safeLoadImage('prop_hospital_bed', propHospitalBedUrl);
-    this.safeLoadImage('prop_iv_drip', propIvDripUrl);
-    this.safeLoadImage('prop_cabinet', propCabinetUrl);
-    this.safeLoadImage('prop_red_toilet', propRedToiletUrl);
-    // R1: jungle gym (Ch4)
     this.safeLoadImage('prop_jungle_gym', propJungleGymUrl);
-    // R1: watchwater house (Ch6)
-    this.safeLoadImage('prop_watchwater', propWatchwaterUrl);
-    this.safeLoadImage('prop_watchwater_open', propWatchwaterOpenUrl);
-
-    this.safeLoadImage('stage_wj_classroom', stageWjClassroomUrl);
-    this.safeLoadImage('stage_wj_track', stageWjTrackUrl);
-    this.safeLoadImage('stage_umbc_basement', umbcBasementStageUrl);
-    this.safeLoadImage('stage_parking_lot_night', parkingLotNightUrl);
-    this.safeLoadImage('npc_alex_sheet_raw_jpg', npcAlexSheet);
-    this.safeLoadImage('npc_benji_sheet_raw_jpg', npcBenjiSheet);
-    this.safeLoadImage('npc_rose_sheet_raw_jpg', npcRoseSheet);
-    this.safeLoadImage('npc_rose_sister_sheet_raw_jpg', npcRoseSisterSheet);
-    this.safeLoadImage('stage_car_interior', stageCarInterior);
-    this.safeLoadImage('stage_florida_house_night', stageFloridaHouseNight);
-    // Ben has no playable-roster hero sprite; reuse his UMBC portrait (a 1376×768
-    // showcase sheet, same format as the hero art) so he renders as a real,
-    // animated character instead of a colored blob in the basement.
-    this.safeLoadImage('hero_ben_raw_jpg', bossBenUmbcImg);
-    this.safeLoadImage('hero_girl1_raw_jpg', npcGirlSilhouetteUrl);
-    this.safeLoadImage('hero_girl2_raw_jpg', npcGirlSilhouetteUrl);
-    this.safeLoadImage('hero_girl3_raw_jpg', npcGirlSilhouetteUrl);
+    for (const asset of getChapterAssets(this.chapter.id)) {
+      this.safeLoadImage(asset.key, asset.url);
+    }
     this.audioController.safeLoadAudio('sfx_message_ding', SFX_MESSAGE_DING_URL);
 
     this.audioController.safeLoadAudio('sfx_crowd_murmur', CROWD_MURMUR_URL);
@@ -446,35 +361,7 @@ export default class ChapterScene extends Phaser.Scene {
     // Voiced one-off: Ben's "You're next." Drop the MP3 at public/voice/ben_youre_next.mp3.
     // Loaded by URL (not a bundler import) so a missing file fails gracefully.
     this.audioController.safeLoadAudio('sfx_ben_youre_next', '/voice/ben_youre_next.mp3');
-    // Ch9: Suds & Soles Pool Party (character portraits + map images)
-    this.safeLoadImage('npc_eric_pool',      ericPoolUrl);
-    this.safeLoadImage('npc_nick_h_pool',    nickHPoolUrl);
-    this.safeLoadImage('npc_jacob_pool',     jacobPoolUrl);
-    this.safeLoadImage('npc_nick_f_pool',    nickFPoolUrl);
-    this.safeLoadImage('npc_anastasia_pool', anastasiaPoolUrl);
-    this.safeLoadImage('npc_sophia_pool',    sophiaPoolUrl);
-    this.safeLoadImage('npc_sam_pool',       samPoolUrl);
-    this.safeLoadImage('prop_pool_map_day',  poolMapDayUrl);
-    this.safeLoadImage('prop_pool_map_night', poolMapNightUrl);
-    // R2: crew cars
-    this.safeLoadImage('prop_jordan_mustang', propJordanMustangUrl);
-    this.safeLoadImage('prop_maharko_camero', propMaharkoCameroUrl);
-    this.safeLoadImage('prop_nick_f_corolla', propNickFCorollaUrl);
-    // Ch11: Cabin From Hell
-    this.safeLoadImage('stage_oc_balcony_night', stageOcBalconyNightUrl);
-    this.safeLoadImage('stage_cabin_interior', stageCabinInteriorUrl);
-    this.safeLoadImage('stage_cabin_deck', stageCabinDeckUrl);
     this.audioController.safeLoadAudio('sfx_ultraphonk', ULTRAPHONK_URL);
-
-    // Ch12: Rockville Syndicate: Origins
-    this.safeLoadImage('stage_mcdonalds_night', stageMcdonaldsNightUrl);
-    this.safeLoadImage('stage_eric_room_present', stageEricRoomPresentUrl);
-    this.safeLoadImage('stage_void_nickf_room', stageVoidNickfRoomUrl);
-    this.safeLoadImage('stage_void_jacob_room', stageVoidJacobRoomUrl);
-    this.safeLoadImage('stage_void_eric_room', stageVoidEricRoomUrl);
-    this.safeLoadImage('stage_dogwood_lookout_night', stageDogwoodLookoutUrl);
-    this.safeLoadImage('prop_dialer_site', propDialerSiteUrl);
-    this.safeLoadImage('npc_chris_rivas_sheet_raw_jpg', npcChrisRivasSheet);
 
     // R16: Nature flora
     this.safeLoadImage('nature_flower_1', natureFlower1Url);
@@ -492,7 +379,7 @@ export default class ChapterScene extends Phaser.Scene {
     this.safeLoadImage('pack_arcade', packArcadeUrl);
 
     // Phase E — audio
-    this.loadChapterAudio();
+    this.audioController.loadChapterAudio();
 
     // Preload active/referenced game modes
     if (this.chapter?.beats) {
@@ -512,66 +399,6 @@ export default class ChapterScene extends Phaser.Scene {
     }
   }
 
-  private safeLoadAudio(key: string, url: string) {
-    try { this.load.audio(key, url); } catch { /* missing file — skip silently */ }
-  }
-
-  private loadChapterAudio() {
-    // Chapter-level music key, falling back to scene 0's per-scene music key
-    // (multi-location chapters like UMBC have no chapter-level key — they drive
-    // music entirely through scenes[].music).
-    const musicKey = CHAPTER_MUSIC_KEY[this.chapter.id]
-      ?? this.chapter.scenes?.[0]?.music;
-    const musicUrl = musicKey ? STAGE_MUSIC_URL[musicKey] : undefined;
-    if (musicKey && musicUrl) this.safeLoadAudio(musicKey, musicUrl);
-
-    // Pre-load music for every later scene that specifies its own key so the
-    // changeScene crossfade has the track ready.
-    for (const scene of this.chapter.scenes ?? []) {
-      if (scene.music && scene.music !== musicKey) {
-        const url = STAGE_MUSIC_URL[scene.music];
-        if (url) this.safeLoadAudio(scene.music, url);
-      }
-    }
-
-    // Pre-load music for every `changeMusic` beat's target key so a mid-scene
-    // crossfade has the track ready (crossfadeToMusic no-ops on an unloaded key).
-    for (const beat of this.chapter.beats ?? []) {
-      if (beat.type === 'changeMusic') {
-        const url = STAGE_MUSIC_URL[beat.key];
-        if (url) this.safeLoadAudio(beat.key, url);
-      }
-    }
-    this.safeLoadAudio('boss_sting', BOSS_MUSIC_URL);
-    this.safeLoadAudio('boss_loop', BOSS_LOOP_URL);
-
-    const variant = THEME_FOOTSTEP[this.getActiveSceneConfig().map.theme ?? 'apartment'] ?? 'carpet';
-    this.footstepKeys = (FOOTSTEP_URLS[variant] ?? []).map((url, i) => {
-      const key = `footstep_${i}`;
-      this.safeLoadAudio(key, url);
-      return key;
-    });
-
-    this.safeLoadAudio('ui_select', UI_SELECT_URL);
-    this.safeLoadAudio('victory_jingle', VICTORY_JINGLE_URL);
-    this.safeLoadAudio('sfx_knock', KNOCK_URL);
-  }
-
-  private preloadNextChapterAudio() {
-    this.time.delayedCall(2000, () => {
-      const currentIndex = CHAPTERS.findIndex(c => c.id === this.chapter.id);
-      if (currentIndex >= 0 && currentIndex < CHAPTERS.length - 1) {
-        const nextChapter = CHAPTERS[currentIndex + 1];
-        const nextMusicKey = CHAPTER_MUSIC_KEY[nextChapter.id];
-        const nextMusicUrl = nextMusicKey ? STAGE_MUSIC_URL[nextMusicKey] : undefined;
-        if (nextMusicKey && nextMusicUrl && !this.cache.audio.exists(nextMusicKey)) {
-          this.load.audio(nextMusicKey, nextMusicUrl);
-          this.load.start();
-        }
-      }
-    });
-  }
-
   public create() {
     if (!this.playerClass) return;
 
@@ -579,7 +406,7 @@ export default class ChapterScene extends Phaser.Scene {
     buildFurnitureAtlas(this, 'interiors48');
     // RUN-3: extract + color-key owner asset packs into the pack_atlas
     buildPackAtlas(this);
-    this.preloadNextChapterAudio();
+    this.audioController.preloadNextChapterAudio();
 
 
     // Process prop textures to remove backgrounds and cache aspect ratios
@@ -724,9 +551,7 @@ export default class ChapterScene extends Phaser.Scene {
       this.stageMusic = null;
       this.bossMusic = null;
       this.bossMusicSting = null;
-      this.chaseSprite?.destroy(); this.chaseSprite = null;
-      this.chaseShadow?.destroy(); this.chaseShadow = null;
-      this.chaseActive = false;
+      this.chaseController.reset();
       this.setControlsInverted(false);
       // Clear all active power-up timers/effects so they don't bleed into the next chapter.
       this.activePowerUpCleanups.forEach(fn => fn());
@@ -1124,9 +949,7 @@ export default class ChapterScene extends Phaser.Scene {
     }
 
     // R8: chase pursuer AI — runs independently of the boss combat system.
-    if (this.chaseActive && !this.dialogueOpen && this.chaseSprite) {
-      this.handleChaseAI();
-    }
+    if (!this.dialogueOpen) this.chaseController.update();
 
   }
 
@@ -1243,16 +1066,7 @@ export default class ChapterScene extends Phaser.Scene {
       this.activeModeBeatIndex = null;
       this.activeModeBackground = false;
     }
-    if (this.chaseTimer) {
-      this.chaseTimer.remove();
-      this.chaseTimer = null;
-    }
-    this.chaseSprite?.destroy();
-    this.chaseShadow?.destroy();
-    this.chaseSprite = null;
-    this.chaseShadow = null;
-    this.chaseActive = false;
-    this.chasePursuerId = null;
+    this.chaseController.reset();
     this.qteActive = false;
     this.isBossActive = false;
     this.spawnedBoss?.destroy();
@@ -1309,114 +1123,11 @@ export default class ChapterScene extends Phaser.Scene {
   // ─── R8: Chase phase ──────────────────────────────────────────────────────────
 
   public runChaseBeat(beat: Extract<Beat, { type: 'chase' }>) {
-    const config = BOSSES.find(b => b.id === beat.pursuerId) ?? BOSSES[0];
-    const cam = this.cameras.main;
-    this.chasePursuerId = config.id.replace('boss_', '');
-
-    // Brief cinematic flash + "RUN!!" label
-    this.freeze();
-    if (this.cache.audio.exists('boss_sting')) {
-      // Seek past the initial 0.7s of quiet buildup so the loud 'VWOMP' hits instantly
-      this.sound.play('boss_sting', { volume: 1.2 * getSettings().musicVolume, seek: 0.7 });
-    }
-    cam.flash(180, 239, 68, 68);
-    cam.shake(280, 0.022);
-
-    const cx = cam.width / 2, cy = cam.height / 2;
-    const runLabel = this.label(cx, cy - 40, 'RUN!!', {
-      fontSize: '44px', color: '#ef4444', fontStyle: 'bold',
-      stroke: '#000000', strokeThickness: 10,
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(12000).setAlpha(0).setScale(0.4);
-
-    // R1: swap watchwater house to "door opened" texture when RUN flashes
-    if (this.chapter.chaseTextureSwaps) {
-      this.chapter.chaseTextureSwaps.forEach(swap => {
-        const sprite = this.propSprites.get(swap.propKey);
-        if (sprite) {
-          if (this.textures.exists(swap.targetTexture)) {
-            sprite.setTexture(swap.targetTexture);
-          } else if (swap.fallbackTexture && this.textures.exists(swap.fallbackTexture)) {
-            sprite.setTexture(swap.fallbackTexture);
-          }
-        }
-      });
-    }
-
-    this.tweens.add({
-      targets: runLabel, alpha: 1, scale: 1, duration: 220, ease: 'Back.easeOut',
-      onComplete: () => {
-        this.time.delayedCall(700, () => {
-          this.tweens.add({ targets: runLabel, alpha: 0, y: '-=24', duration: 280,
-            onComplete: () => runLabel.destroy() });
-        });
-      },
-    });
-
-    // Resolve texture — same logic as summonBossMatch
-    const bossId = config.id.replace('boss_', '');
-    const sheetKey = `boss_${bossId}_sheet`;
-    const rawKey = config.id;
-    let bossTex: string, bossScale: number;
-    if (this.textures.exists(sheetKey))      { bossTex = sheetKey;  bossScale = 0.85; }
-    else if (this.textures.exists(rawKey))   { bossTex = rawKey;    bossScale = 0.55; }
-    else                                     { bossTex = 'enemy_grunter'; bossScale = 1.6; }
-
-    // Spawn pursuer at the house door
-    this.chaseSprite = this.physics.add.sprite(440, 310, bossTex, 0);
-    if (this.textures.exists(sheetKey)) this.chaseSprite.play(`idle_boss_${bossId}`, true);
-    this.chaseSprite.setScale(bossScale).setCollideWorldBounds(true).setDrag(200, 200);
-
-    this.chaseShadow = this.add.image(440, 338, 'shadow_ellipse')
-      .setAlpha(0.4).setScale(1.1);
-
-    this.showBubbleText(this.chaseSprite, '"HEY!!!"', '#ef4444');
-
-    // Catch = instant fight
-    this.physics.add.overlap(this.player, this.chaseSprite, () => {
-      if (!this.chaseActive) return;
-      cam.shake(120, 0.014);
-      cam.flash(80, 239, 68, 68);
-      this.endChase();
-    });
-
-    this.chaseActive = true;
-    // Give player a beat to orient before unfreeze
-    this.time.delayedCall(850, () => this.unfreeze());
-
-    // End chase after durationMs — feeds straight into the bossFight beat
-    this.chaseTimer = this.time.delayedCall(beat.durationMs, () => this.endChase());
+    this.chaseController.start(beat);
   }
 
-  private handleChaseAI() {
-    if (!this.chaseSprite) return;
-    const angle = Phaser.Math.Angle.Between(
-      this.chaseSprite.x, this.chaseSprite.y, this.player.x, this.player.y
-    );
-    const speed = 235; // faster than any hero (max player speed is 250; stays threatening)
-    const vx = Math.cos(angle) * speed;
-    const vy = Math.sin(angle) * speed;
-    this.chaseSprite.setVelocity(vx, vy);
-    this.chaseSprite.setDepth(this.chaseSprite.y);
-
-    const facesLeftByDefault = this.chasePursuerId === 'nick_f';
-    this.applyDirectionalAnim(this.chaseSprite, `boss_${this.chasePursuerId}`, vx, vy, facesLeftByDefault);
-
-    if (this.chaseShadow) {
-      this.chaseShadow.setPosition(this.chaseSprite.x, this.chaseSprite.y + 28);
-      this.chaseShadow.setDepth(this.chaseSprite.y - 1);
-    }
-  }
-
-  private endChase() {
-    if (!this.chaseActive) return;
-    this.chaseActive = false;
-    if (this.chaseTimer) {
-      this.chaseTimer.remove();
-      this.chaseTimer = null;
-    }
-    if (this.chaseSprite) { this.chaseSprite.destroy(); this.chaseSprite = null; }
-    if (this.chaseShadow) { this.chaseShadow.destroy(); this.chaseShadow = null; }
-    this.advanceBeat();
+  public get chaseActive(): boolean {
+    return this.chaseController.active;
   }
 
   // ─── Audio helpers ────────────────────────────────────────────────────────────
