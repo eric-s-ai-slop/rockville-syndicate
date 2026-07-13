@@ -1,4 +1,3 @@
-import Phaser from 'phaser';
 import type { SpriteLoaderContext } from './contracts';
 import {
   preprocessShowcaseSheet,
@@ -153,7 +152,7 @@ export class SpriteLoader {
           this.registerAnim(id, sheetKey, 'attack', processed.attackFrames, 10, 0);
           this.registerAnim(id, sheetKey, 'hurt', processed.hurtFrames, 8, 0);
           this.registerAnim(id, sheetKey, 'defeat', processed.defeatFrames, 4, 0);
-        } catch (err2) {
+        } catch {
           const fallbackSource = this.scene.textures.get(rawKey).getSourceImage() as HTMLImageElement;
           this.scene.textures.addSpriteSheet(sheetKey, fallbackSource, { frameWidth: 128, frameHeight: 128 });
         }
@@ -405,7 +404,6 @@ export class SpriteLoader {
     const gDish = this.scene.make.graphics({});
     [36, 30, 24, 18, 12].forEach((y, i) => {
       const w = 32 - i * 3;
-      const x = (48 - w) / 2;
       gDish.fillStyle(i % 2 === 0 ? 0xe2e8f0 : 0xc4b5fd, 1).fillEllipse(24, y, w, 10);
       gDish.lineStyle(1.5, 0xef4444, 1).strokeEllipse(24, y, w, 10);
     });
@@ -494,7 +492,7 @@ export class SpriteLoader {
       // Cars are also excluded: extracted+cropped in create() and rendered via direct texture.
       'prop_watchwater', 'prop_watchwater_open'
     ];
-    let loadedProps = propKeys.filter(k => this.scene.textures.exists(k));
+    const loadedProps = propKeys.filter(k => this.scene.textures.exists(k));
     if (loadedProps.length === 0) return;
 
     const atlasCanvas = document.createElement('canvas');

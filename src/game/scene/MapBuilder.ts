@@ -219,7 +219,7 @@ export class MapBuilder {
 
   public scatterNature(map: MapConfig) {
     if (map.noNatureScatter) return;
-    const theme = (map as any).theme as string | undefined;
+    const theme = map.theme;
     if (!theme) return;
 
     const outdoorThemes = ['highway_night', 'park', 'florida', 'cabin', 'suburb_night'];
@@ -275,7 +275,7 @@ export class MapBuilder {
   public drawFloorLines(map: MapConfig) {
     const W = map.width;
     const H = map.height;
-    const theme = (map as any).theme as string | undefined;
+    const theme = map.theme;
     if (!theme) return;
     const g = this.scene.add.graphics().setDepth(-185);
 
@@ -382,7 +382,7 @@ export class MapBuilder {
         }
         const depth = isFullscreenBg ? -100 : y;
         img.setDisplaySize(dw, dh).setDepth(depth);
-        this.scene.propSprites.set(propKey, img as any);
+        this.scene.propSprites.set(propKey, img);
         return;
       }
     }
@@ -558,7 +558,7 @@ export class MapBuilder {
 
         const depth = propKey.startsWith('prop_pool_map') ? -100 : y;
         img.setDisplaySize(displayWidth, displayHeight).setDepth(depth);
-        this.scene.propSprites.set(propKey, img as any);
+        this.scene.propSprites.set(propKey, img);
         return;
       }
     }

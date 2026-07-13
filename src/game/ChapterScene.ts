@@ -7,6 +7,7 @@ import { PlayerController } from './scene/PlayerController';
 import { Atmosphere } from './scene/Atmosphere';
 import { SpriteLoader } from './scene/SpriteLoader';
 import { ChaseController } from './scene/ChaseController';
+import type { PropSprite } from './scene/contracts';
 import type { GameMode, ModeResult } from './modes/types';
 import { getMode } from './modes';
 import { hitStop } from './modes/hitStop';
@@ -208,8 +209,8 @@ export default class ChapterScene extends Phaser.Scene {
   public bossMusicSting: Phaser.Sound.BaseSound | null = null; // Prowler one-shot sting
   public footstepKeys: string[] = [];
 
-  // R1: map of propKey → image sprite for runtime texture swaps (e.g. door open)
-  public propSprites: Map<string, Phaser.GameObjects.Image> = new Map();
+  // R1: map of propKey → image/sprite for runtime texture swaps (e.g. door open)
+  public propSprites: Map<string, PropSprite> = new Map();
   public poolNameplates: Map<string, Phaser.GameObjects.Text> = new Map();
 
   public dialogueOpen: boolean = false;

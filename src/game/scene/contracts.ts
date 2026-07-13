@@ -9,6 +9,8 @@ export type SceneLabel = (
   style?: Phaser.Types.GameObjects.Text.TextStyle,
 ) => Phaser.GameObjects.Text;
 
+export type PropSprite = Phaser.GameObjects.Image | Phaser.GameObjects.Sprite;
+
 interface PhaserFactories {
   add: Phaser.Scene['add'];
   textures: Phaser.Scene['textures'];
@@ -52,7 +54,7 @@ export interface ChaseContext extends PhaserFactories {
   chapter: ChapterConfig;
   physics: Phaser.Scene['physics'];
   player: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
-  propSprites: Map<string, Phaser.GameObjects.Image>;
+  propSprites: Map<string, PropSprite>;
   sound: Phaser.Scene['sound'];
   time: Phaser.Scene['time'];
   tweens: Phaser.Scene['tweens'];
@@ -73,7 +75,7 @@ export interface MapBuilderContext extends PhaserFactories {
   playerClass: CharacterClass;
   poolNameplates: Map<string, Phaser.GameObjects.Text>;
   propAspects: Record<string, number>;
-  propSprites: Map<string, Phaser.GameObjects.Image>;
+  propSprites: Map<string, PropSprite>;
   time: Phaser.Scene['time'];
   walls: Phaser.Physics.Arcade.StaticGroup;
   label: SceneLabel;
