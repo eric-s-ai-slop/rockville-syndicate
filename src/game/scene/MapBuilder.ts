@@ -219,7 +219,7 @@ export class MapBuilder {
 
   public scatterNature(map: MapConfig) {
     if (map.noNatureScatter) return;
-    const theme = (map as Record<string, unknown>).theme as string | undefined;
+    const theme = (map as unknown as Record<string, unknown>).theme as string | undefined;
     if (!theme) return;
 
     const outdoorThemes = ['highway_night', 'park', 'florida', 'cabin', 'suburb_night'];
@@ -275,7 +275,7 @@ export class MapBuilder {
   public drawFloorLines(map: MapConfig) {
     const W = map.width;
     const H = map.height;
-    const theme = (map as Record<string, unknown>).theme as string | undefined;
+    const theme = (map as unknown as Record<string, unknown>).theme as string | undefined;
     if (!theme) return;
     const g = this.scene.add.graphics().setDepth(-185);
 
