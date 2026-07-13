@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { preprocessShowcaseSheet, preprocessColumnFirstSheet, preprocessGirlSilhouetteSheet, preprocessStandardSheet } from './SpritePreprocessor';
+import { preprocessShowcaseSheet, preprocessColumnFirstSheet, preprocessGirlSilhouetteSheet, preprocessStandardSheet, preprocessFemalePoolSheet } from './SpritePreprocessor';
 
 describe('SpritePreprocessor', () => {
   let originalGetContext: any;
@@ -406,3 +406,94 @@ describe('SpritePreprocessor', () => {
     });
   });
 });
+
+
+
+
+
+
+  describe('checkIsBackground branch coverage', () => {
+    let originalGetContext: any;
+    beforeEach(() => {
+      originalGetContext = HTMLCanvasElement.prototype.getContext;
+    });
+    afterEach(() => {
+      HTMLCanvasElement.prototype.getContext = originalGetContext;
+    });
+
+    it('covers branches for preprocessShowcaseSheet', () => {
+      let captured: Uint8ClampedArray | null = null;
+      const w = 200;
+      const h = 200;
+
+      const pixelFn = (gx: number, gy: number) => {
+        let c = [0, 0, 0, 255];
+        if (gx === 10 && gy === 10) return [0, 0, 0, 255];
+
+        if (gx >= 50 && gx <= 60 && gy >= 50 && gy <= 60) {
+          if (gx === 50 && gy === 50) return [255, 0, 0, 255];
+          if (gx === 60 && gy === 60) return [255, 0, 0, 255];
+          if (gx >= 50 && gx <= 60 && gy === 50) return [255, 0, 0, 255];
+          if (gx === 60 && gy >= 50 && gy <= 60) return [255, 0, 0, 255];
+          if (gx === 51 && gy === 51) return [0, 255, 0, 255];
+          if (gy === 55) {
+             if (gx === 54) return [255, 255, 255, 0];
+             if (gx === 55) return [20, 20, 20, 255];
+             if (gx === 56) return [0, 240, 0, 255];
+             if (gx === 57) return [255, 255, 255, 255];
+          }
+          if (gy === 54 || gy === 56) {
+             if (gx >= 50 && gx <= 58) return [0, 0, 0, 0];
+          }
+        }
+        return c;
+      };
+
+      HTMLCanvasElement.prototype.getContext = function (contextId: string): any {
+        if (contextId === '2d') {
+          return {
+            fillRect: vi.fn(),
+            clearRect: vi.fn(),
+            getImageData: (ix: number, iy: number, iw: number, ih: number) => {
+              const data = new Uint8ClampedArray(iw * ih * 4);
+              for (let y = 0; y < ih; y++) {
+                for (let x = 0; x < iw; x++) {
+                  const gx = ix + x;
+                  const gy = iy + y;
+                  const c = pixelFn(gx, gy);
+                  const idx = (y * iw + x) * 4;
+                  data[idx] = c[0];
+                  data[idx + 1] = c[1];
+                  data[idx + 2] = c[2];
+                  data[idx + 3] = c.length > 3 ? c[3] : 255;
+                }
+              }
+              return { data, width: iw, height: ih };
+            },
+            putImageData: (imgData: ImageData) => {
+              if (!captured && imgData.width === 11) {
+                captured = imgData.data;
+              }
+            },
+            imageSmoothingEnabled: false,
+            drawImage: vi.fn(),
+          };
+        }
+        return null;
+      } as any;
+
+      const img = document.createElement('img');
+      Object.defineProperty(img, 'naturalWidth', { value: w, configurable: true });
+      Object.defineProperty(img, 'naturalHeight', { value: h, configurable: true });
+
+      preprocessShowcaseSheet(img, 'test');
+
+      expect(captured).not.toBeNull();
+      const getAlpha = (lx: number, ly: number) => captured![(ly * 11 + lx) * 4 + 3];
+
+      expect(getAlpha(4, 5)).toBe(0);
+      expect(getAlpha(5, 5)).toBe(0);
+      expect(getAlpha(6, 5)).toBe(0);
+      expect(getAlpha(7, 5)).toBe(255);
+    });
+  });
