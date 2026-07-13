@@ -46,3 +46,5 @@ export function getMode(id: string): GameMode | undefined {
 export function listModeIds(): string[] {
   return [...registry.keys()];
 }
+
+export type { GameMode };
