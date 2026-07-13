@@ -94,7 +94,7 @@ jobs:
         run: npm run agent:audit
 
       - name: Run gauntlet with per-scene screenshots
-        run: npm run agent -- --gauntlet --shots
+        run: npm run agent -- --gauntlet --shots --speed 20
 
       - name: Upload gauntlet contact sheet + screenshots
         uses: actions/upload-artifact@v4
