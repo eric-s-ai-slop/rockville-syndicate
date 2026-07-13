@@ -454,6 +454,7 @@ Character voice lines are generated offline via the TTS pipeline in [`scripts/vo
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — Green bar requirements, hard rules, architecture conventions.
 - [`docs/ADDING_A_MINIGAME.md`](docs/ADDING_A_MINIGAME.md) — Step-by-step guide to building and registering a new minigame mode.
 - [`docs/AGENT_TOOLKIT.md`](docs/AGENT_TOOLKIT.md) — How to drive the game from the terminal with the stateful playtesting CLI (`npm run agent`).
+- [`docs/HUMAN_PLAYTESTING_REFERENCE.md`](docs/HUMAN_PLAYTESTING_REFERENCE.md) — Human-oriented flowchart and mental model for autonomous chapter playtests.
 - [`docs/chapter-pipeline/`](docs/chapter-pipeline/) — The multi-stage pipeline for authoring new chapters.
 - [`ROADMAP.md`](ROADMAP.md) — Prioritized tech debt and feature index, verified against current source.
 
