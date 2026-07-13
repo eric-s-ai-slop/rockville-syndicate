@@ -24,11 +24,17 @@ function stopAllBlips() {
 // Deterministic per-speaker pitch: no speakerId is threaded down to this component,
 // but speakerName is unique per character and already available, so hash it into a
 // consistent base pitch (e.g. a boss always sounds lower than Eric).
+const _pitchCache: Record<string, number> = Object.create(null);
 function speakerBasePitch(speakerName: string): number {
+  let pitch = _pitchCache[speakerName];
+  if (pitch !== undefined) return pitch;
+
   let h = 0;
   for (let i = 0; i < speakerName.length; i++) h = (h * 31 + speakerName.charCodeAt(i)) | 0;
   const norm = (Math.abs(h) % 100) / 100; // 0..1
-  return 0.75 + norm * 0.5; // 0.75x - 1.25x
+  pitch = 0.75 + norm * 0.5; // 0.75x - 1.25x
+  _pitchCache[speakerName] = pitch;
+  return pitch;
 }
 
 const isLetter = (c: string) => /[a-zA-Z0-9]/.test(c);
