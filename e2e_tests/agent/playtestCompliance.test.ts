@@ -55,7 +55,10 @@ describe('PlaytestCompliance', () => {
     const compliance = new PlaytestCompliance();
     compliance.captureCheckpoint(4, null);
 
-    for (const command of ['reviewcheckpoint', 'observe', 'screenshot', 'text', 'beats', 'logs', 'quit']) {
+    for (const command of [
+      'reviewcheckpoint', 'recordfinding', 'dismissfinding', 'listfindings',
+      'observe', 'screenshot', 'text', 'beats', 'logs', 'quit',
+    ]) {
       expect(() => compliance.assertCommandAllowed(command)).not.toThrow();
     }
   });

@@ -82,6 +82,14 @@ describe('playtesting docs stay in sync with the advance status vocabulary', () 
     }
   });
 
+  it('all playtesting instruction surfaces use the hybrid finding and report workflow', () => {
+    for (const doc of [SKILL, PROMPT, TOOLKIT]) {
+      expect(doc).toContain('recordfinding');
+      expect(doc).toContain('agent:write-report');
+      expect(doc).toContain('progress.json');
+    }
+  });
+
   it('the reusable prompt authorizes direct toolkit-complaint updates', () => {
     expect(PROMPT).toContain('create or update `docs/toolkit_complaints.md` directly');
     expect(PROMPT).toContain('do not ask for permission again');

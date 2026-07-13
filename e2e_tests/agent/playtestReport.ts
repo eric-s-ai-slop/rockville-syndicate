@@ -1,4 +1,6 @@
 import type { PlaytestCoverageSummary } from './playtestCoverage';
+import type { PlaytestFinding } from './playtestFindings';
+import type { PlaytestProgressSnapshot } from './playtestProgress';
 
 export interface PlaytestSessionSummary {
   cmd: 'session_summary';
@@ -9,6 +11,9 @@ export interface PlaytestSessionSummary {
   playtest_integrity: 'natural' | 'partially-bypassed';
   bypasses: Array<{ command: string; reason: string; timestamp: number }>;
   audit: Array<{ command: string; note: string; timestamp: number }>;
+  chapter?: { id: string; title: string };
+  findings?: PlaytestFinding[];
+  progress?: PlaytestProgressSnapshot;
   visual_qa: {
     status: 'complete' | 'incomplete';
     captured: number;
@@ -29,7 +34,7 @@ const EVIDENCE_START = '<!-- omega-playtest-session';
 const EVIDENCE_END = 'omega-playtest-session -->';
 
 function evidencePayload(summary: PlaytestSessionSummary): Record<string, unknown> {
-  return {
+  const payload: Record<string, unknown> = {
     ok: summary.ok,
     completion_status: summary.completion_status ?? 'incomplete-coverage',
     errors: summary.errors,
@@ -40,6 +45,10 @@ function evidencePayload(summary: PlaytestSessionSummary): Record<string, unknow
     visual_qa: summary.visual_qa,
     coverage: summary.coverage,
   };
+  if (summary.chapter) payload.chapter = summary.chapter;
+  if (summary.findings) payload.findings = summary.findings;
+  if (summary.progress) payload.progress = summary.progress;
+  return payload;
 }
 
 export function canonicalSessionEvidence(summary: PlaytestSessionSummary): string {
@@ -130,5 +139,72 @@ export function validatePlaytestReport(
   if (!report.includes(`Run integrity: ${summary.playtest_integrity}`)) {
     errors.push(`Report must state "Run integrity: ${summary.playtest_integrity}".`);
   }
+
+  const evidenceStripped = start >= 0 && end >= start
+    ? `${report.slice(0, start)}${report.slice(end + EVIDENCE_END.length)}`
+    : report;
+  const findings = summary.findings ?? [];
+  for (const finding of findings.filter((entry) => entry.status === 'open')) {
+    if (!evidenceStripped.includes(`### ${finding.id} —`)) {
+      errors.push(`Report must include open finding ${finding.id} in its visible Findings section.`);
+    }
+  }
+  for (const review of summary.visual_qa.reviews.filter((entry) => entry.verdict === 'issue-found')) {
+    if (!findings.some((finding) => finding.evidence.toLowerCase().includes(`checkpoint:${review.checkpointId}`))) {
+      errors.push(`Checkpoint ${review.checkpointId} was marked issue-found but is not linked by any recorded finding evidence.`);
+    }
+  }
   return errors;
+}
+
+export function renderPlaytestReport(summary: PlaytestSessionSummary, transcriptPath: string): string {
+  const pending = summary.visual_qa.pending.length > 0 ? summary.visual_qa.pending.join(', ') : 'none';
+  const reached = summary.completion_status === 'verified'
+    ? 'terminal state — COMPLETED'
+    : summary.progress?.story.farthestBeat !== null && summary.progress?.story.farthestBeat !== undefined
+      ? `beat ${summary.progress.story.farthestBeat + 1} of ${summary.progress.story.totalBeats} — ${summary.completion_status ?? 'incomplete-coverage'}`
+      : `unverified runtime state — ${summary.completion_status ?? 'incomplete-coverage'}`;
+  const openFindings = (summary.findings ?? []).filter((finding) => finding.status === 'open');
+  const findings = openFindings.length === 0
+    ? ['No actionable findings were recorded.']
+    : openFindings.flatMap((finding) => [
+        `### ${finding.id} — [${finding.severity}] ${finding.title}`,
+        '',
+        `- Category: ${finding.category}`,
+        `- Location: ${finding.location}`,
+        `- Reproduction: ${finding.reproduction}`,
+        `- Expected: ${finding.expected}`,
+        `- Actual: ${finding.actual}`,
+        `- Evidence: ${finding.evidence}`,
+        '',
+      ]);
+  const coverage = summary.coverage;
+  return [
+    `# Playthrough: ${summary.chapter?.title ?? summary.chapter?.id ?? 'Chapter'}`,
+    '',
+    `Reached: ${reached}`,
+    `Pending checkpoints: ${pending}`,
+    `Run integrity: ${summary.playtest_integrity}`,
+    ...(summary.progress ? [`Overall progress: ${summary.progress.overallPercent}%`] : []),
+    '',
+    '## Findings',
+    '',
+    ...findings,
+    '## Coverage',
+    '',
+    ...(summary.progress
+      ? [`- Coverage obligations: ${summary.progress.coverage.completed}/${summary.progress.coverage.total}`]
+      : []),
+    `- Scenes reviewed: ${coverage.scenes.reviewed.length}/${summary.progress?.coverage.breakdown.scenes.total ?? coverage.scenes.checkpointed.length}`,
+    `- Choice options exercised: ${coverage.choices.length}`,
+    `- Walk objectives observed: ${coverage.walks.length}`,
+    `- Mode attempts observed: ${coverage.modes.length}`,
+    `- Passive evidence: ${coverage.passive.captured.length} captured, ${coverage.passive.missed.length} missed`,
+    `- Terminal observed: ${coverage.terminalObserved ? 'yes' : 'no'}`,
+    '',
+    `Raw execution trace: \`${transcriptPath}\``,
+    '',
+    canonicalSessionEvidence(summary),
+    '',
+  ].join('\n');
 }

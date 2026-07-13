@@ -68,6 +68,12 @@ Avoid routine `state`, `observe`, or `diff` calls after a successful `advance`; 
 
 While reviewing images, check actor scale/position/depth/facing, animation state, missing assets, black bars, and UI/text clipping, overlap, contrast, or stale elements. While interacting, check instruction clarity, control feedback, objective reachability, choice consequences, mode win/loss/return flow, and scene-transition continuity.
 
+When a defect or friction point is confirmed, record it immediately as structured evidence instead of editing report prose during play. Use the JSON-only `recordfinding` command with exactly these eight arguments: severity, category, title, runtime location, reproduction, expected, actual, and evidence. Valid categories are `visual`, `friction`, `flow`, `mode`, `content`, `audio`, `performance`, and `other`. For a visual issue, include `checkpoint:<id>` in evidence. If later disproven, use `dismissfinding <id> <reason>`; never delete or silently forget it.
+
+```json
+{"protocol":"omega-agent-v1","cmd_id":"finding-001","action":"recordfinding","args":["P2","visual","Dialogue clips under portrait","scene 2 beat 18","Open the second response option","Full response remains readable","Last line is clipped","checkpoint:4"]}
+```
+
 ## Cover choices without replaying common content
 
 At each `choice-present` boundary:
@@ -107,16 +113,22 @@ Completion is `verified` only when all three are true:
 
 Treat `incomplete-visual-qa`, `incomplete-integrity`, and `incomplete-coverage` as failures. `quit`/EOF exits nonzero for an incomplete visual QA or any other non-verified completion status.
 
-## Write and verify the report
+## Generate and verify the report
 
-Write `qa/<chapter-id>/report.md`. Keep the report, screenshots, and transcript together under `qa/<chapter-id>/`. Include:
+After the session ends, generate the report once from the live finding ledger and final summary:
+
+```bash
+npm run agent:write-report -- qa/<chapter-id>/report.md qa/<chapter-id>/session.jsonl
+```
+
+Keep the report, screenshots, transcript, `progress.md`, and `progress.json` together under `qa/<chapter-id>/`. The progress files are written atomically by the harness after commands; they are monitoring aids, not proof of completion. The generated report includes:
 
 - `Reached: <terminal state> — COMPLETED` only for `completion_status: verified`; otherwise state the exact incomplete status.
 - `Pending checkpoints: none` only when the summary says none.
 - `Run integrity: natural` or `Run integrity: partially-bypassed`.
 - `Raw execution trace: ` followed by the exact `qa/<chapter-id>/session.jsonl` path in backticks.
 - A compact coverage summary and only actionable findings, each with severity, runtime location, reproduction, expected/actual behavior, and evidence path or command ID.
-- The exact canonical `omega-playtest-session` evidence block copied from `session_summary`, including `ok`, `completion_status`, `errors`, `warnings`, `playtest_integrity`, `bypasses`, `audit`, `visual_qa`, and `coverage`. Do not edit or reconstruct it.
+- The exact canonical `omega-playtest-session` evidence block derived from `session_summary`, including `ok`, `completion_status`, `errors`, `warnings`, `playtest_integrity`, `bypasses`, `audit`, `visual_qa`, `coverage`, `findings`, and final `progress`. Do not edit or reconstruct it.
 
 Use severity consistently: P0 is a crash, data loss, or unavoidable chapter blocker; P1 breaks a required interaction or obscures critical information; P2 is reproducible friction or a visible defect with a workaround; P3 is cosmetic polish. Mark passive effects with `captureMissed:true` as **Not verified**, not as bugs without corroboration.
 
