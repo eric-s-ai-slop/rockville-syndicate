@@ -1978,7 +1978,7 @@ export class GameAgent {
 
   /**
    * Hold the dominant direction key toward `(targetX, targetY)`, re-evaluate
-   * every ~10 frames, stop inside `radius`, give up after `maxSeconds` with
+   * every few deterministic frames, stop inside `radius`, give up after `maxSeconds` with
    * `ok:false` + the final position. No A-star / navmesh — current maps are
    * open rooms with perimeter walls; full pathfinding is over-engineering until a
    * maze-like map exists (deliberately descoped per the spec).
@@ -1989,34 +1989,35 @@ export class GameAgent {
     radius = 24,
     maxSeconds = 8,
   ): Promise<{ ok: boolean; player: { x: number; y: number } | null }> {
+    await this.focusCanvas();
     const deadline = Date.now() + maxSeconds * 1000;
     let lastKeys: string[] = [];
 
-    for (;;) {
-      const state = await this.snapshotGameState();
-      const player = state.player;
-      if (!player) return { ok: false, player: null };
+    try {
+      for (;;) {
+        const state = await this.snapshotGameState();
+        const player = state.player;
+        if (!player) return { ok: false, player: null };
 
-      const dx = targetX - player.x;
-      const dy = targetY - player.y;
-      if (Math.hypot(dx, dy) <= radius) {
-        for (const k of lastKeys) await this.releaseKey(k);
-        return { ok: true, player };
+        const dx = targetX - player.x;
+        const dy = targetY - player.y;
+        if (Math.hypot(dx, dy) <= radius) return { ok: true, player };
+        if (Date.now() > deadline) return { ok: false, player };
+
+        const nextKeys: string[] = [];
+        if (Math.abs(dx) > 4) nextKeys.push(dx > 0 ? 'd' : 'a');
+        if (Math.abs(dy) > 4) nextKeys.push(dy > 0 ? 's' : 'w');
+
+        for (const k of lastKeys) if (!nextKeys.includes(k)) await this.releaseKey(k);
+        for (const k of nextKeys) if (!lastKeys.includes(k)) await this.holdKey(k);
+        lastKeys = nextKeys;
+
+        // Smaller deterministic slices reduce overshoot around narrow target
+        // radii while retaining trusted keyboard input throughout the walk.
+        await this.stepFrames(4);
       }
-      if (Date.now() > deadline) {
-        for (const k of lastKeys) await this.releaseKey(k);
-        return { ok: false, player };
-      }
-
-      const nextKeys: string[] = [];
-      if (Math.abs(dx) > 4) nextKeys.push(dx > 0 ? 'd' : 'a');
-      if (Math.abs(dy) > 4) nextKeys.push(dy > 0 ? 's' : 'w');
-
-      for (const k of lastKeys) if (!nextKeys.includes(k)) await this.releaseKey(k);
-      for (const k of nextKeys) if (!lastKeys.includes(k)) await this.holdKey(k);
-      lastKeys = nextKeys;
-
-      await this.stepFrames(10);
+    } finally {
+      for (const k of lastKeys) await this.releaseKey(k);
     }
   }
 

@@ -155,6 +155,13 @@ export async function advanceUntil(
     forceChoice?: { beatIndex: number; optionIndex: number };
   } = {},
 ): Promise<AdvanceUntilResult> {
+  // `walkto` and deterministic frame stepping intentionally leave Phaser
+  // asleep. Advance is the interaction boundary where passive story time is
+  // allowed to run, so wake the loop before polling camera pans, waits,
+  // tweens, or chases.
+  await page.evaluate(() => {
+    (window as unknown as DevBridgeWindow).__OMEGA_GAME__?.loop?.wake?.();
+  });
   const {
     maxSeconds = 90,
     skipModes = [],

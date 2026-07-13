@@ -109,6 +109,22 @@ describe('playtest report verification', () => {
     expect(parseLastSessionSummary(transcript)).toEqual(summary);
   });
 
+  it('recovers an honest incomplete summary from receipts after a hard crash', () => {
+    const transcript = [
+      JSON.stringify({ cmd: 'visual_checkpoint', checkpointId: 3, path: 'qa/test/checkpoint-003.png' }),
+      JSON.stringify({ cmd: 'recordfinding', ok: true, finding: { id: 'F001', severity: 'P2', category: 'visual', title: 'Clipped label', location: 'scene 0', reproduction: 'Advance to checkpoint 3', expected: 'Label is readable.', actual: 'Label is clipped.', evidence: 'checkpoint:3', status: 'open', timestamp: 4 } }),
+      JSON.stringify({ cmd: 'reviewcheckpoint', ok: true, review: { checkpointId: 3, verdict: 'issue-found', note: 'The lower label is clipped by the panel edge.', timestamp: 5 } }),
+    ].join('\n');
+
+    expect(parseLastSessionSummary(transcript)).toMatchObject({
+      ok: false,
+      completion_status: 'incomplete-coverage',
+      findings: [{ id: 'F001' }],
+      visual_qa: { status: 'complete', captured: 1, reviewed: 1, pending: [] },
+      coverage: { terminalObserved: false },
+    });
+  });
+
   it('renders recorded findings into a verifier-compatible report', () => {
     const withFinding: PlaytestSessionSummary = {
       ...summary,

@@ -165,6 +165,36 @@ describe('PlaytestCompliance', () => {
     });
   });
 
+  it('does not verify an issue-found checkpoint without linked finding evidence', () => {
+    const compliance = new PlaytestCompliance();
+    compliance.captureCheckpoint(4, null);
+    compliance.reviewCheckpoint(4, 'issue-found', 'The actor overlaps the lower story panel.');
+
+    expect(playtestCompletionVerdict(compliance.summary(true), terminalCoverage(), 'natural')).toEqual({
+      ok: false,
+      status: 'incomplete-visual-qa',
+      exitCode: 1,
+    });
+  });
+
+  it('allows a reviewed issue-found checkpoint once finding evidence links it', () => {
+    const compliance = new PlaytestCompliance();
+    compliance.captureCheckpoint(4, null);
+    compliance.reviewCheckpoint(4, 'issue-found', 'The actor overlaps the lower story panel.');
+    const finding = {
+      id: 'F001', severity: 'P2', category: 'visual', title: 'Actor overlap',
+      location: 'scene 0 beat 4', reproduction: 'Advance to checkpoint 4',
+      expected: 'The actor remains above the panel.', actual: 'The actor overlaps the panel.',
+      evidence: 'checkpoint:4', status: 'open', timestamp: 1,
+    } as const;
+
+    expect(playtestCompletionVerdict(compliance.summary(true), terminalCoverage(), 'natural', [finding])).toEqual({
+      ok: true,
+      status: 'verified',
+      exitCode: 0,
+    });
+  });
+
   it('does not verify a visually complete mid-chapter quit without terminal observation', () => {
     const compliance = new PlaytestCompliance();
     compliance.captureCheckpoint(1, null);

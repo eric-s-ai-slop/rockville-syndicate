@@ -1,4 +1,12 @@
-@import "tailwindcss";
+/* Keep Tailwind's automatic scanner on source code only. The repository also
+ * contains a large binary asset library under src/assets; scanning the whole
+ * project makes production Vite builds appear to hang while the scanner walks
+ * those files. */
+@import "tailwindcss" source(none);
+@source "./App.tsx";
+@source "./components";
+@source "./data";
+@source "./game";
 
 /* Yoster Island — single global pixel font (R10) */
 @font-face {

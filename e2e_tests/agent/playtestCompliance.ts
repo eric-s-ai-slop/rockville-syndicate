@@ -1,5 +1,6 @@
 import type { CheckpointModeKind } from './visualCheckpoint';
 import type { PlaytestCoverageSummary } from './playtestCoverage';
+import type { PlaytestFinding } from './playtestFindings';
 
 export type CheckpointVerdict = 'clear' | 'issue-found' | 'inconclusive';
 
@@ -29,9 +30,17 @@ export function playtestCompletionVerdict(
   visualQa: VisualQaSummary,
   coverage: PlaytestCoverageSummary,
   playtestIntegrity: 'natural' | 'partially-bypassed',
+  findings: readonly PlaytestFinding[] = [],
 ): PlaytestCompletionVerdict {
+  const unlinkedIssueCheckpoints = visualQa.reviews
+    .filter((review) => review.verdict === 'issue-found')
+    .filter((review) => !findings.some((finding) =>
+      finding.evidence.toLowerCase().includes(`checkpoint:${review.checkpointId}`),
+    ));
   const status = visualQa.status !== 'complete'
     ? 'incomplete-visual-qa'
+    : unlinkedIssueCheckpoints.length > 0
+      ? 'incomplete-visual-qa'
     : playtestIntegrity !== 'natural'
       ? 'incomplete-integrity'
       : !coverage.terminalObserved
