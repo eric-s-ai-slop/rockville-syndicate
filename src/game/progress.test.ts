@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { isChapterUnlocked, setFreePlay, loadProgress, rememberHero } from './progress';
+import { isChapterUnlocked, setFreePlay, loadProgress, rememberHero, markChapterComplete, setRoseSilence, resetProgress } from './progress';
 
 vi.mock('../data/chapters', () => ({
   CHAPTERS: [
@@ -47,6 +47,54 @@ describe('isChapterUnlocked', () => {
   it('returns false if the previous chapter is NOT in the completed array', () => {
     expect(isChapterUnlocked('chapter2', [], false)).toBe(false);
     expect(isChapterUnlocked('chapter3', ['chapter1'], false)).toBe(false);
+  });
+
+  it('uses false as default for freePlay', () => {
+    expect(isChapterUnlocked('chapter2', [])).toBe(false);
+    expect(isChapterUnlocked('chapter3', ['chapter1'])).toBe(false);
+    expect(isChapterUnlocked('chapter2', ['chapter1'])).toBe(true);
+  });
+});
+
+describe('markChapterComplete', () => {
+  it('adds a chapter to completedChapters if it is not already there', () => {
+    resetProgress(); // start fresh
+    markChapterComplete('chapter1');
+    const saved = loadProgress();
+    expect(saved.completedChapters).toContain('chapter1');
+  });
+
+  it('does not duplicate a chapter if it is already in completedChapters', () => {
+    resetProgress();
+    markChapterComplete('chapter1');
+    markChapterComplete('chapter1');
+    const saved = loadProgress();
+    expect(saved.completedChapters.filter(c => c === 'chapter1').length).toBe(1);
+  });
+});
+
+describe('setRoseSilence', () => {
+  it('sets the rose_silence flag to true', () => {
+    setRoseSilence();
+    const saved = loadProgress();
+    expect(saved.rose_silence).toBe(true);
+  });
+});
+
+describe('resetProgress', () => {
+  it('clears completedChapters and wipes other progress fields to defaults', () => {
+    markChapterComplete('chapter1');
+    rememberHero('eric');
+    setFreePlay(true);
+    setRoseSilence();
+
+    resetProgress();
+
+    const saved = loadProgress();
+    expect(saved.completedChapters).toEqual([]);
+    expect(saved.hero).toBeUndefined();
+    expect(saved.freePlay).toBe(false);
+    expect(saved.rose_silence).toBe(false);
   });
 });
 
