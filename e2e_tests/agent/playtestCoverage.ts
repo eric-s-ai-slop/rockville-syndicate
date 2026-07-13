@@ -155,7 +155,8 @@ export class PlaytestCoverageTracker {
     if (mode) addModeInput(mode, category);
   }
 
-  recordBypass(): void {
+  recordBypass(command: string): void {
+    if (command !== 'winmode' && command !== 'losemode') return;
     const mode = this.activeModes.get('foreground') ?? this.activeModes.get('background');
     if (mode && mode.ending === 'active') mode.ending = 'bypassed';
   }
@@ -167,7 +168,13 @@ export class PlaytestCoverageTracker {
     }
   }
 
-  recordWalk(sceneIndex: number | null, beatIndex: number | null, success: boolean): void {
+  recordWalk(
+    sceneIndex: number | null,
+    beatIndex: number | null,
+    beatType: string | null,
+    success: boolean,
+  ): void {
+    if (beatType !== 'walkTo' || beatIndex === null) return;
     let walk = this.data.walks.find((entry) => entry.sceneIndex === sceneIndex && entry.beatIndex === beatIndex);
     if (!walk) {
       walk = { sceneIndex, beatIndex, attempts: 0, successes: 0, failures: 0 };

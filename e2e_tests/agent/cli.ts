@@ -425,7 +425,7 @@ function emit(obj: Record<string, unknown>): void {
 function recordPlaytestBypass(flags: Flags, command: string, reason: string): Record<string, unknown> {
   if (!flags.playtest) return {};
   playtestBypasses.push({ command, reason, timestamp: Date.now() });
-  playtestCoverage.recordBypass();
+  playtestCoverage.recordBypass(command);
   return {
     playtest_integrity: 'partially-bypassed',
     bypasses: [...playtestBypasses],
@@ -1515,7 +1515,7 @@ async function runCommand(
         // before returning to the REPL, otherwise the next `advance` appears
         // to soft-lock on a passive beat.
         await agent.resumeLoop().catch(() => {});
-        playtestCoverage.recordWalk(before.sceneIndex, before.beatIndex, res.ok);
+        playtestCoverage.recordWalk(before.sceneIndex, before.beatIndex, before.beatType, res.ok);
         emit({ cmd: 'walkto', ok: res.ok, target: { x: wx, y: wy }, player: res.player, mutates: true });
         break;
       }

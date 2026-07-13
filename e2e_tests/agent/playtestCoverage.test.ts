@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { playtestCompletionVerdict } from './playtestCompliance';
 import { PlaytestCoverageTracker } from './playtestCoverage';
 
 const transition = (overrides: Partial<{
@@ -68,7 +69,7 @@ describe('PlaytestCoverageTracker', () => {
       modeId: 'bossFight',
       modeBeatIndex: 7,
     })]);
-    tracker.recordBypass();
+    tracker.recordBypass('winmode');
     tracker.recordCheckpoint(2, 0, [transition({
       reason: 'Foreground mode "bossFight" ended',
       modeKind: 'foreground',
@@ -82,8 +83,8 @@ describe('PlaytestCoverageTracker', () => {
   it('records choice options, walk results, terminal observation, and passive misses compactly', () => {
     const tracker = new PlaytestCoverageTracker();
     tracker.recordChoice(0, 3, 1, 'Take the left path');
-    tracker.recordWalk(0, 5, false);
-    tracker.recordWalk(0, 5, true);
+    tracker.recordWalk(0, 5, 'walkTo', false);
+    tracker.recordWalk(0, 5, 'walkTo', true);
     tracker.recordTerminalObservation();
     tracker.recordPassiveEvents([
       { sceneIndex: 0, beatIndex: 9, beatType: 'ledger', evidence: 'post-advance' },
@@ -101,5 +102,39 @@ describe('PlaytestCoverageTracker', () => {
         missed: ['0:12:hideActor'],
       },
     });
+  });
+
+  it('does not attribute skipbeat to a background mode attempt', () => {
+    const tracker = new PlaytestCoverageTracker();
+    tracker.recordCheckpoint(1, 0, [transition({
+      reason: 'Background mode "poolParty" started',
+      modeKind: 'background',
+      modeId: 'poolParty',
+      modeBeatIndex: 18,
+    })]);
+    tracker.recordBypass('skipbeat');
+
+    expect(tracker.summary().modes).toMatchObject([{
+      id: 'poolParty',
+      kind: 'background',
+      ending: 'active',
+    }]);
+    expect(playtestCompletionVerdict({
+      status: 'complete',
+      captured: 0,
+      reviewed: 0,
+      pending: [],
+      reviews: [],
+      reasons: [],
+    }, tracker.summary(), 'partially-bypassed')).toMatchObject({
+      ok: false,
+      status: 'incomplete-integrity',
+    });
+  });
+
+  it('does not create walk coverage outside a walk objective', () => {
+    const tracker = new PlaytestCoverageTracker();
+    tracker.recordWalk(0, 4, 'dialogue', true);
+    expect(tracker.summary().walks).toEqual([]);
   });
 });
