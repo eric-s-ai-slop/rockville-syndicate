@@ -35,6 +35,7 @@ describe('playtesting docs stay in sync with the advance status vocabulary', () 
     for (const cmd of ['savestate', 'loadstate', 'advance', 'walkto', 'observe', 'reviewcheckpoint', 'skipbeat 1', 'restart']) {
       expect(SKILL).toContain(cmd);
     }
+    expect(SKILL).toContain('`walkTarget` is an internal state field, not a protocol command');
   });
 
   it('the run-integrity vocabulary matches the CLI session_summary fields', () => {

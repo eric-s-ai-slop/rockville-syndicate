@@ -36,7 +36,7 @@ Use `advance` as the primary control loop. Act on its named status:
 | --- | --- |
 | `walk-control` | Continue normal movement or use `walkto` for the current objective. |
 | `choice-present` | Read the choices, then branch-test them as described below. |
-| `walk-target-present` | Use `targets`, then `walkto <target>`; do not guess coordinates. |
+| `walk-target-present` | Use `targets`, then the public `walkto <target>` command; `walkTarget` is an internal state field, not a protocol command. Do not guess coordinates. |
 | `mode-active` | Play the foreground mode through normal input. |
 | `ambient-dialogue` | Continue with `advance`; do not wait for ambient text to vanish. |
 | `chapter-ended` | Perform terminal verification before quitting. |
@@ -72,7 +72,7 @@ While reviewing images, check actor scale/position/depth/facing, animation state
 
 At each `choice-present` boundary:
 
-1. Run `savestate <name>` once and inspect `branchSafe` and `unsafeReasons`.
+1. Run `savestate` once and inspect `branchSafe` and `unsafeReasons`. If a file save is needed, `savestate <file>` reports the same safety metadata and stores it in the save payload.
 2. If `branchSafe:true`, choose one option, follow its unique content until convergence, a new choice/walk/mode boundary, a unique scene, or a terminal state. Then `loadstate <name>` and test the next option.
 3. If `branchSafe:false`, do not force restoration. Use `restart` and a fresh natural run for each required branch.
 4. Do not replay shared downstream content after convergence. Ensure every displayed option is represented in final coverage.

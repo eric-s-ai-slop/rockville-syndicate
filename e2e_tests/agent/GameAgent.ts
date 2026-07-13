@@ -1489,17 +1489,20 @@ export class GameAgent {
 
   /**
    * Dump `{saveBlob, chapterId, sceneIndex, beatIndex, player, hp,
-   * ledgerTotal}` to `filePath` — `saveBlob` is the live `omega-save-v2`
+   * ledgerTotal, safety}` to `filePath` — `saveBlob` is the live `omega-save-v2`
    * localStorage value (settings.ts semantics, never a parallel persistence
    * path — project hard rule). Capture once right before a bug, restore in
    * every subsequent run with `loadFileState`.
    */
-  async saveFileState(filePath: string): Promise<void> {
+  async saveFileState(filePath: string): Promise<{ branchSafe: boolean; unsafeReasons: string[] }> {
     const data = await this.page.evaluate(() => {
       const game = (window as unknown as { __OMEGA_GAME__?: any }).__OMEGA_GAME__;
       if (!game) throw new Error('Game not initialized');
       const scene = game.scene.getScene('ChapterScene');
       if (!scene) throw new Error('ChapterScene not found');
+      const snapshot = typeof scene.capturePlaytestSnapshot === 'function'
+        ? scene.capturePlaytestSnapshot()
+        : null;
       let saveBlob: string | null = null;
       try {
         saveBlob = localStorage.getItem('omega-save-v2');
@@ -1514,10 +1517,18 @@ export class GameAgent {
         player: scene.player ? { x: scene.player.x, y: scene.player.y } : null,
         hp: scene.activeHp,
         ledgerTotal: scene.ledgerTotal,
+        safety: snapshot?.safety ?? {
+          branchSafe: false,
+          unsafeReasons: ['Playtest snapshot bridge unavailable; save safety could not be determined.'],
+        },
       };
     });
     fs.mkdirSync(path.dirname(filePath), { recursive: true });
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+    return {
+      branchSafe: data.safety.branchSafe,
+      unsafeReasons: [...data.safety.unsafeReasons],
+    };
   }
 
   /**

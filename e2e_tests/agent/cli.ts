@@ -315,7 +315,7 @@ COMMANDS (one per line; ';' also separates them on a single line)
     goto <sceneIndex>          jump to a specific scene index instantly (B1) — mutates, carries a
                                "skipped-state" warning: beats before the target scene didn't run
     savestate [file]           quick-save current state in-memory, or dump to <file> incl. the
-                               omega-save-v2 blob if a path is given (B2)
+                               omega-save-v2 blob and branch-safety metadata if a path is given (B2)
     loadstate [file]           quick-restore in-memory state, or restore + re-navigate from <file> (B2)
     modes                      list every registered minigame mode id (B3)
     winmode | losemode         force-complete the foreground mode via its own harnessForceComplete (B3/F1)
@@ -1350,8 +1350,8 @@ async function runCommand(
         const file = args[0];
         if (file) {
           const filePath = path.resolve(file);
-          await agent.saveFileState(filePath);
-          emit({ cmd: 'savestate', ok: true, file: filePath });
+          const save = await agent.saveFileState(filePath);
+          emit({ cmd: 'savestate', ok: true, file: filePath, ...save });
         } else {
           const save = await agent.saveQuickState();
           emit({ cmd: 'savestate', ok: true, ...save });

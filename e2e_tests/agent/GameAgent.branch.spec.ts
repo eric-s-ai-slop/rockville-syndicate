@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import fs from 'node:fs';
 import path from 'node:path';
 import { GameAgent } from './index';
 import type { BridgePlaytestSnapshot, DevBridgeWindow } from './DevBridge';
@@ -81,7 +82,9 @@ test('fixture branch snapshot restores actor, scalar, progress, and Maria state'
     expect(savedJordan!.frame).toBeDefined();
 
     await agent.saveQuickState();
-    await agent.saveFileState(fileState);
+    const fileSave = await agent.saveFileState(fileState);
+    expect(fileSave).toEqual({ branchSafe: true, unsafeReasons: [] });
+    expect(JSON.parse(fs.readFileSync(fileState, 'utf8')).safety).toEqual(fileSave);
     await agent.modifyStat('hp', 17);
     await agent.modifyStat('shards', 9);
     await agent.modifyStat('ledger', 42);
@@ -141,7 +144,7 @@ test('fixture branch snapshot restores actor, scalar, progress, and Maria state'
   }
 });
 
-test('fixture rejects loading a quick-save captured at the active background boundary', async ({ page }) => {
+test('fixture rejects loading a quick-save captured at the active background boundary', async ({ page }, testInfo) => {
   const agent = new GameAgent(page);
   try {
     await navigateToChapter(page, 'Playtest Fixture');
@@ -157,6 +160,10 @@ test('fixture rejects loading a quick-save captured at the active background bou
     const save = await agent.saveQuickState();
     expect(save.branchSafe).toBe(false);
     expect(save.unsafeReasons.join(' ')).toContain('Background mode "poolParty"');
+    const fileState = path.join(testInfo.outputDir, 'fixture-unsafe-state.json');
+    const fileSave = await agent.saveFileState(fileState);
+    expect(fileSave).toEqual(save);
+    expect(JSON.parse(fs.readFileSync(fileState, 'utf8')).safety).toEqual(save);
     await expect(agent.loadQuickState()).rejects.toThrow(/Cannot restore unsafe branch save/);
   } finally {
     await agent.dispose();
