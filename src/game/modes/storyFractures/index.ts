@@ -132,20 +132,36 @@ export class StoryFracturesMode implements GameMode<StoryFracturesConfig> {
       this.ekgGraphics.beginPath();
       const startX = this.ctx.cameras.main.width / 2 - 250;
       const startY = 35;
+      const period = this.ekgSpiking ? 200 : 1000;
+      const baseStep = this.ekgSpiking ? 10 : 4;
       
-      for (let i = 0; i < 500; i += 4) {
+      for (let i = 0; i <= 500; ) {
         let yOffset = 0;
-        const cycle = (this.ekgTime + i * 2) % (this.ekgSpiking ? 200 : 1000);
-        if (cycle > 100 && cycle < 160) {
+        const cycle = (this.ekgTime + i * 2) % period;
+        const isQrs = cycle > 100 && cycle < 160;
+
+        if (isQrs) {
           const qrs = cycle - 100;
           if (qrs < 10) yOffset = -amp * 0.4;
           else if (qrs < 30) yOffset = amp * 2.0;
           else yOffset = -amp * 0.7;
         }
-        if (this.ekgSpiking) yOffset += (Math.random() - 0.5) * 12;
+
+        let step = baseStep;
+        if (this.ekgSpiking) {
+          yOffset += (Math.random() - 0.5) * 12;
+        } else if (!isQrs) {
+          const distToNext = cycle <= 100 ? 100 - cycle : period - cycle + 100;
+          step = Math.max(baseStep, Math.min(500, Math.floor(distToNext / 2)));
+        }
         
         if (i === 0) this.ekgGraphics.moveTo(startX + i, startY - yOffset);
         else this.ekgGraphics.lineTo(startX + i, startY - yOffset);
+
+        if (i === 500) break;
+        if (i + step > 500) step = 500 - i;
+
+        i += step;
       }
       this.ekgGraphics.strokePath();
     }
