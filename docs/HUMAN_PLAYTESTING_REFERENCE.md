@@ -9,7 +9,11 @@ flowchart TD
     A["Agent sends one omega-agent-v1 command"] --> B["CLI validates syntax and playtest policy"]
     B --> C["GameAgent drives the live Chromium game"]
     C --> D["CLI returns a named status and compact state"]
-    D --> E{"Visual checkpoint emitted?"}
+    D --> Q{"Issue or friction confirmed?"}
+    Q -- Yes --> R["Agent records one structured finding"]
+    R --> P["Harness atomically refreshes progress.md and progress.json"]
+    Q -- No --> P
+    P --> E{"Visual checkpoint emitted?"}
     E -- Yes --> F["Agent opens the PNG and reviews the checkpoint"]
     F --> A
     E -- No --> G{"Interactive boundary?"}
@@ -22,7 +26,7 @@ flowchart TD
     I --> A
     J --> A
     K --> L["CLI emits authoritative session_summary"]
-    L --> M["Agent writes report and runs report verifier"]
+    L --> M["Agent generates report once and runs report verifier"]
 ```
 
 ## Components
@@ -35,7 +39,9 @@ flowchart TD
 | `e2e_tests/agent/playtestPolicy.ts` | Blocks state-changing shortcuts and audits exceptional commands in `--playtest`. |
 | `e2e_tests/agent/playtestCompliance.ts` | Enforces checkpoint review and meaningful foreground-mode input before a bypass. |
 | `e2e_tests/agent/playtestCoverage.ts` | Records scenes, choices, walks, modes, passive evidence, and terminal observation. |
-| `e2e_tests/agent/playtestReport.ts` | Verifies that the human-readable report agrees with the transcript's final summary. |
+| `e2e_tests/agent/playtestFindings.ts` | Maintains the append-only structured finding ledger during play. |
+| `e2e_tests/agent/playtestProgress.ts` | Atomically writes token-free machine and human progress indicators. |
+| `e2e_tests/agent/playtestReport.ts` | Generates and verifies the human-readable report against the transcript's final summary. |
 
 ## Session lifecycle
 
@@ -111,21 +117,27 @@ At `chapter-ended`, the agent reviews the terminal presentation, waits once for 
 
 Failure produces `incomplete-visual-qa`, `incomplete-integrity`, or `incomplete-coverage` and a nonzero exit.
 
-## Transcript and report
+## Live findings, progress, transcript, and report
 
-The transcript is the authoritative execution record. Its final `session_summary` contains console counts, integrity, bypasses, audit entries, visual reviews, and coverage.
+Confirmed issues are written during play with `recordfinding`, so the agent does not have to retain every detail until the end or repeatedly rewrite Markdown. Each record contains severity, category, title, location, reproduction, expected and actual behavior, and evidence. Visual issues link to their checkpoint ID. A disproven record is dismissed with an audit reason rather than deleted.
 
-The agent currently writes `qa/<chapter-id>/report.md` after the session and verifies it with:
+The harness also refreshes two files under `qa/<chapter-id>/` after every completed command:
+
+- `progress.json` is the machine-readable status for dashboards or supervising agents.
+- `progress.md` is a human-readable percentage bar.
+
+The bar is a monotonic estimate weighted 65% by farthest story beat, 25% by static coverage obligations (scenes, choice options, walk objectives, foreground/background modes, and terminal observation), and 10% by checkpoint review. The files show those components separately. A run is capped at 99% until both the terminal summary is verified and every measured obligation is complete. This avoids the misleading claim that reaching a late beat means branch and visual coverage are complete.
+
+The transcript remains the authoritative execution record. Its final `session_summary` contains console counts, integrity, bypasses, audit entries, visual reviews, coverage, findings, and final progress.
+
+After the session, the agent generates the report once from the structured ledger and authoritative summary, then verifies it:
 
 ```bash
+npm run agent:write-report -- qa/<chapter-id>/report.md qa/<chapter-id>/session.jsonl
 npm run agent:verify-report -- qa/<chapter-id>/report.md qa/<chapter-id>/session.jsonl
 ```
 
-The verifier rejects edited canonical evidence, missing pending-checkpoint status, or a completion claim unsupported by the transcript.
-
-### Current reporting limitation
-
-Visual observations are preserved immediately in checkpoint-review receipts. Nonvisual friction discovered between checkpoints currently depends on the transcript and the agent retaining enough context to describe it later. The intended improvement is a structured live findings ledger followed by one generated final report—not repeated edits to report prose during play.
+The verifier rejects edited canonical evidence, omitted open findings, unlinked `issue-found` checkpoints, missing pending-checkpoint status, or a completion claim unsupported by the transcript.
 
 ## Token-efficiency profile
 

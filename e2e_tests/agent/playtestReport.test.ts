@@ -3,6 +3,7 @@ import {
   canonicalSessionEvidence,
   parseLastSessionSummary,
   PlaytestSessionSummary,
+  renderPlaytestReport,
   validatePlaytestReport,
 } from './playtestReport';
 import type { PlaytestCoverageSummary } from './playtestCoverage';
@@ -106,5 +107,41 @@ describe('playtest report verification', () => {
   it('reads the final session_summary from a JSONL transcript', () => {
     const transcript = [JSON.stringify({ cmd: 'ready', ok: true }), JSON.stringify(summary)].join('\n');
     expect(parseLastSessionSummary(transcript)).toEqual(summary);
+  });
+
+  it('renders recorded findings into a verifier-compatible report', () => {
+    const withFinding: PlaytestSessionSummary = {
+      ...summary,
+      findings: [{
+        id: 'F001', severity: 'P2', category: 'visual', title: 'Actor label overlaps the footer',
+        location: 'scene 0 beat 4', reproduction: 'advance to the first mode checkpoint',
+        expected: 'The label remains above the footer.', actual: 'The label intersects the footer.',
+        evidence: 'checkpoint:1, qa/test/checkpoint-001.png', status: 'open', timestamp: 3,
+      }],
+    };
+    const report = renderPlaytestReport(withFinding, 'qa/test/session.jsonl');
+    expect(report).toContain('### F001 — [P2] Actor label overlaps the footer');
+    expect(validatePlaytestReport(report, withFinding, 'qa/test/session.jsonl')).toEqual([]);
+  });
+
+  it('rejects omitted live findings and unlinked issue checkpoints', () => {
+    const withFinding: PlaytestSessionSummary = {
+      ...summary,
+      findings: [{
+        id: 'F001', severity: 'P2', category: 'friction', title: 'Walk marker is unclear',
+        location: 'scene 0 beat 4', reproduction: 'advance to the walk target',
+        expected: 'The marker is visible.', actual: 'The marker blends into the floor.',
+        evidence: 'walk-004', status: 'open', timestamp: 3,
+      }],
+      visual_qa: {
+        ...summary.visual_qa,
+        reviews: [{ checkpointId: 1, verdict: 'issue-found', note: 'The actor label overlaps the bottom story panel.', timestamp: 2 }],
+      },
+    };
+    const report = validReport().replace(canonicalSessionEvidence(summary), canonicalSessionEvidence(withFinding));
+    expect(validatePlaytestReport(report, withFinding, 'qa/test/session.jsonl')).toEqual(expect.arrayContaining([
+      'Report must include open finding F001 in its visible Findings section.',
+      'Checkpoint 1 was marked issue-found but is not linked by any recorded finding evidence.',
+    ]));
   });
 });

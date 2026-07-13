@@ -20,12 +20,14 @@ import { spawnSync } from 'node:child_process';
 import { GameAgent, MouseButton } from './GameAgent';
 import { navigateToChapter, advanceUntil, AdvanceTimeoutError, AdvanceTimeoutDiagnostics } from '../helpers';
 import { CHAPTERS } from '../../src/data/chapters';
-import type { Beat } from '../../src/data/chapters/types';
+import type { Beat, ChapterConfig } from '../../src/data/chapters/types';
 import type { BridgeBeatTraceEntry, DevBridgeWindow } from './DevBridge';
 import { classifyBeat } from './beatClassification';
 import { checkPlaytestPolicy, parseWatchExpression } from './playtestPolicy';
 import { PlaytestCompliance, playtestCompletionVerdict } from './playtestCompliance';
 import { PlaytestCoverageTracker } from './playtestCoverage';
+import { PlaytestFindingTracker } from './playtestFindings';
+import { PlaytestProgressWriter, type PlaytestProgressStatus } from './playtestProgress';
 import { deriveCoverageManifest, CoverageManifest } from './coverageManifest';
 import {
   checkpointIdentity,
@@ -168,7 +170,7 @@ USAGE
   <no command>  → reads commands from stdin (one per line; interactive or piped)
 
 FLAGS
-  --chapter "<title>"   Navigate to a chapter after boot (e.g. "The Spotify Family Insurgency")
+  --chapter "<title|id|index>"  Navigate to a chapter after boot (e.g. "The Spotify Family Insurgency")
   --classified          Force-break the chapter's CLASSIFIED seal during navigation. Auto-detected from
                          the chapter's config (ChapterConfig.classified) whenever --chapter resolves to a
                          known chapter, so this flag is only needed for --url-only sessions or a --chapter
@@ -298,6 +300,11 @@ COMMANDS (one per line; ';' also separates them on a single line)
                                acknowledge that an emitted visual_checkpoint PNG was inspected;
                                vague placeholders are rejected. In --playtest, progression is
                                blocked until every pending checkpoint has a review receipt
+    recordfinding              JSON-only: args are severity, category, title, location,
+                               reproduction, expected, actual, evidence. Records a structured
+                               live finding without editing report prose during the run
+    dismissfinding <id> <reason>  dismiss a disproven finding while preserving its audit history
+    listfindings               print the current structured finding ledger
     diff                       like observe, but omits any field unchanged since the last diff/observe call (N4/E5)
     watch <jsExpr> [timeoutMs] block until a predicate on the live scene is true (scene/game in scope), e.g.
                                watch "scene.activeHp < 50" 10000 — polls ~100ms in one round-trip, attaches a
@@ -376,6 +383,9 @@ OTHER SCRIPTS (no browser needed)
   npm run agent:validate-chapter -- [id]       typed chapter linter (H1) — unknown speakers, unreachable
                                                 beats, broken goto targets, out-of-bounds walkTo, unknown
                                                 mode ids / music keys, missing map.theme (omit id for all)
+  npm run agent:write-report -- <report.md> <session.jsonl>
+                                                generate the final report once from structured live
+                                                findings and the authoritative session summary
 
 OUTPUT
   One JSON line per command on stdout: {"cmd":"...","ok":true, ...result}. Errors are
@@ -411,6 +421,8 @@ const playtestBypasses: { command: string; reason: string; timestamp: number }[]
 const playtestAudit: { command: string; note: string; timestamp: number }[] = [];
 const playtestCompliance = new PlaytestCompliance();
 const playtestCoverage = new PlaytestCoverageTracker();
+const playtestFindings = new PlaytestFindingTracker();
+let playtestProgress: PlaytestProgressWriter | null = null;
 
 function emit(obj: Record<string, unknown>): void {
   if (emitSink) {
@@ -688,6 +700,35 @@ async function readCurrentBeatInfo(page: Page): Promise<{
       };
     })
     .catch(() => ({ sceneIndex: null, beatIndex: null, beatType: null }));
+}
+
+async function updatePlaytestProgress(
+  page: Page,
+  flags: Flags,
+  status: PlaytestProgressStatus = 'running',
+) {
+  if (!flags.playtest || !playtestProgress) return null;
+  try {
+    const current = await readCurrentBeatInfo(page);
+    return playtestProgress.update({
+      currentBeat: current.beatIndex,
+      coverage: playtestCoverage.summary(),
+      visualQa: playtestCompliance.summary(flags.checkpoints),
+      findings: playtestFindings.summary(),
+      status,
+    });
+  } catch (err) {
+    // Progress is a monitoring convenience, not authority. Report one failure
+    // and disable further writes so an unwritable output directory cannot
+    // interrupt the playtest or suppress its final session_summary.
+    playtestProgress = null;
+    emit({
+      cmd: 'playtest_progress',
+      ok: false,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return null;
+  }
 }
 
 function traceEntriesAfter(trace: BridgeBeatTraceEntry[], sequence: number): BridgeBeatTraceEntry[] {
@@ -1241,6 +1282,38 @@ async function runCommand(
         const review = playtestCompliance.reviewCheckpoint(checkpointId, args[1] ?? '', args.slice(2).join(' '));
         playtestCoverage.recordCheckpointReview(checkpointId);
         emit({ cmd: 'reviewcheckpoint', ok: true, review });
+        break;
+      }
+      case 'recordfinding': {
+        if (!flags.playtest) throw new Error('recordfinding requires --playtest.');
+        if (args.length !== 8) {
+          throw new Error(
+            'recordfinding is JSON-only and requires 8 args: severity, category, title, location, reproduction, expected, actual, evidence.',
+          );
+        }
+        const result = playtestFindings.record({
+          severity: args[0],
+          category: args[1],
+          title: args[2],
+          location: args[3],
+          reproduction: args[4],
+          expected: args[5],
+          actual: args[6],
+          evidence: args[7],
+        });
+        emit({ cmd: 'recordfinding', ok: true, ...result });
+        break;
+      }
+      case 'dismissfinding': {
+        if (!flags.playtest) throw new Error('dismissfinding requires --playtest.');
+        if (!args[0] || args.length < 2) throw new Error('Usage: dismissfinding <id> <reason>');
+        const finding = playtestFindings.dismiss(args[0], args.slice(1).join(' '));
+        emit({ cmd: 'dismissfinding', ok: true, finding });
+        break;
+      }
+      case 'listfindings': {
+        if (!flags.playtest) throw new Error('listfindings requires --playtest.');
+        emit({ cmd: 'listfindings', ok: true, findings: playtestFindings.summary() });
         break;
       }
       case 'diff': {
@@ -2747,6 +2820,7 @@ async function readStdin(agent: GameAgent, page: Page, flags: Flags): Promise<vo
       const keepGoing = await processCommandLine(agent, page, flags, line);
       if (!keepGoing) break;
       await maybeEmitCheckpoint(agent, page, flags);
+      await updatePlaytestProgress(page, flags);
       if (interactive) process.stderr.write('agent> ');
     }
   } finally {
@@ -2772,6 +2846,8 @@ async function main(): Promise<void> {
 
   let browser: Browser | null = null;
   let agent: GameAgent | null = null;
+  let page: Page | null = null;
+  let selectedChapter: ChapterConfig | null = null;
   try {
     if (flags.transcript) {
       const transcriptPath = path.resolve(flags.transcript);
@@ -2780,7 +2856,7 @@ async function main(): Promise<void> {
     }
     browser = await chromium.launch({ headless: !flags.headed, slowMo: flags.slowmo });
     const context = await browser.newContext({ baseURL: flags.url });
-    const page = await context.newPage();
+    page = await context.newPage();
 
     if (flags.seed !== null) {
       await page.addInitScript((seedVal) => {
@@ -2813,15 +2889,24 @@ async function main(): Promise<void> {
       const matchedChapter = CHAPTERS.find(
         (c) =>
           c.title.toLowerCase() === flags.chapter!.toLowerCase() ||
-          c.id.toLowerCase() === flags.chapter!.toLowerCase(),
+          c.id.toLowerCase() === flags.chapter!.toLowerCase() ||
+          String(c.index) === flags.chapter,
       );
+      selectedChapter = matchedChapter ?? null;
       const classified = flags.classified || !!matchedChapter?.classified;
-      await navigateToChapter(page, flags.chapter, { classified });
+      await navigateToChapter(page, matchedChapter?.title ?? flags.chapter, { classified });
     } else {
       await page.goto(flags.url);
     }
     await page.waitForSelector('canvas', { timeout: 15000 }).catch(() => {});
     agent = new GameAgent(page);
+    if (flags.playtest && selectedChapter) {
+      playtestProgress = new PlaytestProgressWriter(
+        selectedChapter,
+        deriveCoverageManifest(selectedChapter),
+        flags.out,
+      );
+    }
     if (flags.seed !== null) agent.setSeed(flags.seed);
     // Soft-fail: a session with no --chapter (e.g. one whose first real
     // command is `loadstate <file>`, which does its own navigation) starts on
@@ -2838,6 +2923,7 @@ async function main(): Promise<void> {
     }
     emit({ cmd: 'ready', ok: true, url: flags.url, chapter: flags.chapter, seed: flags.seed, speed: flags.speed });
     await maybeEmitCheckpoint(agent, page, flags); // chapter-load checkpoint (N3)
+    await updatePlaytestProgress(page, flags);
 
     if (flags.gif) startGifCapture(page); // I3
 
@@ -2852,6 +2938,7 @@ async function main(): Promise<void> {
       for (const line of lines) {
         if (!(await processCommandLine(agent, page, flags, line))) break;
         await maybeEmitCheckpoint(agent, page, flags);
+        await updatePlaytestProgress(page, flags);
       }
       if (flags.keepOpen) await readStdin(agent, page, flags);
     } else if (flags.fuzz === null || flags.keepOpen) {
@@ -2889,6 +2976,9 @@ async function main(): Promise<void> {
       const completion = visualQa === null || coverage === null
         ? null
         : playtestCompletionVerdict(visualQa, coverage, integrity);
+      const progress = completion && page
+        ? await updatePlaytestProgress(page, flags, completion.status)
+        : null;
       const sessionOk = completion?.ok ?? true;
       if (completion && !completion.ok) process.exitCode = completion.exitCode;
       emit({
@@ -2902,6 +2992,11 @@ async function main(): Promise<void> {
               playtest_integrity: integrity,
               bypasses: [...playtestBypasses],
               audit: [...playtestAudit],
+              ...(selectedChapter
+                ? { chapter: { id: selectedChapter.id, title: selectedChapter.title } }
+                : {}),
+              findings: playtestFindings.summary(),
+              progress,
               visual_qa: visualQa,
               coverage,
             }

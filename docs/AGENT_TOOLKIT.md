@@ -137,6 +137,9 @@ Prefer lowercase movement keys.
 | `targets` | dump active walk target and NPCs with screen/world coordinates (A3) |
 | `observe` / `obs` [`--shot`] | print composite observation snapshot, including console errors/warnings seen since the last `observe` (A5); `--shot` attaches a stabilized screenshot path as `"shot"` (N3) |
 | `reviewcheckpoint <id> clear\|issue-found\|inconclusive <observation-note>` | record that an emitted `visual_checkpoint` PNG was inspected. Every verdict requires a concrete visual note of at least 20 characters; placeholders such as `skip`, `looks fine`, or `scene entered` are rejected. In `--playtest`, progression stays blocked until every pending checkpoint is reviewed; scene review facts are included in `session_summary.coverage` alongside the separate `visual_qa` block. |
+| `recordfinding` | `--playtest`, JSON-only. Pass eight string args: severity (`P0`–`P3`), category, title, runtime location, reproduction, expected, actual, and evidence. Stores the finding immediately in the final summary; use `checkpoint:<id>` in evidence for visual issues. |
+| `dismissfinding <id> <reason>` | dismiss a disproven live finding without deleting its audit history. |
+| `listfindings` | print the current structured live finding ledger. |
 | `diff` | like `observe`, but omits any field unchanged since the last `diff`/`observe` call — the cheap per-step read for a driving agent (N4/E5) |
 | `watch <jsExpr> [timeoutMs]` | block until a predicate on the live scene is true (`scene`/`game` in scope), e.g. `watch scene.activeHp < 50 10000`; polls ~100ms inside one round-trip and attaches a final observation on timeout (N4/E6) |
 | `beat` / `beats` | print current and upcoming narrative beats (A4) |
@@ -222,14 +225,16 @@ command then prints its own result.
   `partially-bypassed`, every permitted bypass, and an `audit` array of every
   `watch`/`loadstate <file>`/`speed` use; a bypassed run cannot support a
   natural full-chapter completion claim. It also emits `visual_qa` with every
-  checkpoint review and any pending checkpoint IDs, plus compact runtime
+  checkpoint review and any pending checkpoint IDs, structured live `findings`,
+  final `progress`, plus compact runtime
   `coverage` for scenes, choices, walks, foreground/background mode attempts,
   terminal observation, and passive captures/misses. `verified` requires
   natural integrity, complete visual QA, and `coverage.terminalObserved:true`;
   mid-chapter runs report `incomplete-coverage`, bypassed runs report
   `incomplete-integrity`, and incomplete visual QA reports
   `incomplete-visual-qa`. These statuses make `ok` false and exit nonzero.
-  Verify the final Markdown report against this line with
+  Generate the final Markdown report once with
+  `npm run agent:write-report -- <report.md> <session.jsonl>`, then verify it with
   `npm run agent:verify-report -- <report.md> <session.jsonl>`.
   Read the full list any time mid-session with `logs`.
 - **`state` payload** (`snapshotGameState`): read straight off the live scene, no
@@ -323,10 +328,22 @@ npm run agent -- --chapter <chapter-index> --repl --checkpoints --playtest \
   --transcript "qa/<chapter-id>/session.jsonl"
 ```
 
-Write the final report to `qa/<chapter-id>/report.md` and verify it with
-`npm run agent:verify-report -- qa/<chapter-id>/report.md qa/<chapter-id>/session.jsonl`.
-Screenshots, automatic checkpoints, the transcript, and the report then remain
-side by side in the same QA run folder.
+During play, use `recordfinding` for confirmed issues instead of repeatedly
+editing report prose. The harness atomically refreshes `progress.json` and a
+human-readable `progress.md` in the same directory after each command. These
+show monotonic overall progress plus separate story, coverage-obligation, and
+visual-review percentages. Reaching 100% requires both a verified terminal
+summary and every measured obligation.
+
+After quitting, generate the final report once and verify it:
+
+```bash
+npm run agent:write-report -- qa/<chapter-id>/report.md qa/<chapter-id>/session.jsonl
+npm run agent:verify-report -- qa/<chapter-id>/report.md qa/<chapter-id>/session.jsonl
+```
+
+Screenshots, automatic checkpoints, progress files, the transcript, and the
+report then remain side by side in the same QA run folder.
 
 1. Start one long-lived `--repl --checkpoints --playtest` session and use
    `advance` as the control plane. Route from its named status:
