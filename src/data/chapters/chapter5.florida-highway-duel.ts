@@ -1,5 +1,4 @@
 import { ChapterConfig } from './types';
-import { C } from './palette';
 
 const chapter5: ChapterConfig = {
   id: 'florida_highway_duel',
