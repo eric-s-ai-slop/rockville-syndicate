@@ -6,7 +6,7 @@ export class PoolPartyMode implements GameMode {
   id = 'poolParty';
   private ctx!: ModeContext;
 
-  start(ctx: ModeContext, config: any, onComplete: (result: ModeResult) => void): void {
+  start(ctx: ModeContext, config: unknown, onComplete: (result: ModeResult) => void): void {
     this.ctx = ctx;
     // This mode runs in the background concurrently with other story beats.
     // The BeatEngine advances immediately on start, but the mode remains active.
