@@ -48,7 +48,7 @@ import { extractPropSubject } from './PropExtractor';
 import { buildFurnitureAtlas } from './furnitureCatalog';
 import { buildPackAtlas } from './packSpriteAtlas';
 import { getChapterAssets } from './assets/chapter';
-import { ChapterConfig, Beat, ActorPlacement, resolveSpeaker, MapConfig } from '../data/chapters';
+import { ChapterConfig, Beat, ActorPlacement, MapConfig } from '../data/chapters';
 import {
   CROWD_MURMUR_URL, CRICKET_AMBIENT_URL,
   SFX_MESSAGE_DING_URL, ULTRAPHONK_URL,
