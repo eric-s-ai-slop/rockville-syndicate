@@ -1,5 +1,4 @@
 import { ChapterConfig } from './types';
-import { C } from './palette';
 
 const chapter2: ChapterConfig = {
   id: 'nyc_1am_drive',
