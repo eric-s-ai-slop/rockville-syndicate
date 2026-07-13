@@ -7,10 +7,10 @@ React 19 + Phaser **3.88.2** (not Phaser 4) + Vite + TypeScript + Tailwind v4. T
 Route work before searching broadly:
 
 ```bash
-npm run agent:map -- --target=<domain>
+npm run agent:map -- --target=weapon
 ```
 
-Run without a target to list supported domains. The map returns canonical entrypoints, related contracts, a short recipe, and verification commands. Code is canonical; `ARCHITECTURE.md` and `ROADMAP.md` are living references. Ignore `docs/archive/` and `docs/chapter-pipeline/working/` unless history or a draft is explicitly requested.
+Replace `weapon` with a supported domain; run `npm run agent:map --` to list them. The map returns canonical entrypoints, related contracts, a short recipe, and verification commands. Code is canonical; `ARCHITECTURE.md` and `ROADMAP.md` are living references. Ignore `docs/archive/` and `docs/chapter-pipeline/working/` unless history or a draft is explicitly requested.
 
 ## Commands
 

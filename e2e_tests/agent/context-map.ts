@@ -6,7 +6,7 @@
  * a listed file or exported symbol stops existing. Revisit generating this
  * from the AST if/when C6's audit moves further onto ts-morph (H1).
  *
- * Usage: npm run agent:map -- --target=<domain>
+ * Usage: npm run agent:map -- --target=weapon
  * Run without a target to print the currently supported domains.
  */
 import { loadContextMap } from './context-map-data';
@@ -20,7 +20,12 @@ function main() {
   const target = arg?.split('=')[1];
   const map = loadContextMap();
 
-  if (!target || !map[target]) {
+  if (!target) {
+    emit({ ok: true, domains: Object.keys(map) });
+    return;
+  }
+
+  if (!map[target]) {
     emit({ ok: false, error: `Usage: --target=${Object.keys(map).join('|')}` });
     process.exit(1);
   }
