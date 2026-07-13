@@ -1,6 +1,6 @@
 # Playtesting Skill Implementation Plan
 
-Status: PR 4 complete; PR 5 intentionally not started
+Status: PR 5 documentation authored; contract tests passed; forward playtest pending
 Date: 2026-07-12  
 Source review: `docs/PLAYTESTING_SKILL_REVIEW.md`
 
@@ -24,8 +24,10 @@ PR3 adds a bounded DEV-only structural beat trace and passive visual-risk
 evidence batching; production builds do not record the trace. PR4 adds a
 compact runtime coverage summary, per-mode input categories, canonical report
 coverage integrity, and fail-closed completion requiring terminal observation,
-complete visual QA, and natural integrity. The final skill rewrite remains
-intentionally deferred.
+complete visual QA, and natural integrity. PR5 rewrites the Gemini-facing skill,
+reusable prompt, and recommended toolkit workflow around the shipped PR1–4
+behavior. Documentation/test synchronization passes; a clean forward playtest
+remains the final validation gate.
 
 ## Objective
 

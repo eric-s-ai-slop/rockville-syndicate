@@ -81,7 +81,7 @@ yourself with `click`/`eval`).
 | `--slowmo <ms>` | Delay every action by `<ms>` — watch it happen |
 | `--keep-open` | After inline/script commands, stay open and read stdin |
 | `--repl` | Alias for `--keep-open` that also emits `{"repl":"ready"}` once the stdin loop is actually listening, so a process piping commands in line-by-line knows exactly when it's safe to start writing (C3). Same `runCommand`/JSONL/`--record` behavior as `--keep-open` underneath — this only adds the ready signal and the name. `exit`/`quit`/EOF closes the browser; an incomplete `--playtest` exits nonzero. |
-| `--playtest` | Autonomous-QA safety mode. Blocks `eval`, `injectbeat`, `modify`, direct `mode` launch, `goto`, `chapterflag` writes, `settings` writes, and any `watch` expression that isn't read-only; rejects multi-beat `skipbeat`; records `skipbeat`/`winmode`/`losemode` as a bypass and every `watch`/`loadstate <file>`/`speed` use in `session_summary.audit`. Every `visual_checkpoint` requires a concrete `reviewcheckpoint` receipt. While any checkpoint is pending, progression/state-changing commands are blocked; vague review notes are rejected. `quit`/EOF fails closed with `session_summary.ok:false` and a nonzero exit when visual QA is incomplete. `skipbeat` cannot bypass an active foreground mode, and `winmode`/`losemode` require a successful normal keyboard/mouse attempt first. The policy gate lives in `e2e_tests/agent/playtestPolicy.ts`; stateful compliance lives in `e2e_tests/agent/playtestCompliance.ts`. Use with `--repl --checkpoints`. |
+| `--playtest` | Autonomous-QA safety mode. Blocks `eval`, `injectbeat`, `modify`, direct `mode` launch, `goto`, `chapterflag` writes, `settings` writes, and any `watch` expression that isn't read-only; rejects multi-beat `skipbeat`; records `skipbeat`/`winmode`/`losemode` as a bypass and every `watch`/`loadstate <file>`/`speed` use in `session_summary.audit`. Every `visual_checkpoint` requires a concrete `reviewcheckpoint` receipt. While any checkpoint is pending, progression/state-changing commands are blocked; vague review notes are rejected. `quit`/EOF fails closed with `session_summary.ok:false` and a nonzero exit unless completion is verified: visual QA complete, natural `playtest_integrity`, and terminal coverage observed. `skipbeat` cannot bypass an active foreground mode, and `winmode`/`losemode` require a successful normal keyboard/mouse attempt first. The policy gate lives in `e2e_tests/agent/playtestPolicy.ts`; stateful compliance lives in `e2e_tests/agent/playtestCompliance.ts`. Use with `--repl --checkpoints`. |
 | `--playtest-smoke` | (requires `--gauntlet`) Chapter-agnostic sweep proving the playtest-mode `advance` classification never dead-ends: for every chapter (enumerated from `CHAPTERS` at runtime — a new chapter is swept automatically), it loops `advance` and resolves each named status generically (choice 0, **real key-driven** `walkTo` with teleport-recovery fallback, `harnessForceComplete` for foreground modes) until `chapter-ended`. Emits one `playtest_smoke` JSONL line per chapter with `statusCounts` plus a `coverage` diff of exercised interactions vs. the config-derived manifest (`e2e_tests/agent/coverageManifest.ts`), then a `playtest_smoke_summary`; exits non-zero if any chapter fails. Run it after changing any beat type, mode lifecycle, or the harness itself. |
 | `--speed <n>` | Set Phaser's `scene.time` / `scene.tweens` / arcade-physics `timeScale` to `<n>` via `GameAgent.setTimeScale()`, once the chapter scene has booted. Works for both normal sessions and `--gauntlet` runs; for the gauntlet it's re-applied whenever `advanceUntil`'s `onTick` observes a scene-index change, since a scene restart resets a fresh `ChapterScene`'s `timeScale` back to 1 (H2). **Only speeds up Phaser tweens/waits** — `cameraPan` and `wait` beats run faster, but `advanceUntil`'s own ~150ms poll loop and React-side timers (the dialogue typewriter) are untouched, so wall-clock savings are real but sub-linear, not proportional to `<n>`. Tested against `Rockville Syndicate: Origins` (37 cameraPan/wait beats, the heaviest in the repo) across repeated `--gauntlet` runs: `--speed 1`/`3`/`4` always completed (durations ranged 16s–278s run-to-run — this machine's background load dominates wall-clock noise more than `<n>` does), but `--speed 5` **crashed on one of two runs** (`page.evaluate: Execution context was destroyed, most likely because of a navigation`) even though the other run completed. That correctness flip (not the noisy timings) is the real signal. **Recommended max: 3** — the highest factor that was stable across every run tried. |
 | `--seed <number>` | Initialize the page with a specific random seed for determinism |
@@ -99,7 +99,7 @@ yourself with `click`/`eval`).
 | `--branches all\|<n>` | (with `--gauntlet`) replay each chapter once per option of its **first** choice beat (capped at `<n>` options if given instead of `all`) — the only automated way to catch branch-specific breakage (G7) |
 | `--parallel <n>` | (with `--gauntlet`) run up to `<n>` chapter/branch attempts concurrently, each in its own browser context — wall-clock only, doesn't change what's tested (G8) |
 | `--fuzz <seconds>` | Seeded random key/click/mode-launch mashing for `<seconds>`, stopping and reporting on the first new console error. Pair with `--record` for a committed, deterministic repro script of exactly what crashed it (I2) |
-| `--gif <file>` | **The tool for animation/motion bugs** — flicker, stalled walk cycles, misaligned frames. Static `screenshot`/`observe --shot` PNGs are single frames and cannot show motion; if something looks wrong *over time*, reach for this before anything else. Captures raw frames for the whole session and assembles a GIF at `<file>` via a system `ffmpeg` (must be on PATH; soft-fails with frames kept on disk if missing) (I3). For a shorter clip scoped to just the moment you care about instead of the whole session, use the `gifstart`/`gifstop [file]` commands (H6) — don't combine them with `--gif`, they share one capture slot and `gifstart` will refuse to start a second one |
+| `--gif <file>` | Capture raw frames for the whole session and assemble them into a GIF at `<file>` via a system `ffmpeg` (must be on PATH; soft-fails with frames kept if missing) (I3). This is expensive evidence: autonomous chapter playtests should prefer `gifstart`/`gifstop [file]` around a suspected motion, chase, flicker, or animation defect. Do not combine the two forms; they share one capture slot. |
 | `-h`, `--help` | Print the usage menu |
 
 ### Commands (one per line; `;` also separates them inline)
@@ -187,7 +187,7 @@ Prefer lowercase movement keys.
 | `replay <file>` | execute commands recorded in `<file>` recreating original timing delays |
 | `wait <ms>` | sleep `<ms>` of real time |
 | `help` | print the menu |
-| `quit` / `exit` | close the browser and end. In `--playtest`, incomplete visual QA returns a failed command receipt, `session_summary.ok:false`, and a nonzero process exit. |
+| `quit` / `exit` | close the browser and end. In `--playtest`, any non-verified result returns a failed command receipt, `session_summary.ok:false`, and a nonzero process exit: incomplete visual QA, bypassed integrity, or missing terminal coverage. |
 
 ---
 
@@ -310,52 +310,51 @@ same command handlers rather than a parallel command implementation.
 
 ## 4. Recommended playtest loop (for a multimodal driving agent)
 
-The toolkit is primarily driven by an LLM agent (e.g. Antigravity), not typed by
-hand. Token efficiency matters, but so does actually *looking* — a transcript
-that's all-green JSON with zero images looked at is a coverage gap, not an
-efficiency win. The recommended loop:
+The toolkit is designed for an adaptive multimodal agent. Use the smallest
+runtime receipt that supports the next decision, while still inspecting the
+rendered game at every required checkpoint:
 
-1. Use `diff` for your per-step read once a baseline exists (`observe` the
-   first time) — it omits anything unchanged, so most steps are a few lines.
-2. **Your goal is to play through the game end-to-end interactively, stepping through everything manually to verify visual placement.** Do not rely solely on the gauntlet for visual verification; it validates logic, not visuals.
-3. Pass `--checkpoints` at session start. Every chapter/scene/mode boundary
-   auto-captures a stabilized screenshot and emits a `visual_checkpoint` line —
-   **look at every one of these images.** This is where mis-scaled sprites,
-   misplaced actors, and "the game looks wrong" bugs actually show up; JSON
-   state can't express them.
-4. Reach for `observe --shot` mid-scene when the JSON state is ambiguous and
-   you want to confirm what's actually rendered.
-4. Use `screenshot --annotate` specifically when a sprite looks wrong —
-   bounding boxes + names + depth turn "something looks off" into "chris_rivas
-   is mis-scaled at depth 12".
-5. Use `watch <jsExpr> [timeoutMs]` instead of a manual `wait 500; state` poll
-   loop when you're blocked on a condition (e.g. waiting for HP to drop, a mode
-   to complete) — one round-trip instead of several.
-6. **Avoid blind, rigid macro scripts.** The game state is highly dynamic (e.g.
-   non-blocking dialogue that allows movement while typing, meaning `advance`
-   will instantly exit). Do not write a long, hardcoded sequence of `advance;
-   click; wait` commands assuming perfect timing. You must interactively read
-   the `observe` state and conditionally determine your next input, otherwise
-   your sequence will quickly desynchronize and fail the playtest.
+1. Start one long-lived `--repl --checkpoints --playtest` session and use
+   `advance` as the control plane. Route from its named status:
+   `walk-control`, `choice-present`, `walk-target-present`, `mode-active`,
+   `ambient-dialogue`, or `chapter-ended`.
+2. Treat automatic checkpoints as the default visual evidence for chapter,
+   scene, and foreground/background mode transitions. Open each original PNG
+   and submit one concrete `reviewcheckpoint` note. A coalesced checkpoint can
+   carry several `transitions`; inspect every listed transition against the
+   same image instead of requesting duplicate screenshots.
+3. Do not routinely call `state`, `observe`, or `diff` after a successful
+   `advance`; its compact observation already supports routing. Use `text` for
+   choice wording or ambiguous instructions, `targets` for a walk objective,
+   `observe --shot` when no adequate checkpoint exists, annotation for a
+   suspected placement/depth issue, and telemetry for suspected performance.
+4. Read `advance.visual_events` and the generated passive-evidence contact
+   sheets. They cover `cameraPan`, `moveActor`, `hideActor`, `showActor`,
+   `chase`, `screenTint`, and `ledger` without pausing or stepping the game.
+   `captureMissed:true` means the effect is not verified; never infer that it
+   looked correct.
+5. At a choice, `savestate` once and restore between options only when
+   `branchSafe:true`; otherwise make fresh natural runs. Follow branch-unique
+   content only until convergence or another interactive boundary. For a
+   foreground mode, exercise its core input and visible feedback through a
+   coherent normal attempt. Background modes do not return `mode-active`:
+   continue the story and verify coexistence and teardown.
+6. At `chapter-ended`, inspect the terminal presentation, run `wait 2300` once
+   for the completion handoff, clear any new checkpoint, and confirm stale story/mode
+   UI is gone before `quit`. A verified summary requires complete visual QA,
+   natural `playtest_integrity`, and terminal observation coverage.
+
+Avoid blind command macros. Read each correlated receipt and choose the next
+input from live state; long timing-dependent sequences desynchronize easily.
 
 ### Verifying animation / motion
 
-A static `screenshot` (or `observe --shot`) is one frame — it cannot show
-flicker, a stalled walk cycle, or frames that are misaligned only while
-moving. If the bug report is about *motion* rather than a single frozen
-moment, reach for a GIF, not another screenshot:
-
-1. **Whole session:** pass `--gif <file>` at startup. It records raw frames
-   for the entire session and assembles them into a GIF on exit (soft-fails
-   to the kept frame directory if `ffmpeg` isn't on `PATH`) (I3).
-2. **Just one moment:** run `gifstart`, do the thing you want to inspect
-   (`press w 1500`, trigger the mode, walk through the doorway), then
-   `gifstop [file]` — scopes the capture to that window instead of the whole
-   session (H6). Don't mix this with `--gif`; only one capture can run at a
-   time and `gifstart` will error out if `--gif` already claimed it.
-3. Look at the resulting GIF frame-by-frame for the specific complaint
-   (stutter, sprite pop, flipX flicker) — a JSON state dump cannot express
-   this class of bug at all.
+A static PNG cannot show flicker, a stalled walk cycle, or frames that become
+misaligned only while moving. When motion is specifically at risk, run
+`gifstart`, exercise only that moment, then `gifstop [file]`. Inspect the short
+clip frame-by-frame for the suspected defect. Reserve `--gif <file>` for an
+explicit whole-session motion investigation; it is not the default chapter
+playtest evidence and cannot run alongside a scoped capture.
 
 ## 5. Copy-paste examples
 
