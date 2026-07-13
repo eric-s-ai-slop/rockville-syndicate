@@ -41,21 +41,21 @@ function validReport(): string {
     'Reached: beat 20 of 30 — BLOCKED: INCOMPLETE VISUAL QA',
     'Pending checkpoints: 2',
     'Run integrity: partially-bypassed',
-    'Raw execution trace: `agent-artifacts/test/session.jsonl`',
+    'Raw execution trace: `qa/test/session.jsonl`',
     canonicalSessionEvidence(summary),
   ].join('\n\n');
 }
 
 describe('playtest report verification', () => {
   it('accepts a report whose evidence matches the transcript summary', () => {
-    expect(validatePlaytestReport(validReport(), summary, 'agent-artifacts/test/session.jsonl')).toEqual([]);
+    expect(validatePlaytestReport(validReport(), summary, 'qa/test/session.jsonl')).toEqual([]);
   });
 
   it('rejects dishonest completion and omitted pending checkpoints', () => {
     const report = validReport()
       .replace('BLOCKED: INCOMPLETE VISUAL QA', 'COMPLETED')
       .replace('Pending checkpoints: 2', 'Pending checkpoints: none');
-    expect(validatePlaytestReport(report, summary, 'agent-artifacts/test/session.jsonl')).toEqual(
+    expect(validatePlaytestReport(report, summary, 'qa/test/session.jsonl')).toEqual(
       expect.arrayContaining([
         'Report must state "Pending checkpoints: 2".',
         'Report cannot claim COMPLETED while completion_status is incomplete-visual-qa.',
@@ -66,19 +66,19 @@ describe('playtest report verification', () => {
 
   it('rejects a hand-edited evidence block', () => {
     const report = validReport().replace('"reviewed": 1', '"reviewed": 2');
-    expect(validatePlaytestReport(report, summary, 'agent-artifacts/test/session.jsonl')).toContain(
+    expect(validatePlaytestReport(report, summary, 'qa/test/session.jsonl')).toContain(
       'Embedded session evidence does not exactly match the transcript session_summary.',
     );
   });
 
   it('rejects missing or edited canonical coverage', () => {
     const missing = validReport().replace('"coverage":', '"not_coverage":');
-    expect(validatePlaytestReport(missing, summary, 'agent-artifacts/test/session.jsonl')).toContain(
+    expect(validatePlaytestReport(missing, summary, 'qa/test/session.jsonl')).toContain(
       'Embedded session evidence does not exactly match the transcript session_summary.',
     );
 
     const edited = validReport().replace('"terminalObserved": false', '"terminalObserved": true');
-    expect(validatePlaytestReport(edited, summary, 'agent-artifacts/test/session.jsonl')).toContain(
+    expect(validatePlaytestReport(edited, summary, 'qa/test/session.jsonl')).toContain(
       'Embedded session evidence does not exactly match the transcript session_summary.',
     );
   });
@@ -95,7 +95,7 @@ describe('playtest report verification', () => {
       .replace('BLOCKED: INCOMPLETE VISUAL QA', 'COMPLETED')
       .replace(canonicalSessionEvidence(summary), canonicalSessionEvidence(bypassed))
       .replace('Pending checkpoints: 2', 'Pending checkpoints: none');
-    expect(validatePlaytestReport(report, bypassed, 'agent-artifacts/test/session.jsonl')).toEqual(
+    expect(validatePlaytestReport(report, bypassed, 'qa/test/session.jsonl')).toEqual(
       expect.arrayContaining([
         'Report cannot claim COMPLETED while completion_status is incomplete-integrity.',
         'A report cannot claim natural completion when the playtest was bypassed.',

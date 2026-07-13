@@ -20,8 +20,8 @@ Use the chapter config's `id` for paths:
 
 ```bash
 npm run agent -- --chapter <chapter-index> --repl --checkpoints --playtest \
-  --out "agent-artifacts/<chapter-id>" \
-  --transcript "agent-artifacts/<chapter-id>/session.jsonl"
+  --out "qa/<chapter-id>" \
+  --transcript "qa/<chapter-id>/session.jsonl"
 ```
 
 Send one newline-terminated `omega-agent-v1` JSON command at a time with a unique `cmd_id`. Wait for its correlated `completed` or `failed` receipt before sending another command:
@@ -109,12 +109,12 @@ Treat `incomplete-visual-qa`, `incomplete-integrity`, and `incomplete-coverage` 
 
 ## Write and verify the report
 
-Write `qa/<chapter-id>/report.md`. Keep artifacts under `agent-artifacts/<chapter-id>/`. Include:
+Write `qa/<chapter-id>/report.md`. Keep the report, screenshots, and transcript together under `qa/<chapter-id>/`. Include:
 
 - `Reached: <terminal state> — COMPLETED` only for `completion_status: verified`; otherwise state the exact incomplete status.
 - `Pending checkpoints: none` only when the summary says none.
 - `Run integrity: natural` or `Run integrity: partially-bypassed`.
-- `Raw execution trace: ` followed by the exact `agent-artifacts/<chapter-id>/session.jsonl` path in backticks.
+- `Raw execution trace: ` followed by the exact `qa/<chapter-id>/session.jsonl` path in backticks.
 - A compact coverage summary and only actionable findings, each with severity, runtime location, reproduction, expected/actual behavior, and evidence path or command ID.
 - The exact canonical `omega-playtest-session` evidence block copied from `session_summary`, including `ok`, `completion_status`, `errors`, `warnings`, `playtest_integrity`, `bypasses`, `audit`, `visual_qa`, and `coverage`. Do not edit or reconstruct it.
 
@@ -123,7 +123,7 @@ Use severity consistently: P0 is a crash, data loss, or unavoidable chapter bloc
 Run:
 
 ```bash
-npm run agent:verify-report -- qa/<chapter-id>/report.md agent-artifacts/<chapter-id>/session.jsonl
+npm run agent:verify-report -- qa/<chapter-id>/report.md qa/<chapter-id>/session.jsonl
 ```
 
 Do not claim success unless verification passes. Audio quality, accessibility, responsive-layout sweeps, menu UX, and performance profiling are out of scope unless explicitly requested or visibly implicated during the chapter run.

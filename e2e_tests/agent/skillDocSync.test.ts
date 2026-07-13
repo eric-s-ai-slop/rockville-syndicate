@@ -47,12 +47,15 @@ describe('playtesting docs stay in sync with the advance status vocabulary', () 
     }
   });
 
-  it('the reusable prompt keeps reports and artifacts on their canonical repo-relative paths', () => {
-    expect(PROMPT).toContain('--out "agent-artifacts/<chapter-id>"');
-    expect(PROMPT).toContain('--transcript "agent-artifacts/<chapter-id>/session.jsonl"');
-    expect(PROMPT).not.toMatch(/--out\s+"\//);
-    expect(PROMPT).toContain('qa/<chapter-id>/report.md');
-    expect(PROMPT).toContain('agent-artifacts/<chapter-id>/');
+  it('all playtest artifacts share the report directory on canonical repo-relative paths', () => {
+    for (const doc of [SKILL, PROMPT]) {
+      expect(doc).toContain('--out "qa/<chapter-id>"');
+      expect(doc).toContain('--transcript "qa/<chapter-id>/session.jsonl"');
+      expect(doc).toContain('qa/<chapter-id>/report.md');
+      expect(doc).toContain('agent:verify-report -- qa/<chapter-id>/report.md qa/<chapter-id>/session.jsonl');
+      expect(doc).not.toMatch(/--out\s+"\//);
+      expect(doc).not.toContain('agent-artifacts/<chapter-id>');
+    }
   });
 
   it('the reusable prompt distinguishes permitted bypass commands from blocked mutations', () => {

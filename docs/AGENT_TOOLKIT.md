@@ -314,6 +314,20 @@ The toolkit is designed for an adaptive multimodal agent. Use the smallest
 runtime receipt that supports the next decision, while still inspecting the
 rendered game at every required checkpoint:
 
+For a chapter playtest, use one directory for the report and all generated
+evidence (replace both placeholders with the chapter config's values):
+
+```bash
+npm run agent -- --chapter <chapter-index> --repl --checkpoints --playtest \
+  --out "qa/<chapter-id>" \
+  --transcript "qa/<chapter-id>/session.jsonl"
+```
+
+Write the final report to `qa/<chapter-id>/report.md` and verify it with
+`npm run agent:verify-report -- qa/<chapter-id>/report.md qa/<chapter-id>/session.jsonl`.
+Screenshots, automatic checkpoints, the transcript, and the report then remain
+side by side in the same QA run folder.
+
 1. Start one long-lived `--repl --checkpoints --playtest` session and use
    `advance` as the control plane. Route from its named status:
    `walk-control`, `choice-present`, `walk-target-present`, `mode-active`,
