@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { PlaytestCoverageTracker } from './playtestCoverage';
 import { PlaytestCompliance, playtestCompletionVerdict } from './playtestCompliance';
+
+function terminalCoverage() {
+  const coverage = new PlaytestCoverageTracker();
+  coverage.recordTerminalObservation();
+  return coverage.summary();
+}
 
 describe('PlaytestCompliance', () => {
   it('reports emitted but unreviewed checkpoints as incomplete', () => {
@@ -136,7 +143,7 @@ describe('PlaytestCompliance', () => {
     const compliance = new PlaytestCompliance();
     compliance.captureCheckpoint(1, null);
 
-    expect(playtestCompletionVerdict(compliance.summary(true))).toEqual({
+    expect(playtestCompletionVerdict(compliance.summary(true), terminalCoverage(), 'natural')).toEqual({
       ok: false,
       status: 'incomplete-visual-qa',
       exitCode: 1,
@@ -148,10 +155,35 @@ describe('PlaytestCompliance', () => {
     compliance.captureCheckpoint(1, null);
     compliance.reviewCheckpoint(1, 'clear', 'Dialogue text is readable inside the centered footer panel.');
 
-    expect(playtestCompletionVerdict(compliance.summary(true))).toEqual({
+    expect(playtestCompletionVerdict(compliance.summary(true), terminalCoverage(), 'natural')).toEqual({
       ok: true,
       status: 'verified',
       exitCode: 0,
+    });
+  });
+
+  it('does not verify a visually complete mid-chapter quit without terminal observation', () => {
+    const compliance = new PlaytestCompliance();
+    compliance.captureCheckpoint(1, null);
+    compliance.reviewCheckpoint(1, 'clear', 'Choice panel and actors are visible in the active scene.');
+    const coverage = new PlaytestCoverageTracker().summary();
+
+    expect(playtestCompletionVerdict(compliance.summary(true), coverage, 'natural')).toEqual({
+      ok: false,
+      status: 'incomplete-coverage',
+      exitCode: 1,
+    });
+  });
+
+  it('does not verify a bypassed run even when terminal and visual QA are complete', () => {
+    const compliance = new PlaytestCompliance();
+    compliance.captureCheckpoint(1, null);
+    compliance.reviewCheckpoint(1, 'clear', 'Terminal scene effects are visible and fully rendered.');
+
+    expect(playtestCompletionVerdict(compliance.summary(true), terminalCoverage(), 'partially-bypassed')).toEqual({
+      ok: false,
+      status: 'incomplete-integrity',
+      exitCode: 1,
     });
   });
 

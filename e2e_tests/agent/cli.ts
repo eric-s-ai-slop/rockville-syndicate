@@ -25,6 +25,7 @@ import type { BridgeBeatTraceEntry, DevBridgeWindow } from './DevBridge';
 import { classifyBeat } from './beatClassification';
 import { checkPlaytestPolicy, parseWatchExpression } from './playtestPolicy';
 import { PlaytestCompliance, playtestCompletionVerdict } from './playtestCompliance';
+import { PlaytestCoverageTracker } from './playtestCoverage';
 import { deriveCoverageManifest, CoverageManifest } from './coverageManifest';
 import {
   checkpointIdentity,
@@ -409,6 +410,7 @@ const playtestBypasses: { command: string; reason: string; timestamp: number }[]
 // bypass of untested content (skipbeat/winmode/losemode).
 const playtestAudit: { command: string; note: string; timestamp: number }[] = [];
 const playtestCompliance = new PlaytestCompliance();
+const playtestCoverage = new PlaytestCoverageTracker();
 
 function emit(obj: Record<string, unknown>): void {
   if (emitSink) {
@@ -423,6 +425,7 @@ function emit(obj: Record<string, unknown>): void {
 function recordPlaytestBypass(flags: Flags, command: string, reason: string): Record<string, unknown> {
   if (!flags.playtest) return {};
   playtestBypasses.push({ command, reason, timestamp: Date.now() });
+  playtestCoverage.recordBypass();
   return {
     playtest_integrity: 'partially-bypassed',
     bypasses: [...playtestBypasses],
@@ -849,6 +852,7 @@ async function emitPassiveEvidence(
       review_command: `reviewcheckpoint ${checkpointId} clear|issue-found|inconclusive <observation-note>`,
     });
     playtestCompliance.captureCheckpoint(checkpointId, current?.foregroundModeId ?? null, null);
+    playtestCoverage.recordCheckpoint(checkpointId, current?.sceneIndex ?? null, []);
   }
 }
 
@@ -917,6 +921,7 @@ async function maybeEmitCheckpoint(agent: GameAgent, page: Page, flags: Flags): 
     current.foregroundModeId,
     complianceModeKind,
   );
+  playtestCoverage.recordCheckpoint(checkpointId, current.sceneIndex, receipt.transitions);
 }
 
 async function restartSession(page: Page, flags: Flags): Promise<void> {
@@ -1234,6 +1239,7 @@ async function runCommand(
           throw new Error('Usage: reviewcheckpoint <id> clear|issue-found|inconclusive <observation-note>');
         }
         const review = playtestCompliance.reviewCheckpoint(checkpointId, args[1] ?? '', args.slice(2).join(' '));
+        playtestCoverage.recordCheckpointReview(checkpointId);
         emit({ cmd: 'reviewcheckpoint', ok: true, review });
         break;
       }
@@ -1376,6 +1382,7 @@ async function runCommand(
           }
         }
         await agent.launchMinigame(modeId, config);
+        playtestCoverage.observeMode('foreground', modeId, null);
         emit({ cmd: 'mode', ok: true, modeId, config, mutates: true });
         break;
       }
@@ -1430,7 +1437,14 @@ async function runCommand(
       }
       case 'choose': {
         if (!rest) throw new Error('Usage: choose <index|text>');
+        const before = await agent.inspectBeats();
+        const sceneIndex = (await readCheckpointIdentity(page))?.sceneIndex ?? null;
         const res = await agent.chooseOption(rest);
+        const options = Array.isArray(before.currentBeat?.options) ? before.currentBeat.options : [];
+        const optionIndex = options.findIndex((option: { text?: string }) => option.text === res.matched);
+        if (before.currentBeat?.type === 'choice' && optionIndex >= 0) {
+          playtestCoverage.recordChoice(sceneIndex, before.currentBeatIndex, optionIndex, res.matched);
+        }
         emit({ cmd: 'choose', ok: true, ...res, mutates: true });
         break;
       }
@@ -1494,12 +1508,14 @@ async function runCommand(
         const wy = num(1);
         const radius = args[2] ? num(2) : 24;
         const maxSeconds = args[3] ? num(3) : 8;
+        const before = await readCurrentBeatInfo(page);
         const res = await agent.walkTo(wx, wy, radius, maxSeconds);
         // walkTo uses deterministic frame stepping and leaves the Phaser loop
         // paused. Wake real-time beats (camera pans, waits, tweens, dialogue)
         // before returning to the REPL, otherwise the next `advance` appears
         // to soft-lock on a passive beat.
         await agent.resumeLoop().catch(() => {});
+        playtestCoverage.recordWalk(before.sceneIndex, before.beatIndex, res.ok);
         emit({ cmd: 'walkto', ok: res.ok, target: { x: wx, y: wy }, player: res.player, mutates: true });
         break;
       }
@@ -1575,10 +1591,28 @@ async function runCommand(
           traceCursor,
         );
         const identityAfter = await readCheckpointIdentity(page);
+        if (identityAfter?.foregroundModeId) {
+          playtestCoverage.observeMode(
+            'foreground',
+            identityAfter.foregroundModeId,
+            identityAfter.foregroundModeBeatIndex,
+          );
+        }
+        if (identityAfter?.backgroundModeId) {
+          playtestCoverage.observeMode(
+            'background',
+            identityAfter.backgroundModeId,
+            identityAfter.backgroundModeBeatIndex,
+          );
+        }
         const passiveEvidence = await passiveCapture.finish(
           tracedEntries,
           identityAfter?.sceneIndex ?? null,
         );
+        playtestCoverage.recordPassiveEvents(passiveEvidence.events);
+        if (advance.status === 'chapter-ended' || advance.beat?.type === 'endChapter') {
+          playtestCoverage.recordTerminalObservation();
+        }
         await emitPassiveEvidence(flags, passiveEvidence, identityAfter);
         emit({
           cmd: 'advance',
@@ -1617,16 +1651,20 @@ async function runCommand(
       case 'quit': case 'exit': {
         if (flags.playtest) {
           const visualQa = playtestCompliance.summary(flags.checkpoints);
-          const completion = playtestCompletionVerdict(visualQa);
+          const coverage = playtestCoverage.summary();
+          const integrity = playtestBypasses.length === 0 ? 'natural' : 'partially-bypassed';
+          const completion = playtestCompletionVerdict(visualQa, coverage, integrity);
           if (!completion.ok) {
             process.exitCode = completion.exitCode;
             emit({
               cmd: verb,
               ok: false,
               error:
-                `Cannot complete playtest with incomplete visual QA: ${visualQa.reasons.join('; ')}. ` +
+                `Cannot verify playtest (${completion.status}): ` +
+                `${[...visualQa.reasons, ...(coverage.terminalObserved ? [] : ['terminal beat was not observed']), ...(integrity === 'natural' ? [] : ['run was bypassed'])].join('; ')}. ` +
                 'The session will close as unsuccessful and preserve the authoritative session_summary.',
               visual_qa: visualQa,
+              coverage,
             });
             return false;
           }
@@ -1639,6 +1677,7 @@ async function runCommand(
         emit({ cmd: verb, ok: false, error: `unknown command (try 'help')` });
     }
     playtestCompliance.recordSuccessfulCommand(verb);
+    playtestCoverage.recordInput(verb);
   } catch (err) {
     // H3: surface advanceUntil's stall diagnostics on the failure line so a
     // caller doesn't have to blindly guess why 'advance' (or any other
@@ -2842,7 +2881,11 @@ async function main(): Promise<void> {
     if (agent) {
       const entries = agent.getConsoleLogs();
       const visualQa = flags.playtest ? playtestCompliance.summary(flags.checkpoints) : null;
-      const completion = visualQa === null ? null : playtestCompletionVerdict(visualQa);
+      const coverage = flags.playtest ? playtestCoverage.summary() : null;
+      const integrity = playtestBypasses.length === 0 ? 'natural' : 'partially-bypassed';
+      const completion = visualQa === null || coverage === null
+        ? null
+        : playtestCompletionVerdict(visualQa, coverage, integrity);
       const sessionOk = completion?.ok ?? true;
       if (completion && !completion.ok) process.exitCode = completion.exitCode;
       emit({
@@ -2853,10 +2896,11 @@ async function main(): Promise<void> {
         ...(flags.playtest
           ? {
               completion_status: completion!.status,
-              playtest_integrity: playtestBypasses.length === 0 ? 'natural' : 'partially-bypassed',
+              playtest_integrity: integrity,
               bypasses: [...playtestBypasses],
               audit: [...playtestAudit],
               visual_qa: visualQa,
+              coverage,
             }
           : {}),
       });

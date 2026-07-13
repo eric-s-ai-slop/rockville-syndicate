@@ -1,7 +1,9 @@
+import type { PlaytestCoverageSummary } from './playtestCoverage';
+
 export interface PlaytestSessionSummary {
   cmd: 'session_summary';
   ok: boolean;
-  completion_status?: 'verified' | 'incomplete-visual-qa';
+  completion_status?: 'verified' | 'incomplete-visual-qa' | 'incomplete-integrity' | 'incomplete-coverage';
   errors: number;
   warnings: number;
   playtest_integrity: 'natural' | 'partially-bypassed';
@@ -20,6 +22,7 @@ export interface PlaytestSessionSummary {
     }>;
     reasons: string[];
   };
+  coverage: PlaytestCoverageSummary;
 }
 
 const EVIDENCE_START = '<!-- omega-playtest-session';
@@ -28,13 +31,14 @@ const EVIDENCE_END = 'omega-playtest-session -->';
 function evidencePayload(summary: PlaytestSessionSummary): Record<string, unknown> {
   return {
     ok: summary.ok,
-    completion_status: summary.completion_status ?? (summary.visual_qa.status === 'complete' ? 'verified' : 'incomplete-visual-qa'),
+    completion_status: summary.completion_status ?? 'incomplete-coverage',
     errors: summary.errors,
     warnings: summary.warnings,
     playtest_integrity: summary.playtest_integrity,
     bypasses: summary.bypasses,
     audit: summary.audit,
     visual_qa: summary.visual_qa,
+    coverage: summary.coverage,
   };
 }
 
@@ -55,7 +59,13 @@ export function parseLastSessionSummary(transcript: string): PlaytestSessionSumm
       }
     });
   const summary = summaries.at(-1);
-  if (!summary?.visual_qa || !summary.playtest_integrity || !Array.isArray(summary.bypasses) || !Array.isArray(summary.audit)) {
+  if (
+    !summary?.visual_qa ||
+    !summary.coverage ||
+    !Array.isArray(summary.bypasses) ||
+    !Array.isArray(summary.audit) ||
+    !summary.playtest_integrity
+  ) {
     throw new Error('Transcript does not contain a complete playtest session_summary line.');
   }
   return summary as PlaytestSessionSummary;
@@ -95,11 +105,26 @@ export function validatePlaytestReport(
     errors.push(`Report must state "Pending checkpoints: ${pendingLabel}".`);
   }
 
-  if (summary.visual_qa.status === 'incomplete' && /Reached:.*—\s*COMPLETED/im.test(report)) {
-    errors.push('Report cannot claim COMPLETED while visual_qa.status is incomplete.');
+  const claimsCompleted = /Reached:.*—\s*COMPLETED/im.test(report);
+  if (summary.completion_status !== 'verified' && claimsCompleted) {
+    errors.push(`Report cannot claim COMPLETED while completion_status is ${summary.completion_status ?? 'missing'}.`);
   }
-  if (summary.visual_qa.status === 'complete' && !/Reached:.*—\s*COMPLETED/im.test(report)) {
+  if (summary.completion_status === 'verified' && !claimsCompleted) {
     errors.push('A verified session report must explicitly claim COMPLETED in its Reached line.');
+  }
+
+  if (
+    summary.completion_status === 'verified' &&
+    (summary.visual_qa.status !== 'complete' ||
+      summary.playtest_integrity !== 'natural' ||
+      !summary.coverage.terminalObserved ||
+      !summary.ok)
+  ) {
+    errors.push('Transcript cannot mark a session verified without complete visual QA, natural integrity, terminal observation, and ok:true.');
+  }
+
+  if (summary.playtest_integrity !== 'natural' && claimsCompleted) {
+    errors.push('A report cannot claim natural completion when the playtest was bypassed.');
   }
 
   if (!report.includes(`Run integrity: ${summary.playtest_integrity}`)) {

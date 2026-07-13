@@ -1,4 +1,5 @@
 import type { CheckpointModeKind } from './visualCheckpoint';
+import type { PlaytestCoverageSummary } from './playtestCoverage';
 
 export type CheckpointVerdict = 'clear' | 'issue-found' | 'inconclusive';
 
@@ -20,15 +21,26 @@ export interface VisualQaSummary {
 
 export interface PlaytestCompletionVerdict {
   ok: boolean;
-  status: 'verified' | 'incomplete-visual-qa';
+  status: 'verified' | 'incomplete-visual-qa' | 'incomplete-integrity' | 'incomplete-coverage';
   exitCode: 0 | 1;
 }
 
-export function playtestCompletionVerdict(visualQa: VisualQaSummary): PlaytestCompletionVerdict {
-  const ok = visualQa.status === 'complete';
+export function playtestCompletionVerdict(
+  visualQa: VisualQaSummary,
+  coverage: PlaytestCoverageSummary,
+  playtestIntegrity: 'natural' | 'partially-bypassed',
+): PlaytestCompletionVerdict {
+  const status = visualQa.status !== 'complete'
+    ? 'incomplete-visual-qa'
+    : playtestIntegrity !== 'natural'
+      ? 'incomplete-integrity'
+      : !coverage.terminalObserved
+        ? 'incomplete-coverage'
+        : 'verified';
+  const ok = status === 'verified';
   return {
     ok,
-    status: ok ? 'verified' : 'incomplete-visual-qa',
+    status,
     exitCode: ok ? 0 : 1,
   };
 }

@@ -1,6 +1,6 @@
 # Playtesting Skill Implementation Plan
 
-Status: PR 3 complete; PR 4 intentionally not started
+Status: PR 4 complete; PR 5 intentionally not started
 Date: 2026-07-12  
 Source review: `docs/PLAYTESTING_SKILL_REVIEW.md`
 
@@ -21,7 +21,11 @@ receipts for both, counts background receipts in visual QA, and keeps them out
 of foreground bypass gates. Compact state also reports whether the active mode
 is background. No arbitrary mode internals or additional storage keys are used.
 PR3 adds a bounded DEV-only structural beat trace and passive visual-risk
-evidence batching; production builds do not record the trace.
+evidence batching; production builds do not record the trace. PR4 adds a
+compact runtime coverage summary, per-mode input categories, canonical report
+coverage integrity, and fail-closed completion requiring terminal observation,
+complete visual QA, and natural integrity. The final skill rewrite remains
+intentionally deferred.
 
 ## Objective
 

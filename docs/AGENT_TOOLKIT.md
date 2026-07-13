@@ -136,7 +136,7 @@ Prefer lowercase movement keys.
 | `text` | extract visible text from Phaser canvas and DOM (A2) |
 | `targets` | dump active walk target and NPCs with screen/world coordinates (A3) |
 | `observe` / `obs` [`--shot`] | print composite observation snapshot, including console errors/warnings seen since the last `observe` (A5); `--shot` attaches a stabilized screenshot path as `"shot"` (N3) |
-| `reviewcheckpoint <id> clear\|issue-found\|inconclusive <observation-note>` | record that an emitted `visual_checkpoint` PNG was inspected. Every verdict requires a concrete visual note of at least 20 characters; placeholders such as `skip`, `looks fine`, or `scene entered` are rejected. In `--playtest`, progression stays blocked until every pending checkpoint is reviewed; coverage is emitted in `session_summary.visual_qa`. |
+| `reviewcheckpoint <id> clear\|issue-found\|inconclusive <observation-note>` | record that an emitted `visual_checkpoint` PNG was inspected. Every verdict requires a concrete visual note of at least 20 characters; placeholders such as `skip`, `looks fine`, or `scene entered` are rejected. In `--playtest`, progression stays blocked until every pending checkpoint is reviewed; scene review facts are included in `session_summary.coverage` alongside the separate `visual_qa` block. |
 | `diff` | like `observe`, but omits any field unchanged since the last `diff`/`observe` call — the cheap per-step read for a driving agent (N4/E5) |
 | `watch <jsExpr> [timeoutMs]` | block until a predicate on the live scene is true (`scene`/`game` in scope), e.g. `watch scene.activeHp < 50 10000`; polls ~100ms inside one round-trip and attaches a final observation on timeout (N4/E6) |
 | `beat` / `beats` | print current and upcoming narrative beats (A4) |
@@ -209,7 +209,7 @@ command then prints its own result.
 {"cmd":"visual_checkpoint","ok":true,"checkpointId":2,"path":"/abs/path/agent-artifacts/checkpoint-002.png","reason":"chapter scene 1 entered","sceneIndex":1,"mode":null}
 {"cmd":"diff","ok":true,"state":{"player":{"x":580.1,"y":560}},"errorsSinceLastObserve":0,"warningsSinceLastObserve":0}
 {"cmd":"watch","ok":true,"waitedMs":420}
-{"cmd":"session_summary","ok":true,"errors":0,"warnings":0,"playtest_integrity":"natural","bypasses":[],"audit":[]}
+{"cmd":"session_summary","ok":true,"errors":0,"warnings":0,"playtest_integrity":"natural","bypasses":[],"audit":[],"completion_status":"verified","visual_qa":{"status":"complete","captured":1,"reviewed":1,"pending":[],"reviews":[],"reasons":[]},"coverage":{"scenes":{"checkpointed":[0],"reviewed":[0]},"choices":[],"walks":[],"modes":[],"terminalObserved":true,"passive":{"captured":[],"missed":[]}}}
 ```
 
 - **Errors never crash the session.** A bad command prints
@@ -222,9 +222,13 @@ command then prints its own result.
   `partially-bypassed`, every permitted bypass, and an `audit` array of every
   `watch`/`loadstate <file>`/`speed` use; a bypassed run cannot support a
   natural full-chapter completion claim. It also emits `visual_qa` with every
-  checkpoint review and any pending checkpoint IDs; pending reviews or a run
-  started without `--checkpoints` make visual QA incomplete, set
-  `completion_status: "incomplete-visual-qa"`, make `ok` false, and exit nonzero.
+  checkpoint review and any pending checkpoint IDs, plus compact runtime
+  `coverage` for scenes, choices, walks, foreground/background mode attempts,
+  terminal observation, and passive captures/misses. `verified` requires
+  natural integrity, complete visual QA, and `coverage.terminalObserved:true`;
+  mid-chapter runs report `incomplete-coverage`, bypassed runs report
+  `incomplete-integrity`, and incomplete visual QA reports
+  `incomplete-visual-qa`. These statuses make `ok` false and exit nonzero.
   Verify the final Markdown report against this line with
   `npm run agent:verify-report -- <report.md> <session.jsonl>`.
   Read the full list any time mid-session with `logs`.
