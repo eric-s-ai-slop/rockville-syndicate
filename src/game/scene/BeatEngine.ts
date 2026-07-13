@@ -315,6 +315,9 @@ export class BeatEngine {
     const context = this.buildModeContext();
 
     if (beat.background) {
+      // There is one active-mode slot. A new background beat replaces the
+      // previous scene-local mode rather than leaving its singleton alive.
+      this.scene.teardownActiveMode();
       this.scene.activeMode = mode;
       this.scene.activeModeBeatIndex = this.scene.beatIndex;
       this.scene.activeModeBackground = true;
@@ -325,13 +328,16 @@ export class BeatEngine {
           console.error(`[BeatEngine] Preload failed for background mode ${beat.modeId}:`, err);
         }
       }
-      const onComplete = (result: ModeResult) => {
-        try {
-          mode.teardown();
-        } catch (err) {
-          console.error(`[BeatEngine] Teardown failed for background mode ${beat.modeId}:`, err);
-        }
-        if (this.scene.activeMode === mode) {
+      const launchBeatIndex = this.scene.beatIndex;
+      const onComplete = (_result: ModeResult) => {
+        // An old timer must not tear down a newer run of the same singleton.
+        const ownsMode = this.scene.activeMode === mode && this.scene.activeModeBeatIndex === launchBeatIndex;
+        if (ownsMode) {
+          try {
+            mode.teardown();
+          } catch (err) {
+            console.error(`[BeatEngine] Teardown failed for background mode ${beat.modeId}:`, err);
+          }
           this.scene.activeMode = null;
           this.scene.activeModeBeatIndex = null;
           this.scene.activeModeBackground = false;
@@ -345,6 +351,9 @@ export class BeatEngine {
     }
 
     this.freeze();
+    // A foreground mode owns the active-mode slot and must end any
+    // scene-local background mode before taking over the screen.
+    this.scene.teardownActiveMode();
 
     const launchMode = () => {
       if (mode.preload) {
@@ -413,6 +422,7 @@ export class BeatEngine {
     }
 
     this.freeze();
+    this.scene.teardownActiveMode();
 
     const context = this.buildModeContext();
     this.scene.activeMode = mode;

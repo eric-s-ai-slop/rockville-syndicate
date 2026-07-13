@@ -633,6 +633,10 @@ export default class ChapterScene extends Phaser.Scene {
   /** Fade out → swap map → fade in. Advances the beat when complete. */
   public transitionToScene(sceneIndex: number, transitionMs = 500, onDone?: () => void) {
     const half = transitionMs / 2;
+    // Background modes are scoped to the scene that launched them. Tear them
+    // down before the old map is removed so their sprites and timers cannot
+    // leak into the next scene or confuse checkpoint state.
+    this.teardownActiveMode();
     this.movementFrozen = true;
     this.cameras.main.fadeOut(half, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => {
@@ -665,6 +669,7 @@ export default class ChapterScene extends Phaser.Scene {
 
   /** Instant warp to a scene without transitions. Clears old map and builds the new one immediately. */
   public warpToScene(sceneIndex: number) {
+    this.teardownActiveMode();
     this.teardownMap();
     this.currentSceneIndex = sceneIndex;
     const { map, actors } = this.getActiveSceneConfig();
@@ -689,12 +694,7 @@ export default class ChapterScene extends Phaser.Scene {
     const mode = getMode(modeId);
     if (!mode) throw new Error(`Unknown minigame modeId: ${modeId}`);
 
-    if (this.activeMode) {
-      try { this.activeMode.teardown(); } catch {}
-      this.activeMode = null;
-      this.activeModeBeatIndex = null;
-      this.activeModeBackground = false;
-    }
+    this.teardownActiveMode();
 
     const context = this.beatEngine.buildModeContext();
     if (mode.preload) {
@@ -1161,6 +1161,12 @@ export default class ChapterScene extends Phaser.Scene {
   }
 
   public runEndChapter() {
+    // Background modes have no story completion callback of their own. End
+    // them before the terminal presentation so stale mode UI and timers cannot
+    // survive into the completed chapter screen.
+    this.teardownActiveMode();
+    this.beatActive = false;
+    this.movementFrozen = true;
     if (!this.chapter.quietEnd) {
       this.player.play('victory_' + this.playerClass.id, true);
       this.cameras.main.flash(400, 200, 232, 154);
@@ -1180,6 +1186,15 @@ export default class ChapterScene extends Phaser.Scene {
         hpRemaining: this.activeHp,
       }));
     });
+  }
+
+  /** Stop whichever mode currently owns the scene, if any. */
+  public teardownActiveMode(): void {
+    if (!this.activeMode) return;
+    try { this.activeMode.teardown(); } catch {}
+    this.activeMode = null;
+    this.activeModeBeatIndex = null;
+    this.activeModeBackground = false;
   }
 
   // ─── Actor placement ──────────────────────────────────────────────────────────

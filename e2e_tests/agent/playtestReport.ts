@@ -56,28 +56,69 @@ export function canonicalSessionEvidence(summary: PlaytestSessionSummary): strin
 }
 
 export function parseLastSessionSummary(transcript: string): PlaytestSessionSummary {
-  const summaries = transcript
+  const records = transcript
     .split(/\r?\n/)
     .filter(Boolean)
     .flatMap((line) => {
       try {
-        const value = JSON.parse(line) as Partial<PlaytestSessionSummary>;
-        return value.cmd === 'session_summary' ? [value] : [];
+        return [JSON.parse(line) as Record<string, unknown>];
       } catch {
         return [];
       }
     });
+  const summaries = records.filter((value) => value.cmd === 'session_summary') as unknown as Partial<PlaytestSessionSummary>[];
   const summary = summaries.at(-1);
-  if (
-    !summary?.visual_qa ||
-    !summary.coverage ||
-    !Array.isArray(summary.bypasses) ||
-    !Array.isArray(summary.audit) ||
-    !summary.playtest_integrity
-  ) {
-    throw new Error('Transcript does not contain a complete playtest session_summary line.');
+  if (summary?.visual_qa && summary.coverage && Array.isArray(summary.bypasses) &&
+      Array.isArray(summary.audit) && summary.playtest_integrity) {
+    return summary as PlaytestSessionSummary;
   }
-  return summary as PlaytestSessionSummary;
+
+  // A hard process crash can leave valid checkpoint/review/finding receipts in
+  // the JSONL without ever reaching cli.ts's finally block. Recover a safe,
+  // explicitly incomplete summary so write-report can preserve those findings
+  // instead of failing with no artifact at all.
+  const checkpoints = records
+    .filter((value) => value.cmd === 'visual_checkpoint' && typeof value.checkpointId === 'number')
+    .map((value) => value.checkpointId as number);
+  const reviewReceipts = records
+    .filter((value) => value.cmd === 'reviewcheckpoint' && value.review && typeof value.review === 'object')
+    .map((value) => value.review as PlaytestSessionSummary['visual_qa']['reviews'][number]);
+  const findings = records
+    .filter((value) => value.cmd === 'recordfinding' && value.finding && typeof value.finding === 'object')
+    .map((value) => value.finding as PlaytestFinding);
+  const reviewMap = new Map(reviewReceipts.map((review) => [review.checkpointId, review]));
+  const reviews = [...reviewMap.values()];
+  const reviewed = new Set(reviews.map((review) => review.checkpointId));
+  const uniqueCheckpoints = [...new Set(checkpoints)];
+  const pending = uniqueCheckpoints.filter((id) => !reviewed.has(id));
+  const visualQa: PlaytestSessionSummary['visual_qa'] = {
+    status: pending.length === 0 ? 'complete' : 'incomplete',
+    captured: uniqueCheckpoints.length,
+    reviewed: reviews.length,
+    pending,
+    reviews,
+    reasons: pending.length > 0 ? [`${pending.length} visual checkpoint(s) were not reviewed`] : [],
+  };
+  return {
+    cmd: 'session_summary',
+    ok: false,
+    completion_status: 'incomplete-coverage',
+    errors: 0,
+    warnings: 0,
+    playtest_integrity: 'natural',
+    bypasses: [],
+    audit: [],
+    findings,
+    visual_qa: visualQa,
+    coverage: {
+      scenes: { checkpointed: [], reviewed: [] },
+      choices: [],
+      walks: [],
+      modes: [],
+      terminalObserved: false,
+      passive: { captured: [], missed: [] },
+    },
+  };
 }
 
 export function validatePlaytestReport(

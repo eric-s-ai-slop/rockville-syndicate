@@ -1646,6 +1646,9 @@ async function runCommand(
       }
 
       case 'advance': {
+        // A preceding walkto/step command may have paused Phaser. Advance is
+        // the boundary where passive story time is allowed to run.
+        await agent.resumeLoop().catch(() => {});
         const traceCursor = lastDeliveredBeatTraceSequence;
         const passiveCapture = new PassiveEvidenceCollector(agent, flags);
         await passiveCapture.observeTick(await readCurrentBeatInfo(page));
@@ -1717,6 +1720,7 @@ async function runCommand(
         break;
       }
       case 'wait':
+        await agent.resumeLoop().catch(() => {});
         await page.waitForTimeout(num(0));
         emit({ cmd: 'wait', ok: true, ms: num(0) });
         break;
@@ -1726,15 +1730,19 @@ async function runCommand(
           const visualQa = playtestCompliance.summary(flags.checkpoints);
           const coverage = playtestCoverage.summary();
           const integrity = playtestBypasses.length === 0 ? 'natural' : 'partially-bypassed';
-          const completion = playtestCompletionVerdict(visualQa, coverage, integrity);
+          const findings = playtestFindings.summary();
+          const completion = playtestCompletionVerdict(visualQa, coverage, integrity, findings);
           if (!completion.ok) {
+            const unlinkedIssues = visualQa.reviews
+              .filter(review => review.verdict === 'issue-found')
+              .filter(review => !findings.some(finding => finding.evidence.toLowerCase().includes(`checkpoint:${review.checkpointId}`)));
             process.exitCode = completion.exitCode;
             emit({
               cmd: verb,
               ok: false,
               error:
                 `Cannot verify playtest (${completion.status}): ` +
-                `${[...visualQa.reasons, ...(coverage.terminalObserved ? [] : ['terminal beat was not observed']), ...(integrity === 'natural' ? [] : ['run was bypassed'])].join('; ')}. ` +
+                `${[...visualQa.reasons, ...(unlinkedIssues.length ? [`issue-found checkpoint(s) lack linked findings: ${unlinkedIssues.map(review => review.checkpointId).join(', ')}`] : []), ...(coverage.terminalObserved ? [] : ['terminal beat was not observed']), ...(integrity === 'natural' ? [] : ['run was bypassed'])].join('; ')}. ` +
                 'The session will close as unsuccessful and preserve the authoritative session_summary.',
               visual_qa: visualQa,
               coverage,
@@ -2972,10 +2980,11 @@ async function main(): Promise<void> {
       const entries = agent.getConsoleLogs();
       const visualQa = flags.playtest ? playtestCompliance.summary(flags.checkpoints) : null;
       const coverage = flags.playtest ? playtestCoverage.summary() : null;
+      const findings = flags.playtest ? playtestFindings.summary() : [];
       const integrity = playtestBypasses.length === 0 ? 'natural' : 'partially-bypassed';
       const completion = visualQa === null || coverage === null
         ? null
-        : playtestCompletionVerdict(visualQa, coverage, integrity);
+        : playtestCompletionVerdict(visualQa, coverage, integrity, findings);
       const progress = completion && page
         ? await updatePlaytestProgress(page, flags, completion.status)
         : null;
@@ -2995,7 +3004,7 @@ async function main(): Promise<void> {
               ...(selectedChapter
                 ? { chapter: { id: selectedChapter.id, title: selectedChapter.title } }
                 : {}),
-              findings: playtestFindings.summary(),
+              findings,
               progress,
               visual_qa: visualQa,
               coverage,
