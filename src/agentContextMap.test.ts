@@ -37,6 +37,13 @@ describe('context-map.json', () => {
           expect(found, `"${symbol}" not found in any of ${entry.relatedFiles.join(', ')}`).toBe(true);
         });
       }
+
+      it('provides at least one verification command', () => {
+        expect(entry.verificationCommands.length).toBeGreaterThan(0);
+        for (const command of entry.verificationCommands) {
+          expect(command.trim()).not.toBe('');
+        }
+      });
     });
   }
 });

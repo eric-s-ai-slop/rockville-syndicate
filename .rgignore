@@ -1,0 +1,16 @@
+# Historical or superseded context. Search explicitly when history is needed.
+docs/archive/
+docs/chapter-pipeline/working/
+
+# Local agent, QA, and generated output.
+.claude/worktrees/
+agent-artifacts/
+qa/
+test-results/
+playwright-report/
+
+# Legacy reference implementation; the served adaptation lives under public/.
+battleiq/
+
+# Large local tool environment, never production source.
+scripts/voicegen/.venv-tts/

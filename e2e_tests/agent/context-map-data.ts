@@ -10,6 +10,7 @@ export interface ContextMapEntry {
   relatedFiles: string[];
   relatedSymbols: string[];
   howTo: string;
+  verificationCommands: string[];
 }
 
 export function loadContextMap(): Record<string, ContextMapEntry> {

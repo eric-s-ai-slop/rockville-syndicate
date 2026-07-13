@@ -1,34 +1,146 @@
 {
   "weapon": {
-    "description": "Where weapon data lives and how a new weapon gets registered.",
+    "description": "Add or change weapon data.",
     "registrationFile": "src/data/entities/combat.ts",
     "registrationSymbol": "WEAPONS",
-    "relatedFiles": ["src/data/entities/types.ts"],
-    "relatedSymbols": ["Weapon"],
-    "howTo": "Add an entry to the WEAPONS array in src/data/entities/combat.ts, typed as Weapon (src/data/entities/types.ts). Referenced by hero/boss combat code and bossFight mode."
+    "relatedFiles": ["src/data/entities/types.ts", "src/game/modes/bossFight/index.ts"],
+    "relatedSymbols": ["Weapon", "WEAPONS"],
+    "howTo": "Edit the typed WEAPONS registry; keep weapon execution in the combat mode.",
+    "verificationCommands": ["npm test -- src/data/entities.test.ts", "npm run lint"]
   },
   "boss": {
-    "description": "Where boss data lives and how a new boss gets registered.",
+    "description": "Add or change a boss definition or fight behavior.",
     "registrationFile": "src/data/entities/bosses.ts",
     "registrationSymbol": "BOSSES",
-    "relatedFiles": ["src/data/entities/types.ts", "src/game/modes/bossFight/index.ts"],
-    "relatedSymbols": ["BossConfig", "BossFightMode"],
-    "howTo": "Add an entry to the BOSSES array in src/data/entities/bosses.ts, typed as BossConfig. Reference the boss's id from a chapter's `bossFight` beat (bossId field)."
+    "relatedFiles": ["src/data/entities/types.ts", "src/game/modes/bossFight/index.ts", "src/game/modes/bossFight/phaseLogic.ts"],
+    "relatedSymbols": ["BossConfig", "BossFightMode", "getBossPhase"],
+    "howTo": "Keep boss stats in BOSSES and reusable fight mechanics in bossFight; chapters reference the boss id.",
+    "verificationCommands": ["npm test -- src/game/modes/bossFight/bossFight.test.ts", "npm run lint"]
   },
   "mode": {
-    "description": "Where minigame modes are registered (the B3/H2 mode registry).",
+    "description": "Add or change a registered minigame mode.",
     "registrationFile": "src/game/modes/index.ts",
     "registrationSymbol": "registerMode",
-    "relatedFiles": ["src/game/modes/types.ts", "src/game/modes/_template/index.ts", "src/game/modes/CLAUDE.md"],
+    "relatedFiles": ["src/game/modes/types.ts", "src/game/modes/_template/index.ts", "src/game/modes/CLAUDE.md", "docs/ADDING_A_MINIGAME.md"],
     "relatedSymbols": ["GameMode", "ModeContext", "ModeResult"],
-    "howTo": "Run `npm run agent:scaffold-mode -- <modeId>` (H2) to copy _template/, register it, and stub the CLAUDE.md doc row automatically. Manual recipe: docs/ADDING_A_MINIGAME.md."
+    "howTo": "Run `npm run agent:scaffold-mode -- <modeId>`, implement the lifecycle, and update the scoped mode reference.",
+    "verificationCommands": ["npm test -- src/game/modesDoc.test.ts", "npm run lint"]
   },
   "chapter": {
-    "description": "Where chapters are registered and what a chapter config looks like.",
+    "description": "Add or change declarative chapter content.",
     "registrationFile": "src/data/chapters/index.ts",
     "registrationSymbol": "CHAPTERS",
-    "relatedFiles": ["src/data/chapters/types.ts", "src/data/chapters/CLAUDE.md"],
-    "relatedSymbols": ["ChapterConfig", "Beat"],
-    "howTo": "Copy an existing chapter file in src/data/chapters/, configure map/beats, and append it to the CHAPTERS list in src/data/chapters/index.ts. Validate with `npm run agent:validate-chapter -- <id>` (H1)."
+    "relatedFiles": ["src/data/chapters/types.ts", "src/data/chapters/CLAUDE.md", "src/data/chapters.test.ts"],
+    "relatedSymbols": ["ChapterConfig", "Beat", "CHAPTERS"],
+    "howTo": "Edit one chapter config, register new chapters in CHAPTERS, then run the chapter validator and content tests.",
+    "verificationCommands": ["npm run agent:validate-chapter -- <chapterId>", "npm test -- src/data/chapters.test.ts"]
+  },
+  "persistence": {
+    "description": "Change settings, progress, save migration, or Hall of Records persistence.",
+    "registrationFile": "src/game/settings.ts",
+    "registrationSymbol": "getSettings",
+    "relatedFiles": ["src/game/progress.ts", "src/game/settings.test.ts", "src/components/GameLayout.tsx"],
+    "relatedSymbols": ["Progress", "saveProgressData", "useSettings"],
+    "howTo": "Route all persisted state through the versioned omega-save-v2 API in settings.ts; never add a localStorage key.",
+    "verificationCommands": ["npm test -- src/game/settings.test.ts src/components/GameLayout.test.tsx", "npm run lint:es"]
+  },
+  "react-bridge": {
+    "description": "Change communication between React UI and the Phaser scene.",
+    "registrationFile": "src/components/GameLayout.tsx",
+    "registrationSymbol": "GameLayout",
+    "relatedFiles": ["src/game/ChapterScene.ts", "src/components/GameLayout.tsx", "src/components/GameLayout.test.tsx", "src/components/ExternalGameFrame.tsx"],
+    "relatedSymbols": ["StoryDialoguePayload", "activeStoryRef", "ExternalGameFrame"],
+    "howTo": "Keep bridge callbacks stable through refs and run side effects outside React state updaters.",
+    "verificationCommands": ["npm test -- src/components/GameLayout.test.tsx", "npm run lint"]
+  },
+  "dialogue": {
+    "description": "Change dialogue, choices, beat routing, or narrative progression.",
+    "registrationFile": "src/game/scene/BeatEngine.ts",
+    "registrationSymbol": "BeatEngine",
+    "relatedFiles": ["src/data/chapters/types.ts", "src/data/chapters/CLAUDE.md", "src/components/GameLayout.tsx", "src/game/scene/BeatEngine.test.ts"],
+    "relatedSymbols": ["Beat", "StoryDialogue", "runDialogueBeat"],
+    "howTo": "Define story flow with typed beats; keep execution in BeatEngine and presentation in GameLayout/DialogueBox.",
+    "verificationCommands": ["npm test -- src/game/scene/BeatEngine.test.ts src/data/chapters.test.ts", "npm run agent:lint-dialogue"]
+  },
+  "map": {
+    "description": "Change map themes, procedural scenery, props, walls, or scene layout.",
+    "registrationFile": "src/game/scene/MapBuilder.ts",
+    "registrationSymbol": "MapBuilder",
+    "relatedFiles": ["src/data/chapters/types.ts", "src/data/chapters/CLAUDE.md", "src/game/scene/Atmosphere.ts"],
+    "relatedSymbols": ["MapConfig", "MapTheme", "Atmosphere"],
+    "howTo": "Keep layout declarative in chapter map configs and reusable rendering behavior in MapBuilder/Atmosphere.",
+    "verificationCommands": ["npm test -- src/data/chapters.test.ts", "npm run lint:es"]
+  },
+  "audio": {
+    "description": "Add or change music, sound effects, loading, or volume mixing.",
+    "registrationFile": "src/game/audio.ts",
+    "registrationSymbol": "CHAPTER_MUSIC_KEY",
+    "relatedFiles": ["src/game/scene/AudioController.ts", "src/game/audio.test.ts", "src/data/chapters/CLAUDE.md"],
+    "relatedSymbols": ["AudioController", "STAGE_MUSIC_URL", "changeMusic"],
+    "howTo": "Register URLs and chapter keys in audio.ts; keep playback and per-track mixing in AudioController.",
+    "verificationCommands": ["npm test -- src/game/audio.test.ts src/data/chapters.test.ts", "npm run lint"]
+  },
+  "assets": {
+    "description": "Add or change Phaser image, sprite, prop, or chapter asset loading.",
+    "registrationFile": "src/game/ChapterScene.ts",
+    "registrationSymbol": "ChapterScene",
+    "relatedFiles": ["src/game/scene/SpriteLoader.ts", "src/game/furnitureCatalog.ts", "src/game/packSpriteAtlas.ts"],
+    "relatedSymbols": ["SpriteLoader", "buildFurnitureAtlas", "buildPackAtlas"],
+    "howTo": "Register source assets in the loading pipeline, then keep runtime extraction and atlas work in the focused asset modules.",
+    "verificationCommands": ["npm test -- src/game/packSpriteAtlas.test.ts", "npm run build"]
+  },
+  "sprites": {
+    "description": "Change sprite-sheet preprocessing, segmentation, or animation extraction.",
+    "registrationFile": "src/game/SpritePreprocessor.ts",
+    "registrationSymbol": "preprocessShowcaseSheet",
+    "relatedFiles": ["src/game/SpritePreprocessor.ts", "src/game/scene/SpriteLoader.ts", "src/game/SpritePreprocessor.test.ts", "src/game/PropExtractor.ts"],
+    "relatedSymbols": ["SpriteLoader", "SlicedSpriteSheet", "extractPropSubject"],
+    "howTo": "Keep pixel algorithms pure in SpritePreprocessor/PropExtractor and Phaser texture registration in SpriteLoader.",
+    "verificationCommands": ["npm test -- src/game/SpritePreprocessor.test.ts", "npm run lint"]
+  },
+  "scoring": {
+    "description": "Change run scoring, records, ghost targets, or chapter bests.",
+    "registrationFile": "src/game/scoring.ts",
+    "registrationSymbol": "computeRunScore",
+    "relatedFiles": ["src/game/scoring.test.ts", "src/game/settings.ts", "src/components/HallOfRecords.tsx"],
+    "relatedSymbols": ["RunRecord", "saveRunRecord", "HallOfRecords"],
+    "howTo": "Keep score calculation pure in scoring.ts and persistence in settings.ts.",
+    "verificationCommands": ["npm test -- src/game/scoring.test.ts src/game/settings.test.ts", "npm run lint"]
+  },
+  "playtesting": {
+    "description": "Change terminal game control, state observation, evidence, or agent protocol behavior.",
+    "registrationFile": "e2e_tests/agent/GameAgent.ts",
+    "registrationSymbol": "GameAgent",
+    "relatedFiles": ["e2e_tests/agent/GameAgent.ts", "e2e_tests/agent/cli.ts", "e2e_tests/agent/protocol.ts", "docs/AGENT_TOOLKIT.md", "e2e_tests/agent/README.md"],
+    "relatedSymbols": ["OMEGA_AGENT_PROTOCOL", "AgentCommand", "GameStateSnapshot"],
+    "howTo": "Use GameAgent for browser control, protocol.ts for JSONL contracts, and cli.ts only for command orchestration.",
+    "verificationCommands": ["npm test -- e2e_tests/agent", "npm run agent -- --help"]
+  },
+  "external-game": {
+    "description": "Change iframe-hosted minigames or their postMessage bridge.",
+    "registrationFile": "src/components/ExternalGameFrame.tsx",
+    "registrationSymbol": "ExternalGameFrame",
+    "relatedFiles": ["src/game/modes/external/index.ts", "src/game/modes/types.ts", "public/minigames/battleiq/omega-bridge.js"],
+    "relatedSymbols": ["createExternalGameMode", "ModeResult", "omega-game"],
+    "howTo": "Keep iframe mounting in React, mode lifecycle in external.ts, and each served bridge under public/minigames/<gameId>.",
+    "verificationCommands": ["npm test -- src/components/GameLayout.test.tsx", "npm run e2e -- e2e_tests/game.spec.ts"]
+  },
+  "ui-settings": {
+    "description": "Change player settings controls or settings presentation.",
+    "registrationFile": "src/components/SettingsModal.tsx",
+    "registrationSymbol": "SettingsModal",
+    "relatedFiles": ["src/game/settings.ts", "src/components/GameLayout.tsx", "src/index.css"],
+    "relatedSymbols": ["useSettings", "updateSettings", "textScale"],
+    "howTo": "Read and write the unified settings store; keep modal presentation isolated from persistence logic.",
+    "verificationCommands": ["npm test -- src/game/settings.test.ts src/components/GameLayout.test.tsx", "npm run lint:es"]
+  },
+  "combat": {
+    "description": "Change boss combat, projectiles, attacks, damage, phases, or power-ups.",
+    "registrationFile": "src/game/modes/bossFight/index.ts",
+    "registrationSymbol": "BossFightMode",
+    "relatedFiles": ["src/game/modes/bossFight/phaseLogic.ts", "src/game/modes/types.ts", "src/data/entities/combat.ts", "src/game/scene/PlayerController.ts"],
+    "relatedSymbols": ["getBossPhase", "ModeContext", "POWER_UPS", "PlayerController"],
+    "howTo": "Keep encounter behavior inside bossFight, shared data in entities, and player movement/fire behavior in PlayerController.",
+    "verificationCommands": ["npm test -- src/game/modes/bossFight/bossFight.test.ts", "npm run lint"]
   }
 }
