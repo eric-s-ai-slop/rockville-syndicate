@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { GameMode, ModeContext, ModeResult } from '../types';
-import { Beat, resolveSpeaker } from '../../../data/chapters';
+import { Beat } from '../../../data/chapters';
 
 export class PoolPartyMode implements GameMode {
   id = 'poolParty';
