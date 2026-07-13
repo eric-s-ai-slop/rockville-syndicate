@@ -34,6 +34,10 @@ describe('scoreSort', () => {
     expect(scoreSort({ text: 'Math', answer: 'cant' }, 'can')).toBe(false);
     expect(scoreSort({ text: 'Bench 185', answer: 'can' }, 'can')).toBe(true);
   });
+
+  it('rejects invalid inputs when chosen does not match answer', () => {
+    expect(scoreSort({ text: 'Pass exam', answer: 'can' }, 'cant')).toBe(false);
+  });
 });
 
 describe('buildRound', () => {
@@ -81,6 +85,25 @@ describe('buildRound', () => {
   it('caps at pool size when count exceeds available claims', () => {
     const deck = buildRound(BEN_CLAIMS, seeded({ count: 999 }));
     expect(deck).toHaveLength(BEN_CLAIMS.length);
+  });
+
+  it('tops up from CAN pool if CAN\'T pool is too small to cover its half', () => {
+    // Create a pool with lots of CANs and only 1 CANT
+    const customPool = [
+      { text: 'can1', answer: 'can' as const },
+      { text: 'can2', answer: 'can' as const },
+      { text: 'can3', answer: 'can' as const },
+      { text: 'can4', answer: 'can' as const },
+      { text: 'cant1', answer: 'cant' as const },
+    ];
+    // Request a 4-card round. 50/50 split means we want 2 CANs and 2 CANTs.
+    // Since there's only 1 CANT, it should take 3 CANs and 1 CANT.
+    const deck = buildRound(customPool, seeded({ count: 4 }));
+    expect(deck).toHaveLength(4);
+    const cans = deck.filter((c) => c.answer === 'can').length;
+    const cants = deck.filter((c) => c.answer === 'cant').length;
+    expect(cans).toBe(3);
+    expect(cants).toBe(1);
   });
 });
 
