@@ -1,12 +1,12 @@
 import Phaser from 'phaser';
 import type { GameMode, ModeContext, ModeResult } from '../types';
-import { Beat, resolveSpeaker } from '../../../data/chapters';
+import { Beat } from '../../../data/chapters';
 
 export class PoolPartyMode implements GameMode {
   id = 'poolParty';
   private ctx!: ModeContext;
 
-  start(ctx: ModeContext, config: any, onComplete: (result: ModeResult) => void): void {
+  start(ctx: ModeContext, config: unknown, onComplete: (result: ModeResult) => void): void {
     this.ctx = ctx;
     // This mode runs in the background concurrently with other story beats.
     // The BeatEngine advances immediately on start, but the mode remains active.
