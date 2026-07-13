@@ -29,6 +29,16 @@ describe('doubleCall pure logic', () => {
       expect(state.complete).toBe(true);
       expect(state.typed).toBe('omw');
     });
+
+    it('is case-sensitive', () => {
+      const state = nextTypedState('why', '', 'W');
+      expect(state).toEqual({ typed: '', complete: false, advanced: false });
+    });
+
+    it('returns complete if typed length is strictly greater than target length', () => {
+      const state = nextTypedState('why', 'whyyyy', 'y');
+      expect(state).toEqual({ typed: 'whyyyy', complete: true, advanced: false });
+    });
   });
 
   describe('incrementPressCount (Scene 10 unsent rewind counter)', () => {
