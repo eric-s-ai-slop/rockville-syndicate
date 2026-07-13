@@ -58,7 +58,7 @@ export interface PassiveVisualEvent {
   beatIndex: number;
   beatType: PassiveVisualBeatType;
   captureMissed?: boolean;
-  evidence?: 'live' | 'post-advance' | 'boundary' | 'missed';
+  evidence?: 'live' | 'post-advance' | 'missed';
 }
 
 export function passiveVisualEventKey(event: Pick<PassiveVisualEvent, 'sceneIndex' | 'beatIndex' | 'beatType'>): string {
@@ -81,6 +81,64 @@ export function visualEventsFromBeatTrace(entries: BeatTraceEntry[]): PassiveVis
     events.push(event);
   }
   return events;
+}
+
+/**
+ * Persistent effects can only use a post-advance frame when the scene that
+ * started the effect is still the active scene. A scene boundary never
+ * substitutes for evidence: the resulting frame may show the next scene.
+ */
+export function persistentEvidenceMode(
+  event: Pick<PassiveVisualEvent, 'sceneIndex'>,
+  activeSceneIndex: number | null,
+): 'post-advance' | 'missed' {
+  return event.sceneIndex === activeSceneIndex ? 'post-advance' : 'missed';
+}
+
+export function persistentEvidenceEvent(
+  event: PassiveVisualEvent,
+  activeSceneIndex: number | null,
+): PassiveVisualEvent {
+  const evidence = persistentEvidenceMode(event, activeSceneIndex);
+  return evidence === 'missed'
+    ? { ...event, captureMissed: true, evidence }
+    : { ...event, evidence };
+}
+
+export interface CoalescedCheckpointMetadata {
+  reason: string;
+  reasons: string[];
+  modeKind: CheckpointModeKind;
+  modeId: string | null;
+  modeBeatIndex: number | null;
+  transitions: Array<Pick<CheckpointTransition, 'reason' | 'modeKind' | 'modeId' | 'modeBeatIndex'>>;
+}
+
+/**
+ * One observed frame can satisfy several simultaneous identity transitions.
+ * Preserve every transition in the receipt while exposing the legacy scalar
+ * mode fields when there is exactly one mode transition.
+ */
+export function coalesceCheckpointTransitions(
+  transitions: CheckpointTransition[],
+): CoalescedCheckpointMetadata {
+  if (transitions.length === 0) throw new Error('Cannot coalesce an empty checkpoint transition list');
+  const modeTransitions = transitions.filter((transition) => transition.modeKind !== null);
+  const modeKinds = new Set(modeTransitions.map((transition) => transition.modeKind));
+  const scalarMode = modeTransitions.length === 1 ? modeTransitions[0] : null;
+  return {
+    reason: transitions.map((transition) => transition.reason).join('; '),
+    reasons: transitions.map((transition) => transition.reason),
+    modeKind: modeKinds.size === 1 ? modeTransitions[0].modeKind : null,
+    modeId: scalarMode?.modeId ?? null,
+    modeBeatIndex: scalarMode?.modeBeatIndex ?? null,
+    transitions: transitions.map(({ reason, modeKind, modeId, modeBeatIndex }) => ({
+      reason,
+      modeKind,
+      modeId,
+      modeBeatIndex,
+    })),
+  };
 }
 
 export function contactSheetChunks<T>(items: T[], maxTiles = 6): T[][] {

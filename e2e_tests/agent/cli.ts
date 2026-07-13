@@ -29,8 +29,11 @@ import { deriveCoverageManifest, CoverageManifest } from './coverageManifest';
 import {
   checkpointIdentity,
   checkpointTransitions,
+  coalesceCheckpointTransitions,
   contactSheetChunks,
   passiveVisualEventKey,
+  persistentEvidenceEvent,
+  persistentEvidenceMode,
   visualEventsFromBeatTrace,
   type PassiveVisualBeatType,
   type PassiveVisualEvent,
@@ -590,11 +593,11 @@ let screenshotCount = 0;
 let checkpointCount = 0;
 let lastCheckpointState: CheckpointIdentity | null = null;
 
-type PassiveEvidenceStatus = 'captured' | 'missed' | 'boundary';
+type PassiveEvidenceStatus = 'captured' | 'missed';
 
 interface PassiveEvidenceRecord {
   status: PassiveEvidenceStatus;
-  evidence: 'live' | 'post-advance' | 'boundary' | 'missed';
+  evidence: 'live' | 'post-advance' | 'missed';
   path?: string;
 }
 
@@ -729,14 +732,17 @@ class PassiveEvidenceCollector {
 
   async finish(
     entries: BridgeBeatTraceEntry[],
-    boundaryCovered: boolean,
+    activeSceneIndex: number | null,
   ): Promise<{ events: PassiveVisualEvent[]; frames: PassiveEvidenceFrame[]; missed: PassiveVisualEvent[] }> {
     const events = visualEventsFromBeatTrace(entries);
     if (!this.flags.checkpoints) return { events, frames: this.frames, missed: this.missed };
     const persistent = events.filter(event => PERSISTENT_PASSIVE_TYPES.has(event.beatType));
-    const uncapturedPersistent = persistent.filter(event => !passiveEvidence.has(passiveVisualEventKey(event)));
+    const uncapturedPersistent = persistent.filter(
+      event => !passiveEvidence.has(passiveVisualEventKey(event)) &&
+        persistentEvidenceMode(event, activeSceneIndex) === 'post-advance',
+    );
 
-    if (this.flags.checkpoints && uncapturedPersistent.length > 0 && !boundaryCovered) {
+    if (uncapturedPersistent.length > 0) {
       const file = path.resolve(
         this.flags.out,
         `passive-source-${String(++passiveSourceCount).padStart(3, '0')}-post-advance.png`,
@@ -761,13 +767,15 @@ class PassiveEvidenceCollector {
       const key = passiveVisualEventKey(event);
       let record = passiveEvidence.get(key);
       if (!record) {
-        if (boundaryCovered && PERSISTENT_PASSIVE_TYPES.has(event.beatType)) {
-          record = { status: 'boundary', evidence: 'boundary' };
-        } else {
-          record = { status: 'missed', evidence: 'missed' };
-          passiveEvidence.set(key, record);
-          this.missed.push({ ...event, captureMissed: true, evidence: 'missed' });
-        }
+        // A scene transition may have produced a perfectly valid checkpoint,
+        // but that image belongs to the new scene and cannot prove an effect
+        // that started in the old one. Never turn that boundary into evidence.
+        const marked = PERSISTENT_PASSIVE_TYPES.has(event.beatType)
+          ? persistentEvidenceEvent(event, activeSceneIndex)
+          : { ...event, captureMissed: true, evidence: 'missed' as const };
+        record = { status: 'missed', evidence: 'missed' };
+        passiveEvidence.set(key, record);
+        this.missed.push(marked);
       }
       if (record.status === 'missed') {
         event.captureMissed = true;
@@ -851,60 +859,64 @@ async function maybeEmitCheckpoint(agent: GameAgent, page: Page, flags: Flags): 
 
   const transitions = checkpointTransitions(lastCheckpointState, current);
   lastCheckpointState = current;
-  for (const transition of transitions) {
-    fs.mkdirSync(flags.out, { recursive: true });
-    const checkpointId = ++checkpointCount;
-    const file = path.resolve(flags.out, `checkpoint-${String(checkpointId).padStart(3, '0')}.png`);
-    try {
-      await agent.stabilizedScreenshot(file);
-    } catch (err) {
-      // A React/Phaser unmount can happen between the bridge probe and the
-      // screenshot. Checkpoint capture is diagnostic and must never take down
-      // the REPL or hide the original command failure.
-      emit({
-        cmd: 'visual_checkpoint',
-        ok: false,
-        checkpointId,
-        error: err instanceof Error ? err.message : String(err),
-        reason: transition.reason,
-        sceneKey: current.sceneKey,
-        sceneIndex: current.sceneIndex,
-        mode: transition.modeId,
-        modeKind: transition.modeKind,
-        modeBeatIndex: transition.modeBeatIndex,
-        foregroundModeId: current.foregroundModeId,
-        foregroundModeBeatIndex: current.foregroundModeBeatIndex,
-        backgroundModeId: current.backgroundModeId,
-        backgroundModeBeatIndex: current.backgroundModeBeatIndex,
-      });
-      continue;
-    }
+  if (transitions.length === 0) return;
+
+  fs.mkdirSync(flags.out, { recursive: true });
+  const checkpointId = ++checkpointCount;
+  const file = path.resolve(flags.out, `checkpoint-${String(checkpointId).padStart(3, '0')}.png`);
+  const receipt = coalesceCheckpointTransitions(transitions);
+  const complianceModeKind = transitions.some(transition => transition.modeKind === 'foreground')
+    ? 'foreground'
+    : transitions.some(transition => transition.modeKind === 'background')
+      ? 'background'
+      : null;
+  const receiptFields = {
+    reason: receipt.reason,
+    reasons: receipt.reasons,
+    transitions: receipt.transitions,
+    sceneKey: current.sceneKey,
+    sceneIndex: current.sceneIndex,
+    mode: receipt.modeId,
+    modeKind: receipt.modeKind,
+    modeBeatIndex: receipt.modeBeatIndex,
+    foregroundModeId: current.foregroundModeId,
+    foregroundModeBeatIndex: current.foregroundModeBeatIndex,
+    backgroundModeId: current.backgroundModeId,
+    backgroundModeBeatIndex: current.backgroundModeBeatIndex,
+  };
+  try {
+    // All transitions observed in this poll describe one rendered state. Take
+    // one image and attach the complete transition set to that receipt.
+    await agent.stabilizedScreenshot(file);
+  } catch (err) {
+    // A React/Phaser unmount can happen between the bridge probe and the
+    // screenshot. Checkpoint capture is diagnostic and must never take down
+    // the REPL or hide the original command failure.
     emit({
       cmd: 'visual_checkpoint',
-      ok: true,
+      ok: false,
       checkpointId,
-      path: file,
-      reason: transition.reason,
-      sceneKey: current.sceneKey,
-      sceneIndex: current.sceneIndex,
-      mode: transition.modeId,
-      modeKind: transition.modeKind,
-      modeBeatIndex: transition.modeBeatIndex,
-      foregroundModeId: current.foregroundModeId,
-      foregroundModeBeatIndex: current.foregroundModeBeatIndex,
-      backgroundModeId: current.backgroundModeId,
-      backgroundModeBeatIndex: current.backgroundModeBeatIndex,
-      review_required: flags.playtest,
-      review_command: `reviewcheckpoint ${checkpointId} clear|issue-found|inconclusive <observation-note>`,
+      error: err instanceof Error ? err.message : String(err),
+      ...receiptFields,
     });
-    // A background checkpoint remains in visual QA, but it is deliberately
-    // invisible to the foreground-mode input/bypass state machine.
-    playtestCompliance.captureCheckpoint(
-      checkpointId,
-      current.foregroundModeId,
-      transition.modeKind,
-    );
+    return;
   }
+  emit({
+    cmd: 'visual_checkpoint',
+    ok: true,
+    checkpointId,
+    path: file,
+    ...receiptFields,
+    review_required: flags.playtest,
+    review_command: `reviewcheckpoint ${checkpointId} clear|issue-found|inconclusive <observation-note>`,
+  });
+  // A background checkpoint remains in visual QA, but it is deliberately
+  // invisible to the foreground-mode input/bypass state machine.
+  playtestCompliance.captureCheckpoint(
+    checkpointId,
+    current.foregroundModeId,
+    complianceModeKind,
+  );
 }
 
 async function restartSession(page: Page, flags: Flags): Promise<void> {
@@ -1546,7 +1558,6 @@ async function runCommand(
 
       case 'advance': {
         const traceCursor = lastDeliveredBeatTraceSequence;
-        const identityBefore = await readCheckpointIdentity(page);
         const passiveCapture = new PassiveEvidenceCollector(agent, flags);
         await passiveCapture.observeTick(await readCurrentBeatInfo(page));
         const advance = await reachWalkControl(page, args[0] ? num(0) : 60, {
@@ -1564,9 +1575,10 @@ async function runCommand(
           traceCursor,
         );
         const identityAfter = await readCheckpointIdentity(page);
-        const boundaryCovered = !!identityBefore && !!identityAfter &&
-          checkpointTransitions(identityBefore, identityAfter).length > 0;
-        const passiveEvidence = await passiveCapture.finish(tracedEntries, boundaryCovered);
+        const passiveEvidence = await passiveCapture.finish(
+          tracedEntries,
+          identityAfter?.sceneIndex ?? null,
+        );
         await emitPassiveEvidence(flags, passiveEvidence, identityAfter);
         emit({
           cmd: 'advance',

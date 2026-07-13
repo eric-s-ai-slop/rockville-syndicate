@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   checkpointIdentity,
   checkpointTransitions,
+  coalesceCheckpointTransitions,
   contactSheetChunks,
   passiveVisualEventKey,
+  persistentEvidenceEvent,
+  persistentEvidenceMode,
   visualEventsFromBeatTrace,
   type CheckpointIdentity,
 } from './visualCheckpoint';
@@ -120,5 +123,45 @@ describe('passive visual beat trace projection', () => {
       [6, 7, 8, 9, 10, 11],
       [12],
     ]);
+  });
+
+  it('marks a persistent effect missed when its scene changed before capture', () => {
+    expect(persistentEvidenceEvent({ sceneIndex: 0, beatIndex: 12, beatType: 'hideActor' }, 1)).toEqual({
+      sceneIndex: 0,
+      beatIndex: 12,
+      beatType: 'hideActor',
+      captureMissed: true,
+      evidence: 'missed',
+    });
+  });
+
+  it('allows same-scene persistent effects to use post-advance evidence', () => {
+    expect(persistentEvidenceMode({ sceneIndex: 1 }, 1)).toBe('post-advance');
+    expect(persistentEvidenceEvent({ sceneIndex: 1, beatIndex: 12, beatType: 'hideActor' }, 1)).toEqual({
+      sceneIndex: 1,
+      beatIndex: 12,
+      beatType: 'hideActor',
+      evidence: 'post-advance',
+    });
+  });
+});
+
+describe('coalesced checkpoint receipts', () => {
+  it('keeps scene entry and background teardown in one review obligation', () => {
+    const transitions = checkpointTransitions(
+      scene({ backgroundModeId: 'poolParty', backgroundModeBeatIndex: 18 }),
+      scene({ sceneIndex: 1 }),
+    );
+    const receipt = coalesceCheckpointTransitions(transitions);
+
+    expect(receipt.transitions).toHaveLength(2);
+    expect(receipt.reasons).toEqual([
+      'chapter scene 1 entered',
+      'Background mode "poolParty" ended',
+    ]);
+    expect(receipt.reason).toBe(receipt.reasons.join('; '));
+    expect(receipt.modeKind).toBe('background');
+    expect(receipt.modeId).toBe('poolParty');
+    expect(receipt.modeBeatIndex).toBe(18);
   });
 });
