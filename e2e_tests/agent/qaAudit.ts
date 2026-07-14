@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { parseLastSessionSummary, validatePlaytestReport } from './playtestReport';
 import { checkpointManifestPath, validateCheckpointManifest } from './checkpointManifest';
+import { CHAPTERS } from '../../src/data/chapters';
 
 export interface QaAuditIssue {
   code: string;
@@ -93,6 +94,24 @@ export function auditQaReport(reportPathArg: string, transcriptPathArg?: string,
   const accepted = new Set(records.filter((record) => record.status === 'accepted' && typeof record.cmd_id === 'string').map((record) => record.cmd_id as string));
   const completed = new Set(records.filter((record) => (record.status === 'completed' || record.status === 'failed') && typeof record.cmd_id === 'string').map((record) => record.cmd_id as string));
   const checkpoints = records.filter((record) => record.cmd === 'visual_checkpoint' && record.ok === true && Number.isInteger(record.checkpointId));
+  const capturedIds = new Set(checkpoints.map((record) => record.checkpointId as number));
+  const reviewsById = new Map<number, Record<string, unknown>>();
+  for (const record of records.filter((entry) => entry.cmd === 'reviewcheckpoint' && entry.review && typeof entry.review === 'object')) {
+    const review = record.review as Record<string, unknown>;
+    const id = review.checkpointId;
+    if (!Number.isInteger(id) || (id as number) < 1) {
+      errors.push(issue('REVIEW_ID_INVALID', 'Review receipt must reference a positive integer checkpointId.'));
+      continue;
+    }
+    if (!capturedIds.has(id as number)) {
+      errors.push(issue('REVIEW_WITHOUT_CAPTURE', `Checkpoint ${id as number} was reviewed but never captured.`, { checkpointId: id as number }));
+    }
+    const prior = reviewsById.get(id as number);
+    if (prior && JSON.stringify(prior) !== JSON.stringify(review)) {
+      errors.push(issue('REVIEW_CONFLICT', `Checkpoint ${id as number} has conflicting review receipts.`, { checkpointId: id as number }));
+    }
+    reviewsById.set(id as number, review);
+  }
   const checkpointPaths = new Map<number, string>();
   for (const record of checkpoints) {
     const checkpointId = record.checkpointId as number;
@@ -119,7 +138,7 @@ export function auditQaReport(reportPathArg: string, transcriptPathArg?: string,
       continue;
     }
     for (const message of validateCheckpointManifest(manifest, imagePath)) errors.push(issue('MANIFEST_INVALID', `Checkpoint ${checkpointId}: ${message}`, { checkpointId, path: manifestPath }));
-    const typedManifest = manifest as { sourceFramePaths?: unknown[]; commandId?: unknown; scene?: { index?: unknown }; beat?: { index?: unknown }; mode?: { id?: unknown } | null; settling?: { timedOut?: unknown } };
+    const typedManifest = manifest as { sourceFramePaths?: unknown[]; commandId?: unknown; chapter?: { id?: unknown; title?: unknown }; scene?: { index?: unknown; name?: unknown; key?: unknown }; beat?: { index?: unknown; id?: unknown; type?: unknown }; mode?: { id?: unknown; kind?: unknown; beatIndex?: unknown } | null; settling?: { timedOut?: unknown } };
     for (const source of typedManifest.sourceFramePaths ?? []) {
       const sourcePath = artifactPath(source);
       if (!sourcePath || !fs.existsSync(sourcePath)) errors.push(issue('ARTIFACT_NOT_FOUND', `Checkpoint ${checkpointId} source frame does not exist: ${String(source)}`, { checkpointId, path: sourcePath ?? undefined }));
@@ -129,11 +148,43 @@ export function auditQaReport(reportPathArg: string, transcriptPathArg?: string,
       errors.push(issue('COMMAND_RECEIPT_MISSING', `Checkpoint ${checkpointId} references command ${typedManifest.commandId} without accepted and terminal receipts.`, { checkpointId, commandId: typedManifest.commandId }));
     }
     if (record.sceneIndex !== undefined && typedManifest.scene?.index !== record.sceneIndex) errors.push(issue('LOCATION_MISMATCH', `Checkpoint ${checkpointId} scene index differs between receipt and manifest.`, { checkpointId }));
+    if (record.sceneName !== undefined && record.sceneName !== null && typedManifest.scene?.name !== record.sceneName) errors.push(issue('SCENE_NAME_MISMATCH', `Checkpoint ${checkpointId} scene name differs between receipt and manifest.`, { checkpointId }));
+    if (record.sceneKey !== undefined && record.sceneKey !== null && typedManifest.scene?.key !== record.sceneKey) errors.push(issue('SCENE_KEY_MISMATCH', `Checkpoint ${checkpointId} scene key differs between receipt and manifest.`, { checkpointId }));
+    if (record.beatIndex !== undefined && typedManifest.beat?.index !== record.beatIndex) errors.push(issue('BEAT_INDEX_MISMATCH', `Checkpoint ${checkpointId} beat index differs between receipt and manifest.`, { checkpointId }));
+    if (record.beatId !== undefined && record.beatId !== null && typedManifest.beat?.id !== record.beatId) errors.push(issue('BEAT_ID_MISMATCH', `Checkpoint ${checkpointId} beat id differs between receipt and manifest.`, { checkpointId }));
+    if (record.beatType !== undefined && record.beatType !== null && typedManifest.beat?.type !== record.beatType) errors.push(issue('BEAT_TYPE_MISMATCH', `Checkpoint ${checkpointId} beat type differs between receipt and manifest.`, { checkpointId }));
+    const chapterId = typedManifest.chapter?.id;
+    const knownChapter = typeof chapterId === 'string' ? CHAPTERS.find((chapter) => chapter.id === chapterId) : undefined;
+    if (knownChapter && typedManifest.scene && Number.isInteger(typedManifest.scene.index)) {
+      const sceneIndex = typedManifest.scene.index as number;
+      const sceneConfig = knownChapter.scenes?.[sceneIndex];
+      if (knownChapter.scenes && !sceneConfig) errors.push(issue('SCENE_INDEX_INVALID', `Checkpoint ${checkpointId} scene index ${sceneIndex} is not present in chapter ${knownChapter.id}.`, { checkpointId }));
+      if (sceneConfig) {
+        const expectedName = sceneConfig.map.areaTitle ?? knownChapter.location ?? `Scene ${sceneIndex}`;
+        if (typedManifest.scene.name !== expectedName) errors.push(issue('SCENE_NAME_NOT_CANONICAL', `Checkpoint ${checkpointId} scene name is not canonical for chapter ${knownChapter.id}.`, { checkpointId }));
+      }
+      const beatIndex = typedManifest.beat?.index;
+      if (beatIndex !== null && Number.isInteger(beatIndex)) {
+        const beat = knownChapter.beats[beatIndex as number];
+        if (!beat) errors.push(issue('BEAT_INDEX_INVALID', `Checkpoint ${checkpointId} beat index ${beatIndex as number} is not present in chapter ${knownChapter.id}.`, { checkpointId }));
+        else {
+          const expectedBeatId = typeof beat.id === 'string' ? beat.id : null;
+          if (typedManifest.beat?.id !== expectedBeatId) errors.push(issue('BEAT_ID_NOT_CANONICAL', `Checkpoint ${checkpointId} beat id is not canonical for chapter ${knownChapter.id}.`, { checkpointId }));
+          if (typedManifest.beat?.type !== beat.type) errors.push(issue('BEAT_TYPE_NOT_CANONICAL', `Checkpoint ${checkpointId} beat type is not canonical for chapter ${knownChapter.id}.`, { checkpointId }));
+        }
+      }
+    }
     if (record.mode !== undefined && typedManifest.mode?.id !== record.mode && record.mode !== null) errors.push(issue('LOCATION_MISMATCH', `Checkpoint ${checkpointId} mode differs between receipt and manifest.`, { checkpointId }));
-    const review = records.find((entry) => entry.cmd === 'reviewcheckpoint' && (entry.review as { checkpointId?: unknown } | undefined)?.checkpointId === checkpointId);
+    const review = reviewsById.get(checkpointId) ? { review: reviewsById.get(checkpointId) } : undefined;
     if (typedManifest.settling?.timedOut === true && (review?.review as { verdict?: unknown } | undefined)?.verdict === 'clear') {
       errors.push(issue('SETTLING_TIMEOUT_REQUIRES_REVIEW', `Checkpoint ${checkpointId} timed out while settling and cannot be marked clear without conclusive follow-up evidence.`, { checkpointId }));
     }
+  }
+
+  const duplicateCheckpointIds = [...checkpointPaths.keys()].filter((id) => checkpoints.filter((record) => record.checkpointId === id).length > 1);
+  for (const checkpointId of duplicateCheckpointIds) {
+    const paths = checkpoints.filter((record) => record.checkpointId === checkpointId).map((record) => artifactPath(record.path));
+    if (new Set(paths).size > 1) errors.push(issue('CHECKPOINT_CONFLICT', `Checkpoint ${checkpointId} has conflicting receipt paths.`, { checkpointId }));
   }
 
   const findingCount = records.filter((record) => record.cmd === 'recordfinding' && record.finding && typeof record.finding === 'object').length;

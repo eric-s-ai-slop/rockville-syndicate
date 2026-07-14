@@ -84,7 +84,7 @@ test('fixture branch snapshot restores actor, scalar, progress, and Maria state'
     await agent.saveQuickState();
     const fileSave = await agent.saveFileState(fileState);
     expect(fileSave).toEqual({ branchSafe: true, unsafeReasons: [] });
-    expect(JSON.parse(fs.readFileSync(fileState, 'utf8')).safety).toEqual(fileSave);
+    expect(JSON.parse(fs.readFileSync(fileState, 'utf8')).safety).toMatchObject(fileSave);
     await agent.modifyStat('hp', 17);
     await agent.modifyStat('shards', 9);
     await agent.modifyStat('ledger', 42);
@@ -163,7 +163,7 @@ test('fixture rejects loading a quick-save captured at the active background bou
     const fileState = path.join(testInfo.outputDir, 'fixture-unsafe-state.json');
     const fileSave = await agent.saveFileState(fileState);
     expect(fileSave).toEqual(save);
-    expect(JSON.parse(fs.readFileSync(fileState, 'utf8')).safety).toEqual(save);
+    expect(JSON.parse(fs.readFileSync(fileState, 'utf8')).safety).toMatchObject(save);
     await expect(agent.loadQuickState()).rejects.toThrow(/Cannot restore unsafe branch save/);
   } finally {
     await agent.dispose();

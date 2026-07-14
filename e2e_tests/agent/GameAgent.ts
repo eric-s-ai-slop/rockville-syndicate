@@ -336,14 +336,15 @@ export class GameAgent {
 
       const active = game.scene.getScenes(true);
       const top = active[active.length - 1];
-      const chapter = game.scene.getScene(sceneKey);
+      const chapterCandidate = game.scene.getScene(sceneKey);
+      const chapter = chapterCandidate && active.includes(chapterCandidate) ? chapterCandidate : null;
       const player = chapter?.player;
       const body = player?.body;
 
       return {
         // Scene key lives on Systems settings — the canonical, always-present
         // location (a raw Scene instance's `.scene` is the ScenePlugin).
-        scene: top?.sys?.settings?.key ?? null,
+        scene: chapter ? chapter.sys?.settings?.key ?? null : top?.sys?.settings?.key ?? null,
         player: player ? { x: player.x, y: player.y } : null,
         velocity: body ? { x: body.velocity.x, y: body.velocity.y } : null,
         hp: typeof chapter?.activeHp === 'number' ? chapter.activeHp : null,
@@ -652,7 +653,9 @@ export class GameAgent {
       const empty = { walkTarget: null, npcs: [] };
       if (!game) return empty;
 
-      const scene = game.scene.getScene('ChapterScene');
+      const activeScenes = game.scene.getScenes(true) ?? [];
+      const chapterCandidate = game.scene.getScene('ChapterScene');
+      const scene = chapterCandidate && activeScenes.includes(chapterCandidate) ? chapterCandidate : null;
       if (!scene) return empty;
 
       const cam = scene.cameras.main;
@@ -712,7 +715,9 @@ export class GameAgent {
       const game = (window as unknown as { __OMEGA_GAME__?: any }).__OMEGA_GAME__;
       if (!game) throw new Error('Game not initialized');
 
-      const scene = game.scene.getScene('ChapterScene');
+      const activeScenes = game.scene.getScenes(true) ?? [];
+      const chapterCandidate = game.scene.getScene('ChapterScene');
+      const scene = chapterCandidate && activeScenes.includes(chapterCandidate) ? chapterCandidate : null;
       if (!scene) throw new Error('ChapterScene not found');
       // create() hasn't finished (e.g. called before the first 'advance') — the
       // physics groups teardownMap() relies on (this.walls, etc.) don't exist yet.
@@ -912,8 +917,10 @@ export class GameAgent {
         };
       }
 
-      const scene = game.scene.getScene('ChapterScene');
-      
+      const activeScenes = game.scene.getScenes(true) ?? [];
+      const chapterCandidate = game.scene.getScene('ChapterScene');
+      const scene = chapterCandidate && activeScenes.includes(chapterCandidate) ? chapterCandidate : null;
+
       // 1. GameStateSnapshot
       let state = null;
       if (scene) {
@@ -927,7 +934,6 @@ export class GameAgent {
           loopRunning: game.loop.running
         };
       } else {
-        const activeScenes = game.scene.getScenes(true);
         state = {
           scene: activeScenes.length > 0 ? activeScenes[0].sys.settings.key : null,
           player: null,
@@ -941,10 +947,10 @@ export class GameAgent {
 
       // 2. Canvas Text & DOM Text
       const canvasText: { text: string; x: number; y: number; type: string }[] = [];
-      const scenes = game.scene.getScenes(true);
+      const scenes = activeScenes;
       for (let i = 0; i < scenes.length; i++) {
         const sc = scenes[i];
-        const queue = [...sc.children.list];
+        const queue = Array.isArray(sc?.children?.list) ? [...sc.children.list] : [];
         let head = 0;
         while (head < queue.length) {
           const child = queue[head++];
@@ -995,12 +1001,12 @@ export class GameAgent {
       const npcs: any[] = [];
 
       if (scene) {
-        const cam = scene.cameras.main;
-        const cx = cam.width / 2;
-        const cy = cam.height / 2;
-        const rect = game.canvas.getBoundingClientRect();
+        const cam = scene.cameras?.main;
+        const rect = game.canvas?.getBoundingClientRect?.();
 
-        if (scene.walkTarget) {
+        if (cam && rect && scene.walkTarget) {
+          const cx = cam.width / 2;
+          const cy = cam.height / 2;
           const screenX = cx + (scene.walkTarget.x - cam.scrollX - cx) * cam.zoom;
           const screenY = cy + (scene.walkTarget.y - cam.scrollY - cy) * cam.zoom;
           walkTarget = {
@@ -1015,7 +1021,9 @@ export class GameAgent {
           };
         }
 
-        if (scene.actorSprites) {
+        if (cam && rect && scene.actorSprites) {
+          const cx = cam.width / 2;
+          const cy = cam.height / 2;
           const ids = Object.keys(scene.actorSprites);
           for (let i = 0; i < ids.length; i++) {
             const id = ids[i];

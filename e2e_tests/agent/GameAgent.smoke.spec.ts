@@ -88,6 +88,12 @@ test('GameAgent: pauseLoop freezes the world, resumeLoop restarts it (§4)', asy
     await navigateToChapter(page, 'The Spotify Family Insurgency');
     await expect(page.locator('canvas')).toBeVisible({ timeout: 10000 });
 
+    // Wait until the player is spawned and active so the world is fully initialized.
+    await advanceUntil(page, () => hasWalkControl(agent), {
+      maxSeconds: 60,
+      skipModes: ['bossFight'],
+    });
+
     expect(await agent.isLoopRunning()).toBe(true);
 
     await agent.pauseLoop();

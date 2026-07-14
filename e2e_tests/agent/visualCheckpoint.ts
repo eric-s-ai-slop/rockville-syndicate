@@ -25,6 +25,18 @@ export interface CheckpointProbe {
   activeModeBackground: boolean;
 }
 
+/**
+ * A checkpoint must describe a live chapter scene, not the short bridge window
+ * where Phaser has created ChapterScene but has not activated it yet. During
+ * that window sceneIndex is already available while sceneKey is still null;
+ * treating it as a real transition creates a black duplicate checkpoint.
+ */
+export function isCheckpointIdentityReady(identity: CheckpointIdentity): boolean {
+  return identity.sceneKey !== null
+    && Number.isInteger(identity.sceneIndex)
+    && (identity.sceneIndex as number) >= 0;
+}
+
 export interface CheckpointTransition {
   reason: string;
   modeKind: CheckpointModeKind;

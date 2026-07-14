@@ -4,6 +4,7 @@ import {
   checkpointTransitions,
   coalesceCheckpointTransitions,
   contactSheetChunks,
+  isCheckpointIdentityReady,
   passiveVisualEventKey,
   persistentEvidenceEvent,
   persistentEvidenceMode,
@@ -22,6 +23,11 @@ const scene = (overrides: Partial<CheckpointIdentity> = {}): CheckpointIdentity 
 });
 
 describe('checkpointIdentity', () => {
+  it('rejects the pre-activation bridge identity that can capture a black frame', () => {
+    expect(isCheckpointIdentityReady(scene({ sceneKey: null }))).toBe(false);
+    expect(isCheckpointIdentityReady(scene())).toBe(true);
+  });
+
   it('keeps foreground and background mode ids and beat indexes in separate fields', () => {
     expect(checkpointIdentity({
       sceneKey: 'ChapterScene',

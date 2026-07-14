@@ -1,0 +1,70 @@
+{
+  "schema": "omega-checkpoint-v1",
+  "capturedAt": "2026-07-14T04:46:09.397Z",
+  "checkpointId": 1,
+  "evidenceClass": "natural-playtest",
+  "completionEligible": true,
+  "commandId": null,
+  "imagePath": "/Users/erichuang/Projects/ai-slop/project-omega_-the-rockville-syndicate/qa/release-smoke/checkpoint-001.png",
+  "sourceFramePaths": [],
+  "chapter": {
+    "id": "red_pee_bladder",
+    "title": "The Red Pee Bladder Strike"
+  },
+  "scene": {
+    "index": 0,
+    "name": "Shepherd University Clinic",
+    "key": null
+  },
+  "beat": {
+    "index": 0,
+    "id": null,
+    "type": "dialogue"
+  },
+  "player": null,
+  "camera": {
+    "scrollX": 0,
+    "scrollY": 0,
+    "zoom": 1,
+    "width": 1280,
+    "height": 672,
+    "effectiveViewport": {
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 672
+    },
+    "followTarget": null
+  },
+  "map": {
+    "theme": "hospital",
+    "noNatureScatter": false,
+    "bounds": {
+      "x": 0,
+      "y": 0,
+      "width": 860,
+      "height": 640
+    }
+  },
+  "mode": null,
+  "trigger": {
+    "reason": "chapter scene 0 entered",
+    "reasons": [
+      "chapter scene 0 entered"
+    ],
+    "transitions": [
+      {
+        "reason": "chapter scene 0 entered",
+        "modeKind": null,
+        "modeId": null,
+        "modeBeatIndex": null
+      }
+    ]
+  },
+  "settling": {
+    "strategy": "phaser-stable-frames-v1",
+    "framesObserved": 3,
+    "elapsedMs": 21,
+    "timedOut": false
+  }
+}

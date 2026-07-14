@@ -34,6 +34,7 @@ import {
   checkpointTransitions,
   coalesceCheckpointTransitions,
   contactSheetChunks,
+  isCheckpointIdentityReady,
   passiveVisualEventKey,
   persistentEvidenceEvent,
   persistentEvidenceMode,
@@ -458,6 +459,7 @@ type InvestigationVerdict = 'bug-reproduced' | 'not-reproduced' | 'not-verified'
 let investigationVerdict: InvestigationVerdict = 'inconclusive';
 let investigationNote: string | null = null;
 let lastProtocolCommandId: string | null = null;
+let protocolInFlight = false;
 // Commands that were allowed to run under --playtest but are worth surfacing
 // in session_summary (e.g. a read-only watch predicate, or a time-scale
 // change) — distinct from playtestBypasses, which is only ever a genuine
@@ -780,11 +782,12 @@ async function readCheckpointIdentity(page: Page): Promise<CheckpointIdentity | 
     .evaluate(() => {
       const game = (window as unknown as DevBridgeWindow).__OMEGA_GAME__;
       if (!game) return null;
-      const active = game.scene.getScenes(true);
-      const top = active[active.length - 1];
       const chapterScene = game.scene.getScene('ChapterScene');
+      const active = game.scene.getScenes(true);
+      if (!chapterScene || !active.includes(chapterScene)) return null;
+      const configuredKey = (chapterScene as { sys?: { settings?: { key?: unknown } } }).sys?.settings?.key;
       return {
-        sceneKey: top?.sys?.settings?.key ?? null,
+        sceneKey: typeof configuredKey === 'string' ? configuredKey : 'ChapterScene',
         sceneIndex: typeof chapterScene?.currentSceneIndex === 'number' ? chapterScene.currentSceneIndex : null,
         activeModeId: chapterScene?.activeMode?.id ?? null,
         activeModeBeatIndex: typeof chapterScene?.activeModeBeatIndex === 'number'
@@ -794,7 +797,9 @@ async function readCheckpointIdentity(page: Page): Promise<CheckpointIdentity | 
       };
     })
     .catch(() => null);
-  return probe ? checkpointIdentity(probe) : null;
+  if (!probe) return null;
+  const identity = checkpointIdentity(probe);
+  return isCheckpointIdentityReady(identity) ? identity : null;
 }
 
 /** Read the runtime fields that make a visual checkpoint auditable. This stays
@@ -810,8 +815,8 @@ async function readCheckpointManifestContext(page: Page): Promise<{
   return page.evaluate(() => {
     const game = (window as unknown as DevBridgeWindow).__OMEGA_GAME__;
     const scene = game?.scene.getScene('ChapterScene') as ChapterSceneBridge | undefined;
-    if (!game || !scene) return null;
-    const activeScenes = game.scene.getScenes(true);
+    const activeScenes = game?.scene.getScenes(true) ?? [];
+    if (!game || !scene || !activeScenes.includes(scene)) return null;
     const top = activeScenes[activeScenes.length - 1];
     const chapter = scene.chapter as Record<string, unknown> | undefined;
     const sceneIndex = typeof scene.currentSceneIndex === 'number' ? scene.currentSceneIndex : 0;
@@ -1129,6 +1134,7 @@ async function emitPassiveEvidence(
       null,
       chunk.map(frame => frame.path),
     );
+    const passiveContext = await readCheckpointManifestContext(page);
     emit({
       cmd: 'visual_checkpoint',
       ok: true,
@@ -1138,6 +1144,10 @@ async function emitPassiveEvidence(
       reason: `passive visual evidence: ${chunk.map(frame => frame.label).join(', ')}`,
       sceneKey: current?.sceneKey ?? null,
       sceneIndex: current?.sceneIndex ?? null,
+      sceneName: passiveContext?.scene.name ?? null,
+      beatIndex: passiveContext?.beat.index ?? null,
+      beatId: passiveContext?.beat.id ?? null,
+      beatType: passiveContext?.beat.type ?? null,
       mode: null,
       modeKind: null,
       modeBeatIndex: null,
@@ -1226,6 +1236,7 @@ async function maybeEmitCheckpoint(agent: GameAgent, page: Page, flags: Flags): 
     [],
     { strategy: 'phaser-stable-frames-v1', ...agent.getLastSettling() },
   );
+  const manifestContext = await readCheckpointManifestContext(page);
   emit({
     cmd: 'visual_checkpoint',
     ok: true,
@@ -1233,6 +1244,10 @@ async function maybeEmitCheckpoint(agent: GameAgent, page: Page, flags: Flags): 
     path: file,
     manifestPath,
     ...receiptFields,
+    sceneName: manifestContext?.scene.name ?? null,
+    beatIndex: manifestContext?.beat.index ?? null,
+    beatId: manifestContext?.beat.id ?? null,
+    beatType: manifestContext?.beat.type ?? null,
     review_required: flags.playtest,
     review_command: `reviewcheckpoint ${checkpointId} clear|issue-found|inconclusive <observation-note>`,
   });
@@ -2244,6 +2259,21 @@ async function runProtocolCommand(
   return keepGoing;
 }
 
+function protocolInFlightReceipt(command: AgentCommand): void {
+  const sink = emitSink;
+  emitSink = null;
+  try {
+    emit({
+      protocol: OMEGA_AGENT_PROTOCOL,
+      cmd_id: command.cmd_id,
+      status: 'rejected',
+      error: protocolError('COMMAND_IN_FLIGHT', 'Another JSONL command is still running; wait for its completed/failed receipt before sending the next command.'),
+    });
+  } finally {
+    emitSink = sink;
+  }
+}
+
 async function processCommandLine(
   agent: GameAgent,
   page: Page,
@@ -2262,7 +2292,16 @@ async function processCommandLine(
       });
       return true;
     }
-    return runProtocolCommand(agent, page, flags, parsed.command, parsed.request);
+    if (protocolInFlight) {
+      protocolInFlightReceipt(parsed.command);
+      return true;
+    }
+    protocolInFlight = true;
+    try {
+      return await runProtocolCommand(agent, page, flags, parsed.command, parsed.request);
+    } finally {
+      protocolInFlight = false;
+    }
   }
   return runCommand(agent, page, flags, line);
 }
@@ -3178,14 +3217,43 @@ async function readStdin(agent: GameAgent, page: Page, flags: Flags): Promise<vo
   // listening, so a process piping commands into stdin line-by-line knows the
   // exact moment it's safe to start writing instead of guessing/sleeping.
   if (flags.repl) emit({ repl: 'ready' });
+  const pending = new Set<Promise<void>>();
+  let legacyChain = Promise.resolve();
+  let closed = false;
+  await new Promise<void>((resolve) => {
+    const settle = () => {
+      if (closed && pending.size === 0) resolve();
+    };
+    const runLine = (line: string) => {
+      const isProtocol = line.trim().startsWith('{');
+      const execute = async () => {
+        const keepGoing = await processCommandLine(agent, page, flags, line);
+        if (!keepGoing) {
+          rl.close();
+          return;
+        }
+        await maybeEmitCheckpoint(agent, page, flags);
+        await updatePlaytestProgress(page, flags);
+        if (interactive) process.stderr.write('agent> ');
+      };
+      // JSONL commands are dispatched immediately so a second line can be
+      // rejected deterministically while the first is still running. Legacy
+      // interactive lines retain their historical one-at-a-time ordering.
+      const task = isProtocol ? execute() : (legacyChain = legacyChain.then(execute));
+      pending.add(task);
+      void task.then(
+        () => { pending.delete(task); settle(); },
+        () => { pending.delete(task); settle(); },
+      );
+    };
+    rl.on('line', runLine);
+    rl.on('close', () => {
+      closed = true;
+      settle();
+    });
+  });
   try {
-    for await (const line of rl) {
-      const keepGoing = await processCommandLine(agent, page, flags, line);
-      if (!keepGoing) break;
-      await maybeEmitCheckpoint(agent, page, flags);
-      await updatePlaytestProgress(page, flags);
-      if (interactive) process.stderr.write('agent> ');
-    }
+    // The promise above drains every dispatched command before teardown.
   } finally {
     // `readline` over a PTY leaves stdin in flowing mode after an early
     // `quit`/`exit` break on some Node versions. That keeps the otherwise-

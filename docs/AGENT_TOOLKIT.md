@@ -208,9 +208,12 @@ Prefer lowercase movement keys.
 
 **stdout is JSONL** — exactly one newline-terminated JSON object per command,
 sent one at a time. Wait for the correlated terminal receipt before sending the
-next command. Concatenated objects are rejected with `INVALID_JSON`; the parser
-does not guess record boundaries. On startup you get a `ready` line; every
-command then prints its own result.
+next command. If a second JSONL command arrives while the first is running, it
+is rejected immediately with `COMMAND_IN_FLIGHT`; the rejection is itself a
+public receipt and is never folded into the first command's result. Concatenated
+objects are rejected with `INVALID_JSON`; the parser does not guess record
+boundaries. On startup you get a `ready` line; every command then prints its own
+result.
 
 ```jsonc
 {"cmd":"ready","ok":true,"url":"http://localhost:3324","chapter":"The Spotify Family Insurgency"}
