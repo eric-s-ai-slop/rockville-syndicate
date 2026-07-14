@@ -6,6 +6,8 @@ export interface PlaytestSessionSummary {
   cmd: 'session_summary';
   ok: boolean;
   completion_status?: 'verified' | 'incomplete-visual-qa' | 'incomplete-integrity' | 'incomplete-coverage';
+  investigation_verdict: 'bug-reproduced' | 'not-reproduced' | 'not-verified' | 'inconclusive';
+  investigation_note?: string | null;
   errors: number;
   warnings: number;
   playtest_integrity: 'natural' | 'partially-bypassed';
@@ -44,8 +46,10 @@ function evidencePayload(summary: PlaytestSessionSummary): Record<string, unknow
     audit: summary.audit,
     visual_qa: summary.visual_qa,
     coverage: summary.coverage,
+    investigation_verdict: summary.investigation_verdict,
   };
   if (summary.chapter) payload.chapter = summary.chapter;
+  if (summary.investigation_note) payload.investigation_note = summary.investigation_note;
   if (summary.findings) payload.findings = summary.findings;
   if (summary.progress) payload.progress = summary.progress;
   return payload;
@@ -70,7 +74,10 @@ export function parseLastSessionSummary(transcript: string): PlaytestSessionSumm
   const summary = summaries.at(-1);
   if (summary?.visual_qa && summary.coverage && Array.isArray(summary.bypasses) &&
       Array.isArray(summary.audit) && summary.playtest_integrity) {
-    return summary as PlaytestSessionSummary;
+    return {
+      ...(summary as PlaytestSessionSummary),
+      investigation_verdict: summary.investigation_verdict ?? 'inconclusive',
+    };
   }
 
   // A hard process crash can leave valid checkpoint/review/finding receipts in
@@ -103,6 +110,7 @@ export function parseLastSessionSummary(transcript: string): PlaytestSessionSumm
     cmd: 'session_summary',
     ok: false,
     completion_status: 'incomplete-coverage',
+    investigation_verdict: 'inconclusive',
     errors: 0,
     warnings: 0,
     playtest_integrity: 'natural',
@@ -127,6 +135,12 @@ export function validatePlaytestReport(
   transcriptPath: string,
 ): string[] {
   const errors: string[] = [];
+  if (!['bug-reproduced', 'not-reproduced', 'not-verified', 'inconclusive'].includes(summary.investigation_verdict)) {
+    errors.push('Transcript must include a valid investigation_verdict.');
+  }
+  if (!report.includes(`Investigation verdict: ${summary.investigation_verdict}`)) {
+    errors.push(`Report must state "Investigation verdict: ${summary.investigation_verdict}".`);
+  }
   const start = report.indexOf(EVIDENCE_START);
   const end = report.indexOf(EVIDENCE_END);
   if (start < 0 || end < start) {
@@ -224,6 +238,7 @@ export function renderPlaytestReport(summary: PlaytestSessionSummary, transcript
     `# Playthrough: ${summary.chapter?.title ?? summary.chapter?.id ?? 'Chapter'}`,
     '',
     `Reached: ${reached}`,
+    `Investigation verdict: ${summary.investigation_verdict}${summary.investigation_note ? ` — ${summary.investigation_note}` : ''}`,
     `Pending checkpoints: ${pending}`,
     `Run integrity: ${summary.playtest_integrity}`,
     ...(summary.progress ? [`Overall progress: ${summary.progress.overallPercent}%`] : []),

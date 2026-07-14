@@ -201,6 +201,7 @@ export interface ChapterSceneBridge {
   capturePlaytestSnapshot?: () => BridgePlaytestSnapshot;
   restorePlaytestSnapshot?: (snapshot: BridgePlaytestSnapshot) => void;
   actorSprites?: Record<string, BridgeActorSprite>;
+  getActiveSceneConfig?: () => { map?: Record<string, unknown>; actors?: unknown[] };
   cameras?: { main: BridgeCamera };
   activeHp?: number;
   ledgerTotal?: number;

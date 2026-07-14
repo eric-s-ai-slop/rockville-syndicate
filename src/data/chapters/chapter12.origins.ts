@@ -611,6 +611,9 @@ const chapter12: ChapterConfig = {
     { type: 'walkTo', x: 560, y: 620 },
     { type: 'dialogue', speaker: 'narrator', lines: ['The left room you could reconstruct from sound alone: a gaming chair that cost more than the desk it sits at, a monitor doing most of the lighting, a hoodie on the floor still holding the shape of its owner.'] },
     { type: 'walkTo', x: 1840, y: 620 },
+    // The player stops in the corridor just west of Jacob's island. Hold the
+    // camera on the room for the tour instead of snapping back to that gap.
+    { type: 'cameraPan', x: 2040, y: 620, durationMs: 900, holdMs: 1200, resumeFollow: false },
     { type: 'dialogue', speaker: 'narrator', lines: ["The right room is made. That's the word for it. The bed is made — at eleven-forty at night, the bed is made. On the desk there is a stats textbook, open, a highlighter lying in the gutter of the spine. Car keys on a hook by the door, because the keys have a hook."] },
     // Recurrence 1 — the founding text.
     {
@@ -619,7 +622,7 @@ const chapter12: ChapterConfig = {
     },
     { type: 'dialogue', speaker: 'narrator', lines: ['Then — at the same moment — a phone lights up in each one, and both of them start ringing.'] },
     { type: 'cameraPan', x: 360, y: 620, durationMs: 1400, holdMs: 1800 },
-    { type: 'cameraPan', x: 2040, y: 620, durationMs: 2600, holdMs: 1800 },
+    { type: 'cameraPan', x: 2040, y: 620, durationMs: 2600, holdMs: 1800, resumeFollow: false },
     { type: 'dialogue', speaker: 'nick_f', lines: ['Jacob?'] },
     { type: 'dialogue', speaker: 'jacob', lines: ["Hey. Hi. What's up?"] },
     { type: 'dialogue', speaker: 'nick_f', lines: ['What\'s up with YOU, man. You called me.'] },
@@ -683,7 +686,7 @@ const chapter12: ChapterConfig = {
     { type: 'cameraPan', x: 360, y: 620, durationMs: 1000 },
     { type: 'dialogue', speaker: 'nick_f', lines: ['Jacob! My guy. Talk to me.'] },
     { type: 'dialogue', speaker: 'jacob', lines: ["\"Hi, you've reached Jacob. I can't come to the phone right now. Leave a message and I'll call you back. Thanks.\""] },
-    { type: 'cameraPan', x: 2040, y: 620, durationMs: 1400, holdMs: 2000 },
+    { type: 'cameraPan', x: 2040, y: 620, durationMs: 1400, holdMs: 2000, resumeFollow: false },
     { type: 'dialogue', speaker: 'nick_f', lines: ['No way.'] },
     { type: 'dialogue', speaker: 'nick_f', lines: ['He just called me and had a voice script to pretend i went to his voicemail'] },
     { type: 'dialogue', speaker: 'nick_h', lines: ['at least he was creative'] },
@@ -724,7 +727,7 @@ const chapter12: ChapterConfig = {
       type: 'minigame', modeId: 'doubleCall', background: true,
       config: { variant: 'ringOnly', rightPhone: RIGHT_PHONE, ring: { left: false, right: true, durationMs: 3000 } },
     },
-    { type: 'cameraPan', x: 2040, y: 620, durationMs: 2600, holdMs: 2400 },
+    { type: 'cameraPan', x: 2040, y: 620, durationMs: 2600, holdMs: 2400, resumeFollow: false },
     { type: 'dialogue', speaker: 'ben', lines: ["He's calling me again. Right now — do you hear that? I'm holding the phone up. That's him. While I'm on with you, telling you it's happening, it's happening."] },
     { type: 'dialogue', speaker: 'narrator', lines: ['He looks tired.'] },
     { type: 'dialogue', speaker: 'nick_f', lines: ['This is insane.'] },

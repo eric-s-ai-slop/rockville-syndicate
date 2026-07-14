@@ -16,6 +16,7 @@ import chapter11 from './chapter11.cabin-from-hell';
 import chapter12 from './chapter12.origins';
 
 export * from './types';
+export * from './mapValidation';
 
 // DEV-only fixture chapter: exercises every Beat type for the playtest harness.
 // Included in the Vite dev server and the Node/tsx agent CLI (both need it to

@@ -66,10 +66,10 @@
     "description": "Change map themes, procedural scenery, props, walls, or scene layout.",
     "registrationFile": "src/game/scene/MapBuilder.ts",
     "registrationSymbol": "MapBuilder",
-    "relatedFiles": ["src/data/chapters/types.ts", "src/data/chapters/CLAUDE.md", "src/game/scene/Atmosphere.ts", "src/game/scene/contracts.ts"],
+    "relatedFiles": ["src/data/chapters/types.ts", "src/data/chapters/mapValidation.ts", "src/data/chapters/mapValidation.test.ts", "src/data/chapters/CLAUDE.md", "src/game/scene/Atmosphere.ts", "src/game/scene/contracts.ts"],
     "relatedSymbols": ["MapConfig", "MapTheme", "Atmosphere", "MapBuilderContext"],
     "howTo": "Keep layout declarative in chapter map configs and reusable rendering behavior in MapBuilder/Atmosphere.",
-    "verificationCommands": ["npm test -- src/data/chapters.test.ts", "npm run lint:es"]
+    "verificationCommands": ["npm test -- src/data/chapters.test.ts src/data/chapters/mapValidation.test.ts", "npm run lint:es"]
   },
   "audio": {
     "description": "Add or change music, sound effects, loading, or volume mixing.",
@@ -111,7 +111,7 @@
     "description": "Change terminal game control, state observation, evidence, or agent protocol behavior.",
     "registrationFile": "e2e_tests/agent/GameAgent.ts",
     "registrationSymbol": "GameAgent",
-    "relatedFiles": ["e2e_tests/agent/GameAgent.ts", "e2e_tests/agent/cli.ts", "e2e_tests/agent/protocol.ts", "docs/AGENT_TOOLKIT.md", "e2e_tests/agent/README.md"],
+    "relatedFiles": ["e2e_tests/agent/GameAgent.ts", "e2e_tests/agent/cli.ts", "e2e_tests/agent/protocol.ts", "e2e_tests/agent/checkpointManifest.ts", "e2e_tests/agent/qaAudit.ts", "docs/AGENT_TOOLKIT.md", "e2e_tests/agent/README.md"],
     "relatedSymbols": ["OMEGA_AGENT_PROTOCOL", "AgentCommand", "GameStateSnapshot"],
     "howTo": "Use GameAgent for browser control, protocol.ts for JSONL contracts, and cli.ts only for command orchestration.",
     "verificationCommands": ["npm test -- e2e_tests/agent", "npm run agent -- --help"]
@@ -120,7 +120,7 @@
     "description": "Choose and run compact verification for changed code.",
     "registrationFile": "e2e_tests/agent/check-selection.ts",
     "registrationSymbol": "selectTests",
-    "relatedFiles": ["e2e_tests/agent/check-selection.ts", "e2e_tests/agent/check.ts", "e2e_tests/agent/check-selection.test.ts", "package.json", "e2e_tests/agent/README.md"],
+    "relatedFiles": ["e2e_tests/agent/check-selection.ts", "e2e_tests/agent/check.ts", "e2e_tests/agent/check-selection.test.ts", "e2e_tests/agent/qaAudit.ts", "package.json", "e2e_tests/agent/README.md"],
     "relatedSymbols": ["CheckSelection", "check:agent", "agent:check"],
     "howTo": "Pass changed files to agent:check for focused verification; use check:agent for the compact full type, lint, unit, and build gate.",
     "verificationCommands": ["npm test -- e2e_tests/agent/check-selection.test.ts", "npm run check:agent"]

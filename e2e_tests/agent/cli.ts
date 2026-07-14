@@ -17,11 +17,11 @@ import os from 'node:os';
 import path from 'node:path';
 import readline from 'node:readline';
 import { spawnSync } from 'node:child_process';
-import { GameAgent, MouseButton } from './GameAgent';
+import { GameAgent, MouseButton, ScreenshotError } from './GameAgent';
 import { navigateToChapter, advanceUntil, AdvanceTimeoutError, AdvanceTimeoutDiagnostics } from '../helpers';
 import { CHAPTERS } from '../../src/data/chapters';
 import type { Beat, ChapterConfig } from '../../src/data/chapters/types';
-import type { BridgeBeatTraceEntry, DevBridgeWindow } from './DevBridge';
+import type { BridgeBeatTraceEntry, ChapterSceneBridge, DevBridgeWindow } from './DevBridge';
 import { classifyBeat } from './beatClassification';
 import { checkPlaytestPolicy, parseWatchExpression } from './playtestPolicy';
 import { PlaytestCompliance, playtestCompletionVerdict } from './playtestCompliance';
@@ -42,6 +42,11 @@ import {
   type PassiveVisualEvent,
   type CheckpointIdentity,
 } from './visualCheckpoint';
+import {
+  createCheckpointManifest,
+  writeCheckpointManifest,
+  type CheckpointManifestV1,
+} from './checkpointManifest';
 import {
   OMEGA_AGENT_PROTOCOL,
   AgentCommand,
@@ -83,6 +88,10 @@ interface Flags {
   repl: boolean; // explicit alias for --keep-open's stdin loop, plus a ready signal (C3)
   playtest: boolean; // restrict debug-only mutations and surface bypassed coverage
   playtestSmoke: boolean; // chapter-agnostic playtest-mode advance() sweep, with --gauntlet
+  diagnostic: boolean; // controlled scene/beat navigation; never completion evidence
+  reuseSafeSave: string | null;
+  verbose: boolean;
+  allowSkippedPrerequisites: boolean;
 }
 
 function parseFlags(argv: string[]): Flags {
@@ -116,6 +125,10 @@ function parseFlags(argv: string[]): Flags {
     repl: false,
     playtest: false,
     playtestSmoke: false,
+    diagnostic: false,
+    reuseSafeSave: null,
+    verbose: false,
+    allowSkippedPrerequisites: false,
   };
   const positional: string[] = [];
   for (let i = 0; i < argv.length; i++) {
@@ -149,6 +162,10 @@ function parseFlags(argv: string[]): Flags {
       case '--repl': f.repl = true; f.keepOpen = true; break;
       case '--playtest': f.playtest = true; break;
       case '--playtest-smoke': f.playtestSmoke = true; break;
+      case '--diagnostic': f.diagnostic = true; break;
+      case '--reuse-safe-save': f.reuseSafeSave = argv[++i]; break;
+      case '--verbose': f.verbose = true; break;
+      case '--allow-skipped-prerequisites': f.allowSkippedPrerequisites = true; break;
       default:
         if (a.startsWith('--')) throw new Error(`Unknown flag: ${a}`);
         positional.push(a);
@@ -157,6 +174,18 @@ function parseFlags(argv: string[]): Flags {
   if (positional.length) f.inline = positional.join(' ');
   if (f.playtestSmoke && !f.gauntlet) {
     throw new Error('--playtest-smoke requires --gauntlet');
+  }
+  if (f.diagnostic && f.playtest) {
+    throw new Error('--diagnostic cannot be combined with --playtest. Diagnostic evidence is never completion evidence.');
+  }
+  if (f.diagnostic && f.playtestSmoke) {
+    throw new Error('--diagnostic cannot be combined with --playtest-smoke.');
+  }
+  if (f.diagnostic && f.gauntlet) {
+    throw new Error('--diagnostic cannot be combined with --gauntlet.');
+  }
+  if (f.allowSkippedPrerequisites && !f.diagnostic) {
+    throw new Error('--allow-skipped-prerequisites requires --diagnostic.');
   }
   return f;
 }
@@ -202,6 +231,12 @@ FLAGS
                         pending, state-changing/progression commands are blocked. Incomplete visual QA
                         makes quit/session_summary fail closed. skipbeat cannot bypass a foreground mode,
                         and winmode/losemode require a normal input attempt first. Use with --repl --checkpoints.
+  --diagnostic          Controlled localized investigation mode (requires --chapter). Enables 'goto scene' and
+                        'goto beat' targets; every artifact is labeled targeted-diagnostic and completion-ineligible.
+  --reuse-safe-save <file>  Opt-in restore of a branch-safe save after compatibility fingerprints are checked.
+  --verbose              Include full command diagnostics and console deltas in receipts (default output stays compact).
+  --allow-skipped-prerequisites
+                         (diagnostic only) acknowledge that goto scene/beat skips earlier story side effects.
   --seed <n>            Boot with a seeded Mulberry32 PRNG (replaces Math.random) for determinism
   --record <file>       Record executed commands + inter-command delays to <file>
   --transcript <file>   Mirror every public JSONL receipt (including visual_checkpoint and
@@ -260,7 +295,8 @@ FLAGS
                          commands below (H6) — do not combine --gif with gifstart/gifstop, they share
                          the same capture and gifstart will error out while --gif is active
   --checkpoints         Auto-capture a stabilized screenshot + emit 'visual_checkpoint' on every
-                        chapter/scene/mode transition during a normal (non-gauntlet) session (N3)
+                        chapter/scene/mode transition during a normal (non-gauntlet) session (N3);
+                        each PNG gets a versioned JSON manifest sidecar
   --speed <n>           Set Phaser's scene.time/scene.tweens/arcade-physics timeScale to <n> once the
                         chapter scene has booted (via GameAgent.setTimeScale) — applies to both normal
                         sessions and --gauntlet runs (H2). Re-applied on every observed scene-index
@@ -303,6 +339,8 @@ COMMANDS (one per line; ';' also separates them on a single line)
     recordfinding              JSON-only: args are severity, category, title, location,
                                reproduction, expected, actual, evidence. Records a structured
                                live finding without editing report prose during the run
+    verdict <bug-reproduced|not-reproduced|not-verified|inconclusive> [note]
+                               assign the investigation verdict used by the generated report
     dismissfinding <id> <reason>  dismiss a disproven finding while preserving its audit history
     listfindings               print the current structured finding ledger
     diff                       like observe, but omits any field unchanged since the last diff/observe call (N4/E5)
@@ -372,6 +410,8 @@ COMMANDS (one per line; ';' also separates them on a single line)
                                line includes a 'diagnostics' dump (beatIndex/type, player vs
                                walkTarget position + distance, movementFrozen, activeMode, dialogue/
                                choice visibility) (H3)
+    advance-to scene <index> [beat <index>]  diagnostic-only helper that reuses advance and real
+                               walk input until a requested scene/beat boundary
     wait <ms>                  sleep <ms> of real time
     help                       print this menu
     quit | exit                close the browser and end
@@ -414,6 +454,10 @@ let transcriptStream: fs.WriteStream | null = null;
 let lastCommandTime = Date.now();
 let emitSink: ((obj: Record<string, unknown>) => void) | null = null;
 const playtestBypasses: { command: string; reason: string; timestamp: number }[] = [];
+type InvestigationVerdict = 'bug-reproduced' | 'not-reproduced' | 'not-verified' | 'inconclusive';
+let investigationVerdict: InvestigationVerdict = 'inconclusive';
+let investigationNote: string | null = null;
+let lastProtocolCommandId: string | null = null;
 // Commands that were allowed to run under --playtest but are worth surfacing
 // in session_summary (e.g. a read-only watch predicate, or a time-scale
 // change) — distinct from playtestBypasses, which is only ever a genuine
@@ -597,6 +641,83 @@ async function reachWalkControl(
 
 let screenshotCount = 0;
 
+async function diagnosticGotoBeat(page: Page, target: string, allowSkippedPrerequisites: boolean): Promise<{
+  sceneIndex: number;
+  beatIndex: number;
+  beatId: string | null;
+  beatType: string | null;
+  prerequisiteWarning: string | null;
+}> {
+  return page.evaluate(({ rawTarget, allowSkippedPrerequisites }) => {
+    const game = (window as unknown as DevBridgeWindow).__OMEGA_GAME__;
+    const scene = game?.scene.getScene('ChapterScene');
+    if (!scene) throw new Error('ChapterScene not found');
+    const beats = scene.chapter?.beats ?? [];
+    const numeric = /^\d+$/.test(rawTarget) ? Number(rawTarget) : null;
+    const matches = numeric !== null
+      ? (Number.isInteger(numeric) && numeric >= 0 && numeric < beats.length ? [numeric] : [])
+      : beats.flatMap((beat, index) => beat.id === rawTarget ? [index] : []);
+    if (matches.length === 0) throw new Error(`Diagnostic beat target not found: ${rawTarget}`);
+    if (matches.length > 1) throw new Error(`Diagnostic beat target is ambiguous: ${rawTarget}`);
+    const beatIndex = matches[0];
+    if (beatIndex > 0 && !allowSkippedPrerequisites) {
+      throw new Error('DIAGNOSTIC_PREREQUISITE_REQUIRED: goto beat skips earlier actor, flag, ledger, and mode side effects. Re-run with --allow-skipped-prerequisites to acknowledge.');
+    }
+    const beat = beats[beatIndex];
+    if (typeof scene.restoreBeat !== 'function') {
+      throw new Error('DIAGNOSTIC_PREREQUISITE_UNAVAILABLE: ChapterScene restoreBeat bridge is unavailable.');
+    }
+    scene.restoreBeat(beatIndex);
+    const warning = beatIndex > 0
+      ? 'skipped-state: beats before this target did not run; prerequisite actor/flag/ledger state may be absent'
+      : null;
+    return {
+      sceneIndex: typeof scene.currentSceneIndex === 'number' ? scene.currentSceneIndex : 0,
+      beatIndex,
+      beatId: typeof beat.id === 'string' ? beat.id : null,
+      beatType: typeof beat.type === 'string' ? beat.type : null,
+      prerequisiteWarning: warning,
+    };
+  }, { rawTarget: target, allowSkippedPrerequisites });
+}
+
+async function advanceToDiagnosticTarget(
+  agent: GameAgent,
+  page: Page,
+  targetScene: number,
+  targetBeat: string | null,
+): Promise<Record<string, unknown>> {
+  const resolvedBeat = targetBeat === null ? null : await page.evaluate((raw) => {
+    const scene = (window as unknown as DevBridgeWindow).__OMEGA_GAME__?.scene.getScene('ChapterScene');
+    const beats = scene?.chapter?.beats ?? [];
+    const numeric = /^\d+$/.test(raw) ? Number(raw) : null;
+    const matches = numeric !== null ? (numeric >= 0 && numeric < beats.length ? [numeric] : []) : beats.flatMap((beat, index) => beat.id === raw ? [index] : []);
+    if (matches.length !== 1) throw new Error(`Diagnostic beat target ${matches.length === 0 ? 'not found' : 'is ambiguous'}: ${raw}`);
+    return matches[0];
+  }, targetBeat);
+  for (let iteration = 0; iteration < 200; iteration++) {
+    const current = await readCurrentBeatInfo(page);
+    const sceneReached = current.sceneIndex === targetScene;
+    const beatReached = resolvedBeat === null || current.beatIndex === resolvedBeat;
+    if (sceneReached && beatReached) return { status: 'target-reached', iteration, state: await agent.snapshotGameState() };
+    const result = await reachWalkControl(page, 60);
+    if (result.status === 'choice-present' || result.status === 'mode-active' || result.status === 'chapter-ended') {
+      return { status: result.status, iteration, beat: result.beat, state: await agent.snapshotGameState() };
+    }
+    if (result.status === 'walk-target-present') {
+      const target = await page.evaluate(() => {
+        const scene = (window as unknown as DevBridgeWindow).__OMEGA_GAME__?.scene.getScene('ChapterScene');
+        return scene?.walkTarget ? { x: scene.walkTarget.x, y: scene.walkTarget.y, radius: scene.walkTarget.radius ?? 24 } : null;
+      });
+      if (!target) continue;
+      const walked = await agent.walkTo(target.x, target.y, target.radius, 20);
+      await agent.resumeLoop().catch(() => {});
+      if (!walked.ok) return { status: 'walk-failed', iteration, state: await agent.snapshotGameState() };
+    }
+  }
+  throw new Error('advance-to timed out after 200 iterations');
+}
+
 // ── N3: visual checkpoints for a normal (non-gauntlet) session ────────────
 // Auto-captures a stabilized screenshot + emits a `visual_checkpoint` JSONL
 // line whenever the active scene/mode identity changes, so the multimodal
@@ -635,6 +756,7 @@ const PERSISTENT_PASSIVE_TYPES = new Set<PassiveVisualBeatType>([
 const passiveEvidence = new Map<string, PassiveEvidenceRecord>();
 let passiveSourceCount = 0;
 let passiveContactCount = 0;
+const checkpointFrames: PassiveEvidenceFrame[] = [];
 let lastDeliveredBeatTraceSequence = 0;
 
 function resetPassiveEvidence(): void {
@@ -642,6 +764,7 @@ function resetPassiveEvidence(): void {
   passiveSourceCount = 0;
   passiveContactCount = 0;
   lastDeliveredBeatTraceSequence = 0;
+  checkpointFrames.length = 0;
 }
 
 function passiveLabel(event: Pick<PassiveVisualEvent, 'sceneIndex' | 'beatIndex' | 'beatType'>): string {
@@ -672,6 +795,122 @@ async function readCheckpointIdentity(page: Page): Promise<CheckpointIdentity | 
     })
     .catch(() => null);
   return probe ? checkpointIdentity(probe) : null;
+}
+
+/** Read the runtime fields that make a visual checkpoint auditable. This stays
+ * structural and dev-only: the browser owns the canonical chapter/map config. */
+async function readCheckpointManifestContext(page: Page): Promise<{
+  chapter: { id: string; title: string };
+  scene: { index: number; name: string | null; key: string | null };
+  beat: { index: number | null; id: string | null; type: string | null };
+  player: { x: number; y: number } | null;
+  camera: CheckpointManifestV1['camera'];
+  map: CheckpointManifestV1['map'];
+} | null> {
+  return page.evaluate(() => {
+    const game = (window as unknown as DevBridgeWindow).__OMEGA_GAME__;
+    const scene = game?.scene.getScene('ChapterScene') as ChapterSceneBridge | undefined;
+    if (!game || !scene) return null;
+    const activeScenes = game.scene.getScenes(true);
+    const top = activeScenes[activeScenes.length - 1];
+    const chapter = scene.chapter as Record<string, unknown> | undefined;
+    const sceneIndex = typeof scene.currentSceneIndex === 'number' ? scene.currentSceneIndex : 0;
+    const beats = Array.isArray(chapter?.beats) ? chapter.beats as Array<Record<string, unknown>> : [];
+    const beatIndex = typeof scene.beatIndex === 'number' ? scene.beatIndex : null;
+    const beat = beatIndex !== null ? beats[beatIndex] : undefined;
+    const activeConfig = typeof scene.getActiveSceneConfig === 'function'
+      ? scene.getActiveSceneConfig()
+      : undefined;
+    const map = activeConfig?.map;
+    const camera = scene.cameras?.main;
+    const follow = camera && ((camera as unknown as { _follow?: unknown })._follow ?? (camera as unknown as { followTarget?: unknown }).followTarget);
+    const followTarget = follow
+      ? follow === scene.player
+        ? { kind: 'player' as const, id: null }
+        : { kind: 'other' as const, id: null }
+      : null;
+    return {
+      chapter: {
+        id: typeof chapter?.id === 'string' ? chapter.id : 'unknown',
+        title: typeof chapter?.title === 'string' ? chapter.title : 'Unknown chapter',
+      },
+      scene: {
+        index: sceneIndex,
+        name: typeof activeConfig?.map?.areaTitle === 'string'
+          ? activeConfig.map.areaTitle
+          : typeof chapter?.location === 'string'
+            ? chapter.location
+            : `Scene ${sceneIndex}`,
+        key: top?.sys?.settings?.key ?? null,
+      },
+      beat: {
+        index: beatIndex,
+        id: typeof beat?.id === 'string' ? beat.id : null,
+        type: typeof beat?.type === 'string' ? beat.type : null,
+      },
+      player: scene.player ? { x: scene.player.x, y: scene.player.y } : null,
+      camera: camera && Number.isFinite(camera.scrollX) && Number.isFinite(camera.scrollY)
+        ? {
+            scrollX: camera.scrollX,
+            scrollY: camera.scrollY,
+            zoom: Number.isFinite(camera.zoom) ? camera.zoom : 1,
+            width: camera.width,
+            height: camera.height,
+            effectiveViewport: {
+              x: camera.scrollX,
+              y: camera.scrollY,
+              width: camera.zoom ? camera.width / camera.zoom : camera.width,
+              height: camera.zoom ? camera.height / camera.zoom : camera.height,
+            },
+            followTarget,
+          }
+        : null,
+      map: {
+        theme: typeof map?.theme === 'string' ? map.theme : null,
+        noNatureScatter: map?.noNatureScatter === true,
+        bounds: typeof map?.width === 'number' && typeof map?.height === 'number'
+          ? { x: 0, y: 0, width: map.width, height: map.height }
+          : null,
+      },
+    };
+  }).catch(() => null);
+}
+
+async function writeCheckpointManifestForImage(
+  page: Page,
+  flags: Flags,
+  checkpointId: number,
+  imagePath: string,
+  reason: string,
+  reasons: string[],
+  transitions: unknown[],
+  mode: CheckpointManifestV1['mode'],
+  sourceFramePaths: string[] = [],
+  settling: CheckpointManifestV1['settling'] = {
+    strategy: 'phaser-stable-frames-v1', framesObserved: 0, elapsedMs: 0, timedOut: false,
+  },
+  commandId: string | null = lastProtocolCommandId,
+): Promise<string | null> {
+  const context = await readCheckpointManifestContext(page);
+  if (!context) return null;
+  const manifest = createCheckpointManifest({
+    checkpointId,
+    evidenceClass: flags.diagnostic ? 'targeted-diagnostic' : flags.playtest ? 'natural-playtest' : 'debug',
+    completionEligible: flags.playtest && !flags.diagnostic,
+    commandId,
+    imagePath: path.resolve(imagePath),
+    sourceFramePaths: sourceFramePaths.map((source) => path.resolve(source)),
+    chapter: context.chapter,
+    scene: context.scene,
+    beat: context.beat,
+    player: context.player,
+    camera: context.camera,
+    map: context.map,
+    mode,
+    trigger: { reason, reasons, transitions },
+    settling,
+  });
+  return writeCheckpointManifest(manifest);
 }
 
 async function readBeatTrace(page: Page): Promise<BridgeBeatTraceEntry[]> {
@@ -726,6 +965,9 @@ async function updatePlaytestProgress(
       cmd: 'playtest_progress',
       ok: false,
       error: err instanceof Error ? err.message : String(err),
+      ...(err instanceof ScreenshotError
+        ? { screenshot: { code: err.code, path: err.artifactPath, expectedMime: 'image/png', actualMime: err.actualMime, remediation: err.remediation } }
+        : {}),
     });
     return null;
   }
@@ -836,6 +1078,7 @@ class PassiveEvidenceCollector {
 async function writePassiveContactSheet(
   flags: Flags,
   frames: PassiveEvidenceFrame[],
+  prefix = 'passive-contact',
 ): Promise<string> {
   const tileWidth = 400;
   const tileHeight = 225;
@@ -858,12 +1101,13 @@ async function writePassiveContactSheet(
     sheet.composite(image, x, y + labelHeight);
   }
   fs.mkdirSync(flags.out, { recursive: true });
-  const file = path.resolve(flags.out, `passive-contact-${String(++passiveContactCount).padStart(3, '0')}.png`);
+  const file = path.resolve(flags.out, `${prefix}-${String(++passiveContactCount).padStart(3, '0')}.png`);
   await sheet.write(file as `${string}.${string}`);
   return file;
 }
 
 async function emitPassiveEvidence(
+  page: Page,
   flags: Flags,
   result: { events: PassiveVisualEvent[]; frames: PassiveEvidenceFrame[]; missed: PassiveVisualEvent[] },
   current: CheckpointIdentity | null,
@@ -874,11 +1118,23 @@ async function emitPassiveEvidence(
     const pathName = chunk.length === 1 ? chunk[0].path : await writePassiveContactSheet(flags, chunk);
     const checkpointId = ++checkpointCount;
     const captureMissed = result.missed.length > 0;
+    const manifestPath = await writeCheckpointManifestForImage(
+      page,
+      flags,
+      checkpointId,
+      pathName,
+      `passive visual evidence: ${chunk.map(frame => frame.label).join(', ')}`,
+      [`passive visual evidence: ${chunk.map(frame => frame.label).join(', ')}`],
+      [],
+      null,
+      chunk.map(frame => frame.path),
+    );
     emit({
       cmd: 'visual_checkpoint',
       ok: true,
       checkpointId,
       path: pathName,
+      manifestPath,
       reason: `passive visual evidence: ${chunk.map(frame => frame.label).join(', ')}`,
       sceneKey: current?.sceneKey ?? null,
       sceneIndex: current?.sceneIndex ?? null,
@@ -894,6 +1150,16 @@ async function emitPassiveEvidence(
     });
     playtestCompliance.captureCheckpoint(checkpointId, current?.foregroundModeId ?? null, null);
     playtestCoverage.recordCheckpoint(checkpointId, current?.sceneIndex ?? null, []);
+  }
+}
+
+async function emitCheckpointContactSheet(flags: Flags): Promise<void> {
+  if (!flags.checkpoints || checkpointFrames.length < 2) return;
+  try {
+    const file = await writePassiveContactSheet(flags, checkpointFrames, 'checkpoint-contact');
+    emit({ cmd: 'checkpoint_contact_sheet', ok: true, path: file, sourceFrames: checkpointFrames });
+  } catch (error) {
+    emit({ cmd: 'checkpoint_contact_sheet', ok: false, error: error instanceof Error ? error.message : String(error) });
   }
 }
 
@@ -946,15 +1212,31 @@ async function maybeEmitCheckpoint(agent: GameAgent, page: Page, flags: Flags): 
     });
     return;
   }
+  const manifestPath = await writeCheckpointManifestForImage(
+    page,
+    flags,
+    checkpointId,
+    file,
+    receipt.reason,
+    receipt.reasons,
+    receipt.transitions,
+    receipt.modeId && receipt.modeKind
+      ? { id: receipt.modeId, kind: receipt.modeKind, beatIndex: receipt.modeBeatIndex }
+      : null,
+    [],
+    { strategy: 'phaser-stable-frames-v1', ...agent.getLastSettling() },
+  );
   emit({
     cmd: 'visual_checkpoint',
     ok: true,
     checkpointId,
     path: file,
+    manifestPath,
     ...receiptFields,
     review_required: flags.playtest,
     review_command: `reviewcheckpoint ${checkpointId} clear|issue-found|inconclusive <observation-note>`,
   });
+  checkpointFrames.push({ path: file, label: `checkpoint ${checkpointId}: ${receipt.reason}` });
   // A background checkpoint remains in visual QA, but it is deliberately
   // invisible to the foreground-mode input/bypass state machine.
   playtestCompliance.captureCheckpoint(
@@ -1304,6 +1586,23 @@ async function runCommand(
         emit({ cmd: 'recordfinding', ok: true, ...result });
         break;
       }
+      case 'verdict': case 'investigation-verdict': {
+        const verdict = args[0] as InvestigationVerdict | undefined;
+        if (!['bug-reproduced', 'not-reproduced', 'not-verified', 'inconclusive'].includes(verdict ?? '')) {
+          throw new Error('Usage: verdict <bug-reproduced|not-reproduced|not-verified|inconclusive> [note]');
+        }
+        investigationVerdict = verdict!;
+        investigationNote = args.slice(1).join(' ') || null;
+        emit({
+          cmd: 'verdict',
+          ok: true,
+          investigation_verdict: investigationVerdict,
+          ...(investigationNote ? { note: investigationNote } : {}),
+          evidenceClass: flags.diagnostic ? 'targeted-diagnostic' : undefined,
+          completionEligible: flags.diagnostic ? false : undefined,
+        });
+        break;
+      }
       case 'dismissfinding': {
         if (!flags.playtest) throw new Error('dismissfinding requires --playtest.');
         if (!args[0] || args.length < 2) throw new Error('Usage: dismissfinding <id> <reason>');
@@ -1408,15 +1707,51 @@ async function runCommand(
         break;
       }
       case 'goto': {
-        const idx = num(0);
-        await agent.warpScene(idx);
-        emit({
-          cmd: 'goto',
-          ok: true,
-          sceneIndex: idx,
-          mutates: true,
-          warning: 'skipped-state: side effects of beats before this scene (ledger deltas, flags, spawns) were not executed',
-        });
+        if (flags.diagnostic) {
+          const beatOnly = args[0] === 'beat';
+          const sceneArgs = args[0] === 'scene' ? args.slice(1) : beatOnly ? [] : args;
+          const beatMarker = sceneArgs.indexOf('beat');
+          const sceneTarget = beatMarker >= 0 ? sceneArgs.slice(0, beatMarker) : sceneArgs;
+          const beatTarget = beatOnly ? args[1] : beatMarker >= 0 ? sceneArgs[beatMarker + 1] : null;
+          if (beatOnly && !beatTarget) throw new Error('Usage: goto beat <beatIndex-or-id>');
+          if (!beatOnly && sceneTarget.length > 0 && sceneTarget[0] !== '') {
+            const sceneIndex = Number(sceneTarget[0]);
+            if (!Number.isInteger(sceneIndex)) throw new Error('Usage: goto scene <sceneIndex> [beat <beatIndex-or-id>]');
+            if (sceneIndex > 0 && !flags.allowSkippedPrerequisites) {
+              throw new Error('DIAGNOSTIC_PREREQUISITE_REQUIRED: goto scene skips earlier scene side effects. Re-run with --allow-skipped-prerequisites to acknowledge.');
+            }
+            await agent.warpScene(sceneIndex);
+          }
+          const resolved = beatTarget !== null
+            ? await diagnosticGotoBeat(page, beatTarget, flags.allowSkippedPrerequisites)
+            : {
+                sceneIndex: Number.isInteger(Number(sceneTarget[0])) ? Number(sceneTarget[0]) : 0,
+                beatIndex: null,
+                beatId: null,
+                beatType: null,
+                prerequisiteWarning: flags.allowSkippedPrerequisites
+                  ? 'skipped-state: side effects of beats before this scene were not executed'
+                  : null,
+              };
+          emit({
+            cmd: 'goto',
+            ok: true,
+            evidenceClass: 'targeted-diagnostic',
+            completionEligible: false,
+            mutates: true,
+            ...resolved,
+          });
+        } else {
+          const idx = num(0);
+          await agent.warpScene(idx);
+          emit({
+            cmd: 'goto',
+            ok: true,
+            sceneIndex: idx,
+            mutates: true,
+            warning: 'skipped-state: side effects of beats before this scene (ledger deltas, flags, spawns) were not executed',
+          });
+        }
         break;
       }
       case 'savestate': {
@@ -1689,7 +2024,7 @@ async function runCommand(
         if (advance.status === 'chapter-ended' || advance.beat?.type === 'endChapter') {
           playtestCoverage.recordTerminalObservation();
         }
-        await emitPassiveEvidence(flags, passiveEvidence, identityAfter);
+        await emitPassiveEvidence(page, flags, passiveEvidence, identityAfter);
         emit({
           cmd: 'advance',
           ok: true,
@@ -1717,6 +2052,17 @@ async function runCommand(
               }
             : {}),
         });
+        break;
+      }
+      case 'advance-to': {
+        if (!flags.diagnostic) throw new Error('advance-to requires --diagnostic.');
+        if (args[0] !== 'scene' || !Number.isInteger(Number(args[1]))) {
+          throw new Error('Usage: advance-to scene <sceneIndex> [beat <beatIndex>]');
+        }
+        const marker = args.indexOf('beat');
+        const targetBeat = marker >= 0 ? args[marker + 1] ?? null : null;
+        const result = await advanceToDiagnosticTarget(agent, page, Number(args[1]), targetBeat);
+        emit({ cmd: 'advance-to', ok: true, evidenceClass: 'targeted-diagnostic', completionEligible: false, ...result });
         break;
       }
       case 'wait':
@@ -1768,6 +2114,7 @@ async function runCommand(
       ok: false,
       error: err instanceof Error ? err.message : String(err),
       ...(err instanceof AdvanceTimeoutError ? { diagnostics: err.diagnostics } : {}),
+      ...(flags.verbose ? { console: agent.getConsoleLogs() } : {}),
     });
   }
   return true;
@@ -1812,6 +2159,7 @@ async function runProtocolCommand(
   const outputs: Record<string, unknown>[] = [];
 
   emit({ protocol: OMEGA_AGENT_PROTOCOL, cmd_id: command.cmd_id, status: 'accepted', timestamp: startedAt });
+  lastProtocolCommandId = command.cmd_id;
 
   const previousSink = emitSink;
   emitSink = (obj) => outputs.push(obj);
@@ -1854,6 +2202,10 @@ async function runProtocolCommand(
       warnings: entries.filter((e) => e.type === 'warning').length,
       entries,
     };
+  }
+  if (flags.verbose) {
+    extras.console = agent.getConsoleLogs();
+    extras.command_outputs = outputs;
   }
 
   if (status === 'failed') {
@@ -2302,6 +2654,9 @@ async function runChapterAttempt(
     // ChapterScene exists (canvas is up) but advanceUntil hasn't started yet.
     if (flags.speed !== null && !Number.isNaN(flags.speed)) {
       await agent.setTimeScale(flags.speed).catch(() => {});
+    }
+    if (flags.reuseSafeSave) {
+      await agent.loadFileState(path.resolve(flags.reuseSafeSave));
     }
     if (chapterDir) await captureScene(agent, 0); // one at chapter start (N1)
     let lastSceneIndex = 0;
@@ -2847,6 +3202,10 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (flags.diagnostic && !flags.chapter) {
+    throw new Error('--diagnostic requires --chapter <id-or-title>.');
+  }
+
   if (flags.gauntlet) {
     await runGauntlet(flags);
     return;
@@ -2929,7 +3288,7 @@ async function main(): Promise<void> {
     if (flags.speed !== null && !Number.isNaN(flags.speed)) {
       await agent.setTimeScale(flags.speed).catch(() => {});
     }
-    emit({ cmd: 'ready', ok: true, url: flags.url, chapter: flags.chapter, seed: flags.seed, speed: flags.speed });
+    emit({ cmd: 'ready', ok: true, url: flags.url, chapter: flags.chapter, seed: flags.seed, speed: flags.speed, verbose: flags.verbose });
     await maybeEmitCheckpoint(agent, page, flags); // chapter-load checkpoint (N3)
     await updatePlaytestProgress(page, flags);
 
@@ -2978,6 +3337,7 @@ async function main(): Promise<void> {
     }
     if (agent) {
       const entries = agent.getConsoleLogs();
+      await emitCheckpointContactSheet(flags);
       const visualQa = flags.playtest ? playtestCompliance.summary(flags.checkpoints) : null;
       const coverage = flags.playtest ? playtestCoverage.summary() : null;
       const findings = flags.playtest ? playtestFindings.summary() : [];
@@ -3005,11 +3365,23 @@ async function main(): Promise<void> {
                 ? { chapter: { id: selectedChapter.id, title: selectedChapter.title } }
                 : {}),
               findings,
+              investigation_verdict: investigationVerdict,
+              ...(investigationNote ? { investigation_note: investigationNote } : {}),
               progress,
               visual_qa: visualQa,
               coverage,
             }
-          : {}),
+          : flags.diagnostic
+            ? {
+                evidenceClass: 'targeted-diagnostic',
+                completionEligible: false,
+                completion_status: 'targeted-diagnostic',
+                investigation_verdict: investigationVerdict,
+                ...(investigationNote ? { investigation_note: investigationNote } : {}),
+                playtest_integrity: 'not-applicable',
+                chapter: selectedChapter ? { id: selectedChapter.id, title: selectedChapter.title } : undefined,
+              }
+            : {}),
       });
       await agent.dispose().catch(() => {});
     }

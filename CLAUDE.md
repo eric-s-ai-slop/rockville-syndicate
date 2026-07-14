@@ -22,7 +22,10 @@ Replace `weapon` with a supported domain; run `npm run agent:map --` to list the
 - `npm run build` — production build
 - `npm run check:agent` — compact full validation
 - `npm run agent:check -- <changed-file...>` — compact focused validation
+- `npm run agent:check -- --report <report> --transcript <session>` — include report/evidence audit in the receipt
 - `npm run agent -- --help` — terminal playtesting toolkit
+- `npm run agent:qa-audit -- <report> [transcript]` — audit report, transcript, and checkpoint artifacts
+- `npm run agent:restart-check` — safely restart the verified local Vite server and wait for health
 - `npm run agent:validate-chapter -- <id>` — validate one chapter
 - `npm run agent:scaffold-chapter -- <index> <slug>` — create a minimal unregistered chapter
 - `npm run agent:scaffold-mode -- <id>` — scaffold a minigame

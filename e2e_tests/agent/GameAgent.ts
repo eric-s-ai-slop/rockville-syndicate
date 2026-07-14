@@ -3,6 +3,7 @@ import { Jimp, diff, loadFont } from 'jimp';
 import { SANS_10_BLACK } from 'jimp/fonts';
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { CHAPTERS } from '../../src/data/chapters';
 import { navigateToChapter } from '../helpers';
 import type { BridgePlaytestSnapshot, DevBridgeWindow } from './DevBridge';
@@ -38,6 +39,19 @@ import type { BridgePlaytestSnapshot, DevBridgeWindow } from './DevBridge';
  */
 export type MouseButton = 'left' | 'right';
 
+export class ScreenshotError extends Error {
+  constructor(
+    public readonly code: 'SCREENSHOT_WRITE_FAILED' | 'SCREENSHOT_DECODE_FAILED' | 'MIME_MISMATCH' | 'ARTIFACT_NOT_FOUND',
+    message: string,
+    public readonly artifactPath: string | null,
+    public readonly actualMime: string | null,
+    public readonly remediation: string,
+  ) {
+    super(message);
+    this.name = 'ScreenshotError';
+  }
+}
+
 export interface GameStateSnapshot {
   /** Key of the top-most active Scene, or null if none is running. */
   scene: string | null;
@@ -53,6 +67,37 @@ export interface GameStateSnapshot {
   activeModeBackground: boolean;
   /** Whether the Phaser main loop is currently ticking (see pauseLoop). */
   loopRunning: boolean;
+  camera?: {
+    followActive: boolean;
+    scrollX: number;
+    scrollY: number;
+    zoom: number;
+    viewport: { width: number; height: number };
+    effectiveViewport: { x: number; y: number; width: number; height: number };
+  } | null;
+}
+
+/** Select the newest branch-safe JSON save from an explicitly supplied directory. */
+export function selectSafeSaveFile(directory: string): string {
+  const resolved = path.resolve(directory);
+  if (!fs.existsSync(resolved) || !fs.statSync(resolved).isDirectory()) {
+    throw new Error(`Save-state directory not found: ${resolved}`);
+  }
+  const candidates = fs.readdirSync(resolved)
+    .filter((entry) => entry.toLowerCase().endsWith('.json'))
+    .map((entry) => path.join(resolved, entry))
+    .filter((entry) => fs.statSync(entry).isFile())
+    .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
+  const safeCandidate = candidates.find((candidate) => {
+    try {
+      const candidateSave = JSON.parse(fs.readFileSync(candidate, 'utf8'));
+      return candidateSave.safety?.branchSafe === true && Array.isArray(candidateSave.safety?.unsafeReasons) && candidateSave.safety.unsafeReasons.length === 0;
+    } catch {
+      return false;
+    }
+  });
+  if (!safeCandidate) throw new Error(`SAVE_INCOMPATIBLE: no branch-safe JSON save found in ${resolved}`);
+  return safeCandidate;
 }
 
 const CHAPTER_SCENE_KEY = 'ChapterScene';
@@ -74,6 +119,7 @@ export class GameAgent {
   private lastDiffSnapshot: Awaited<ReturnType<GameAgent['observeComposite']>> | null = null;
   /** Seed passed via --seed or the last reseed() call, recorded into golden .meta.json sidecars (N2). */
   private knownSeed: number | null = null;
+  private lastSettling = { framesObserved: 0, elapsedMs: 0, timedOut: false };
 
   constructor(private readonly page: Page) {
     this.page.on('console', msg => {
@@ -284,6 +330,7 @@ export class GameAgent {
         activeMode: null,
         activeModeBackground: false,
         loopRunning: false,
+        camera: null,
       };
       if (!game) return empty;
 
@@ -303,6 +350,21 @@ export class GameAgent {
         activeMode: chapter?.activeMode?.id ?? null,
         activeModeBackground: chapter?.activeModeBackground === true,
         loopRunning: !!game.loop?.running,
+        camera: chapter?.cameras?.main
+          ? {
+              followActive: !!((chapter.cameras.main as any)._follow ?? (chapter.cameras.main as any).followTarget),
+              scrollX: chapter.cameras.main.scrollX,
+              scrollY: chapter.cameras.main.scrollY,
+              zoom: chapter.cameras.main.zoom,
+              viewport: { width: chapter.cameras.main.width, height: chapter.cameras.main.height },
+              effectiveViewport: {
+                x: chapter.cameras.main.scrollX,
+                y: chapter.cameras.main.scrollY,
+                width: chapter.cameras.main.width / chapter.cameras.main.zoom,
+                height: chapter.cameras.main.height / chapter.cameras.main.zoom,
+              },
+            }
+          : null,
       };
     }, CHAPTER_SCENE_KEY);
   }
@@ -379,14 +441,71 @@ export class GameAgent {
    */
   async stabilizedScreenshot(filePath: string): Promise<void> {
     const wasRunning = await this.isLoopRunning();
-    await this.stepFrames(5);
-    await this.page.screenshot({ path: filePath });
+    const started = Date.now();
+    let stable = 0;
+    let observed = 0;
+    let previous = '';
+    while (Date.now() - started < 750 && stable < 2) {
+      await this.stepFrames(1);
+      observed++;
+      const sample = await this.page.evaluate(() => {
+        const game = (window as unknown as { __OMEGA_GAME__?: any }).__OMEGA_GAME__;
+        const scene = game?.scene.getScene('ChapterScene');
+        const camera = scene?.cameras?.main;
+        const player = scene?.player;
+        return JSON.stringify({
+          x: player?.x ?? null,
+          y: player?.y ?? null,
+          scrollX: camera?.scrollX ?? null,
+          scrollY: camera?.scrollY ?? null,
+          zoom: camera?.zoom ?? null,
+          mode: scene?.activeMode?.id ?? null,
+          beat: scene?.beatIndex ?? null,
+          tweens: scene?.tweens?.getTweens?.().length ?? 0,
+        });
+      }).catch(() => '');
+      const parsed = sample ? JSON.parse(sample) as { tweens: number } : { tweens: 1 };
+      if (sample === previous && parsed.tweens === 0) stable++;
+      else stable = 0;
+      previous = sample;
+    }
+    this.lastSettling = { framesObserved: observed, elapsedMs: Date.now() - started, timedOut: stable < 2 };
+    try {
+      await this.page.screenshot({ path: filePath });
+      if (!fs.existsSync(filePath)) throw new ScreenshotError('ARTIFACT_NOT_FOUND', `Screenshot was not written: ${filePath}`, filePath, null, 'Check --out permissions and available disk space.');
+      const header = fs.readFileSync(filePath).subarray(0, 8);
+      if (!header.equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) {
+        throw new ScreenshotError('MIME_MISMATCH', `Screenshot is not a PNG: ${filePath}`, filePath, 'application/octet-stream', 'Remove the corrupt artifact and retry with a writable --out directory.');
+      }
+      try {
+        await Jimp.read(filePath);
+      } catch (error) {
+        throw new ScreenshotError('SCREENSHOT_DECODE_FAILED', `Screenshot could not be decoded: ${filePath} (${error instanceof Error ? error.message : String(error)})`, filePath, 'image/png', 'Remove the corrupt artifact and retry the capture.');
+      }
+    } catch (error) {
+      if (wasRunning) await this.resumeLoop().catch(() => {});
+      if (error instanceof ScreenshotError) throw error;
+      throw new ScreenshotError('SCREENSHOT_WRITE_FAILED', `Screenshot capture failed: ${error instanceof Error ? error.message : String(error)}`, filePath, null, 'Restart the browser session and verify the output path.');
+    }
     if (wasRunning) await this.resumeLoop();
+  }
+
+  getLastSettling(): { framesObserved: number; elapsedMs: number; timedOut: boolean } {
+    return { ...this.lastSettling };
+  }
+
+  private chapterFingerprint(chapterId: string): string {
+    const chapter = CHAPTERS.find((entry) => entry.id === chapterId);
+    return crypto.createHash('sha256').update(JSON.stringify(chapter ?? { chapterId })).digest('hex');
   }
 
   /** Capture the current live frame without pausing, stepping, or retiming the game. */
   async liveScreenshot(filePath: string): Promise<void> {
-    await this.page.screenshot({ path: filePath });
+    try {
+      await this.page.screenshot({ path: filePath });
+    } catch (error) {
+      throw new ScreenshotError('SCREENSHOT_WRITE_FAILED', `Screenshot capture failed: ${error instanceof Error ? error.message : String(error)}`, filePath, null, 'Restart the browser session and verify the output path.');
+    }
   }
 
   // ── C1 Physics Debug ─────────────────────────────────────────────────────
@@ -975,6 +1094,14 @@ export class GameAgent {
     scrollY: number;
     width: number;
     height: number;
+    followActive: boolean;
+    effectiveViewport: { x: number; y: number; width: number; height: number };
+    composition: {
+      focusRect: { x: number; y: number; width: number; height: number } | null;
+      allowPlayerOutsideRoom: boolean;
+      containsFocusRect: boolean | null;
+      ok: boolean;
+    };
   }> {
     return this.page.evaluate(() => {
       const game = (window as unknown as { __OMEGA_GAME__?: any }).__OMEGA_GAME__;
@@ -983,12 +1110,28 @@ export class GameAgent {
       if (!scene) throw new Error('ChapterScene not found');
 
       const cam = scene.cameras.main;
+      const map = scene.getActiveSceneConfig?.()?.map;
+      const focus = map?.composition?.focusRect ?? null;
+      const effectiveViewport = { x: cam.scrollX, y: cam.scrollY, width: cam.width / cam.zoom, height: cam.height / cam.zoom };
+      const containsFocus = focus
+        ? focus.x >= effectiveViewport.x && focus.y >= effectiveViewport.y
+          && focus.x + focus.width <= effectiveViewport.x + effectiveViewport.width
+          && focus.y + focus.height <= effectiveViewport.y + effectiveViewport.height
+        : null;
       return {
         zoom: cam.zoom,
         scrollX: cam.scrollX,
         scrollY: cam.scrollY,
         width: cam.width,
         height: cam.height
+        ,followActive: !!(cam._follow ?? cam.followTarget)
+        ,effectiveViewport
+        ,composition: {
+          focusRect: focus,
+          allowPlayerOutsideRoom: map?.composition?.allowPlayerOutsideRoom === true,
+          containsFocusRect: containsFocus,
+          ok: containsFocus === null || containsFocus || map?.composition?.allowPlayerOutsideRoom === true,
+        }
       };
     });
   }
@@ -1330,7 +1473,12 @@ export class GameAgent {
     const rawFile = path.resolve(tempDir, `raw-${Date.now()}-${Math.round(Math.random() * 1e6)}.png`);
     await this.stabilizedScreenshot(rawFile);
 
-    const image = await Jimp.read(rawFile);
+    let image: Awaited<ReturnType<typeof Jimp.read>>;
+    try {
+      image = await Jimp.read(rawFile);
+    } catch (error) {
+      throw new ScreenshotError('SCREENSHOT_DECODE_FAILED', `Annotated screenshot could not be decoded: ${rawFile} (${error instanceof Error ? error.message : String(error)})`, rawFile, 'image/png', 'Remove the corrupt artifact and retry the capture.');
+    }
     fs.rmSync(rawFile, { force: true });
     const font = await loadFont(SANS_10_BLACK);
 
@@ -1523,8 +1671,19 @@ export class GameAgent {
         },
       };
     });
+    const viewport = this.page.viewportSize();
+    const save = {
+      ...data,
+      compatibility: {
+        schema: 'omega-agent-save-v1',
+        buildFingerprint: 'omega-agent-v1',
+        chapterFingerprint: this.chapterFingerprint(data.chapterId ?? 'unknown'),
+        viewport: viewport ? { width: viewport.width, height: viewport.height } : null,
+        seed: this.knownSeed,
+      },
+    };
     fs.mkdirSync(path.dirname(filePath), { recursive: true });
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+    fs.writeFileSync(filePath, JSON.stringify(save, null, 2));
     return {
       branchSafe: data.safety.branchSafe,
       unsafeReasons: [...data.safety.unsafeReasons],
@@ -1540,8 +1699,31 @@ export class GameAgent {
    * re-navigation instead of resuming the live session.
    */
   async loadFileState(filePath: string): Promise<void> {
-    if (!fs.existsSync(filePath)) throw new Error(`Save-state file not found: ${filePath}`);
-    const saved = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    const requestedPath = path.resolve(filePath);
+    if (!fs.existsSync(requestedPath)) throw new Error(`Save-state file not found: ${requestedPath}`);
+    let resolvedPath = requestedPath;
+    if (fs.statSync(requestedPath).isDirectory()) {
+      resolvedPath = selectSafeSaveFile(requestedPath);
+    }
+    const saved = JSON.parse(fs.readFileSync(resolvedPath, 'utf8'));
+
+    if (saved.safety?.branchSafe !== true || !Array.isArray(saved.safety?.unsafeReasons) || saved.safety.unsafeReasons.length > 0) {
+      throw new Error(`SAVE_INCOMPATIBLE: save is not branch-safe (${saved.safety?.unsafeReasons?.join('; ') ?? 'missing safety metadata'})`);
+    }
+    if (saved.compatibility?.schema !== 'omega-agent-save-v1' || saved.compatibility?.buildFingerprint !== 'omega-agent-v1') {
+      throw new Error('SAVE_INCOMPATIBLE: save schema or build fingerprint does not match this agent.');
+    }
+    const expectedFingerprint = this.chapterFingerprint(saved.chapterId ?? 'unknown');
+    if (saved.compatibility.chapterFingerprint !== expectedFingerprint) {
+      throw new Error('SAVE_INCOMPATIBLE: chapter content fingerprint differs from the current build.');
+    }
+    const currentViewport = this.page.viewportSize();
+    if (saved.compatibility.viewport && currentViewport && (saved.compatibility.viewport.width !== currentViewport.width || saved.compatibility.viewport.height !== currentViewport.height)) {
+      throw new Error('SAVE_INCOMPATIBLE: viewport dimensions differ from the save.');
+    }
+    if (saved.compatibility.seed !== null && this.knownSeed !== null && saved.compatibility.seed !== this.knownSeed) {
+      throw new Error('SAVE_INCOMPATIBLE: deterministic seed differs from the save.');
+    }
 
     if (typeof saved.saveBlob === 'string') {
       await this.page.evaluate((blob) => {

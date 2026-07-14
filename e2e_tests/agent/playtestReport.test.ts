@@ -21,6 +21,7 @@ const summary: PlaytestSessionSummary = {
   cmd: 'session_summary',
   ok: false,
   completion_status: 'incomplete-visual-qa',
+  investigation_verdict: 'inconclusive',
   errors: 0,
   warnings: 0,
   playtest_integrity: 'partially-bypassed',
@@ -41,6 +42,7 @@ function validReport(): string {
   return [
     'Reached: beat 20 of 30 — BLOCKED: INCOMPLETE VISUAL QA',
     'Pending checkpoints: 2',
+    'Investigation verdict: inconclusive',
     'Run integrity: partially-bypassed',
     'Raw execution trace: `qa/test/session.jsonl`',
     canonicalSessionEvidence(summary),

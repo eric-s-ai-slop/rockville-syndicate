@@ -107,6 +107,10 @@ export interface MapConfig {
   rects: MapRect[];
   labels: RoomLabel[];
   playerSpawn: { x: number; y: number };
+  composition?: {
+    allowPlayerOutsideRoom?: boolean;
+    focusRect?: { x: number; y: number; width: number; height: number };
+  };
 }
 
 // ─── Actors ──────────────────────────────────────────────────────────────────────
@@ -153,7 +157,7 @@ export type Beat = { id?: string } & (
   | { type: 'dialogue'; speaker: string; lines: string[] }
   | { type: 'choice'; speaker: string; prompt: string; options: ChoiceOption[] }
   | { type: 'walkTo'; x: number; y: number; radius?: number; markerLabel?: string }
-  | { type: 'cameraPan'; x: number; y: number; durationMs: number; holdMs?: number }
+  | { type: 'cameraPan'; x: number; y: number; durationMs: number; holdMs?: number; resumeFollow?: boolean }
   | { type: 'hideActor'; id: string }
   | { type: 'showActor'; id: string }
   | { type: 'moveActor'; id: string; x: number; y: number; durationMs: number }

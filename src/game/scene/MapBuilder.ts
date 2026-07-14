@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { MapConfig, resolveSpeaker } from '../../data/chapters';
+import { MapConfig, resolveSpeaker, themeCapabilities } from '../../data/chapters';
 import { furnitureFrame, furnitureAspect, FURNITURE_ATLAS_KEY } from '../furnitureCatalog';
 import { packFrame, packSize, PACK_ATLAS_KEY } from '../packSpriteAtlas';
 import type { MapBuilderContext } from './contracts';
@@ -222,6 +222,7 @@ export class MapBuilder {
     const theme = map.theme;
     if (!theme) return;
 
+    if (!themeCapabilities[theme]?.allowsNatureScatter) return;
     const outdoorThemes = ['highway_night', 'park', 'florida', 'cabin', 'suburb_night'];
     if (!outdoorThemes.includes(theme)) return;
 

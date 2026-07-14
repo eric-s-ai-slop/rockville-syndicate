@@ -236,7 +236,7 @@ export class BeatEngine {
     // Use delayedCall for timing guarantee — pan callback p===1 is unreliable at short distances.
     this.scene.time.delayedCall(beat.durationMs + (beat.holdMs ?? 600), () => {
       this.scene.hideLetterbox();
-      if (this.scene.player) {
+      if (beat.resumeFollow !== false && this.scene.player) {
         cam.startFollow(this.scene.player, true, 0.1, 0.1);
       }
       this.scene.movementFrozen = false;

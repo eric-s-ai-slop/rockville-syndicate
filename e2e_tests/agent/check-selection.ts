@@ -43,7 +43,7 @@ export function selectTests(changedFiles: string[], availableTests: string[]): C
     }
 
     if (file.startsWith('src/data/chapters/')) {
-      add('src/data/chapters.test.ts', 'src/data/chapters/chaptersDoc.test.ts', 'src/data/chapters/types.test.ts');
+      add('src/data/chapters.test.ts', 'src/data/chapters/chaptersDoc.test.ts', 'src/data/chapters/types.test.ts', 'src/data/chapters/mapValidation.test.ts');
       matched = true;
     }
 

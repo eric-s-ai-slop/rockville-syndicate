@@ -32,6 +32,11 @@ npm run agent -- [flags] ["command; command; ..."]
 `npm run agent --` forwards everything after `--` to the CLI. (Equivalent to
 `npx tsx e2e_tests/agent/cli.ts …` if you prefer.)
 
+When `--checkpoints` is enabled, each automatic checkpoint also writes a
+versioned `<checkpoint>.json` sidecar beside the PNG. It records absolute
+artifact paths, chapter/scene/beat identity, player position, camera state, map
+theme, active mode, trigger transitions, and settling metadata.
+
 There are three ways to feed it commands — pick whichever fits:
 
 | Mode | How | Best for |
@@ -94,6 +99,8 @@ yourself with `click`/`eval`).
 | `--shots` | (with `--gauntlet`) capture a stabilized screenshot per scene + generate a contact-sheet `index.html` (N1) |
 | `--max-errors <n>` | (with `--gauntlet`) fail the run if any chapter's console error count exceeds `<n>` |
 | `--checkpoints` | Auto-capture a stabilized screenshot + emit `visual_checkpoint` on every chapter/scene/mode transition during a normal session (N3) |
+| `--reuse-safe-save <file-or-directory>` | Explicitly restore a save only after branch-safety, build, chapter, viewport, and seed fingerprints match; directory form selects the newest compatible branch-safe JSON save |
+| `--verbose` | Include full command outputs and console diagnostics in CLI receipts; validation behavior is unchanged |
 | `--coverage` | (with `--gauntlet`) record which beats/modes/choice branches were exercised; emit a `coverage` line per chapter + write `coverage.json` (G6). Without `--branches`, choice beats only ever have their first option auto-clicked, so every other branch reports as never-taken |
 | `--transitions` | (with `--gauntlet`) record the observed beat-index jump graph and diff it against the graph implied by the chapter config; `unexpectedTransitions` is a routing-bug signal (e.g. the `routeOnMinigame` gotcha), `neverTakenEdges` is graph-level coverage; writes `transitions.json` (I4) |
 | `--branches all\|<n>` | (with `--gauntlet`) replay each chapter once per option of its **first** choice beat (capped at `<n>` options if given instead of `all`) — the only automated way to catch branch-specific breakage (G7) |
@@ -138,6 +145,7 @@ Prefer lowercase movement keys.
 | `observe` / `obs` [`--shot`] | print composite observation snapshot, including console errors/warnings seen since the last `observe` (A5); `--shot` attaches a stabilized screenshot path as `"shot"` (N3) |
 | `reviewcheckpoint <id> clear\|issue-found\|inconclusive <observation-note>` | record that an emitted `visual_checkpoint` PNG was inspected. Every verdict requires a concrete visual note of at least 20 characters; placeholders such as `skip`, `looks fine`, or `scene entered` are rejected. In `--playtest`, progression stays blocked until every pending checkpoint is reviewed; scene review facts are included in `session_summary.coverage` alongside the separate `visual_qa` block. |
 | `recordfinding` | `--playtest`, JSON-only. Pass eight string args: severity (`P0`–`P3`), category, title, runtime location, reproduction, expected, actual, and evidence. Stores the finding immediately in the final summary; use `checkpoint:<id>` in evidence for visual issues. |
+| `verdict <bug-reproduced\|not-reproduced\|not-verified\|inconclusive> [note]` | Assign the separate investigation verdict rendered into the report; it does not alter playtest completion status. |
 | `dismissfinding <id> <reason>` | dismiss a disproven live finding without deleting its audit history. |
 | `listfindings` | print the current structured live finding ledger. |
 | `diff` | like `observe`, but omits any field unchanged since the last `diff`/`observe` call — the cheap per-step read for a driving agent (N4/E5) |
@@ -150,6 +158,8 @@ Prefer lowercase movement keys.
 | `camera zoom <num>` | set camera zoom factor (B5) |
 | `camera center <x> <y>` | center camera on world coordinates (B5) |
 | `goto <sceneIndex>` | jump to a specific scene index instantly (B1) |
+| `goto scene <sceneIndex>` | diagnostic alias for a scene jump; scene indexes beyond 0 require `--allow-skipped-prerequisites` |
+| `goto beat <beatIndex\|id>` | diagnostic-only beat jump; marks artifacts targeted-diagnostic and requires `--allow-skipped-prerequisites` when earlier beats would be skipped |
 | `savestate [file]` | quick-save current game state in-memory, or dump a file save with `branchSafe` and `unsafeReasons` metadata (B2) |
 | `loadstate` | quick-restore saved game state (B2) |
 | `eval <js>` | run JS in the page and print the result — e.g. `eval window.__OMEGA_GAME__.scene.keys.length` |
@@ -259,6 +269,11 @@ command then prints its own result.
   receipts require visual review but never satisfy foreground-mode bypass
   gates. Look at these; they're where "the game looks wrong" bugs actually
   surface (N3).
+- Each successful `visual_checkpoint` includes `manifestPath`, pointing to the
+  JSON sidecar next to its PNG. A missing or malformed sidecar is an evidence
+  failure; do not infer its context from the screenshot.
+- Sessions with two or more automatic checkpoints also emit a
+  `checkpoint_contact_sheet` receipt and retain the full-resolution source PNGs.
 - **Passive visual-risk evidence** is attached to `advance` as compact
   `visual_events` for camera pans, actor movement/visibility, chases, tints,
   and ledger feedback. Sustained effects use one raw live frame; instantaneous
@@ -340,7 +355,24 @@ After quitting, generate the final report once and verify it:
 ```bash
 npm run agent:write-report -- qa/<chapter-id>/report.md qa/<chapter-id>/session.jsonl
 npm run agent:verify-report -- qa/<chapter-id>/report.md qa/<chapter-id>/session.jsonl
+npm run agent:qa-audit -- qa/<chapter-id>/report.md qa/<chapter-id>/session.jsonl
 ```
+
+`agent:qa-audit` is the filesystem and cross-receipt audit. It validates the
+canonical transcript, checkpoint PNGs, manifest sidecars, source frames, and
+receipt location consistency. It exits nonzero with a bounded structured error
+list when evidence is missing or contradictory. Add `--verbose` to receive the
+complete error collection instead of the default 20-error cap. Likewise,
+`agent:check --verbose` streams each stage's raw output while retaining the
+compact validation receipt.
+
+`agent:check` writes `agent-artifacts/check/validation-receipt.json` using the
+`omega-validation-receipt-v1` schema. It records typecheck, lint, focused tests,
+and build stages, with explicit skipped reasons for report and visual-evidence
+stages. The first run records an ESLint warning baseline; later receipts split
+pre-existing and newly introduced warnings. Use `npm run agent:restart-check` to
+replace only a verified workspace-owned server on port 3324 and wait for its
+health response.
 
 Screenshots, automatic checkpoints, progress files, the transcript, and the
 report then remain side by side in the same QA run folder.

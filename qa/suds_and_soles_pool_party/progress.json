@@ -1,0 +1,59 @@
+{
+  "schema": "omega-playtest-progress-v1",
+  "chapter": {
+    "id": "suds_and_soles_pool_party",
+    "title": "The Suds & Soles Pool Party"
+  },
+  "status": "incomplete-integrity",
+  "overallPercent": 86,
+  "bar": "[█████████████████░░░] 86%",
+  "story": {
+    "currentBeat": 73,
+    "farthestBeat": 73,
+    "totalBeats": 74,
+    "percent": 100
+  },
+  "coverage": {
+    "completed": 10,
+    "total": 24,
+    "percent": 42,
+    "breakdown": {
+      "scenes": {
+        "completed": 1,
+        "total": 1
+      },
+      "choices": {
+        "completed": 6,
+        "total": 18
+      },
+      "walks": {
+        "completed": 1,
+        "total": 3
+      },
+      "foregroundModes": {
+        "completed": 0,
+        "total": 0
+      },
+      "backgroundModes": {
+        "completed": 1,
+        "total": 1
+      },
+      "terminal": {
+        "completed": 1,
+        "total": 1
+      }
+    }
+  },
+  "visualQa": {
+    "captured": 6,
+    "reviewed": 6,
+    "pending": [],
+    "percent": 100
+  },
+  "findings": {
+    "open": 1,
+    "dismissed": 0,
+    "total": 1
+  },
+  "updatedAt": "2026-07-13T19:59:12.257Z"
+}
