@@ -1,339 +1,304 @@
-# Coding-Agent Token Efficiency Roadmap
+# Maintainable Coding-Agent Token Efficiency Roadmap
 
 ## Purpose
 
-This document proposes the highest-return repository changes for reducing **Codex and Claude Code usage while developing the game**.
+This document proposes the highest-return repository changes for reducing **Codex and Claude Code usage while developing the game** without turning the repository into an agent-infrastructure project.
 
-Gemini playtesting usage is intentionally excluded from the optimization target. The goal is not to minimize every model call in the repository; it is to maximize completed coding work per scarce coding-agent token.
+Gemini playtesting usage is intentionally excluded from the optimization target. The goal is to maximize correct coding work per scarce coding-agent token while keeping the game understandable to a human developer.
 
-The recommendations are deliberately conservative. A change belongs in the high-ROI package only when:
+## Core rule
 
-1. It should pay for itself within a realistic number of future development tasks.
-2. It scales as chapters, modes, and source files are added.
-3. It does not require rewriting the CLI for each new game unit.
-4. It reduces repeated exploration, retries, cleanup tasks, or irrelevant context.
-5. It builds on existing repository conventions rather than introducing a second architecture.
+> Every token-efficiency change must reduce or reuse existing complexity. A change that introduces a new source of truth, framework, service, or per-unit maintenance burden is rejected unless measured usage data proves that simpler options are insufficient.
 
-## Estimated baseline
-
-Compared with the same codebase stripped of its agent-oriented structure, the repository is estimated to use roughly **30–40% fewer coding-agent tokens today**, with **~35%** as the central estimate.
-
-That estimate is architectural rather than telemetry-derived. It reflects the current value of:
-
-- `agent:map` routing before broad search.
-- Compact focused validation through `agent:check`.
-- Root and scoped agent guides.
-- Chapter and mode scaffolders/templates.
-- Data-driven chapter and mode architecture.
-- Narrow scene subsystem contracts.
-- Mechanized invariants and drift tests.
-
-After the high-ROI package below, the expected range is approximately **40–50% fewer coding-agent tokens than a raw repository**, with **~45%** as the central target.
-
-These percentages overlap and must not be added mechanically.
+A human who does not understand the token-efficiency tooling must still be able to add a chapter, add a mode, debug the game, and run validation through the ordinary repository workflow.
 
 ---
 
-# Design requirements
+# Expected result
 
-## 1. New chapters and modes must have near-zero routing maintenance
-
-Adding a chapter or mode must not require editing the context CLI itself.
-
-The intended model is:
+Compared with the same codebase stripped of its existing agent-oriented structure, the repository is estimated to use approximately:
 
 ```text
-Static architectural domains
-  audio, combat, persistence, map, React bridge, validation, etc.
-
-Dynamic game-unit resolvers
-  chapter <id>
-  mode <id>
-  path <file>
+Current central estimate: ~35% fewer coding-agent tokens
+Current likely range:     30–40%
 ```
 
-The static context map remains useful for stable architectural domains. Chapter and mode routing should be derived from canonical registries and filesystem conventions.
+After the maintainable high-ROI package in this document:
 
-## 2. One source of truth
+```text
+Expected central result: ~45% fewer coding-agent tokens
+Expected likely range:   42–47%
+Strong result:           approximately 50%
+```
 
-Do not introduce an additional metadata file when the repository already contains the required information.
+Equivalent development multiplier:
 
-Prefer deriving context from:
+| Savings versus raw repo | Tokens needed for a raw 100-token task | Development per fixed budget |
+|---:|---:|---:|
+| 42% | 58 | 1.72x |
+| 45% | 55 | 1.82x |
+| 47% | 53 | 1.89x |
+| 50% | 50 | 2.00x |
+
+These are architecture-based estimates, not measured telemetry. The effects overlap and must not be added mechanically.
+
+Relative to the repository today, the package is expected to provide roughly:
+
+- **12–18% fewer coding-agent tokens** for comparable work.
+- **15–22% more completed development** from the same coding-agent budget.
+
+The package deliberately gives up speculative savings that would require AST infrastructure, vector retrieval, MCP wrappers, per-unit metadata, or broad rewrites.
+
+---
+
+# Admission criteria
+
+A proposed optimization belongs in this roadmap only when all of the following are true:
+
+1. It should pay for itself within a realistic number of future development tasks.
+2. It scales automatically when chapters, modes, and source files are added.
+3. It does not require rewriting the CLI for each new game unit.
+4. It reduces repeated exploration, retries, cleanup tasks, or irrelevant context.
+5. It builds on canonical registries, directory structure, tests, and existing commands.
+6. It remains useful to a human developer rather than existing only for an agent.
+7. It has a clear deletion path if measurement shows no benefit.
+
+---
+
+# Maintainability constraints
+
+## One source of truth
+
+Do not create agent metadata that duplicates information already present in:
 
 - `CHAPTERS` and chapter imports.
 - `listModeIds()` and the mode registry.
 - Directory layout.
-- Sibling test files.
+- Sibling tests.
 - Nearest scoped `AGENTS.md`.
 - Existing context-map domain data.
 
-Only add adjacent machine-readable metadata after automatic discovery proves insufficient.
+Adjacent metadata files are a last resort, not the default design.
 
-## 3. Fail closed through drift tests
+## No hidden intelligence
 
-Every registered chapter and mode should be resolvable automatically. A new registration that cannot be routed should fail a test rather than silently falling back to broad search.
+Routing must be deterministic and inspectable. Do not use:
 
-## 4. Optimize repeated work, not theoretical minimum context
+- AI-generated summaries.
+- Confidence scores.
+- Embeddings or vector search.
+- Hidden broad-search fallback.
+- Network services.
+- A background daemon.
+- Generated caches that become another source of truth.
 
-Preventing one entire cleanup or rediscovery task is more valuable than shaving a few hundred tokens from every instruction file.
+## Small complexity budget
+
+The dynamic resolver must remain a small repository utility, not a framework.
+
+Expected shape:
+
+```text
+e2e_tests/agent/context-map.ts
+e2e_tests/agent/context-map-data.ts
+e2e_tests/agent/context-map.json
+e2e_tests/agent/context-resolvers/
+  chapter.ts
+  mode.ts
+  path.ts
+src/agentContextMap.test.ts
+```
+
+Requirements:
+
+- No new runtime dependency.
+- No database.
+- No plugin framework.
+- No chapter-specific or mode-specific branches.
+- One deterministic JSON output format.
+- Explicit failure when discovery is impossible.
+- A human should be able to read the resolver implementation in one sitting.
+
+## Instruction-file budget
+
+Do not add `AGENTS.md` files everywhere.
+
+A scoped guide is justified only when a directory has at least three durable rules that cannot be cheaply enforced through types, tests, lint, or code structure.
+
+Keep scoped guides concise. They should state ownership, invariants, and validation—not narrate every file or method.
+
+## Cohesion before file size
+
+Do not split a file merely because it is large. Extract only when a section has:
+
+- A clear responsibility.
+- A narrow input/output contract.
+- Minimal shared mutable state.
+- Independent or focused tests.
+- A name a human would naturally search for.
+
+Avoid tiny forwarding classes, wrapper-only interfaces, and five files that must always be read together.
 
 ---
 
-# High-ROI package
+# Maintainable high-ROI package
 
 ## Priority 1 — Generic chapter, mode, and path context resolution
 
-### Estimated incremental impact
+### Expected incremental impact
 
-**4–9 percentage points** of repo-wide savings.
+**Approximately 4–7 percentage points** of repo-wide savings.
 
-### Why it matters
+The upper estimate is lower than a generalized retrieval system because maintainability is a hard constraint. Most of the practical value should still be retained.
 
-The existing context map is strong for architectural domains, but a generic `mode` or `chapter` target can still expose broader context than a localized task needs.
-
-A task changing `doubleCall` should not begin from the entire mode registry, every registered mode, the generic template, and broad documentation. A task changing Chapter 11 should resolve directly to that chapter, its asset manifest, shared chapter contract, scoped instructions, and validation commands.
-
-### Proposed CLI
+### Proposed interface
 
 ```bash
-npm run agent:map -- --target=chapter --id=cabin_from_hell_2025
-npm run agent:map -- --target=mode --id=doubleCall
-npm run agent:map -- --path=src/game/scene/AudioController.ts
+npm run agent:map -- --target=chapter --id=<chapter-id>
+npm run agent:map -- --target=mode --id=<mode-id>
+npm run agent:map -- --path=<source-file>
 ```
 
-### Chapter resolver behavior
+### Chapter resolution
 
-Given a chapter ID, return:
+Given a chapter ID, return only:
 
-- The exact chapter source file.
-- `src/data/chapters/types.ts`.
-- The nearest scoped agent guide.
-- The shared chapter validation test.
-- The matching chapter asset manifest, when present.
+- Exact chapter source file.
+- Shared chapter contract.
+- Nearest scoped guide.
+- Shared chapter validation test.
+- Matching asset manifest when discoverable by convention.
 - Exact focused verification commands.
-- Any mode IDs referenced by the chapter only as names, not all mode source files by default.
+- Referenced mode IDs as names, without loading every mode implementation.
 
-The resolver should derive the chapter source from the canonical chapter registry/imports. Registering a future chapter should automatically make it resolvable.
+The chapter must be discovered from the canonical registry and imports. Adding a registered future chapter must automatically make it resolvable.
 
-### Mode resolver behavior
+### Mode resolution
 
-Given a mode ID, return:
+Given a mode ID, return only:
 
-- The mode directory and primary entrypoint.
-- Local sibling test files.
-- `src/game/modes/types.ts`.
-- The nearest scoped agent guide.
+- Mode directory and primary entrypoint.
+- Local sibling tests.
+- Shared mode contract.
+- Nearest scoped guide.
 - Focused verification commands.
-- Shared helpers imported by that mode only when they are direct local dependencies.
+- Direct local helpers when discoverable without generalized dependency analysis.
 
-The resolver should derive supported IDs from `listModeIds()` and resolve source paths through registration imports and directory conventions.
+Supported IDs must come from the existing mode registry.
 
-### Path resolver behavior
+### Path resolution
 
-Given a source path, return:
+Given a source path, return only:
 
-- The file itself.
-- Nearest scoped `AGENTS.md`.
-- Sibling or same-domain tests.
-- A matching architectural context-map domain when one exists.
-- Direct local contract files based on a small set of repository conventions.
+- The requested file.
+- Nearest scoped guide.
+- Sibling or same-domain tests discovered by convention.
+- Matching static architectural domain, when one exists.
 - Focused verification commands.
 
-This path mode serves ordinary files that are neither chapters nor modes.
+Do not build a general dependency graph. When conventions are insufficient, return a compact explicit limitation rather than silently reading the repository broadly.
 
-### Scalability requirements
+### Acceptance criteria
 
-- No `switch` statement containing individual chapter IDs.
-- No CLI changes when Chapter 13 or a new mode is registered.
-- No hand-maintained context entry per chapter or mode.
-- Unknown IDs fail with a compact list of valid IDs.
-- Resolver output is deterministic JSON.
-- Full repository search is never the normal fallback.
+- Adding a registered chapter requires no resolver code change.
+- Adding a registered mode requires no resolver code change.
+- No per-chapter or per-mode context-map entry exists.
+- No `switch` contains individual game-unit IDs.
+- Every registered chapter and mode is covered by a drift test.
+- Unknown IDs fail with a compact valid-ID list.
+- Output is deterministic JSON.
+- No new dependency or service is introduced.
 
-### Required tests
+### Stop condition
 
-```typescript
-describe('dynamic agent context discovery', () => {
-  it('resolves every registered chapter', () => {
-    for (const chapter of CHAPTERS) {
-      expect(resolveChapterContext(chapter.id)).toBeTruthy();
-    }
-  });
-
-  it('resolves every registered mode', () => {
-    for (const modeId of listModeIds()) {
-      expect(resolveModeContext(modeId)).toBeTruthy();
-    }
-  });
-});
-```
-
-Also test:
-
-- Unknown chapter and mode IDs.
-- Fixture exclusion/handling.
-- Missing local tests.
-- Nearest scoped guide selection.
-- Paths outside supported source roots.
-
-### Expected cost
-
-Approximately **3–8 focused development hours** if implemented conventionally, without AST dependency analysis.
-
-### Explicit non-goal
-
-Do not turn this into a full AST context compiler, embedding service, vector database, or MCP server.
+If the maintainable implementation begins requiring AST traversal, metadata schemas, caching, ranking, or plugin abstractions, stop and ship the simpler resolver first.
 
 ---
 
 ## Priority 2 — Reject newly introduced warnings
 
-### Estimated incremental impact
+### Expected incremental impact
 
-**2–5 percentage points** overall, mostly by eliminating separate cleanup tasks.
+**Approximately 2–4 percentage points**, mostly by eliminating entire future cleanup sessions.
 
-### Why it matters
+### Implementation
 
-An unused import or avoidable warning is cheap to fix in the session that introduced it. It is expensive when it becomes a separate agent task with a fresh startup, instruction load, repository inspection, validation cycle, and PR.
+When the tree is warning-clean:
 
-### Preferred implementation
-
-If the current tree is warning-clean:
-
-```json
-{
-  "scripts": {
-    "lint:es": "eslint . --max-warnings=0"
-  }
-}
+```bash
+eslint . --max-warnings=0
 ```
 
-If pre-existing warnings remain, use a stable committed baseline or clean them once. Do not rely on an ignored per-checkout baseline as the long-term enforcement mechanism.
+If legacy warnings remain, use a deterministic committed baseline or clean them once. Do not use an ignored checkout-local baseline as the permanent design.
 
 ### Acceptance criteria
 
-- A newly introduced unused import fails validation.
-- A newly introduced warning fails CI or the compact agent check.
-- Existing intentional warning exceptions remain narrowly scoped.
-- The failure receipt points directly to the warning without dumping full logs.
+- New unused imports fail the task that introduces them.
+- New warnings fail compact validation and CI.
+- Intentional exceptions are narrowly scoped.
+- Failure output points directly to the warning.
 
-### Expected cost
-
-**15–60 minutes** if the tree is already clean.
+This is a quality gate, not new architecture.
 
 ---
 
-## Priority 3 — Separate coding instructions from free playtesting instructions
+## Priority 3 — Separate coding instructions from playtesting instructions
 
-### Estimated incremental impact
+### Expected incremental impact
 
-**2–4 percentage points** overall.
+**Approximately 1–3 percentage points**.
 
-### Why it matters
-
-The root guide is loaded broadly, while many commands and rules apply only to the playtesting harness. Since Gemini playtesting usage is not scarce, coding sessions should not carry detailed QA-harness procedure unless they are working in that area.
-
-### Proposed instruction structure
+### Intended structure
 
 ```text
-AGENTS.md                         universal coding guidance
-CLAUDE.md                         Claude-compatible mirror/import
-src/data/chapters/AGENTS.md       chapter authoring and validation
-src/game/modes/AGENTS.md          mode contract and lifecycle
-src/game/scene/AGENTS.md          subsystem ownership and contracts
+AGENTS.md                         universal coding rules
+CLAUDE.md                         synchronized Claude surface
+src/data/chapters/AGENTS.md       chapter contract
+src/game/modes/AGENTS.md          mode contract
+src/game/scene/AGENTS.md          scene ownership and boundaries
 src/components/AGENTS.md          React/Phaser bridge rules
-e2e_tests/agent/AGENTS.md         playtesting and QA harness procedures
+e2e_tests/agent/AGENTS.md         playtesting and QA procedure
 ```
 
-### Root guide should retain
+### Constraints
 
-- Stack and critical runtime versions.
-- `agent:map` as the first routing step.
-- Compact coding validation commands.
-- Cross-cutting permanent invariants.
-- Major directory ownership.
-- Rules against broad exploration and unrelated refactors.
+- Move content; do not duplicate it.
+- Add no more scoped guides without the durable-rule test.
+- Keep Codex and Claude surfaces synchronized through an import mechanism where supported or a drift test.
+- Prefer types and tests over prose whenever a rule can be mechanized.
 
-### Move out of root
-
-- Detailed playtesting commands.
-- Transcript/report workflow.
-- Checkpoint and evidence procedures.
-- Gauntlet-specific instructions.
-- Session protocol details.
-
-### New scene guide should emphasize
-
-- New cohesive behavior belongs in a focused subsystem, not `ChapterScene`.
-- Subsystems depend on narrow structural interfaces in `scene/contracts.ts`.
-- Agents initially read the target subsystem, contract, and tests only.
-- Generic map behavior and one-off hardcoded maps should remain separated.
-
-### New components guide should emphasize
-
-- `GameLayout` is a lifecycle host, not the default location for new logic.
-- Callback-bearing state belongs in focused hooks.
-- Never invoke Phaser callbacks inside React state updaters.
-- Begin with the exact component/hook and focused tests.
-
-### Maintenance requirement
-
-Keep Codex and Claude instruction surfaces synchronized through imports where supported or a drift test. Do not manually maintain divergent copies.
-
-### Expected cost
-
-Approximately **1–3 hours**.
+The root guide should retain only stack facts, routing, coding validation, cross-cutting invariants, directory ownership, and rules against broad unrelated work.
 
 ---
 
-## Priority 4 — Replace blanket documentation updates with contract-based updates
+## Priority 4 — Contract-based documentation updates
 
-### Estimated incremental impact
+### Expected incremental impact
 
-**1–3 percentage points** overall.
+**Approximately 1–2 percentage points** while reducing maintenance burden.
 
-### Why it matters
+Update only the document whose contract changed:
 
-A blanket requirement to consider several living documents can cause routine bug-fix agents to inspect long files that do not need to change.
+- `AGENTS.md` / `CLAUDE.md`: agent rule or invariant.
+- `ARCHITECTURE.md`: ownership, boundary, or major data flow.
+- `CONTRIBUTING.md`: contributor workflow or required checks.
+- `README.md`: user-facing behavior, setup, or public inventory.
+- `ROADMAP.md`: future priorities.
+- Scoped guide: that directory's durable contract.
 
-### Proposed policy
+Routine bug fixes and internal refactors do not require blanket documentation inspection or edits.
 
-Update only documentation whose contract changed:
-
-- `AGENTS.md` / `CLAUDE.md`: agent operating rule or invariant changed.
-- `ARCHITECTURE.md`: ownership, system boundary, or major data flow changed.
-- `CONTRIBUTING.md`: contributor workflow or required checks changed.
-- `README.md`: user-facing behavior, setup, or public inventory changed.
-- `ROADMAP.md`: project priorities or planned work changed.
-- Scoped guide: that directory's supported contract, registry, or recipe changed.
-
-Ordinary bug fixes and internal refactors do not require blanket documentation edits.
-
-### Keep the existing useful guards
-
-- Every registered mode appears in the mode guide.
-- Every Beat type appears in the chapter guide.
-- Every registered chapter appears in the public chapter inventory.
-
-### Expected cost
-
-Under **1 hour**.
+Keep automated drift tests for machine-checkable inventories.
 
 ---
 
 ## Priority 5 — Reduce failed validation output
 
-### Estimated incremental impact
+### Expected incremental impact
 
-**1–2 percentage points** overall, with larger savings during debugging-heavy tasks.
+**Approximately 0.5–1.5 percentage points**, with larger local savings during failure-heavy tasks.
 
-### Why it matters
-
-The validation wrapper is already compact on success, but failures can still return a relatively large tail. Most failures are understandable from a much smaller stage-specific excerpt.
-
-### Initial implementation
-
-Use stage-specific limits before building parsers:
+Start with simple stage-specific line caps:
 
 ```typescript
 const FAILURE_LIMITS = {
@@ -347,181 +312,129 @@ const FAILURE_LIMITS = {
 Always include:
 
 - Stage name.
-- Number of omitted lines/errors.
-- Full log path.
 - Exit code.
+- Omitted-line or omitted-error count.
+- Full log path.
 
-Example:
-
-```text
-stage=typecheck ok=false
-TS2339 src/game/modes/example/index.ts:184:12 Property ...
-7 additional errors omitted
-full-log=agent-artifacts/check/typecheck.log
-```
-
-### Later enhancement condition
-
-Only build structured TypeScript/ESLint/Vitest parsers after telemetry shows that failure output remains a meaningful cost.
-
-### Expected cost
-
-**15–45 minutes** for the first version.
+Do not build tool-specific parsers until measurement proves line caps insufficient.
 
 ---
 
-## Priority 6 — Remove cheap dependency paths into giant host files
+## Priority 6 — Move cheap shared contracts out of giant hosts
 
-### Estimated incremental impact
+### Expected incremental impact
 
-**0.5–1.5 percentage points** overall.
+**Approximately 0.5–1 percentage point**.
 
-### Why it matters
-
-Small shared types currently owned by giant host files cause UI and mode tasks to navigate into those hosts even when no lifecycle behavior is relevant.
-
-### First extraction
-
-Move `StoryDialoguePayload` out of `ChapterScene.ts` into a small story bridge contract, for example:
+Move shared bridge types such as `StoryDialoguePayload` out of `ChapterScene.ts` into a small domain-owned contract, for example:
 
 ```text
 src/game/story/types.ts
 ```
 
-Update React hooks, mode contracts, and the scene to import from that module.
+Move playtest-only snapshot interfaces into a playtest contract module.
 
-### Second extraction
-
-Move playtest-only snapshot interfaces out of `ChapterScene.ts` into a playtest contract module.
-
-This is not intended to optimize free Gemini usage. It reduces irrelevant coding-agent navigation when editing the runtime host or consumers of those types.
-
-### Expected cost
-
-Approximately **1–2 hours**, including focused validation.
+This is ordinary dependency cleanup. Do not use it as an excuse for a broad `ChapterScene` rewrite.
 
 ---
 
 # Combined expected result
 
-The high-ROI package is expected to move the repository from approximately:
+The maintainable package is expected to move the repository from:
 
 ```text
-Current central estimate: ~35% savings versus a raw repo
+Current: approximately 30–40% savings
+Central estimate: approximately 35%
 ```
 
-To approximately:
+To:
 
 ```text
-Post-package central estimate: ~45% savings versus a raw repo
-Likely range: 40–50%
+Maintainable optimized range: approximately 42–47%
+Central target: approximately 45%
+Strong measured result: approximately 50%
 ```
 
-Equivalent development multiplier:
+Expected task-level savings versus a raw equivalent repository:
 
-| Savings versus raw | Tokens needed for raw 100-token task | Development per fixed budget |
-|---:|---:|---:|
-| 40% | 60 | 1.67x |
-| 45% | 55 | 1.82x |
-| 50% | 50 | 2.00x |
+| Task type | Expected savings after package |
+|---|---:|
+| Add or modify a chapter | 50–65% |
+| Add or modify a mode | 40–55% |
+| Local subsystem change | 35–50% |
+| Add focused tests | 30–45% |
+| React/Phaser cross-cutting work | 15–30% |
+| Unknown architecture-wide bug | 10–25% |
 
-This should be treated as an engineering hypothesis until measured.
+These ranges are directional and should be replaced by measured data when available.
 
 ---
 
-# Measurement plan
+# Secondary work: only during related feature development
 
-Do not block the high-ROI changes on perfect telemetry, but add lightweight measurement before attempting lower-ROI infrastructure.
-
-For each coding session, record where available:
-
-- Provider/model.
-- Input and output tokens.
-- Cache-read/cache-write tokens.
-- Tool output characters.
-- Files and ranges read.
-- Validation runs and failure-output size.
-- Number of retries.
-- Whether the task completed successfully.
-- Task category: chapter, mode, scene, UI, tests, cross-cutting.
-
-Benchmark several comparable real tasks before and after the package. Avoid synthetic microbenchmarks as the only evidence.
-
----
-
-# Next tier: implement only during related work
-
-These changes may have good long-term value, but they should not be standalone token-optimization projects unless the relevant code remains active.
+These changes can improve local context and maintainability, but should not become standalone token-optimization projects.
 
 ## Narrow `BeatEngineContext`
 
-Replace the concrete `ChapterScene` dependency with a focused structural interface. This should reduce context and make accidental coupling compiler-visible.
+Replace the concrete `ChapterScene` dependency with a focused structural interface when beat routing is next modified. Reject the extraction if the interface simply mirrors most of `ChapterScene`.
 
-Do it when beat routing is next being modified.
+## Separate bespoke neighborhood construction
 
-## Extract the one-off neighborhood implementation from `MapBuilder`
+Move one-off neighborhood geometry out of the generic map builder during the next substantial map-system change.
 
-Separate the generic map interpreter from bespoke neighborhood geometry. Do it during the next substantial map-system change.
+## Extract cohesive `ChapterScene` responsibilities
 
-## Extract cohesive `ChapterScene` sections
-
-Best candidates:
+Potential candidates:
 
 - Asset loading and boot preparation.
 - Player damage and status handling.
 - Scene transitions and teardown.
 
-Never create a mega-task whose goal is only to reduce the file to an arbitrary line count.
+Each extraction must have real ownership and reduce coupling. Never create a mega-refactor whose goal is an arbitrary line count.
 
 ## Extract `GameLayout` lifecycle hooks
 
-Potential hooks:
+Potential candidates:
 
 - `usePhaserChapterHost`.
 - `useChapterCompletion`.
 
-Do this during future React/Phaser bridge work.
+Do this only during future React/Phaser bridge work.
 
 ## Split giant modes or chapters only while active
 
-A large completed chapter has little ongoing token cost. A large actively edited mode may benefit substantially from variant-local files.
+A completed large chapter has little ongoing token cost. Split only when future changes repeatedly require reading unrelated variants or sections.
 
 ---
 
 # Explicitly rejected for now
 
-## MCP server for local repository development
+Do not build these solely for token savings:
 
-The repository already has useful CLI interfaces. Wrapping them in MCP does not inherently compress context and may add tool-schema overhead.
+- MCP wrapper around the existing local CLI.
+- Full AST dependency/context compiler.
+- Embeddings or vector database.
+- Resolver plugin framework.
+- Per-chapter or per-mode metadata files.
+- AI-generated source summaries.
+- Confidence or ranking system.
+- Background daemon or service.
+- Declarative boss/behavior engine.
+- Global strict-mode migration.
+- Broad `ChapterScene` rewrite.
+- Splitting every medium-sized file.
+- `AGENTS.md` in every directory.
 
-## Full AST context compiler
-
-The dynamic convention-based resolver should be implemented and measured first. A full compiler is justified only if agents continue reading broad files despite precise routing.
-
-## Embeddings or vector database
-
-The codebase has strong canonical registries and directory conventions. Semantic retrieval infrastructure is excessive for the current problem.
-
-## Declarative boss/behavior engine solely for token savings
-
-This may be valuable as a game-design feature, but its implementation cost is too high to justify only as an agent-context optimization.
-
-## Global strict-mode migration solely for token savings
-
-Potential correctness benefits do not make it a high-ROI context project.
-
-## Splitting every medium-sized file
-
-Cohesion matters more than line count. Focused 200–300 line subsystems are already good agent boundaries.
+These may have separate product benefits, but their token-efficiency payback is weak or uncertain under the maintainability constraint.
 
 ---
 
-# Recommended implementation order
+# Implementation order
 
-## Phase 1 — Same-day safeguards
+## Phase 1 — Simplifying safeguards
 
 1. Reject newly introduced warnings.
-2. Reduce failure-output tails.
+2. Reduce failed-check tails.
 3. Adopt contract-based documentation updates.
 4. Move shared story/playtest types out of `ChapterScene`.
 
@@ -529,18 +442,54 @@ Cohesion matters more than line count. Focused 200–300 line subsystems are alr
 
 5. Make root instructions coding-focused.
 6. Move playtesting procedure under `e2e_tests/agent/`.
-7. Add focused scene and components guides.
-8. Add synchronization/drift protection for Codex and Claude guides.
+7. Add concise scene and components guides only after applying the durable-rule test.
+8. Add synchronization protection for Codex and Claude instruction surfaces.
 
-## Phase 3 — Scalable context resolution
+## Phase 3 — Boring scalable routing
 
-9. Add dynamic chapter resolution.
-10. Add dynamic mode resolution.
-11. Add generic path resolution.
-12. Add coverage proving every registered chapter and mode resolves automatically.
+9. Add generic chapter resolution.
+10. Add generic mode resolution.
+11. Add convention-based path resolution.
+12. Add tests proving every registered chapter and mode resolves automatically.
 
 ## Stop condition
 
 After Phase 3, measure real tasks before building any additional context infrastructure.
 
-The target is not the smallest theoretically possible prompt. The target is the highest amount of correct game development per unit of scarce Codex/Claude usage.
+Do not continue optimizing merely because a theoretical percentage remains available.
+
+---
+
+# Measurement plan
+
+Use lightweight telemetry when the provider or tool makes it available:
+
+- Provider and model.
+- Input/output tokens.
+- Cache-read/cache-write tokens.
+- Tool-output characters.
+- Files and ranges read.
+- Validation runs and failure-output size.
+- Retry count.
+- Task category.
+- Whether the task completed successfully.
+
+Compare several real chapter, mode, subsystem, UI, and cross-cutting tasks before and after implementation. Do not rely solely on synthetic microbenchmarks.
+
+The central estimate should be revised downward or upward based on actual usage.
+
+---
+
+# Final maintainability test
+
+Before merging any implementation PR based on this roadmap, ask:
+
+1. Did this remove, reuse, or merely add complexity?
+2. Is there a new source of truth?
+3. Does adding a chapter or mode create new maintenance work?
+4. Can a human understand the behavior without knowing the agent tooling?
+5. Can a type, test, lint rule, or directory convention replace prose or metadata?
+6. Is the expected lifetime saving larger than the implementation and maintenance cost?
+7. Would this change still be defensible if token savings were 25% lower than estimated?
+
+The target is not the smallest theoretically possible prompt. The target is the highest amount of correct, maintainable game development per unit of scarce Codex/Claude usage.
