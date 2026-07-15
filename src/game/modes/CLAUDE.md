@@ -20,12 +20,18 @@ Dense cheat sheet for the mode registry. The lifecycle contract is canonical in 
 | `storyFractures` | Ch3b, Ch11 | inline `storySegments[]` per call site — see [storyFractures/index.ts](storyFractures/index.ts) | blocking |
 | `battleiq-battle` | Ch5b ×2 | `{ enemyId }` → iframe (`external` factory) | blocking, suspends Omega |
 | `poolParty` | Ch9 | none | background |
-| `benTrivia` | — unwired | `BenTriviaConfig` ([benTrivia/index.ts](benTrivia/index.ts)): `count?`, `perPromptMs?`, `minPromptMs?`, `strikesAllowed?`, `seed?` (defaults 16/3500/1800/3) | blocking |
+| `benTrivia` | Ch13 whiteboard | `BenTriviaConfig` ([benTrivia/index.ts](benTrivia/index.ts)): Ch13 uses 18 prompts, six-strike loss, and retries the whiteboard beat until won | blocking |
 | `carRide` | — unwired (planned: Ch2) | `CarRideConfig` ([carRide/carRide.ts](carRide/carRide.ts)): boss name, timed phases, responses, barks | blocking |
 | `speakerHunt` | Ch11 ×3 (Nights 1-3) | `SpeakerHuntConfig` ([speakerHunt/index.ts](speakerHunt/index.ts)): `night`, `speakers[]`, `redHerrings?`, `locked?`, `barricade`, `timeLimitMs` | blocking |
 | `cabinCollapse` | Ch11, re-registered ~6x | `CabinCollapseConfig` ([cabinCollapse/index.ts](cabinCollapse/index.ts)): `startDay`, `meters{water,ac,bugs,illness}` | background, unwinnable by design |
 | `swarmSurvival` | Ch11 Day-4 grill run (`day4_grill_orders`; lose→loseGoto that beat) | `SwarmSurvivalConfig` ([swarmSurvival/index.ts](swarmSurvival/index.ts)): `theme`, `survival{durationMs,playerHp}`, `primary`, `secondary`, `waves[]`, `enemyTypes{}` — theme-neutral wave-survival combat (SWAT [J] arc + BURST [K] radial + SPACE dodge); enemies are emoji Text, HP is mode-owned (lose→loseGoto) |
 | `doubleCall` | Ch12 (`origins`) — Act I `ringOnly` bg, Scene 5 `founding`, Scene 6 `rerun` ×3, Scene 9 `capital`, Scene 10 `unsent`, Scene 0/11 `reply` | `DoubleCallConfig` ([doubleCall/index.ts](doubleCall/index.ts)): `variant` (`ringOnly\|founding\|rerun\|unsent\|capital\|reply`) + per-variant `ring/wire/typedReply/unsent/capital/reply` configs — one wiring interface reused across the chapter with rules changing; never emits `'lose'` (Scene 10's rewind is internal, not a `loseGoto`) | blocking |
+| `benF1Plan` | Ch13 ×1 | five-stage neck/budget/bridge/equipment/Dubai presentation | blocking |
+| `benRoofHeist` | Ch13 roof | three-stage physics breach-builder with draggable M4A4, pressure cooker, and hostage counterweight | blocking |
+| `benRustRaid` | Ch13 quarantine | top-down Rust raid that snaps into a direct-control bedroom cover-up | blocking |
+| `benOutbreak` | Ch13 Ocean City | mouse-driven side-view rental game: move Eric, vent contaminated rooms, remove garbage, and use disinfectant | blocking |
+| `benPoolShot` | Ch13 pool room | three-round custom billiards physics game with camera composition | blocking |
+| `benCircuitLab` | Ch13 engineering | three-stage live voltage/resistance/heat simulation | blocking |
 
 ## Lifecycle & outcome
 

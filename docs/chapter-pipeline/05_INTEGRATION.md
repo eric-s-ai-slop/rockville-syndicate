@@ -41,6 +41,8 @@ const chapterN: ChapterConfig = {
   location: '',
   description: '',
   kind: 'chapter',
+  estimatedMinutes: { min: 1, max: 3 }, // approximate first-play duration range shown in chapter select
+  // seal: 'external', // optional meta boundary; use classified: true for in-world redaction
   map: { /* from Step 3 — scene 0 map, or the single map */ },
   actors: [ /* from Step 3 — scene 0 actors, or the single actor list */ ],
   // Multi-location only: include scenes[] and populate map/actors above with scenes[0]'s values.
@@ -69,7 +71,9 @@ export const CHAPTERS: ChapterConfig[] = [
 
 **Ordering matters — array position, not the `index` field, drives the game.**
 The menu renders chapters in `CHAPTERS` array order, and linear unlock checks the
-*previous array entry* (`progress.ts` → `isChapterUnlocked`). The `index:` field is
+previous playable array entry (`progress.ts` → `isChapterUnlocked`). The DEV-only
+`fixture-playtest` entry is ignored as a prerequisite, so it can sit above the final
+Origins `META` entry without gating it. The `index:` field is
 only the number printed on the card. So to insert a chapter mid-sequence:
 1. Place it at the right spot in the `CHAPTERS` array (not just appended at the end).
 2. Renumber the `index:` field of it **and every chapter after it** so the displayed

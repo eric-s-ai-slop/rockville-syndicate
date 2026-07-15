@@ -80,9 +80,10 @@ flag does the whole hero-select → Free Play → chapter-card flow for you:
 npm run agent -- --chapter "The Spotify Family Insurgency" "state"
 ```
 
-Chapters behind a CLASSIFIED seal are auto-detected from their config
-(`classified: true` in `src/data/chapters/`) and the seal is broken during
-navigation; `--classified` only matters for raw `--url` sessions. Without
+Chapters behind a chapter-select seal are auto-detected from their config
+(`classified: true` or `seal: 'external'` in `src/data/chapters/`) and the seal
+is broken during navigation; `--classified` only matters for raw `--url`
+sessions. Without
 `--chapter` the CLI just loads the URL and leaves you on the menu (drive it
 yourself with `click`/`eval`).
 
@@ -95,7 +96,7 @@ yourself with `click`/`eval`).
 | Flag | Meaning |
 | --- | --- |
 | `--chapter "<title>"` | Navigate into this chapter after boot |
-| `--classified` | Break the chapter's CLASSIFIED seal while navigating. Auto-detected from chapter config (`classified: true`) when `--chapter` is used — only needed for raw `--url` sessions |
+| `--classified` | Break the chapter-select seal while navigating. Auto-detected from chapter config (`classified: true` or `seal: 'external'`) when `--chapter` is used — only needed for raw `--url` sessions |
 | `--url <url>` | Base URL (default `http://localhost:3324`) |
 | `--out <dir>` | Folder for screenshots (default `./agent-artifacts`) |
 | `--script <file>` | Read commands from a file instead of args/stdin |

@@ -68,23 +68,24 @@ Each chapter is a self-contained story beat ripped from real events and lore-ifi
 
 Chapters are declarative config files in [`src/data/chapters/`](src/data/chapters/), registered into the `CHAPTERS` list in [`src/data/chapters/index.ts`](src/data/chapters/index.ts). They unlock sequentially; completing one saves progress to `localStorage`, and a chapter-select map lets you replay any completed chapter.
 
-| # | Title | Theme / Setting | Boss | Config |
-|---|-------|-----------------|------|--------|
-| 0 | Maria Brooke *(Flashback — The Bit)* | Flashback | — | `chapter0.maria-brooke.ts` |
-| 1 | The Spotify Family Insurgency | Apartment 1522 | Eric | `chapter1.spotify-insurgency.ts` |
-| 2 | Operation Inertia *(Interlude)* | NYC 1AM highway | — | `chapter2.operation-inertia.ts` |
-| 3 | The Red Pee Bladder Strike | Shepherd University | Audrey | `chapter3.red-pee-bladder-strike.ts` |
-| 3b | The UMBC Incident *(Act III — The Pariah Event)* | UMBC | Ben | `chapter3b.umbc-incident.ts` |
-| 4 | The Jungle Gym Gambit *(Interlude)* | 1202 Princeton Place | — | `chapter4.jungle-gym-gambit.ts` |
-| 5 | The Florida Highway Duel | Boca Raton highway | Jordan | `chapter5.florida-highway-duel.ts` |
-| 5b | Rose *(The Closed System)* | Florida, July 4th | Maharko | `chapter5b.rose.ts` |
-| 6 | Operation Ding Dong Ditch Ben | 12 Watchwater Way | Ben | `chapter6.ding-dong-ditch-ben.ts` |
-| 7 | The Spain Betrayal | Commons 1522 | Nick F | `chapter7.spain-betrayal.ts` |
-| 8 | The Cabin *(Epilogue)* | Basye, VA | — | `chapter8.the-cabin.ts` |
-| 9 | The Suds & Soles Pool Party | Nick F's Backyard | — | `chapter9.pool-party.ts` |
-| 11 | Cabin From Hell | Shenandoah cabin, July 4th | — | `chapter11.cabin-from-hell.ts` |
-| 12 | Rockville Syndicate: Origins | Rockville, MD — summer 2024 → tonight | — | `chapter12.origins.ts` |
-| 99 | Playtest Fixture *(DEV-only — never ships)* | Rockville Park (synthetic) | — | `chapterFixture.playtest.ts` |
+| # | Title | Theme / Setting | Est. | Boss | Config |
+|---|-------|-----------------|------|------|--------|
+| 0 | Maria Brooke *(Flashback — The Bit)* | Flashback | 6–10 min | — | `chapter0.maria-brooke.ts` |
+| 1 | The Spotify Family Insurgency | Apartment 1522 | 1–3 min | Eric | `chapter1.spotify-insurgency.ts` |
+| 2 | Operation Inertia *(Interlude)* | NYC 1AM highway | 3–5 min | — | `chapter2.operation-inertia.ts` |
+| 3 | The Red Pee Bladder Strike | Shepherd University | 3–5 min | Audrey | `chapter3.red-pee-bladder-strike.ts` |
+| 4 | The Jungle Gym Gambit *(Interlude)* | 1202 Princeton Place | 3–5 min | — | `chapter4.jungle-gym-gambit.ts` |
+| 5 | The Florida Highway Duel | Boca Raton highway | 3–5 min | Jordan | `chapter5.florida-highway-duel.ts` |
+| 5b | Rose *(The Closed System)* | Florida, July 4th | 8–12 min | Maharko | `chapter5b.rose.ts` |
+| 3b | The UMBC Incident *(Act III — The Pariah Event)* | UMBC | 8–12 min | Ben | `chapter3b.umbc-incident.ts` |
+| 6 | Operation Ding Dong Ditch Ben | 12 Watchwater Way | 4–7 min | Ben | `chapter6.ding-dong-ditch-ben.ts` |
+| 7 | The Spain Betrayal | Commons 1522 | 3–5 min | Nick F | `chapter7.spain-betrayal.ts` |
+| 8 | The Cabin *(Epilogue)* | Basye, VA | 5–8 min | — | `chapter8.the-cabin.ts` |
+| 9 | The Suds & Soles Pool Party | Nick F's Backyard | 12–18 min | — | `chapter9.pool-party.ts` |
+| 11 | Cabin From Hell | Shenandoah cabin, July 4th | 20–30 min | — | `chapter11.cabin-from-hell.ts` |
+| 13 | Ben’s Life | 51 Monroe → I-270 scenic overlook | 12–18 min | — | `chapter13.bens-life.ts` |
+| 99 | Playtest Fixture *(DEV-only — never ships)* | Rockville Park (synthetic) | 5–8 min | — | `chapterFixture.playtest.ts` |
+| 12 | Rockville Syndicate: Origins *(META)* | Rockville, MD — summer 2024 → tonight | 25–35 min | — | `chapter12.origins.ts` |
 
 ---
 

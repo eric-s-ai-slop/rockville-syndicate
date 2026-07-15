@@ -15,6 +15,12 @@ import { speakerHuntMode } from './speakerHunt';
 import { cabinCollapseMode } from './cabinCollapse';
 import { swarmSurvivalMode } from './swarmSurvival';
 import { doubleCallMode } from './doubleCall';
+import { benF1PlanMode } from './benF1Plan';
+import { benRoofHeistMode } from './benRoofHeist';
+import { benRustRaidMode } from './benRustRaid';
+import { benOutbreakMode } from './benOutbreak';
+import { benPoolShotMode } from './benPoolShot';
+import { benCircuitLabMode } from './benCircuitLab';
 
 const registry = new Map<string, GameMode>();
 
@@ -34,6 +40,12 @@ registerMode(speakerHuntMode);
 registerMode(cabinCollapseMode);
 registerMode(swarmSurvivalMode);
 registerMode(doubleCallMode);
+registerMode(benF1PlanMode);
+registerMode(benRoofHeistMode);
+registerMode(benRustRaidMode);
+registerMode(benOutbreakMode);
+registerMode(benPoolShotMode);
+registerMode(benCircuitLabMode);
 
 export function registerMode(m: GameMode) {
   registry.set(m.id, m);

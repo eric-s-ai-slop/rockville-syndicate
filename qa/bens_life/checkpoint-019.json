@@ -1,0 +1,80 @@
+{
+  "schema": "omega-checkpoint-v1",
+  "capturedAt": "2026-07-15T19:23:11.446Z",
+  "checkpointId": 19,
+  "evidenceClass": "natural-playtest",
+  "completionEligible": true,
+  "commandId": "advance-035",
+  "imagePath": "/Users/erichuang/Projects/ai-slop/project-omega_-the-rockville-syndicate/qa/bens_life/checkpoint-019.png",
+  "sourceFramePaths": [],
+  "chapter": {
+    "id": "bens_life",
+    "title": "Ben’s Life"
+  },
+  "scene": {
+    "index": 6,
+    "name": "Ben’s Formula One Career Plan",
+    "key": "ChapterScene"
+  },
+  "beat": {
+    "index": 54,
+    "id": null,
+    "type": "dialogue"
+  },
+  "player": {
+    "x": 25,
+    "y": 570
+  },
+  "camera": {
+    "scrollX": -615,
+    "scrollY": 234,
+    "zoom": 2,
+    "width": 1280,
+    "height": 672,
+    "effectiveViewport": {
+      "x": -615,
+      "y": 234,
+      "width": 640,
+      "height": 336
+    },
+    "followTarget": {
+      "kind": "player",
+      "id": null
+    }
+  },
+  "map": {
+    "theme": "highway_night",
+    "noNatureScatter": true,
+    "bounds": {
+      "x": 0,
+      "y": 0,
+      "width": 920,
+      "height": 660
+    }
+  },
+  "mode": {
+    "id": "benF1Plan",
+    "kind": "foreground",
+    "beatIndex": 53
+  },
+  "trigger": {
+    "reason": "Foreground mode \"benF1Plan\" ended",
+    "reasons": [
+      "Foreground mode \"benF1Plan\" ended"
+    ],
+    "transitions": [
+      {
+        "reason": "Foreground mode \"benF1Plan\" ended",
+        "modeKind": "foreground",
+        "modeId": "benF1Plan",
+        "modeBeatIndex": 53
+      }
+    ]
+  },
+  "settling": {
+    "strategy": "phaser-stable-frames-v1",
+    "framesObserved": 17,
+    "elapsedMs": 1043,
+    "timedOut": true
+  }
+}

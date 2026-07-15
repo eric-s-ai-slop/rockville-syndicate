@@ -41,6 +41,15 @@ describe('chapters data', () => {
     });
   });
 
+  it('every registered chapter has a positive playtime estimate', () => {
+    CHAPTERS.forEach(chapter => {
+      const estimate = chapter.estimatedMinutes;
+      expect(estimate, `${chapter.id} should declare estimatedMinutes`).toBeDefined();
+      expect(estimate!.min, `${chapter.id} should have a positive minimum`).toBeGreaterThan(0);
+      expect(estimate!.max, `${chapter.id} should have a maximum >= minimum`).toBeGreaterThanOrEqual(estimate!.min);
+    });
+  });
+
   it('all chapter beats should be valid and resolve dependencies', () => {
     CHAPTERS.forEach(chapter => {
       // 1. Gather all beat IDs inside the chapter for goto resolution

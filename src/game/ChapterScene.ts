@@ -53,7 +53,7 @@ import { getChapterAssets } from './assets/chapter';
 import { ChapterConfig, Beat, ActorPlacement, MapConfig } from '../data/chapters';
 import {
   CROWD_MURMUR_URL, CRICKET_AMBIENT_URL,
-  SFX_MESSAGE_DING_URL, ULTRAPHONK_URL,
+  SFX_MESSAGE_DING_URL, SFX_BEN_STRAW_SLURP_URL, ULTRAPHONK_URL,
 } from './audio';
 import type { StoryDialoguePayload } from './contracts/story';
 
@@ -347,6 +347,7 @@ export default class ChapterScene extends Phaser.Scene {
       this.safeLoadImage(asset.key, asset.url);
     }
     this.audioController.safeLoadAudio('sfx_message_ding', SFX_MESSAGE_DING_URL);
+    this.audioController.safeLoadAudio('sfx_ben_straw_slurp', SFX_BEN_STRAW_SLURP_URL);
 
     this.audioController.safeLoadAudio('sfx_crowd_murmur', CROWD_MURMUR_URL);
     this.audioController.safeLoadAudio('sfx_parking_ambient', CRICKET_AMBIENT_URL);
@@ -886,7 +887,7 @@ export default class ChapterScene extends Phaser.Scene {
     const hasPoolSheet = this.textures.exists(`npc_${this.playerClass.id}_pool_sheet`);
     const animId = (this.chapter.usePoolSheet && hasPoolSheet) ? `npc_${this.playerClass.id}_pool` : this.playerClass.id;
 
-    if (this.movementFrozen) {
+    if (this.movementFrozen || this.activeMode?.capturesPlayerMovement) {
       this.player.setVelocity(0, 0);
       this.wasdKeys.SPACE.reset();
       this.applyDirectionalAnim(this.player, animId, 0, 0, this.playerClass.id === 'nick_f');

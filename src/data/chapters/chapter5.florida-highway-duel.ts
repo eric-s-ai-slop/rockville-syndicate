@@ -9,6 +9,7 @@ const chapter5: ChapterConfig = {
   description:
     "Jordan holds shadow admin privileges over Maharko. Maharko's SOL dropped 40%. Jordan's 5.0 Mustang is in the parking lot. This ends one way.",
   kind: 'chapter',
+  estimatedMinutes: { min: 3, max: 5 },
   map: {
     width: 960,
     height: 640,

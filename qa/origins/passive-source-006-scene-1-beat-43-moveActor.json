@@ -1,0 +1,71 @@
+{
+  "schema": "omega-checkpoint-v1",
+  "capturedAt": "2026-07-15T19:31:47.005Z",
+  "checkpointId": 6,
+  "evidenceClass": "natural-playtest",
+  "completionEligible": true,
+  "commandId": "advance-021",
+  "imagePath": "/Users/erichuang/Projects/ai-slop/project-omega_-the-rockville-syndicate/qa/origins/passive-source-006-scene-1-beat-43-moveActor.png",
+  "sourceFramePaths": [
+    "/Users/erichuang/Projects/ai-slop/project-omega_-the-rockville-syndicate/qa/origins/passive-source-006-scene-1-beat-43-moveActor.png"
+  ],
+  "chapter": {
+    "id": "origins",
+    "title": "Rockville Syndicate: Origins"
+  },
+  "scene": {
+    "index": 1,
+    "name": "Rockville Pike — 3:00 AM",
+    "key": "ChapterScene"
+  },
+  "beat": {
+    "index": 43,
+    "id": "chris_rivas",
+    "type": "moveActor"
+  },
+  "player": {
+    "x": 327.63888888889016,
+    "y": 334.3055555555575
+  },
+  "camera": {
+    "scrollX": -313,
+    "scrollY": -2,
+    "zoom": 2,
+    "width": 1280,
+    "height": 672,
+    "effectiveViewport": {
+      "x": -313,
+      "y": -2,
+      "width": 640,
+      "height": 336
+    },
+    "followTarget": {
+      "kind": "player",
+      "id": null
+    }
+  },
+  "map": {
+    "theme": "hospital",
+    "noNatureScatter": false,
+    "bounds": {
+      "x": 0,
+      "y": 0,
+      "width": 900,
+      "height": 620
+    }
+  },
+  "mode": null,
+  "trigger": {
+    "reason": "passive visual evidence: scene 1 beat 43 moveActor",
+    "reasons": [
+      "passive visual evidence: scene 1 beat 43 moveActor"
+    ],
+    "transitions": []
+  },
+  "settling": {
+    "strategy": "phaser-stable-frames-v1",
+    "framesObserved": 0,
+    "elapsedMs": 0,
+    "timedOut": false
+  }
+}

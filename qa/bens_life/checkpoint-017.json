@@ -1,0 +1,76 @@
+{
+  "schema": "omega-checkpoint-v1",
+  "capturedAt": "2026-07-15T19:08:06.279Z",
+  "checkpointId": 17,
+  "evidenceClass": "natural-playtest",
+  "completionEligible": true,
+  "commandId": "advance-032",
+  "imagePath": "/Users/erichuang/Projects/ai-slop/project-omega_-the-rockville-syndicate/qa/bens_life/checkpoint-017.png",
+  "sourceFramePaths": [],
+  "chapter": {
+    "id": "bens_life",
+    "title": "Ben’s Life"
+  },
+  "scene": {
+    "index": 6,
+    "name": "Ben’s Formula One Career Plan",
+    "key": "ChapterScene"
+  },
+  "beat": {
+    "index": 52,
+    "id": null,
+    "type": "dialogue"
+  },
+  "player": {
+    "x": 460,
+    "y": 570
+  },
+  "camera": {
+    "scrollX": -180,
+    "scrollY": 234,
+    "zoom": 2,
+    "width": 1280,
+    "height": 672,
+    "effectiveViewport": {
+      "x": -180,
+      "y": 234,
+      "width": 640,
+      "height": 336
+    },
+    "followTarget": {
+      "kind": "player",
+      "id": null
+    }
+  },
+  "map": {
+    "theme": "highway_night",
+    "noNatureScatter": true,
+    "bounds": {
+      "x": 0,
+      "y": 0,
+      "width": 920,
+      "height": 660
+    }
+  },
+  "mode": null,
+  "trigger": {
+    "reason": "chapter scene 6 entered",
+    "reasons": [
+      "chapter scene 6 entered"
+    ],
+    "transitions": [
+      {
+        "reason": "chapter scene 6 entered",
+        "modeKind": null,
+        "modeId": null,
+        "modeBeatIndex": null
+      }
+    ]
+  },
+  "settling": {
+    "strategy": "phaser-stable-frames-v1",
+    "framesObserved": 21,
+    "elapsedMs": 776,
+    "timedOut": true
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "schema": "omega-checkpoint-v1",
+  "capturedAt": "2026-07-15T19:37:03.758Z",
+  "checkpointId": 10,
+  "evidenceClass": "natural-playtest",
+  "completionEligible": true,
+  "commandId": "advance-050",
+  "imagePath": "/Users/erichuang/Projects/ai-slop/project-omega_-the-rockville-syndicate/qa/origins/passive-source-010-scene-2-beat-99-cameraPan.png",
+  "sourceFramePaths": [
+    "/Users/erichuang/Projects/ai-slop/project-omega_-the-rockville-syndicate/qa/origins/passive-source-010-scene-2-beat-99-cameraPan.png"
+  ],
+  "chapter": {
+    "id": "origins",
+    "title": "Rockville Syndicate: Origins"
+  },
+  "scene": {
+    "index": 3,
+    "name": "Rockville, MD — summer 2024 → tonight",
+    "key": "ChapterScene"
+  },
+  "beat": {
+    "index": 101,
+    "id": null,
+    "type": "dialogue"
+  },
+  "player": {
+    "x": 700,
+    "y": 620
+  },
+  "camera": {
+    "scrollX": 60,
+    "scrollY": 284,
+    "zoom": 2,
+    "width": 1280,
+    "height": 672,
+    "effectiveViewport": {
+      "x": 60,
+      "y": 284,
+      "width": 640,
+      "height": 336
+    },
+    "followTarget": {
+      "kind": "player",
+      "id": null
+    }
+  },
+  "map": {
+    "theme": "void",
+    "noNatureScatter": true,
+    "bounds": {
+      "x": 0,
+      "y": 0,
+      "width": 2400,
+      "height": 1400
+    }
+  },
+  "mode": null,
+  "trigger": {
+    "reason": "passive visual evidence: scene 2 beat 99 cameraPan",
+    "reasons": [
+      "passive visual evidence: scene 2 beat 99 cameraPan"
+    ],
+    "transitions": []
+  },
+  "settling": {
+    "strategy": "phaser-stable-frames-v1",
+    "framesObserved": 0,
+    "elapsedMs": 0,
+    "timedOut": false
+  }
+}

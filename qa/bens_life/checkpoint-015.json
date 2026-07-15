@@ -1,0 +1,80 @@
+{
+  "schema": "omega-checkpoint-v1",
+  "capturedAt": "2026-07-15T19:06:29.552Z",
+  "checkpointId": 15,
+  "evidenceClass": "natural-playtest",
+  "completionEligible": true,
+  "commandId": "advance-030",
+  "imagePath": "/Users/erichuang/Projects/ai-slop/project-omega_-the-rockville-syndicate/qa/bens_life/checkpoint-015.png",
+  "sourceFramePaths": [],
+  "chapter": {
+    "id": "bens_life",
+    "title": "Ben’s Life"
+  },
+  "scene": {
+    "index": 5,
+    "name": "Junior Year — The Whiteboard",
+    "key": "ChapterScene"
+  },
+  "beat": {
+    "index": 47,
+    "id": null,
+    "type": "minigame"
+  },
+  "player": {
+    "x": 460.24999999999903,
+    "y": 327.833333333334
+  },
+  "camera": {
+    "scrollX": -189,
+    "scrollY": -18,
+    "zoom": 2,
+    "width": 1280,
+    "height": 672,
+    "effectiveViewport": {
+      "x": -189,
+      "y": -18,
+      "width": 640,
+      "height": 336
+    },
+    "followTarget": {
+      "kind": "player",
+      "id": null
+    }
+  },
+  "map": {
+    "theme": "apartment",
+    "noNatureScatter": true,
+    "bounds": {
+      "x": 0,
+      "y": 0,
+      "width": 920,
+      "height": 660
+    }
+  },
+  "mode": {
+    "id": "benTrivia",
+    "kind": "foreground",
+    "beatIndex": 47
+  },
+  "trigger": {
+    "reason": "Foreground mode \"benTrivia\" started",
+    "reasons": [
+      "Foreground mode \"benTrivia\" started"
+    ],
+    "transitions": [
+      {
+        "reason": "Foreground mode \"benTrivia\" started",
+        "modeKind": "foreground",
+        "modeId": "benTrivia",
+        "modeBeatIndex": 47
+      }
+    ]
+  },
+  "settling": {
+    "strategy": "phaser-stable-frames-v1",
+    "framesObserved": 18,
+    "elapsedMs": 825,
+    "timedOut": true
+  }
+}

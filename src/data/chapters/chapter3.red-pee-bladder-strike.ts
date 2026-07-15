@@ -9,6 +9,7 @@ const chapter3: ChapterConfig = {
   description:
     'August 16, 2025. Jacob drops a status update with photographic evidence. The group demands answers via 20 Questions.',
   kind: 'chapter',
+  estimatedMinutes: { min: 3, max: 5 },
   protagonistOverride: 'jacob',
   map: {
     width: 860,

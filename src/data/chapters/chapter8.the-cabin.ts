@@ -10,6 +10,7 @@ const chapter8: ChapterConfig = {
   description:
     "The cabin survived Spain. Four bedrooms. Hot tub. Arcade. Firepit. $273.28 per person. The Bed Draft awaits. The Syndicate is whole.",
   kind: 'epilogue',
+  estimatedMinutes: { min: 5, max: 8 },
   map: {
     width: 960,
     height: 700,

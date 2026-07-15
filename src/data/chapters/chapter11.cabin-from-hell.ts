@@ -27,6 +27,7 @@ const chapter11: ChapterConfig = {
   description:
     "Summer 2025. Eight friends outgrow Ocean City, flee to a one-bathroom cabin in Shenandoah, and spend four days losing a war they didn't all agree to fight. They leave a day early. The cabin wins.",
   kind: 'chapter',
+  estimatedMinutes: { min: 20, max: 30 },
 
   // ════════════════════════════════════════════════════════════════════════════
   // SCENES — three locations: OC balcony → cabin interior → cabin deck

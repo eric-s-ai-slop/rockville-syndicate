@@ -1,0 +1,76 @@
+{
+  "schema": "omega-checkpoint-v1",
+  "capturedAt": "2026-07-15T19:37:05.831Z",
+  "checkpointId": 11,
+  "evidenceClass": "natural-playtest",
+  "completionEligible": true,
+  "commandId": "advance-050",
+  "imagePath": "/Users/erichuang/Projects/ai-slop/project-omega_-the-rockville-syndicate/qa/origins/checkpoint-011.png",
+  "sourceFramePaths": [],
+  "chapter": {
+    "id": "origins",
+    "title": "Rockville Syndicate: Origins"
+  },
+  "scene": {
+    "index": 3,
+    "name": "Rockville, MD — summer 2024 → tonight",
+    "key": "ChapterScene"
+  },
+  "beat": {
+    "index": 101,
+    "id": null,
+    "type": "dialogue"
+  },
+  "player": {
+    "x": 700,
+    "y": 620
+  },
+  "camera": {
+    "scrollX": 60,
+    "scrollY": 284,
+    "zoom": 2,
+    "width": 1280,
+    "height": 672,
+    "effectiveViewport": {
+      "x": 60,
+      "y": 284,
+      "width": 640,
+      "height": 336
+    },
+    "followTarget": {
+      "kind": "player",
+      "id": null
+    }
+  },
+  "map": {
+    "theme": "void",
+    "noNatureScatter": true,
+    "bounds": {
+      "x": 0,
+      "y": 0,
+      "width": 2400,
+      "height": 1400
+    }
+  },
+  "mode": null,
+  "trigger": {
+    "reason": "chapter scene 3 entered",
+    "reasons": [
+      "chapter scene 3 entered"
+    ],
+    "transitions": [
+      {
+        "reason": "chapter scene 3 entered",
+        "modeKind": null,
+        "modeId": null,
+        "modeBeatIndex": null
+      }
+    ]
+  },
+  "settling": {
+    "strategy": "phaser-stable-frames-v1",
+    "framesObserved": 24,
+    "elapsedMs": 1824,
+    "timedOut": true
+  }
+}

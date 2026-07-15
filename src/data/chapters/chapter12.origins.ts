@@ -404,6 +404,8 @@ const chapter12: ChapterConfig = {
     'The only story Eric never pitched. Two phones ring at the same time, all era, ' +
     'in frame, and everyone believes the wrong caller. Play it together.',
   kind: 'chapter',
+  estimatedMinutes: { min: 25, max: 35 },
+  seal: 'external',
   protagonistOverride: 'eric',
   quietEnd: true,
 

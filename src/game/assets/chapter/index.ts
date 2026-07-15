@@ -1,4 +1,5 @@
 import { cabinFromHellAssets } from './cabinFromHell';
+import { bensLifeAssets } from './bensLife';
 import { dingDongDitchCarAssets, floridaHighwayAssets, nickFCorollaAsset } from './cars';
 import { dingDongDitchAssets } from './dingDongDitch';
 import { mariaBrookeAssets } from './mariaBrooke';
@@ -20,6 +21,7 @@ const CHAPTER_ASSETS: Readonly<Record<string, ChapterAssetManifest>> = {
   suds_and_soles_pool_party: poolPartyAssets,
   cabin_from_hell_2025: cabinFromHellAssets,
   origins: originsAssets,
+  bens_life: bensLifeAssets,
 };
 
 const EMPTY_MANIFEST: ChapterAssetManifest = [];

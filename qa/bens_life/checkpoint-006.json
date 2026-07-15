@@ -1,0 +1,80 @@
+{
+  "schema": "omega-checkpoint-v1",
+  "capturedAt": "2026-07-15T18:51:43.197Z",
+  "checkpointId": 6,
+  "evidenceClass": "natural-playtest",
+  "completionEligible": true,
+  "commandId": "advance-009",
+  "imagePath": "/Users/erichuang/Projects/ai-slop/project-omega_-the-rockville-syndicate/qa/bens_life/checkpoint-006.png",
+  "sourceFramePaths": [],
+  "chapter": {
+    "id": "bens_life",
+    "title": "Ben’s Life"
+  },
+  "scene": {
+    "index": 1,
+    "name": "Quarantine — Ben’s Bedroom",
+    "key": "ChapterScene"
+  },
+  "beat": {
+    "index": 15,
+    "id": null,
+    "type": "dialogue"
+  },
+  "player": {
+    "x": 686.2499999999976,
+    "y": 284.44444444444747
+  },
+  "camera": {
+    "scrollX": 39,
+    "scrollY": -52,
+    "zoom": 2,
+    "width": 1280,
+    "height": 672,
+    "effectiveViewport": {
+      "x": 39,
+      "y": -52,
+      "width": 640,
+      "height": 336
+    },
+    "followTarget": {
+      "kind": "player",
+      "id": null
+    }
+  },
+  "map": {
+    "theme": "apartment",
+    "noNatureScatter": true,
+    "bounds": {
+      "x": 0,
+      "y": 0,
+      "width": 920,
+      "height": 660
+    }
+  },
+  "mode": {
+    "id": "benMemoryGame",
+    "kind": "foreground",
+    "beatIndex": 13
+  },
+  "trigger": {
+    "reason": "Foreground mode \"benMemoryGame\" ended",
+    "reasons": [
+      "Foreground mode \"benMemoryGame\" ended"
+    ],
+    "transitions": [
+      {
+        "reason": "Foreground mode \"benMemoryGame\" ended",
+        "modeKind": "foreground",
+        "modeId": "benMemoryGame",
+        "modeBeatIndex": 13
+      }
+    ]
+  },
+  "settling": {
+    "strategy": "phaser-stable-frames-v1",
+    "framesObserved": 22,
+    "elapsedMs": 848,
+    "timedOut": true
+  }
+}

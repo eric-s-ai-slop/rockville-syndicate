@@ -10,6 +10,7 @@ const chapter7: ChapterConfig = {
   description:
     "Nick F collected $273.28 from everyone. The Cabin was booked. Then: a Zelle notification, a one-way ticket, and a message that changed everything.",
   kind: 'chapter',
+  estimatedMinutes: { min: 3, max: 5 },
   map: {
     width: 900,
     height: 640,

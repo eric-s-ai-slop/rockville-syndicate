@@ -201,10 +201,11 @@ USAGE
 
 FLAGS
   --chapter "<title|id|index>"  Navigate to a chapter after boot (e.g. "The Spotify Family Insurgency")
-  --classified          Force-break the chapter's CLASSIFIED seal during navigation. Auto-detected from
-                         the chapter's config (ChapterConfig.classified) whenever --chapter resolves to a
-                         known chapter, so this flag is only needed for --url-only sessions or a --chapter
-                         value that doesn't match anything in src/data/chapters (e.g. a custom deployment)
+  --classified          Force-break the chapter-select seal during navigation. Auto-detected from
+                         the chapter's config (ChapterConfig.classified or .seal) whenever --chapter
+                         resolves to a known chapter, so this flag is only needed for --url-only sessions
+                         or a --chapter value that doesn't match anything in src/data/chapters
+                         (e.g. a custom deployment)
   --url <url>           Base URL (default http://localhost:3324 — start it with 'npm run dev')
   --out <dir>           Folder for screenshots (default ./agent-artifacts)
   --script <file>       Read commands from a file (one per line; '#' comments allowed)
@@ -1276,6 +1277,7 @@ async function restartSession(page: Page, flags: Flags): Promise<void> {
   );
   await navigateToChapter(page, matchedChapter?.title ?? flags.chapter, {
     classified: flags.classified || !!matchedChapter?.classified,
+    sealed: !!matchedChapter?.seal,
   });
   await page.waitForSelector('canvas', { timeout: 15000 });
 }
@@ -2684,7 +2686,7 @@ async function runChapterAttempt(
 
   let agent: GameAgent | null = null;
   try {
-    await navigateToChapter(page, chapter.title, { classified: !!chapter.classified });
+    await navigateToChapter(page, chapter.title, { classified: !!chapter.classified, sealed: !!chapter.seal });
     await page.waitForSelector('canvas', { timeout: 15000 });
 
     agent = new GameAgent(page);
@@ -2885,7 +2887,7 @@ async function runPlaytestSmokeAttempt(
 
   let agent: GameAgent | null = null;
   try {
-    await navigateToChapter(page, chapter.title, { classified: !!chapter.classified });
+    await navigateToChapter(page, chapter.title, { classified: !!chapter.classified, sealed: !!chapter.seal });
     await page.waitForSelector('canvas', { timeout: 15000 });
     agent = new GameAgent(page);
 
@@ -3316,9 +3318,10 @@ async function main(): Promise<void> {
 
     // Get to the game canvas.
     if (flags.chapter) {
-      // Auto-detect classified from the chapter's own config so `--classified`
-      // doesn't need to be remembered/passed by hand for the UMBC/Rose
-      // chapters — but still honor an explicit --classified for a --chapter
+      // Auto-detect chapter-select seals from the chapter's own config so
+      // `--classified` doesn't need to be remembered/passed by hand for the
+      // UMBC/Rose/Origins chapters — but still honor an explicit --classified
+      // for a --chapter
       // value that doesn't resolve to a known chapter (e.g. --url pointed at
       // a custom deployment with its own chapter list).
       const matchedChapter = CHAPTERS.find(
@@ -3329,7 +3332,10 @@ async function main(): Promise<void> {
       );
       selectedChapter = matchedChapter ?? null;
       const classified = flags.classified || !!matchedChapter?.classified;
-      await navigateToChapter(page, matchedChapter?.title ?? flags.chapter, { classified });
+      await navigateToChapter(page, matchedChapter?.title ?? flags.chapter, {
+        classified,
+        sealed: !!matchedChapter?.seal,
+      });
     } else {
       await page.goto(flags.url);
     }

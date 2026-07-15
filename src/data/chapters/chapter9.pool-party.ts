@@ -9,6 +9,7 @@ const chapter9: ChapterConfig = {
   description:
     "Nick F throws a pool party. Jacob is trapped by a 5K marathon. Anastasia breaks Eric's motion monopoly. The hot tub sees a 10% revelation. The pool sees an Urban Cap Incident.",
   kind: 'chapter',
+  estimatedMinutes: { min: 12, max: 18 },
 
   map: {
     width: 1080,

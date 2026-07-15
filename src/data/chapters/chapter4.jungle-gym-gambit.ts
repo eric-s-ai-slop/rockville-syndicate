@@ -10,6 +10,7 @@ const chapter4: ChapterConfig = {
   description:
     'Nick H has a location. He has three rules. He has a 🐔. Jacob claims $3,900 in liquid reserves and absolute immunity to FOMO.',
   kind: 'interlude',
+  estimatedMinutes: { min: 3, max: 5 },
   map: {
     width: 840,
     height: 620,

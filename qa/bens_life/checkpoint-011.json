@@ -1,0 +1,80 @@
+{
+  "schema": "omega-checkpoint-v1",
+  "capturedAt": "2026-07-15T18:58:15.671Z",
+  "checkpointId": 11,
+  "evidenceClass": "natural-playtest",
+  "completionEligible": true,
+  "commandId": "advance-022",
+  "imagePath": "/Users/erichuang/Projects/ai-slop/project-omega_-the-rockville-syndicate/qa/bens_life/checkpoint-011.png",
+  "sourceFramePaths": [],
+  "chapter": {
+    "id": "bens_life",
+    "title": "Ben’s Life"
+  },
+  "scene": {
+    "index": 3,
+    "name": "Mahargo’s House — Pool Room",
+    "key": "ChapterScene"
+  },
+  "beat": {
+    "index": 34,
+    "id": null,
+    "type": "minigame"
+  },
+  "player": {
+    "x": 469.0277777777777,
+    "y": 399.5
+  },
+  "camera": {
+    "scrollX": -175,
+    "scrollY": 63,
+    "zoom": 2,
+    "width": 1280,
+    "height": 672,
+    "effectiveViewport": {
+      "x": -175,
+      "y": 63,
+      "width": 640,
+      "height": 336
+    },
+    "followTarget": {
+      "kind": "player",
+      "id": null
+    }
+  },
+  "map": {
+    "theme": "pool_party",
+    "noNatureScatter": true,
+    "bounds": {
+      "x": 0,
+      "y": 0,
+      "width": 920,
+      "height": 660
+    }
+  },
+  "mode": {
+    "id": "benMemoryGame",
+    "kind": "foreground",
+    "beatIndex": 34
+  },
+  "trigger": {
+    "reason": "Foreground mode \"benMemoryGame\" started",
+    "reasons": [
+      "Foreground mode \"benMemoryGame\" started"
+    ],
+    "transitions": [
+      {
+        "reason": "Foreground mode \"benMemoryGame\" started",
+        "modeKind": "foreground",
+        "modeId": "benMemoryGame",
+        "modeBeatIndex": 34
+      }
+    ]
+  },
+  "settling": {
+    "strategy": "phaser-stable-frames-v1",
+    "framesObserved": 18,
+    "elapsedMs": 807,
+    "timedOut": true
+  }
+}

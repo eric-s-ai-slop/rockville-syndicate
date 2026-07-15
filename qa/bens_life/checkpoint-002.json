@@ -1,0 +1,80 @@
+{
+  "schema": "omega-checkpoint-v1",
+  "capturedAt": "2026-07-15T18:48:39.370Z",
+  "checkpointId": 2,
+  "evidenceClass": "natural-playtest",
+  "completionEligible": true,
+  "commandId": "advance-004",
+  "imagePath": "/Users/erichuang/Projects/ai-slop/project-omega_-the-rockville-syndicate/qa/bens_life/checkpoint-002.png",
+  "sourceFramePaths": [],
+  "chapter": {
+    "id": "bens_life",
+    "title": "Ben’s Life"
+  },
+  "scene": {
+    "index": 0,
+    "name": "51 Monroe — Roof Access",
+    "key": "ChapterScene"
+  },
+  "beat": {
+    "index": 4,
+    "id": null,
+    "type": "minigame"
+  },
+  "player": {
+    "x": 460,
+    "y": 196.8055555555587
+  },
+  "camera": {
+    "scrollX": -180,
+    "scrollY": -140,
+    "zoom": 2,
+    "width": 1280,
+    "height": 672,
+    "effectiveViewport": {
+      "x": -180,
+      "y": -140,
+      "width": 640,
+      "height": 336
+    },
+    "followTarget": {
+      "kind": "player",
+      "id": null
+    }
+  },
+  "map": {
+    "theme": "apartment",
+    "noNatureScatter": true,
+    "bounds": {
+      "x": 0,
+      "y": 0,
+      "width": 920,
+      "height": 660
+    }
+  },
+  "mode": {
+    "id": "benMemoryGame",
+    "kind": "foreground",
+    "beatIndex": 4
+  },
+  "trigger": {
+    "reason": "Foreground mode \"benMemoryGame\" started",
+    "reasons": [
+      "Foreground mode \"benMemoryGame\" started"
+    ],
+    "transitions": [
+      {
+        "reason": "Foreground mode \"benMemoryGame\" started",
+        "modeKind": "foreground",
+        "modeId": "benMemoryGame",
+        "modeBeatIndex": 4
+      }
+    ]
+  },
+  "settling": {
+    "strategy": "phaser-stable-frames-v1",
+    "framesObserved": 20,
+    "elapsedMs": 1025,
+    "timedOut": true
+  }
+}

@@ -29,6 +29,7 @@ const chapterFixturePlaytest: ChapterConfig = {
   description:
     '[fixture] A synthetic chapter that exercises every story-beat type for the playtest harness. Never ships in production.',
   kind: 'chapter',
+  estimatedMinutes: { min: 5, max: 8 },
 
   // Required by the type — mirrors scenes[0]; scenes[] takes precedence at runtime.
   map: {

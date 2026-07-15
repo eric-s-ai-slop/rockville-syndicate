@@ -1,0 +1,76 @@
+{
+  "schema": "omega-checkpoint-v1",
+  "capturedAt": "2026-07-15T19:02:30.842Z",
+  "checkpointId": 14,
+  "evidenceClass": "natural-playtest",
+  "completionEligible": true,
+  "commandId": "advance-027",
+  "imagePath": "/Users/erichuang/Projects/ai-slop/project-omega_-the-rockville-syndicate/qa/bens_life/checkpoint-014.png",
+  "sourceFramePaths": [],
+  "chapter": {
+    "id": "bens_life",
+    "title": "Ben’s Life"
+  },
+  "scene": {
+    "index": 5,
+    "name": "Junior Year — The Whiteboard",
+    "key": "ChapterScene"
+  },
+  "beat": {
+    "index": 45,
+    "id": null,
+    "type": "dialogue"
+  },
+  "player": {
+    "x": 460,
+    "y": 570
+  },
+  "camera": {
+    "scrollX": -180,
+    "scrollY": 234,
+    "zoom": 2,
+    "width": 1280,
+    "height": 672,
+    "effectiveViewport": {
+      "x": -180,
+      "y": 234,
+      "width": 640,
+      "height": 336
+    },
+    "followTarget": {
+      "kind": "player",
+      "id": null
+    }
+  },
+  "map": {
+    "theme": "apartment",
+    "noNatureScatter": true,
+    "bounds": {
+      "x": 0,
+      "y": 0,
+      "width": 920,
+      "height": 660
+    }
+  },
+  "mode": null,
+  "trigger": {
+    "reason": "chapter scene 5 entered",
+    "reasons": [
+      "chapter scene 5 entered"
+    ],
+    "transitions": [
+      {
+        "reason": "chapter scene 5 entered",
+        "modeKind": null,
+        "modeId": null,
+        "modeBeatIndex": null
+      }
+    ]
+  },
+  "settling": {
+    "strategy": "phaser-stable-frames-v1",
+    "framesObserved": 26,
+    "elapsedMs": 926,
+    "timedOut": true
+  }
+}

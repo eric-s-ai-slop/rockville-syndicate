@@ -1,0 +1,76 @@
+{
+  "schema": "omega-checkpoint-v1",
+  "capturedAt": "2026-07-15T19:26:46.597Z",
+  "checkpointId": 4,
+  "evidenceClass": "natural-playtest",
+  "completionEligible": true,
+  "commandId": "advance-006",
+  "imagePath": "/Users/erichuang/Projects/ai-slop/project-omega_-the-rockville-syndicate/qa/origins/checkpoint-004.png",
+  "sourceFramePaths": [],
+  "chapter": {
+    "id": "origins",
+    "title": "Rockville Syndicate: Origins"
+  },
+  "scene": {
+    "index": 1,
+    "name": "Rockville Pike — 3:00 AM",
+    "key": "ChapterScene"
+  },
+  "beat": {
+    "index": 13,
+    "id": null,
+    "type": "dialogue"
+  },
+  "player": {
+    "x": 450,
+    "y": 520
+  },
+  "camera": {
+    "scrollX": -190,
+    "scrollY": 184,
+    "zoom": 2,
+    "width": 1280,
+    "height": 672,
+    "effectiveViewport": {
+      "x": -190,
+      "y": 184,
+      "width": 640,
+      "height": 336
+    },
+    "followTarget": {
+      "kind": "player",
+      "id": null
+    }
+  },
+  "map": {
+    "theme": "hospital",
+    "noNatureScatter": false,
+    "bounds": {
+      "x": 0,
+      "y": 0,
+      "width": 900,
+      "height": 620
+    }
+  },
+  "mode": null,
+  "trigger": {
+    "reason": "chapter scene 1 entered",
+    "reasons": [
+      "chapter scene 1 entered"
+    ],
+    "transitions": [
+      {
+        "reason": "chapter scene 1 entered",
+        "modeKind": null,
+        "modeId": null,
+        "modeBeatIndex": null
+      }
+    ]
+  },
+  "settling": {
+    "strategy": "phaser-stable-frames-v1",
+    "framesObserved": 3,
+    "elapsedMs": 274,
+    "timedOut": false
+  }
+}

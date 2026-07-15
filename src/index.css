@@ -110,6 +110,25 @@ body {
   animation: omega-pulse 1.6s ease-in-out infinite;
 }
 
+@keyframes omega-external-impact {
+  0% { opacity: 0; }
+  16% { opacity: 1; }
+  42% { opacity: 0.9; }
+  100% { opacity: 0; }
+}
+
+@keyframes omega-external-flash {
+  0% { opacity: 0; }
+  18% { opacity: 0.9; }
+  100% { opacity: 0; }
+}
+
+@keyframes omega-external-shatter {
+  0% { opacity: 0.95; transform: scale(0.96); }
+  34% { opacity: 0.9; transform: scale(1.02); }
+  100% { opacity: 0; transform: scale(1.08); }
+}
+
 kbd {
   font-family: 'Yoster', monospace;
 }

@@ -1,0 +1,61 @@
+{
+  "schema": "omega-playtest-progress-v1",
+  "chapter": {
+    "id": "origins",
+    "title": "Rockville Syndicate: Origins"
+  },
+  "status": "running",
+  "overallPercent": 54,
+  "bar": "[███████████░░░░░░░░░] 54%",
+  "story": {
+    "currentBeat": 149,
+    "farthestBeat": 149,
+    "totalBeats": 306,
+    "percent": 49
+  },
+  "coverage": {
+    "completed": 21,
+    "total": 42,
+    "percent": 50,
+    "breakdown": {
+      "scenes": {
+        "completed": 4,
+        "total": 11
+      },
+      "choices": {
+        "completed": 11,
+        "total": 11
+      },
+      "walks": {
+        "completed": 4,
+        "total": 6
+      },
+      "foregroundModes": {
+        "completed": 0,
+        "total": 8
+      },
+      "backgroundModes": {
+        "completed": 2,
+        "total": 5
+      },
+      "terminal": {
+        "completed": 0,
+        "total": 1
+      }
+    }
+  },
+  "visualQa": {
+    "captured": 16,
+    "reviewed": 15,
+    "pending": [
+      16
+    ],
+    "percent": 94
+  },
+  "findings": {
+    "open": 0,
+    "dismissed": 0,
+    "total": 0
+  },
+  "updatedAt": "2026-07-15T19:42:44.223Z"
+}

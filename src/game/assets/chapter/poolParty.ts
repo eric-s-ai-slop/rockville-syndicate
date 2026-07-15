@@ -1,5 +1,5 @@
-import ericPoolUrl from '../../../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/Eric(pool).jpg?url';
-import nickHPoolUrl from '../../../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/Nick_H(Pool).jpg?url';
+import ericPoolUrl from '../../../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/eric(pool).jpg?url';
+import nickHPoolUrl from '../../../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/nick_h(pool).jpg?url';
 import jacobPoolUrl from '../../../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/jacob(pool).jpg?url';
 import nickFPoolUrl from '../../../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/nick_f(pool).jpg?url';
 import anastasiaPoolUrl from '../../../assets/chapters/SUMMER2026_FIRSTPOOLPARTY/anastasia(pool).jpg?url';

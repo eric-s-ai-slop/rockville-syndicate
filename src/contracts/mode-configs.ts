@@ -9,12 +9,19 @@ import type { CarRideConfig } from '../game/modes/carRide/carRide';
 import type { BenTriviaConfig } from '../game/modes/benTrivia';
 import type { SwarmSurvivalConfig } from '../game/modes/swarmSurvival';
 import type { DoubleCallConfig } from '../game/modes/doubleCall';
+import type { BenF1PlanModeConfig } from '../game/modes/benF1Plan';
+import type { BenRoofHeistConfig } from '../game/modes/benRoofHeist';
+import type { BenRustRaidConfig } from '../game/modes/benRustRaid';
+import type { BenOutbreakConfig } from '../game/modes/benOutbreak';
+import type { BenPoolShotConfig } from '../game/modes/benPoolShot';
+import type { BenCircuitLabConfig } from '../game/modes/benCircuitLab';
 
 export const MODE_IDS = [
   'bossFight', 'poolParty', 'basementScene', 'storyFractures', 'stewOffering',
   'fratAggro', 'silentDrive', 'groupChat', 'carRide', 'complicityReport',
   'benTrivia', 'battleiq-battle', 'speakerHunt', 'cabinCollapse',
   'swarmSurvival', 'doubleCall',
+  'benF1Plan', 'benRoofHeist', 'benRustRaid', 'benOutbreak', 'benPoolShot', 'benCircuitLab',
 ] as const;
 
 export interface ModeConfigMap {
@@ -34,6 +41,12 @@ export interface ModeConfigMap {
   cabinCollapse: CabinCollapseConfig;
   swarmSurvival: SwarmSurvivalConfig;
   doubleCall: DoubleCallConfig;
+  benF1Plan: BenF1PlanModeConfig;
+  benRoofHeist: BenRoofHeistConfig;
+  benRustRaid: BenRustRaidConfig;
+  benOutbreak: BenOutbreakConfig;
+  benPoolShot: BenPoolShotConfig;
+  benCircuitLab: BenCircuitLabConfig;
 }
 
 export type ModeId = typeof MODE_IDS[number];

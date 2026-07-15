@@ -10,6 +10,7 @@ const chapter1: ChapterConfig = {
   description:
     'Eric charges $4.50 a month for a Spotify Family plan that costs $3.33. Jordan has the math. Tonight, the ledger gets audited.',
   kind: 'chapter',
+  estimatedMinutes: { min: 1, max: 3 },
   map: {
     width: 920,
     height: 660,

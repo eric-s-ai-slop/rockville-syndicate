@@ -308,6 +308,8 @@ const chapterN: ChapterConfig = {
   location: '',    // physical location name
   description: '', // one-sentence logline from the brief
   kind: 'chapter',
+  estimatedMinutes: { min: 1, max: 3 }, // approximate first-play duration range shown in chapter select
+  // seal: 'external', // optional meta boundary; use classified: true for in-world redaction
 
   // Single-location chapter: paste map + actors here directly.
   map: { /* TO BE FILLED — paste MapConfig from Step 2a */ },

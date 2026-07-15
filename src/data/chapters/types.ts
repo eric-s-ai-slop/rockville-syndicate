@@ -16,6 +16,12 @@ const EXTRA_SPEAKERS: Speaker[] = [
   { id: 'maharko', name: 'Maharko', emoji: '🏎️', color: '#22d3ee' },
   { id: 'ben', name: 'Ben Bersofsky', emoji: '🧪', color: '#84cc16' },
   { id: 'michael_bersofsky', name: 'Michael Bersofsky', emoji: '🚪', color: '#ef4444' },
+  { id: 'sophie', name: 'Sophie', emoji: '🌊', color: '#f9a8d4' },
+  { id: 'linden', name: 'Linden', emoji: '🌊', color: '#c084fc' },
+  { id: 'cara', name: 'Cara', emoji: '🌊', color: '#f472b6' },
+  { id: 'nick_cox', name: 'Nick Cox', emoji: '🎃', color: '#fb923c' },
+  { id: 'matthew', name: 'Matthew', emoji: '📝', color: '#fde047' },
+  { id: 'substitute', name: 'Long-Term Substitute', emoji: '🧑‍🏫', color: '#94a3b8' },
   { id: 'emily', name: 'Emily (Spain GF)', emoji: '✈️', color: '#f9a8d4' },
   { id: 'caleb', name: 'Caleb Allentuck', emoji: '🫧', color: '#a78bfa' },
   { id: 'vs', name: 'VS', emoji: '⚔️', color: '#ef4444' },
@@ -204,6 +210,8 @@ export interface ChapterConfig {
   location: string;
   description: string;
   kind: 'chapter' | 'interlude' | 'epilogue' | 'flashback';
+  /** Approximate first-play duration range, shown on the chapter-select card. */
+  estimatedMinutes?: { min: number; max: number };
   /** Force a specific protagonist for this chapter regardless of crew pick. */
   protagonistOverride?: string;
   /** Single-map chapters: use map + actors directly. Multi-location chapters: use scenes[]. */
@@ -224,10 +232,16 @@ export interface ChapterConfig {
    * Renders as a redacted/CLASSIFIED card on the chapter-select screen that
    * must have its seal broken (two clicks: intact -> cracked -> broken)
    * before it can be played. The agent CLI auto-breaks the seal for these
-   * chapters when driving them (see `navigateToChapter`'s `classified` option
-   * in e2e_tests/helpers.ts and cli.ts's auto-detection off this field).
+   * chapters when driving them (see `navigateToChapter`'s seal options in
+   * e2e_tests/helpers.ts and cli.ts's auto-detection off these fields).
    */
   classified?: boolean;
+  /**
+   * Optional chapter-select seal treatment. `classified` remains supported
+   * for the in-world redaction treatment; `external` marks a boundary that
+   * sits outside the game's fiction and uses the Origins-style presentation.
+   */
+  seal?: 'classified' | 'external';
   usePoolSheet?: boolean;
   ambientSfx?: { onDoor?: string };
   chaseTextureSwaps?: Array<{ propKey: string; targetTexture: string; fallbackTexture?: string }>;

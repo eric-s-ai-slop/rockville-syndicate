@@ -10,6 +10,7 @@ const chapterMariaBrooke: ChapterConfig = {
   description:
     'Eric catfishes Ben through a fake Instagram account named Maria Brooke while the entire group watches and cheers in real time. When the fiction touches something real, the player is already in the chat.',
   kind: 'flashback',
+  estimatedMinutes: { min: 6, max: 10 },
 
   scenes: [
     {

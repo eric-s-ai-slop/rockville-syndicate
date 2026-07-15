@@ -24,6 +24,7 @@ const chapter5b: ChapterConfig = {
   description:
     "July 4th, 2024. Nick F visits Maharko in Florida. At a party, Maharko feeds a 16-year-old named Rose alcohol until she's half-conscious — and the car ride home is a closed system nobody can leave.",
   kind: 'chapter',
+  estimatedMinutes: { min: 8, max: 12 },
   classified: true,
 
   // ════════════════════════════════════════════════════════════════════════════

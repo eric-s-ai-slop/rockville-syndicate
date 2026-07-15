@@ -68,6 +68,8 @@ export interface ModeContext {
 
 export interface GameMode<Cfg = unknown> {
   id: string;
+  /** True when the mode has its own avatar controls and chapter movement must stay idle. */
+  capturesPlayerMovement?: boolean;
   /** Register assets needed by this mode (called during scene preload). */
   preload?(ctx: ModeContext): void;
   /** Begin the mode. Call onComplete exactly once when the mode resolves. */

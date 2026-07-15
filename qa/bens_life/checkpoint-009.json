@@ -1,0 +1,80 @@
+{
+  "schema": "omega-checkpoint-v1",
+  "capturedAt": "2026-07-15T18:55:16.739Z",
+  "checkpointId": 9,
+  "evidenceClass": "natural-playtest",
+  "completionEligible": true,
+  "commandId": "advance-015",
+  "imagePath": "/Users/erichuang/Projects/ai-slop/project-omega_-the-rockville-syndicate/qa/bens_life/checkpoint-009.png",
+  "sourceFramePaths": [],
+  "chapter": {
+    "id": "bens_life",
+    "title": "Ben’s Life"
+  },
+  "scene": {
+    "index": 2,
+    "name": "Ocean City — The Rental",
+    "key": "ChapterScene"
+  },
+  "beat": {
+    "index": 25,
+    "id": "ocean_city_after",
+    "type": "dialogue"
+  },
+  "player": {
+    "x": 516.2499999999994,
+    "y": 265.5555555555588
+  },
+  "camera": {
+    "scrollX": -130,
+    "scrollY": -71,
+    "zoom": 2,
+    "width": 1280,
+    "height": 672,
+    "effectiveViewport": {
+      "x": -130,
+      "y": -71,
+      "width": 640,
+      "height": 336
+    },
+    "followTarget": {
+      "kind": "player",
+      "id": null
+    }
+  },
+  "map": {
+    "theme": "florida",
+    "noNatureScatter": true,
+    "bounds": {
+      "x": 0,
+      "y": 0,
+      "width": 920,
+      "height": 660
+    }
+  },
+  "mode": {
+    "id": "benHazard",
+    "kind": "foreground",
+    "beatIndex": 24
+  },
+  "trigger": {
+    "reason": "Foreground mode \"benHazard\" ended",
+    "reasons": [
+      "Foreground mode \"benHazard\" ended"
+    ],
+    "transitions": [
+      {
+        "reason": "Foreground mode \"benHazard\" ended",
+        "modeKind": "foreground",
+        "modeId": "benHazard",
+        "modeBeatIndex": 24
+      }
+    ]
+  },
+  "settling": {
+    "strategy": "phaser-stable-frames-v1",
+    "framesObserved": 25,
+    "elapsedMs": 950,
+    "timedOut": true
+  }
+}

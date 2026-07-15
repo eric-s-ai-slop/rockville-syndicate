@@ -1,0 +1,59 @@
+{
+  "schema": "omega-playtest-progress-v1",
+  "chapter": {
+    "id": "bens_life",
+    "title": "Ben’s Life"
+  },
+  "status": "incomplete-coverage",
+  "overallPercent": 74,
+  "bar": "[███████████████░░░░░] 74%",
+  "story": {
+    "currentBeat": 3,
+    "farthestBeat": 54,
+    "totalBeats": 70,
+    "percent": 79
+  },
+  "coverage": {
+    "completed": 17,
+    "total": 33,
+    "percent": 52,
+    "breakdown": {
+      "scenes": {
+        "completed": 7,
+        "total": 9
+      },
+      "choices": {
+        "completed": 3,
+        "total": 9
+      },
+      "walks": {
+        "completed": 3,
+        "total": 7
+      },
+      "foregroundModes": {
+        "completed": 4,
+        "total": 7
+      },
+      "backgroundModes": {
+        "completed": 0,
+        "total": 0
+      },
+      "terminal": {
+        "completed": 0,
+        "total": 1
+      }
+    }
+  },
+  "visualQa": {
+    "captured": 20,
+    "reviewed": 20,
+    "pending": [],
+    "percent": 100
+  },
+  "findings": {
+    "open": 2,
+    "dismissed": 0,
+    "total": 2
+  },
+  "updatedAt": "2026-07-15T19:27:18.621Z"
+}

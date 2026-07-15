@@ -38,11 +38,18 @@ to the next unless a jump redirects.
 - **Choice endings**: distinct endings go in each option's `reactionLines`, then all
   options `goto` a shared beat id — otherwise ending beats fall through into each other.
 
+Chapter-select seals: use `classified: true` for the in-world redaction treatment. Use
+`seal: 'external'` when a chapter is meant to read as a boundary outside the game's fiction
+(currently Origins); it retains the two-step interaction but uses the external seal treatment.
+Set `estimatedMinutes: { min, max }` to the approximate first-play duration range shown on the
+chapter-select card (for example, Spotify is `{ min: 1, max: 3 }`).
+
 ## Speakers
 
 `resolveSpeaker` (types.ts) checks, in order: heroes `eric | nick_f | nick_h | jacob` →
-NPC `jordan` → extras `narrator | audrey | maharko | ben | michael_bersofsky | emily |
-caleb | vs | anastasia | sophia | sam_ferretti | sean | alex | leo | benji`. Unknown ids still render
+NPC `jordan` → extras `narrator | audrey | maharko | ben | michael_bersofsky | sophie | linden |
+cara | nick_cox | matthew | substitute | emily | caleb | vs | anastasia | sophia | sam_ferretti |
+sean | alex | leo | benji`. Unknown ids still render
 (generic 🗨️ bubble) — no crash, but check spelling.
 
 ## Map config

@@ -241,3 +241,9 @@ See [`docs/ADDING_A_MINIGAME.md`](docs/ADDING_A_MINIGAME.md) for the full guide.
 - **Player sprites face right by default.** `update()` sets `setFlipX(vx < 0)`; boss combat overrides this to face the aim target. That override is intentional — preserve it.
 - **All persistence through `settings.ts`** — never a new ad-hoc `localStorage` key.
 - **Verify against the code, not the handoff docs.** Files under `docs/archive/` are archived and may describe an earlier build.
+
+## Agent tooling freeze
+
+Treat the current routing, validation, registry, boundary, and playtesting tools as frozen infrastructure. Change them only to fix a demonstrated bug/drift or after the same workflow failure has recurred at least three times with evidence. Preserve compact default output and opt into expensive detail such as AST ranges. Do not add a general AST dependency graph, parallel validation framework, or speculative abstraction without a measured token/time saving that outweighs its maintenance cost.
+
+Before creating a browser/debug script, test-only runtime hook, or new agent command, check the intent router and the relevant existing command's `--help`. If the existing workflow fails, report that concrete gap; do not silently build a parallel path.

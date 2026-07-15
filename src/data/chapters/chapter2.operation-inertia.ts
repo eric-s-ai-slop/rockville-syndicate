@@ -9,6 +9,7 @@ const chapter2: ChapterConfig = {
   description:
     'Nick F calls WTM at 1:00 AM. Destination: New York City. Jacob invests $100. Everything dissolves at the Baltimore toll.',
   kind: 'interlude',
+  estimatedMinutes: { min: 3, max: 5 },
   map: {
     width: 880,
     height: 620,

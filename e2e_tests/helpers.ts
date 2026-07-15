@@ -46,17 +46,14 @@ export class AdvanceTimeoutError extends Error {
 }
 
 /**
- * From the chapter-select screen, break every CLASSIFIED chapter's redaction
- * seal. Seals take two interactions each: intact -> cracked -> broken, and the
- * card label reads "CLICK TO CRACK SEAL" then "SHATTER SEAL" before the real
- * title is revealed. There can be more than one sealed card on screen, and a
- * redacted card hides its title, so we simply break them all by repeatedly
- * clicking whatever seal label is currently showing. FREE PLAY must be enabled
- * first so the cards are unlocked.
+ * From the chapter-select screen, break every chapter-select seal. Classified
+ * seals read "CLICK TO CRACK SEAL" then "SHATTER SEAL"; external seals use
+ * "TOUCH OUTER SEAL" then "CROSS THE FRAME". Both take two interactions.
+ * FREE PLAY must be enabled first so the cards are unlocked.
  */
 export async function breakSeal(page: Page): Promise<void> {
   for (let i = 0; i < 10; i++) {
-    const label = page.getByText(/CLICK TO CRACK SEAL|SHATTER SEAL/).first();
+    const label = page.getByText(/CLICK TO CRACK SEAL|SHATTER SEAL|TOUCH OUTER SEAL|CROSS THE FRAME/).first();
     if (!(await label.isVisible().catch(() => false))) break;
     await label.click();
     await page.waitForTimeout(400);
@@ -65,20 +62,20 @@ export async function breakSeal(page: Page): Promise<void> {
 
 /**
  * Navigate from the landing page all the way to a chapter's game canvas.
- * Picks Eric, enters Free Play, optionally breaks a classified seal, then
+ * Picks Eric, enters Free Play, optionally breaks a chapter-select seal, then
  * clicks the chapter card by its displayed title.
  */
 export async function navigateToChapter(
   page: Page,
   chapterTitle: string,
-  options: { classified?: boolean } = {},
+  options: { classified?: boolean; sealed?: boolean } = {},
 ): Promise<void> {
   await page.goto('/');
   await page.getByRole('button', { name: /Eric/i }).first().click();
   await page.getByRole('button', { name: /Begin the Story/i }).click();
   await expect(page.getByText('LINEAR')).toBeVisible();
   await page.getByText('FREE PLAY').click();
-  if (options.classified) {
+  if (options.classified || options.sealed) {
     await breakSeal(page);
   }
   await page.getByText(chapterTitle).first().click();

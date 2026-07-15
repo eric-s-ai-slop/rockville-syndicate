@@ -5,7 +5,9 @@ vi.mock('../data/chapters', () => ({
   CHAPTERS: [
     { id: 'chapter1' },
     { id: 'chapter2' },
-    { id: 'chapter3' }
+    { id: 'chapter3' },
+    { id: 'fixture-playtest' },
+    { id: 'origins' }
   ]
 }));
 
@@ -53,6 +55,10 @@ describe('isChapterUnlocked', () => {
     expect(isChapterUnlocked('chapter2', [])).toBe(false);
     expect(isChapterUnlocked('chapter3', ['chapter1'])).toBe(false);
     expect(isChapterUnlocked('chapter2', ['chapter1'])).toBe(true);
+  });
+  it('does not let the dev fixture gate the meta Origins chapter', () => {
+    expect(isChapterUnlocked('origins', ['chapter3'], false)).toBe(true);
+    expect(isChapterUnlocked('origins', [], false)).toBe(false);
   });
 });
 

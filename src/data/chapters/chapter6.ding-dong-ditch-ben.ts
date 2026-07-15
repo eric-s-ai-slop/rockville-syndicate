@@ -9,6 +9,7 @@ const chapter6: ChapterConfig = {
   description:
     "Midnight. The party has intel. The getaway car is running. Maharko must deliver the finishing blow.",
   kind: 'chapter',
+  estimatedMinutes: { min: 4, max: 7 },
   map: {
     width: 880,
     height: 660,

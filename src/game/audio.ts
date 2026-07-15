@@ -15,7 +15,12 @@ import ch7MariaBrookeUrl from '../assets/audio/stage_music/Craspore - Flashbacks
 import ch9Url   from '../assets/audio/stage_music/SUMMER2026_FIRSTPOOLPARTY(Glass Animals - Heat Waves).mp3?url';
 import ch11SpinsUrl from '../assets/audio/stage_music/chapter11 the spins (mac miller).mp3?url';
 import ch11SpaceSongUrl from '../assets/audio/stage_music/chapter11 space song (beach house).mp3?url';
+import bensTheBoxUrl from '../assets/audio/stage_music/Roddy Ricch - The Box [Official Audio].mp3?url';
+import bensRubbinOffThePaintUrl from '../assets/audio/stage_music/YBN Nahmir - Rubbin Off The Paint (432hz).mp3?url';
+import bensTurbanUrl from '../assets/audio/stage_music/Yeat - \'\'Turban\'\' (Up 2 Me).mp3?url';
+import bensMoneySoBigUrl from '../assets/audio/stage_music/Yeat - Monëy so big (Lyrics).mp3?url';
 import sfxMessageDingUrl from '../assets/audio/IPHONE NOTIFICATION SOUND EFFECT (PINGDING).mp3?url';
+import sfxBenStrawSlurpUrl from '../assets/audio/Slurping Drink from Straw Sound Effect.mp3?url';
 import bossUrl  from '../assets/audio/boss_music/Prowler Sound Effect.mp3?url';
 import bossTetrisUrl from '../assets/audio/boss_music/Techno - Tetris (Remix).mp3?url';
 import ultraphonkUrl from '../assets/audio/ultraphonk (phonk).mp3?url';
@@ -52,6 +57,7 @@ export const CHAPTER_MUSIC_KEY: Record<string, string> = {
   cabin_basye:          'music_ch7',  // Dark Beach (Pastel Ghost) — moody night-cabin atmosphere
   suds_and_soles_pool_party: 'music_ch9',
   'fixture-playtest': 'music_ch1',  // DEV-only fixture: reuses an already-loaded track, no new asset needed
+  bens_life: 'music_bens_the_box',  // Scene 0 opening cue; later scenes override this per-scene.
   // cabin_from_hell_2025: no chapter-level key — per-scene music handles it via scenes[].music.
   //   Scene 0: 'music_ch11_spins' ("The Spins" — Mac Miller), crossfades to
   //   'music_ch11_space_song' ("Space Song" — Beach House) mid-scene via a
@@ -72,6 +78,10 @@ export const STAGE_MUSIC_URL: Record<string, string> = {
   music_umbc_basement: umbcBasementUrl,
   music_ch11_spins:      ch11SpinsUrl,
   music_ch11_space_song: ch11SpaceSongUrl,
+  music_bens_the_box:    bensTheBoxUrl,
+  music_bens_rubbin_off_the_paint: bensRubbinOffThePaintUrl,
+  music_bens_turban:     bensTurbanUrl,
+  music_bens_money_so_big: bensMoneySoBigUrl,
   music_origins:         ch1Url, // TODO(phase8): placeholder — Origins' own track hasn't landed yet
 };
 
@@ -80,6 +90,7 @@ export const CROWD_MURMUR_URL    = crowdMurmurUrl;    // sfx_crowd_murmur: basem
 export const CRICKET_AMBIENT_URL = cricketAmbientUrl;  // sfx_parking_ambient: storyFractures mode
 
 export const SFX_MESSAGE_DING_URL = sfxMessageDingUrl;  // groupChat minigame — DM notification
+export const SFX_BEN_STRAW_SLURP_URL = sfxBenStrawSlurpUrl; // Ben's scripted Ocean City drink
 export const ULTRAPHONK_URL = ultraphonkUrl;  // speakerHunt minigame — diegetic Nights 1-3 loop
 
 export const BOSS_MUSIC_URL = bossUrl;   // Prowler sting (plays once on boss intro)

@@ -21,12 +21,6 @@ Use an existing route before broad search or writing a helper. Load detailed doc
 
 Standard project commands remain `npm run dev`, `npm run lint`, `npm run lint:es`, `npm test`, `npm run e2e`, and `npm run build`. Code is canonical; `ARCHITECTURE.md` and `ROADMAP.md` are living references. Ignore `docs/archive/` and `docs/chapter-pipeline/working/` unless history or a draft is explicitly requested.
 
-## Agent tooling freeze
-
-Treat the current routing, validation, registry, boundary, and playtesting tools as frozen infrastructure. Change them only to fix a demonstrated bug/drift or after the same workflow failure has recurred at least three times with evidence. Preserve compact default output and opt into expensive detail such as AST ranges. Do not add a general AST dependency graph, parallel validation framework, or speculative abstraction without a measured token/time saving that outweighs its maintenance cost.
-
-Before creating a browser/debug script, test-only runtime hook, or new agent command, check the intent router and the relevant existing command's `--help`. If the existing workflow fails, report that concrete gap; do not silently build a parallel path.
-
 ## Where work lives
 
 - `src/data/chapters/` — typed chapter maps and beats; read its scoped `CLAUDE.md` when editing there.
