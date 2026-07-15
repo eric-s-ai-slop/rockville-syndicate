@@ -21,7 +21,8 @@ Open `src/game/modes/myNewMinigame/index.ts` and customize the implementation:
   - `update(time, delta)`: Per-frame movement, hit detection, ticker updates.
   - `teardown()`: Clean up sprites, sounds, timers, and input listeners to prevent leaks.
 
-Type your config via the generic: `GameMode<{ someParam: number }>`. Avoid `config: any`.
+Export a named config interface and use it in the generic, for example
+`GameMode<MyNewMinigameConfig>`. Avoid `config: any`.
 
 ### Optional narrative hooks
 
@@ -34,7 +35,8 @@ onCameraPan(beat: Extract<Beat, { type: 'cameraPan' }>): void { ... }
 
 ## 3. Register the Mode
 
-Open `src/game/modes/index.ts` and register:
+Add the mode ID/config pair to `ModeConfigMap` and the runtime ID to `MODE_IDS`
+in `src/contracts/mode-configs.ts`, then open `src/game/modes/index.ts` and register:
 
 ```typescript
 import { myNewMinigameMode } from './myNewMinigame';
@@ -76,8 +78,10 @@ interface ModeResult {
   option the player picked. It's stored on the scene as the last minigame result
   for later beats/logic to read. Keep it a plain serializable object.
 
-Guard against double-resolution with a `modeEnded` flag (see `complicityReport`
-and `benTrivia`): flip it true in your resolve path and early-return if already set.
+The host wraps mode completion with `onceModeCompletion`, so duplicate callbacks
+cannot advance the story or tear down twice. Still guard your mode's own resolve
+path with a `modeEnded` flag when it performs local work before calling the host
+(see `complicityReport` and `benTrivia`):
 
 ```typescript
 private resolve(outcome: 'win' | 'lose') {
@@ -152,11 +156,14 @@ Fastest loop, no permanent chapter edits:
 
 ```bash
 npm run lint        # tsc --noEmit
-npm test            # vitest unit suite
+npm run agent:check -- src/game/modes/myNewMinigame/index.ts
 npm run dev         # play through the chapter
 ```
 
-Write at least one unit test covering your mode's pure logic (routing, scoring, state machines). See `src/game/modes/bossFight/bossFight.test.ts` for a reference.
+Write at least one unit test covering your mode's pure logic (routing, scoring,
+state machines). The conformance suite also verifies that the registry matches
+`MODE_IDS` and that every registered mode exposes its lifecycle. See
+`src/game/modes/bossFight/bossFight.test.ts` for a reference.
 
 ---
 

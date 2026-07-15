@@ -10,6 +10,7 @@ import { ChaseController } from './scene/ChaseController';
 import type { PropSprite } from './scene/contracts';
 import type { GameMode, ModeResult } from './modes/types';
 import { getMode } from './modes';
+import { onceModeCompletion } from './modes/lifecycle';
 import { hitStop } from './modes/hitStop';
 import { screenSpace } from './modes/screenSpace';
 import { mariaBrookeStats, type MariaBrookeStatsSnapshot } from './modes/mariaBrookeStats';
@@ -54,6 +55,7 @@ import {
   CROWD_MURMUR_URL, CRICKET_AMBIENT_URL,
   SFX_MESSAGE_DING_URL, ULTRAPHONK_URL,
 } from './audio';
+import type { StoryDialoguePayload } from './contracts/story';
 
 import natureFlower1Url from '../assets/images/game_decor/nature/Flower 1/Flower 1 - RED.png?url';
 import natureFlower2Url from '../assets/images/game_decor/nature/Flower 2/Flower 2 - MAGENTA.png?url';
@@ -71,17 +73,6 @@ import packTollboothUrl from '../assets/images/game_decor/special/toolbooth.jpg?
 import packRailUrl from '../assets/images/game_decor/special/rail.jpg?url';
 import packPoolUrl from '../assets/images/game_decor/special/pool.jpg?url';
 import packArcadeUrl from '../assets/images/game_decor/special/arcade cab.jpg?url';
-
-export interface StoryDialoguePayload {
-  speakerName: string;
-  speakerEmoji: string;
-  speakerColor: string;
-  /** Base64 PNG extracted from the character's sprite sheet frame 0. */
-  portraitDataUrl?: string;
-  lines: string[];
-  /** When present, the box shows choice buttons after the last line. */
-  choices?: { text: string }[];
-}
 
 export interface PlaytestSnapshotSafety {
   branchSafe: boolean;
@@ -690,7 +681,7 @@ export default class ChapterScene extends Phaser.Scene {
   }
 
   /** Direct launcher for minigames. Preloads, setups contexts, and starts mode cleanly. */
-  public launchMode(modeId: string, config: any = {}) {
+  public launchMode(modeId: string, config: unknown = {}) {
     const mode = getMode(modeId);
     if (!mode) throw new Error(`Unknown minigame modeId: ${modeId}`);
 
@@ -708,7 +699,7 @@ export default class ChapterScene extends Phaser.Scene {
     this.activeMode = mode;
     this.activeModeBeatIndex = null;
     this.activeModeBackground = false;
-    const onComplete = (result: ModeResult) => {
+    const onComplete = onceModeCompletion((result: ModeResult) => {
       try {
         mode.teardown();
       } catch (err) {
@@ -719,8 +710,8 @@ export default class ChapterScene extends Phaser.Scene {
         this.activeModeBeatIndex = null;
         this.activeModeBackground = false;
       }
-      console.log(`[ChapterScene] Direct mode ${modeId} completed:`, result);
-    };
+      console.warn(`[ChapterScene] Direct mode ${modeId} completed:`, result);
+    });
     // Stored so external tooling (the Playwright agent harness) can force this
     // mode to resolve early — see the doc comment on GameMode.harnessForceComplete.
     mode.harnessForceComplete = onComplete;

@@ -1,4 +1,5 @@
 import { CHARACTER_CLASSES, NPC_CHARACTERS } from '../entities';
+import type { ModeConfigMap } from '../../contracts/mode-configs';
 
 export interface Speaker {
   id: string;
@@ -162,7 +163,16 @@ export type Beat = { id?: string } & (
   | { type: 'showActor'; id: string }
   | { type: 'moveActor'; id: string; x: number; y: number; durationMs: number }
   | { type: 'bossFight'; bossId: string; arena: { x: number; y: number; w: number; h: number }; hideActorId?: string; introLines?: string[] }
-  | { type: 'minigame'; modeId: string; config?: unknown; introLines?: string[]; background?: boolean; loseGoto?: string }
+  | {
+      [K in Exclude<keyof ModeConfigMap, 'bossFight'>]: {
+        type: 'minigame';
+        modeId: K;
+        config?: ModeConfigMap[K];
+        introLines?: string[];
+        background?: boolean;
+        loseGoto?: string;
+      }
+    }[Exclude<keyof ModeConfigMap, 'bossFight'>]
   | { type: 'routeOnMinigame'; cases: Record<string, string>; default?: string }
   | { type: 'chase'; pursuerId: string; durationMs: number }
   | { type: 'sfx'; key: string; volume?: number; seek?: number }

@@ -2,34 +2,30 @@
 
 React 19 + Phaser **3.88.2** (not Phaser 4) + Vite + TypeScript + Tailwind v4. This is an AI-developed story RPG based on the owner's friend-group adventures.
 
-## Start here
+## Route by intent
 
-Route work before searching broadly:
+Use an existing route before broad search or writing a helper. Load detailed documentation only after the route identifies it.
 
-```bash
-npm run agent:map -- --target=weapon
-```
+| Intent | First move |
+| --- | --- |
+| Find chapter code | `npm run -s agent:map -- --target=chapter --id=<chapter-id>` |
+| Find mode or domain code | `npm run -s agent:map -- --target=mode --id=<mode-id>` or `--target=<domain>`; run without a target to list domains |
+| Diagnose a localized visual/runtime bug | Run `npm run agent:restart-check`, then `npm run agent -- --chapter <id> --diagnostic --repl`; prefer `advance-to`, or use acknowledged `goto`, then `observe --shot` / `screenshot --annotate`. Read `docs/AGENT_TOOLKIT.md` §1. |
+| Playtest a full chapter | Read `.agents/skills/playtesting/SKILL.md`, then use `--playtest --repl --checkpoints`; diagnostic evidence cannot prove completion |
+| Validate changed code | `npm run -s agent:check -- <changed-file...>`; use `npm run -s check:agent` for the final full gate |
+| Inspect registrations | `npm run -s agent:registry`; add `--symbols` only for exact AST declaration ranges |
+| Server output looks stale | `npm run agent:restart-check` |
+| Create content | `npm run agent:scaffold-chapter -- <index> <slug>` or `npm run agent:scaffold-mode -- <id>` |
+| Audit QA evidence | `npm run agent:qa-audit -- <report> [transcript]` |
+| Anything else or cross-cutting | Map the nearest domain if useful, inspect canonical code with `rg`, follow the nearest scoped guide, and validate changed files with `agent:check`. This router guides discovery; it does not limit development. |
 
-Replace `weapon` with a supported domain; run `npm run agent:map --` to list them. The map returns canonical entrypoints, related contracts, a short recipe, and verification commands. Code is canonical; `ARCHITECTURE.md` and `ROADMAP.md` are living references. Ignore `docs/archive/` and `docs/chapter-pipeline/working/` unless history or a draft is explicitly requested.
+Standard project commands remain `npm run dev`, `npm run lint`, `npm run lint:es`, `npm test`, `npm run e2e`, and `npm run build`. Code is canonical; `ARCHITECTURE.md` and `ROADMAP.md` are living references. Ignore `docs/archive/` and `docs/chapter-pipeline/working/` unless history or a draft is explicitly requested.
 
-## Commands
+## Agent tooling freeze
 
-- `npm run dev` — local server on port 3324
-- `npm run lint` — TypeScript typecheck
-- `npm run lint:es` — ESLint and mechanized repository invariants
-- `npm test` — Vitest
-- `npm run e2e` — Playwright
-- `npm run build` — production build
-- `npm run check:agent` — compact full validation
-- `npm run agent:check -- <changed-file...>` — compact focused validation
-- `npm run agent:check -- --report <report> --transcript <session>` — include report/evidence audit in the receipt
-- `npm run agent -- --help` — terminal playtesting toolkit
-- `npm run agent:qa-audit -- <report> [transcript]` — audit report, transcript, and checkpoint artifacts
-- `npm run agent:restart-check` — safely restart the verified local Vite server and wait for health
-- `npm run agent:validate-chapter -- <id>` — validate one chapter
-- `npm run agent:scaffold-chapter -- <index> <slug>` — create a minimal unregistered chapter
-- `npm run agent:scaffold-mode -- <id>` — scaffold a minigame
-- `npm run agent -- --gauntlet --playtest-smoke` — all-chapter harness smoke test
+Treat the current routing, validation, registry, boundary, and playtesting tools as frozen infrastructure. Change them only to fix a demonstrated bug/drift or after the same workflow failure has recurred at least three times with evidence. Preserve compact default output and opt into expensive detail such as AST ranges. Do not add a general AST dependency graph, parallel validation framework, or speculative abstraction without a measured token/time saving that outweighs its maintenance cost.
+
+Before creating a browser/debug script, test-only runtime hook, or new agent command, check the intent router and the relevant existing command's `--help`. If the existing workflow fails, report that concrete gap; do not silently build a parallel path.
 
 ## Where work lives
 

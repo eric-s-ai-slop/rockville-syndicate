@@ -6,7 +6,7 @@ import type { GameMode, ModeContext, ModeResult } from '../types';
 // (or any individual field) falls back to the original Ch3b content, so
 // existing callers with no config keep working unchanged.
 
-interface SilentDriveConfig {
+export interface SilentDriveConfig {
   title?: string;
   askerId?: string;
   askerLabel?: string;

@@ -9,7 +9,7 @@
     "start": "node dist/server.cjs",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "lint:es": "eslint .",
+    "lint:es": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --fix",
     "ci": "npm run lint && npm run lint:es && npm test && npm run build",
     "check:agent": "tsx e2e_tests/agent/check.ts --full",
@@ -26,6 +26,9 @@
     "agent:write-report": "tsx e2e_tests/agent/write-playtest-report.ts",
     "agent:lint-dialogue": "tsx e2e_tests/agent/dialogue-lint.ts",
     "agent:check": "tsx e2e_tests/agent/check.ts",
+    "agent:boundaries": "tsx e2e_tests/agent/boundaries.ts",
+    "agent:registry": "tsx e2e_tests/agent/registry-report.ts",
+    "agent:integration": "vitest run --config vitest.integration.config.ts",
     "agent:scaffold-chapter": "tsx e2e_tests/agent/scaffold-chapter.ts",
     "agent:scaffold-mode": "tsx e2e_tests/agent/scaffold-mode.ts",
     "agent:map": "tsx e2e_tests/agent/context-map.ts"

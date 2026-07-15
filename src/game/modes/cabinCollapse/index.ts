@@ -18,7 +18,7 @@ interface CabinCollapseMeters {
   illness: number; // 0-4
 }
 
-interface CabinCollapseConfig {
+export interface CabinCollapseConfig {
   startDay: number;
   meters: CabinCollapseMeters;
 }
@@ -172,7 +172,7 @@ export class CabinCollapseMode implements GameMode {
 
   private flashAndResolve(): void {
     this.rows.forEach(r => {
-      this.ctx.tweens.add({ targets: r.bar, fillColor: { from: r.bar.fillColor, to: 0xef4444 } as any, duration: 300 });
+      this.ctx.tweens.add({ targets: r.bar, fillColor: { from: r.bar.fillColor, to: 0xef4444 }, duration: 300 });
     });
     this.ctx.time.delayedCall(1500, () => this.resolve());
   }

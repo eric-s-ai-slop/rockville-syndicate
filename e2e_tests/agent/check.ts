@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { selectTests } from './check-selection';
+import { formatFailureOutput } from './check-output';
 
 const ROOT = process.cwd();
 const LOG_DIR = path.resolve('agent-artifacts/check');
@@ -23,6 +24,7 @@ function walk(dir: string): string[] {
 function availableUnitTests(): string[] {
   return [...walk('src'), ...walk('e2e_tests/agent')]
     .filter((file) => /\.test\.tsx?$/.test(file))
+    .filter((file) => !file.endsWith('e2e_tests/agent/cli.diagnostic.test.ts') && !file.endsWith('e2e_tests/agent/cli.protocol.test.ts'))
     .map((file) => path.relative(ROOT, path.resolve(file)).split(path.sep).join('/'));
 }
 
@@ -31,10 +33,6 @@ function changedFiles(): string[] {
   const untracked = spawnSync('git', ['ls-files', '--others', '--exclude-standard'], { encoding: 'utf8' });
   if (tracked.status !== 0 || untracked.status !== 0) return [];
   return [...new Set(`${tracked.stdout}\n${untracked.stdout}`.split('\n').map((line) => line.trim()).filter(Boolean))];
-}
-
-function tail(output: string, lines = 60): string {
-  return output.replace(ANSI, '').split('\n').filter(Boolean).slice(-lines).join('\n');
 }
 
 function detail(name: string, output: string): string {
@@ -72,8 +70,9 @@ function runStage(name: string, command: string, args: string[]): void {
 
   if (result.status !== 0) {
     receiptChecks.push({ name: name === 'tests' ? 'focused-tests' : name === 'typecheck' ? 'typecheck' : name, status: 'failed', durationMs: Math.round(performance.now() - start) });
-    process.stdout.write(`${name.padEnd(10)} FAIL  ${seconds}s  log=${path.relative(ROOT, logPath)}\n`);
-    process.stdout.write(`${verboseOutput ? output : tail(output)}\n`);
+    const failure = formatFailureOutput(name, output, verboseOutput);
+    process.stdout.write(`${name.padEnd(10)} FAIL  ${seconds}s  log=${path.relative(ROOT, logPath)}  omitted=${failure.omittedLines}\n`);
+    process.stdout.write(`${failure.text}\n`);
     writeReceipt(false, filesForReceipt(), output);
     process.exit(result.status ?? 1);
   }
@@ -122,6 +121,7 @@ function main(): void {
 
   runStage('typecheck', 'npm', ['run', 'lint', '--silent']);
   runStage('eslint', 'npm', ['run', 'lint:es', '--silent']);
+  runStage('boundaries', 'npm', ['run', 'agent:boundaries', '--silent']);
   if (selection.testFiles.length) {
     runStage('tests', 'npx', ['vitest', 'run', ...selection.testFiles]);
   } else {

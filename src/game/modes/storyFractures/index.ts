@@ -24,7 +24,7 @@ interface StorySegment {
   fractureHint?: string;
 }
 
-interface StoryFracturesConfig {
+export interface StoryFracturesConfig {
   storySegments: StorySegment[];
   /** Characters per second for the reveal. */
   scrollSpeed?: number;
@@ -332,15 +332,15 @@ export class StoryFracturesMode implements GameMode<StoryFracturesConfig> {
     // Make the text violently jitter
     const jitterTween = this.ctx.tweens.add({
       targets: view.label,
-      x: { value: { getEnd: (t: any, k: any, v: any) => view.label.getData('origX') + (Math.random() - 0.5) * 40 } },
-      y: { value: { getEnd: (t: any, k: any, v: any) => view.label.getData('origY') + (Math.random() - 0.5) * 40 } },
+      x: { value: { getEnd: (_target: unknown, _key: string, _value: number, _targetIndex: number, _totalTargets: number, _tween: Phaser.Tweens.Tween) => view.label.getData('origX') + (Math.random() - 0.5) * 40 } },
+      y: { value: { getEnd: (_target: unknown, _key: string, _value: number, _targetIndex: number, _totalTargets: number, _tween: Phaser.Tweens.Tween) => view.label.getData('origY') + (Math.random() - 0.5) * 40 } },
       duration: 60,
       yoyo: true,
       repeat: -1,
     });
 
     let clicked = false;
-    const checkClick = (pointer: any) => {
+    const checkClick = (pointer: Phaser.Input.Pointer) => {
       if (clicked) return;
       
       const worldX = (this.textContainer ? this.textContainer.x : 0) + view.label.getData('origX');

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Phaser from 'phaser';
-import ChapterScene, { StoryDialoguePayload } from '../game/ChapterScene';
+import ChapterScene from '../game/ChapterScene';
+import type { StoryDialoguePayload } from '../game/contracts/story';
 import { CHARACTER_CLASSES, CharacterClass } from '../data/entities';
 import { ChapterConfig } from '../data/chapters';
 import { loadProgress, markChapterComplete, rememberHero, setFreePlay as persistFreePlay } from '../game/progress';
@@ -18,6 +19,7 @@ import ChapterCompleteScreen from './ChapterCompleteScreen';
 import { playUi } from '../game/uiSound';
 import { useStoryDialogue } from './game/useStoryDialogue';
 import { useQte } from './game/useQte';
+import type { ModeResult } from '../game/modes/types';
 
 type GameStatus = 'hero' | 'chapters' | 'playing' | 'chapterComplete' | 'gameover' | 'records';
 
@@ -41,7 +43,7 @@ export default function GameLayout() {
 
   const { activeQte, qteTimer, triggerQte, respondToQte, clearQte } = useQte();
   const { activeStory, showStory, clearStory, advanceStory, chooseStory } = useStoryDialogue();
-  const [activeExternalGame, setActiveExternalGame] = useState<{ gameId: string, config: unknown, onDone: (r: any) => void } | null>(null);
+  const [activeExternalGame, setActiveExternalGame] = useState<{ gameId: string, config: unknown, onDone: (r: ModeResult) => void } | null>(null);
   const [titleCard, setTitleCard] = useState<TitleCardData | null>(null);
   const [titleCardVisible, setTitleCardVisible] = useState(false);
   // Settings are sourced from the unified store (save-schema-v2). `useSettings()`
@@ -65,7 +67,7 @@ export default function GameLayout() {
 
   const phaserGameRef = useRef<Phaser.Game | null>(null);
   const resizeCleanupRef = useRef<(() => void) | null>(null);
-  const activeExternalGameRef = useRef<{ onDone: (r: any) => void } | null>(null);
+  const activeExternalGameRef = useRef<{ onDone: (r: ModeResult) => void } | null>(null);
 
   // Load saved progress on mount.
   useEffect(() => {
@@ -169,7 +171,7 @@ export default function GameLayout() {
                 onTriggerQTE: triggerQte,
                 onStoryDialogue: (payload: StoryDialoguePayload, done: (i?: number) => void) =>
                   showStory(payload, done),
-                mountExternalGame: (opts: { gameId: string; config?: unknown }, onDone: (r: any) => void) => {
+                mountExternalGame: (opts: { gameId: string; config?: unknown }, onDone: (r: ModeResult) => void) => {
                   activeExternalGameRef.current = { onDone };
                   setActiveExternalGame({ gameId: opts.gameId, config: opts.config, onDone });
                 },

@@ -84,16 +84,16 @@ describe('packSpriteAtlas', () => {
     // Test the cropAndKey logic inside buildPackAtlas
     let putImageDataCalledWith: ImageData | undefined;
 
-    const mockGetContext = vi.fn().mockImplementation(function(this: any, contextType) {
+    const mockGetContext = vi.fn().mockImplementation(function(this: any, _contextType: unknown) {
       return {
         drawImage: vi.fn(),
-        getImageData: vi.fn().mockImplementation((x, y, w, h) => {
+        getImageData: vi.fn().mockImplementation((_x: unknown, _y: unknown, _w: unknown, _h: unknown) => {
           // Create 1 pixel image data
           // Set color to exactly match tollbooth bg (165, 171, 178)
           const data = new Uint8ClampedArray([165, 171, 178, 255]);
           return { data, width: 1, height: 1 };
         }),
-        putImageData: vi.fn().mockImplementation((imgData, x, y) => {
+        putImageData: vi.fn().mockImplementation((imgData: ImageData, _x: unknown, _y: unknown) => {
           putImageDataCalledWith = imgData;
         }),
       };
@@ -119,15 +119,15 @@ describe('packSpriteAtlas', () => {
   it('should not key the background if outside tolerance', () => {
     let putImageDataCalledWith: ImageData | undefined;
 
-    const mockGetContext = vi.fn().mockImplementation(function(this: any, contextType) {
+    const mockGetContext = vi.fn().mockImplementation(function(this: any, _contextType: unknown) {
       return {
         drawImage: vi.fn(),
-        getImageData: vi.fn().mockImplementation((x, y, w, h) => {
+        getImageData: vi.fn().mockImplementation((_x: unknown, _y: unknown, _w: unknown, _h: unknown) => {
           // Color significantly different from tollbooth bg (165, 171, 178)
           const data = new Uint8ClampedArray([0, 0, 0, 255]);
           return { data, width: 1, height: 1 };
         }),
-        putImageData: vi.fn().mockImplementation((imgData, x, y) => {
+        putImageData: vi.fn().mockImplementation((imgData: ImageData, _x: unknown, _y: unknown) => {
           putImageDataCalledWith = imgData;
         }),
       };
@@ -149,7 +149,7 @@ describe('packSpriteAtlas', () => {
   });
 
   it('should return if no crops are generated', () => {
-    mockScene.textures.exists.mockImplementation((key: string) => false);
+    mockScene.textures.exists.mockImplementation((_key: string) => false);
 
     buildPackAtlas(mockScene);
 

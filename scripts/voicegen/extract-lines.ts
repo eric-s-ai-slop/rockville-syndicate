@@ -48,6 +48,6 @@ for (const chapter of CHAPTERS) {
 }
 
 writeFileSync(join(here, 'lines.json'), JSON.stringify(lines, null, 2));
-console.log(`Extracted ${lines.length} voiced lines from ${CHAPTERS.length} chapters.`);
-console.log(`Speakers: ${[...voiced].join(', ')}`);
-console.log('Wrote scripts/voicegen/lines.json — now run generate.py');
+console.warn(`Extracted ${lines.length} voiced lines from ${CHAPTERS.length} chapters.`);
+console.warn(`Speakers: ${[...voiced].join(', ')}`);
+console.warn('Wrote scripts/voicegen/lines.json — now run generate.py');

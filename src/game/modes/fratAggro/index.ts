@@ -9,9 +9,9 @@ export class FratAggroMode implements GameMode {
   private markerContainer!: Phaser.GameObjects.Container;
   private isModeOver = false;
 
-  preload(ctx: ModeContext): void {}
+  preload(_ctx: ModeContext): void {}
 
-  start(ctx: ModeContext, config: any, onComplete: (result: ModeResult) => void): void {
+  start(ctx: ModeContext, _config: unknown, onComplete: (result: ModeResult) => void): void {
     this.ctx = ctx;
     this.onCompleteCallback = onComplete;
     this.isModeOver = false;
@@ -28,7 +28,7 @@ export class FratAggroMode implements GameMode {
     ctx.cameras.main.startFollow(ctx.player, true, 0.1, 0.1);
   }
 
-  update(time: number, delta: number): void {
+  update(_time: number, _delta: number): void {
     if (this.isModeOver) return;
     const ben = this.getSprite('ben');
     if (!ben) return;
@@ -66,7 +66,7 @@ export class FratAggroMode implements GameMode {
     if (!autoTriggered) {
       const dist = Phaser.Math.Distance.Between(this.ctx.player.x as number, this.ctx.player.y as number, ben.x as number, ben.y as number);
       if (dist > 80) {
-        this.ctx.showBubbleText(this.ctx.player as any, "I need to get closer.", '#ffffff');
+        this.ctx.showBubbleText(this.ctx.player, "I need to get closer.", '#ffffff');
         return;
       }
     }
@@ -81,7 +81,7 @@ export class FratAggroMode implements GameMode {
       (ben as Phaser.GameObjects.Sprite).setFlipX((this.ctx.player.x as number) < (ben.x as number));
     }
 
-    this.ctx.showBubbleText(this.ctx.player as any, "Ben. What are you doing.", '#ffffff');
+    this.ctx.showBubbleText(this.ctx.player, "Ben. What are you doing.", '#ffffff');
     
     if (this.markerContainer) {
       this.markerContainer.destroy();
@@ -92,14 +92,13 @@ export class FratAggroMode implements GameMode {
     });
   }
 
-  private getSprite(actorId: string): any {
+  private getSprite(actorId: string): Phaser.GameObjects.Sprite | undefined {
     const objs = this.ctx.actorSprites[actorId];
     if (!objs?.[0]) return undefined;
-    return objs[0];
+    return objs[0] as Phaser.GameObjects.Sprite;
   }
 
   private createMarker(x: number, y: number, labelText: string): Phaser.GameObjects.Container {
-    const s = (this.ctx as any).scene || this.ctx; // Use scene if available for adding complex objects
     const ring = this.ctx.add.circle(0, 0, 22, 0xfacc15, 0).setStrokeStyle(3, 0xfacc15, 0.9);
     const dot = this.ctx.add.circle(0, 0, 6, 0xfacc15, 0.9);
     const parts: Phaser.GameObjects.GameObject[] = [ring, dot];

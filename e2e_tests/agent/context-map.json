@@ -21,9 +21,9 @@
     "description": "Add or change a registered minigame mode.",
     "registrationFile": "src/game/modes/index.ts",
     "registrationSymbol": "registerMode",
-    "relatedFiles": ["src/game/modes/types.ts", "src/game/modes/_template/index.ts", "src/game/modes/CLAUDE.md", "docs/ADDING_A_MINIGAME.md"],
-    "relatedSymbols": ["GameMode", "ModeContext", "ModeResult"],
-    "howTo": "Run `npm run agent:scaffold-mode -- <modeId>`, implement the lifecycle, and update the scoped mode reference.",
+    "relatedFiles": ["src/game/modes/types.ts", "src/contracts/mode-configs.ts", "src/game/modes/_template/index.ts", "src/game/modes/CLAUDE.md", "docs/ADDING_A_MINIGAME.md"],
+    "relatedSymbols": ["GameMode", "ModeContext", "ModeResult", "ModeConfigMap"],
+    "howTo": "For a registered mode, first run `npm run -s agent:map -- --target=mode --id=<modeId>`; then use the returned entrypoint, tests, and verification commands. Scaffold with `npm run agent:scaffold-mode -- <modeId>` when starting a new mode.",
     "verificationCommands": ["npm test -- src/game/modesDoc.test.ts", "npm run lint"]
   },
   "chapter": {
@@ -32,8 +32,8 @@
     "registrationSymbol": "CHAPTERS",
     "relatedFiles": ["src/data/chapters/types.ts", "src/data/chapters/CLAUDE.md", "src/data/chapters.test.ts", "e2e_tests/agent/scaffold-chapter.ts"],
     "relatedSymbols": ["ChapterConfig", "Beat", "CHAPTERS"],
-    "howTo": "Run `npm run agent:scaffold-chapter -- <index> <slug>` for a minimal config, then register it after content and music are ready.",
-    "verificationCommands": ["npm run agent:validate-chapter -- <chapterId>", "npm run agent:check -- <chapterFile>"]
+    "howTo": "For a registered chapter, first run `npm run -s agent:map -- --target=chapter --id=<chapterId>`; then use the returned source and verification commands. Scaffold with `npm run agent:scaffold-chapter -- <index> <slug>` when starting a new chapter.",
+    "verificationCommands": ["npm run -s agent:validate-chapter -- <chapterId>", "npm run -s agent:check -- <chapterFile>"]
   },
   "persistence": {
     "description": "Change settings, progress, save migration, or Hall of Records persistence.",
@@ -48,7 +48,7 @@
     "description": "Change communication between React UI and the Phaser scene.",
     "registrationFile": "src/components/GameLayout.tsx",
     "registrationSymbol": "GameLayout",
-    "relatedFiles": ["src/game/ChapterScene.ts", "src/components/GameLayout.tsx", "src/components/GameLayout.test.tsx", "src/components/ExternalGameFrame.tsx", "src/components/game/useStoryDialogue.ts", "src/components/game/useQte.ts"],
+    "relatedFiles": ["src/game/ChapterScene.ts", "src/game/contracts/story.ts", "src/components/GameLayout.tsx", "src/components/GameLayout.test.tsx", "src/components/ExternalGameFrame.tsx", "src/components/game/useStoryDialogue.ts", "src/components/game/useQte.ts"],
     "relatedSymbols": ["StoryDialoguePayload", "useStoryDialogue", "useQte", "ExternalGameFrame"],
     "howTo": "Keep GameLayout as the host; put callback-bearing story/QTE lifecycles in focused hooks using refs and effects outside state updaters.",
     "verificationCommands": ["npm test -- src/components/GameLayout.test.tsx src/components/game", "npm run lint"]
@@ -120,7 +120,7 @@
     "description": "Choose and run compact verification for changed code.",
     "registrationFile": "e2e_tests/agent/check-selection.ts",
     "registrationSymbol": "selectTests",
-    "relatedFiles": ["e2e_tests/agent/check-selection.ts", "e2e_tests/agent/check.ts", "e2e_tests/agent/check-selection.test.ts", "e2e_tests/agent/qaAudit.ts", "package.json", "e2e_tests/agent/README.md"],
+    "relatedFiles": ["e2e_tests/agent/check-selection.ts", "e2e_tests/agent/check.ts", "e2e_tests/agent/check-output.ts", "e2e_tests/agent/boundaries.ts", "e2e_tests/agent/check-selection.test.ts", "e2e_tests/agent/qaAudit.ts", "vitest.integration.config.ts", "package.json", "e2e_tests/agent/README.md"],
     "relatedSymbols": ["CheckSelection", "check:agent", "agent:check"],
     "howTo": "Pass changed files to agent:check for focused verification; use check:agent for the compact full type, lint, unit, and build gate.",
     "verificationCommands": ["npm test -- e2e_tests/agent/check-selection.test.ts", "npm run check:agent"]

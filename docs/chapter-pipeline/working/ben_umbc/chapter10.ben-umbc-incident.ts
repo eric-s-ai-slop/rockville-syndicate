@@ -3,7 +3,6 @@
 // ========================================================
 
 import { ChapterConfig } from '../../../src/data/chapters/types';
-import { C } from '../../../src/data/chapters/palette';
 import { scenes } from './ben_umbc_map';
 
 export const map = scenes[0].map;

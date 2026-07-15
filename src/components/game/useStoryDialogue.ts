@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import type { StoryDialoguePayload } from '../../game/ChapterScene';
+import type { StoryDialoguePayload } from '../../game/contracts/story';
 
 export interface ActiveStory {
   payload: StoryDialoguePayload;

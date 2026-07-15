@@ -23,6 +23,11 @@ export interface CarRideConfig {
   actorId?: string;
 }
 
+interface CarRideRuntime {
+  updateFn?: (delta: number) => void;
+  cleanupFn?: () => void;
+}
+
 export const carRideMode: GameMode<CarRideConfig> = {
   id: 'carRide',
 
@@ -217,8 +222,9 @@ export const carRideMode: GameMode<CarRideConfig> = {
     };
 
     // Store references on mode instance for update/teardown
-    (this as any).updateFn = updateTimer;
-    (this as any).cleanupFn = () => {
+    const runtime = this as typeof carRideMode & CarRideRuntime;
+    runtime.updateFn = updateTimer;
+    runtime.cleanupFn = () => {
       if (barksTimer) barksTimer.remove();
       timerBarBg.destroy();
       timerBar.destroy();
@@ -230,14 +236,16 @@ export const carRideMode: GameMode<CarRideConfig> = {
   },
 
   update(time: number, delta: number) {
-    if ((this as any).updateFn) {
-      (this as any).updateFn(delta);
+    const runtime = this as typeof carRideMode & CarRideRuntime;
+    if (runtime.updateFn) {
+      runtime.updateFn(delta);
     }
   },
 
   teardown() {
-    if ((this as any).cleanupFn) {
-      (this as any).cleanupFn();
+    const runtime = this as typeof carRideMode & CarRideRuntime;
+    if (runtime.cleanupFn) {
+      runtime.cleanupFn();
     }
   }
 };

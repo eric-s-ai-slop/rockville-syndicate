@@ -476,7 +476,7 @@ export class DoubleCallMode implements GameMode<DoubleCallConfig> {
     const newRowPos = at(0, 0.06);
 
     const oldDot = this.track(this.ctx.add.circle(oldRowPos.x - s(90), oldRowPos.y, s(5), 0x22c55e).setScrollFactor(0).setDepth(D + 2));
-    const oldLabel = this.track(this.ctx.label(oldRowPos.x - s(72), oldRowPos.y, capital.oldThreadName, {
+    this.track(this.ctx.label(oldRowPos.x - s(72), oldRowPos.y, capital.oldThreadName, {
       fontSize: `${s(14)}px`, color: '#e5e7eb',
     }).setOrigin(0, 0.5).setScrollFactor(0).setDepth(D + 2));
 

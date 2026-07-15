@@ -27,7 +27,7 @@ interface RedHerring {
   bark: string;
 }
 
-interface SpeakerHuntConfig {
+export interface SpeakerHuntConfig {
   night: 1 | 2 | 3;
   speakers: SpeakerSpot[];
   redHerrings?: RedHerring[];
@@ -287,7 +287,7 @@ export class SpeakerHuntMode implements GameMode {
       const d = Phaser.Math.Distance.Between(player.x as number, player.y as number, h.spot.x, h.spot.y);
       if (d <= ZONE_RADIUS) {
         h.cooling = true;
-        this.ctx.showBubbleText(this.ctx.player as any, h.spot.bark, '#94a3b8');
+        this.ctx.showBubbleText(this.ctx.player, h.spot.bark, '#94a3b8');
         this.ctx.time.delayedCall(2500, () => { h.cooling = false; });
       }
     }
@@ -417,7 +417,7 @@ export class SpeakerHuntMode implements GameMode {
     this.lockpickIndicator = indicator;
     this.lockpickSegmentText = segmentText;
     this.lockpickHoldBarFill = holdBarFill;
-    (this.lockpickGraphics as any).__zone = zone;
+    this.lockpickGraphics.setData('__zone', zone);
   }
 
   private pickNewZone(): void {
@@ -431,7 +431,7 @@ export class SpeakerHuntMode implements GameMode {
     const t = (Math.sin(this.lockpickSweepPos) + 1) / 2; // 0..1
 
     if (this.lockpickIndicator) this.lockpickIndicator.x = (t - 0.5) * 260;
-    const zoneShape = (this.lockpickGraphics as any)?.__zone as Phaser.GameObjects.Rectangle | undefined;
+    const zoneShape = this.lockpickGraphics?.getData('__zone') as Phaser.GameObjects.Rectangle | undefined;
     if (zoneShape) zoneShape.x = (this.lockpickZoneCenter - 0.5) * 260;
 
     const inZone = Math.abs(t - this.lockpickZoneCenter) < LOCKPICK_ZONE_WIDTH / 2;

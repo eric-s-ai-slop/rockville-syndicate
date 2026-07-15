@@ -28,6 +28,39 @@ export function getProject(): Project {
   return sharedProject;
 }
 
+export interface SymbolRange {
+  file: string;
+  symbol: string;
+  kind: string;
+  startLine: number;
+  endLine: number;
+}
+
+/**
+ * Return exact source ranges for the named declarations an agent should read.
+ * The range is intentionally metadata rather than source text: callers can
+ * fetch only the relevant slice with `sed`, keeping context-map output small.
+ */
+export function extractSymbolRanges(filePath: string, symbols: string[]): SymbolRange[] {
+  const project = getProject();
+  const file = project.getSourceFileOrThrow(filePath);
+  const exported = file.getExportedDeclarations();
+  const ranges: SymbolRange[] = [];
+  for (const symbol of [...new Set(symbols)]) {
+    const declarations = exported.get(symbol) ?? [];
+    const declaration = declarations[0] ?? file.getVariableDeclaration(symbol) ?? file.getInterface(symbol) ?? file.getTypeAlias(symbol) ?? file.getClass(symbol) ?? file.getFunction(symbol);
+    if (!declaration) continue;
+    ranges.push({
+      file: filePath,
+      symbol,
+      kind: declaration.getKindName(),
+      startLine: declaration.getStartLineNumber(),
+      endLine: declaration.getEndLineNumber(),
+    });
+  }
+  return ranges;
+}
+
 function literalIdFromClass(cls: import('ts-morph').ClassDeclaration): string | null {
   const prop = cls.getProperty('id');
   if (!prop) return null;
@@ -156,4 +189,3 @@ export function extractStringRecord(filePath: string, exportName: string): Recor
   }
   return out;
 }
-

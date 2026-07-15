@@ -3,6 +3,7 @@ import type ChapterScene from '../ChapterScene';
 import { Beat, resolveSpeaker } from '../../data/chapters';
 import { getMode } from '../modes';
 import type { ModeContext, ModeResult } from '../modes/types';
+import { onceModeCompletion } from '../modes/lifecycle';
 import { setRoseSilence } from '../progress';
 import { mariaBrookeStats } from '../modes/mariaBrookeStats';
 
@@ -329,7 +330,7 @@ export class BeatEngine {
         }
       }
       const launchBeatIndex = this.scene.beatIndex;
-      const onComplete = (_result: ModeResult) => {
+      const onComplete = onceModeCompletion((_result: ModeResult) => {
         // An old timer must not tear down a newer run of the same singleton.
         const ownsMode = this.scene.activeMode === mode && this.scene.activeModeBeatIndex === launchBeatIndex;
         if (ownsMode) {
@@ -342,7 +343,7 @@ export class BeatEngine {
           this.scene.activeModeBeatIndex = null;
           this.scene.activeModeBackground = false;
         }
-      };
+      });
       // See GameMode.harnessForceComplete: lets the E2E/gauntlet harness force this
       // mode to resolve instead of waiting out its full real-time timeline.
       mode.harnessForceComplete = onComplete;
@@ -372,7 +373,7 @@ export class BeatEngine {
       this.scene.activeMode = mode;
       this.scene.activeModeBeatIndex = this.scene.beatIndex;
       this.scene.activeModeBackground = false;
-      const onComplete = (result: ModeResult) => {
+      const onComplete = onceModeCompletion((result: ModeResult) => {
         this.lastMinigameResult = result;
         try {
           mode.teardown();
@@ -390,7 +391,7 @@ export class BeatEngine {
         } else {
           this.advanceBeat();
         }
-      };
+      });
       // See GameMode.harnessForceComplete: lets the E2E/gauntlet harness force this
       // mode to resolve instead of waiting out its full real-time timeline.
       mode.harnessForceComplete = onComplete;
@@ -429,7 +430,7 @@ export class BeatEngine {
     this.scene.activeModeBeatIndex = this.scene.beatIndex;
     this.scene.activeModeBackground = false;
 
-    const onComplete = (_result: ModeResult) => {
+    const onComplete = onceModeCompletion((_result: ModeResult) => {
       try {
         mode.teardown();
       } catch (err) {
@@ -440,7 +441,7 @@ export class BeatEngine {
       this.scene.activeModeBackground = false;
       this.unfreeze();
       this.advanceBeat();
-    };
+    });
     // See GameMode.harnessForceComplete: lets the E2E/gauntlet harness force this
     // mode to resolve instead of waiting out its full real-time timeline.
     mode.harnessForceComplete = onComplete;

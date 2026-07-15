@@ -37,6 +37,15 @@ export function selectTests(changedFiles: string[], availableTests: string[]): C
       matched = true;
     }
 
+    if (!/\.test\.tsx?$/.test(file) && /\.tsx?$/.test(file)) {
+      const base = file.replace(/\.tsx?$/, '');
+      const companionTests = [`${base}.test.ts`, `${base}.test.tsx`].filter(test => available.includes(test));
+      if (companionTests.length) {
+        add(...companionTests);
+        matched = true;
+      }
+    }
+
     if (file === 'e2e_tests/agent/context-map.json' || file.endsWith('context-map.ts') || file.endsWith('context-map-data.ts')) {
       add('src/agentContextMap.test.ts');
       matched = true;
@@ -79,6 +88,21 @@ export function selectTests(changedFiles: string[], availableTests: string[]): C
 
     if (file === 'src/game/scene/contracts.ts') {
       add('src/game/scene/contracts.test.ts');
+      matched = true;
+    }
+
+    if (file === 'src/contracts/mode-configs.ts') {
+      add(
+        'src/game/modes/conformance.test.ts',
+        'src/game/modes/index.test.ts',
+        'src/data/chapters.test.ts',
+        'src/data/chapters/types.test.ts',
+      );
+      matched = true;
+    }
+
+    if (file === 'src/game/contracts/story.ts') {
+      add('src/components/game/useStoryDialogue.test.ts', 'src/components/GameLayout.test.tsx');
       matched = true;
     }
 

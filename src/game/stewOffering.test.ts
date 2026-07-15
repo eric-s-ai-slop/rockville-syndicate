@@ -10,8 +10,6 @@ vi.mock('phaser', () => {
   };
 });
 
-import { StewOfferingMode } from './modes/stewOffering/index';
-
 describe('StewOfferingMode', () => {
   it('should handle npc clicks and complete the minigame', () => {
     // Basic test without full phaser integration

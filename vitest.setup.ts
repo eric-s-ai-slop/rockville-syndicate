@@ -10,7 +10,7 @@ const localStorageMock = {
   clear: () => { for (const k in store) delete store[k]; },
   removeItem: (key: string) => { delete store[key]; },
   length: 0,
-  key: (index: number) => null,
+  key: (_index: number) => null,
 };
 Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock, writable: true });
 
@@ -34,7 +34,7 @@ vi.mock('phaser', () => {
 });
 
 // Improved Mock Canvas 2D Context for jsdom
-HTMLCanvasElement.prototype.getContext = function (contextId: string, options?: any): any {
+HTMLCanvasElement.prototype.getContext = function (contextId: string, _options?: any): any {
   if (contextId === '2d') {
     return {
       fillRect: () => {},

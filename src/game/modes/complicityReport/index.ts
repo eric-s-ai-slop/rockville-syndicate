@@ -32,7 +32,6 @@ export class ComplicityReportMode implements GameMode {
     // Camera zoom (default 2.0) scales scrollFactor(0) objects, so keep the whole
     // layout within the zoomed-visible extent (visW × visH) or it spills off-screen.
     const visW = W / cam.zoom;
-    const visH = H / cam.zoom;
 
     // Full-screen black takeover — oversized + scrollFactor(0) so it always covers
     // the viewport regardless of camera scroll or zoom. Opaque fill (fillAlpha 1);

@@ -1,8 +1,10 @@
 # Minigame Modes Reference
 
-Dense cheat sheet for the mode registry. The contract is canonical in [types.ts](types.ts)
-(`GameMode`, `ModeContext`, `ModeResult`); registration lives in [index.ts](index.ts). To
-build a new mode, copy [_template/](_template/) and follow `docs/ADDING_A_MINIGAME.md`.
+Dense cheat sheet for the mode registry. The lifecycle contract is canonical in [types.ts](types.ts)
+(`GameMode`, `ModeContext`, `ModeResult`); typed mode IDs/configs live in
+[`src/contracts/mode-configs.ts`](../../contracts/mode-configs.ts), and registration lives in
+[index.ts](index.ts). To build a new mode, copy [_template/](_template/) and follow
+`docs/ADDING_A_MINIGAME.md`.
 
 ## Registered modes
 
@@ -28,6 +30,8 @@ build a new mode, copy [_template/](_template/) and follow `docs/ADDING_A_MINIGA
 ## Lifecycle & outcome
 
 - `start(ctx, config, onComplete)` → run → call `onComplete({ outcome, data? })` exactly once.
+  The host's `onceModeCompletion` guard prevents duplicate story advancement/teardown;
+  modes should still guard local resolve work when multiple inputs or timers can race.
 - In the hosting chapter: **win falls through** to the next beat, **lose jumps** to the
   minigame beat's `loseGoto`. There is no generic multi-outcome router — `routeOnMinigame`
   is hardcoded to groupChat's payload (`BeatEngine.runRouteOnMinigame`); do not use it for
@@ -54,5 +58,7 @@ build a new mode, copy [_template/](_template/) and follow `docs/ADDING_A_MINIGA
   shows the pattern. Don't hand-roll the math — hand-rolled versions bit
   `complicityReport`, `speakerHunt`, and `Atmosphere.setScreenTint` independently.
 - Clean up everything in `end()`/teardown: tweens, timers, temporary depth-9000+ UI.
+- A new mode must be added to `ModeConfigMap`, `MODE_IDS`, and the runtime registry;
+  `conformance.test.ts` fails if those inventories drift.
 - Playtest before wiring into a chapter: temporarily insert your `minigame` beat as the
   first beat of any chapter (`docs/ADDING_A_MINIGAME.md` §7), then revert.

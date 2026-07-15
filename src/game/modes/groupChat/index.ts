@@ -8,7 +8,7 @@ import { mariaBrookeStats } from '../mariaBrookeStats';
 // all world geometry, below the scene letterbox bars (depth 9500).
 const D = 9000;
 
-interface GroupChatConfig {
+export interface GroupChatConfig {
   timelineEndsAtMs?: number;
   finalPromptTimeoutMs?: number;
   complicityMax?: number;
@@ -719,7 +719,6 @@ export class GroupChatMode implements GameMode {
       .setDepth(D + 22).setScrollFactor(0).setOrigin(0.5));
 
     // Player can still type — Enter during final prompt counts as late
-    const originalHandler = this.keyListener;
     window.removeEventListener('keydown', this.keyListener);
     this.keyListener = (e: KeyboardEvent) => {
       if (this.modeEnded) return;

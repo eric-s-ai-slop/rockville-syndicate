@@ -1217,7 +1217,7 @@ export function preprocessFemalePoolSheet(
     idleBackFrames.push(drawComp(rectIB, 2, i));
   }
 
-  coords.walkFront.forEach((r: any, idx: number) => {
+  coords.walkFront.forEach((r: SpriteCoords, idx: number) => {
     const rectWF = scaleRect(r);
     walkFrontFrames.push(drawComp(rectWF, 3, idx));
   });
@@ -1225,13 +1225,13 @@ export function preprocessFemalePoolSheet(
   walkSideFrames.push(...walkFrontFrames);
   walkBackFrames.push(...idleBackFrames);
 
-  coords.submergedIdle.forEach((r: any, idx: number) => {
+  coords.submergedIdle.forEach((r: SpriteCoords, idx: number) => {
     const rectSI = scaleRect(r);
     submergedIdleFrames.push(drawComp(rectSI, 6, idx));
   });
   submergedIdleFrames.push(submergedIdleFrames[0]);
 
-  coords.submergedSwim.forEach((r: any, idx: number) => {
+  coords.submergedSwim.forEach((r: SpriteCoords, idx: number) => {
     const rectSS = scaleRect(r);
     submergedSwimFrames.push(drawComp(rectSS, 7, idx));
   });
@@ -1279,8 +1279,6 @@ export function preprocessGirlSilhouetteSheet(img: HTMLImageElement): SlicedSpri
   finalCanvas.height = targetFrameH * 4;
   const finalCtx = finalCanvas.getContext('2d');
   if (!finalCtx) throw new Error('finalCtx fail');
-
-  const idleFrontFrames = [0]; // Just return an array of frames
 
   for (let row = 0; row < 4; row++) {
     for (let col = 0; col < 4; col++) {

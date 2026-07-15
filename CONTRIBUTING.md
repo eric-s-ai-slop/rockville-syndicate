@@ -14,13 +14,16 @@ Run before opening a PR — CI enforces all four:
 
 ```bash
 npm run lint        # tsc --noEmit
-npm run lint:es     # eslint
-npm test            # vitest (500+ tests)
+npm run lint:es     # eslint, zero warnings
+npm test            # server-free vitest suite (600+ tests, including dependency boundaries)
 npm run build       # vite client + esbuild server bundle
 ```
 
 Use `npm run check:agent` for the same full gate with compact output, or
 `npm run agent:check -- <changed-file...>` for safe focused unit selection.
+Both agent checks also run `npm run agent:boundaries`. The live-server CLI
+protocol tests are intentionally separate: run `npm run agent:integration`
+with the dev server on port 3324; CI runs them in the gauntlet job.
 
 CI runs automatically on every push and PR to `main` (see `.github/workflows/ci.yml`).
 
@@ -57,6 +60,8 @@ CI runs automatically on every push and PR to `main` (see `.github/workflows/ci.
 - **Data over code.** Prefer extending chapter configs (`data/chapters/*.ts`) and `data/entities/`
   to hardcoding. New chapters use the pipeline in [`docs/chapter-pipeline/`](docs/chapter-pipeline/).
 - **New logic ships with a test** — especially anything in `modes/` or `BeatEngine`.
+- **Keep tool discovery intent-first and centralized in root `CLAUDE.md`.** When a workflow changes,
+  update its existing route instead of adding another capability catalog or one-off debug script.
 - **Update the living docs in the same PR** as the behavior change. Drift is how the old
   handoffs became unreliable. Living docs: `CLAUDE.md`, `ARCHITECTURE.md`, `CONTRIBUTING.md`,
   `README.md`, `ROADMAP.md`, and the directory cheat sheets `src/data/chapters/CLAUDE.md`

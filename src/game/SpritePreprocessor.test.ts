@@ -3,7 +3,6 @@ import { preprocessShowcaseSheet, preprocessColumnFirstSheet, preprocessGirlSilh
 
 describe('SpritePreprocessor', () => {
   let originalGetContext: any;
-  let originalGetImageData: any;
 
   beforeEach(() => {
     // Save original methods

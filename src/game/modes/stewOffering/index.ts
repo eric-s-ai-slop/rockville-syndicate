@@ -14,9 +14,9 @@ export class StewOfferingMode {
   private uiContainer: Phaser.GameObjects.Container | null = null;
   private uiProgressText: Phaser.GameObjects.Text | null = null;
 
-  preload(ctx: ModeContext): void {}
+  preload(_ctx: ModeContext): void {}
 
-  start(ctx: ModeContext, config: any, onComplete: (result: ModeResult) => void): void {
+  start(ctx: ModeContext, _config: unknown, onComplete: (result: ModeResult) => void): void {
     this.ctx = ctx;
     this.onCompleteCallback = onComplete;
     this.interacted.clear();
@@ -90,7 +90,7 @@ export class StewOfferingMode {
     this.ctx.physics.scene.input.on('pointerdown', this.handleFloorClick, this);
   }
 
-  update(time: number, delta: number): void {}
+  update(_time: number, _delta: number): void {}
 
   teardown(): void {
     this.ctx.physics.scene.input.off('pointerdown', this.handleFloorClick, this);
@@ -119,7 +119,7 @@ export class StewOfferingMode {
     this.onCompleteCallback = null;
   }
 
-  private handleFloorClick(pointer: Phaser.Input.Pointer, currentlyOver: any[]) {
+  private handleFloorClick(pointer: Phaser.Input.Pointer, currentlyOver: Phaser.GameObjects.GameObject[]) {
     // If we clicked on an interactive sprite (like a girl or UI), do nothing
     if (currentlyOver.length > 0) return;
     if (this.isMoving) return;

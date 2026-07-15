@@ -163,7 +163,7 @@ The [`modes/_template/`](src/game/modes/_template/) directory is a copyable refe
 - **Animation/UI libs**: `motion`, `lucide-react`
 - **Assets**: LimeZu Interiors tileset, Kenney impact SFX pack, original artwork, generated voice lines
 - **Build/tooling**: Vite (client) + esbuild (server bundle), `tsx` for dev/server execution
-- **Tests**: Vitest (unit, 500+ tests) + Playwright (E2E)
+- **Tests**: Vitest (unit, 600+ tests) + Playwright (E2E)
 - **Save system**: `localStorage` key `omega-save-v2` — unified blob: settings + progress + Hall of Records
 
 ---
@@ -180,6 +180,7 @@ project-omega_-the-rockville-syndicate/
 ├── tsconfig.json
 ├── vite.config.ts                   # Vite client build config
 ├── vitest.config.ts                 # Vitest unit-test config
+├── vitest.integration.config.ts     # Live-server agent CLI integration tests
 ├── vitest.setup.ts                  # Test environment setup
 ├── playwright.config.ts             # Playwright E2E config
 ├── eslint.config.js                 # ESLint 9 config (typescript-eslint, react-hooks)
@@ -196,6 +197,9 @@ project-omega_-the-rockville-syndicate/
 │   ├── main.tsx                     # React root (StrictMode)
 │   ├── App.tsx                      # Top-level app component
 │   ├── index.css                    # Global styles (Tailwind v4)
+│   │
+│   ├── contracts/
+│   │   └── mode-configs.ts          # Canonical mode IDs and ID→config type map
 │   │
 │   ├── components/
 │   │   ├── GameLayout.tsx           # React<->Phaser lifecycle host and screen composition
@@ -215,6 +219,7 @@ project-omega_-the-rockville-syndicate/
 │   │
 │   ├── game/
 │   │   ├── ChapterScene.ts          # Phaser lifecycle host (~1,500 lines)
+│   │   ├── contracts/story.ts       # Shared React↔Phaser story payload contract
 │   │   ├── assets/chapter/          # Typed active-chapter image manifests
 │   │   ├── settings.ts              # Unified save store (save-schema-v2): settings + progress + HoR
 │   │   ├── settings.test.ts
@@ -240,6 +245,7 @@ project-omega_-the-rockville-syndicate/
 │   │   └── modes/
 │   │       ├── types.ts             # GameMode interface + ModeContext façade
 │   │       ├── index.ts             # Mode registry: registerMode/getMode
+│   │       ├── lifecycle.ts         # Exactly-once completion guard
 │   │       ├── _template/           # Copyable reference mode
 │   │       ├── bossFight/           # Combat minigame + bossFight.test.ts
 │   │       ├── poolParty/           # Ch9 pool entrance
@@ -320,6 +326,10 @@ The dev server (`tsx server.ts`) runs at **`http://localhost:3324`**.
 | `npm run ci` | Full gate: typecheck + eslint + tests + build |
 | `npm run check:agent` | Same full gate with compact, token-efficient output |
 | `npm run agent:check -- <files...>` | Typecheck/lint plus safe focused tests; unknown cross-cutting files fall back to full |
+| `npm run agent:map -- --target=<domain>` | Emit a compact, curated task brief; chapter/mode IDs can add opt-in `--symbols` ranges |
+| `npm run agent:registry` | Emit the canonical compact chapter/mode inventory; add `--symbols` only when exact declarations are needed |
+| `npm run agent:boundaries` | Check content/runtime/UI dependency directions |
+| `npm run agent:integration` | Run live-server CLI protocol tests (requires the dev server on port 3324) |
 | `npm test` | Run the Vitest unit-test suite |
 | `npm run e2e` | Run the Playwright E2E suite |
 | `npm run agent -- --help` | Terminal playtesting CLI — hold keys, drag-mouse, read live game state, step frames (see [`docs/AGENT_TOOLKIT.md`](docs/AGENT_TOOLKIT.md)) |
@@ -331,10 +341,11 @@ The dev server (`tsx server.ts`) runs at **`http://localhost:3324`**.
 
 ## Testing
 
-- **Unit tests** (Vitest, 500+) live alongside source as `*.test.ts(x)` — covering settings/save, scoring, boss fight logic, beat routing, bridge hooks, asset manifests, validation selection, sprite preprocessing, and more.
+- **Unit tests** (Vitest, 600+) live alongside source as `*.test.ts(x)` — covering settings/save, scoring, boss fight logic, beat routing, bridge hooks, asset manifests, architecture boundaries, mode conformance, validation selection, sprite preprocessing, and more. The normal suite is server-free.
+- **Agent CLI integration tests** use `npm run agent:integration` while the dev server is running; CI executes them in the gauntlet job after server startup.
 - **E2E tests** (Playwright) live in [`e2e_tests/`](e2e_tests/) and exercise full gameplay flows. Run with `npm run e2e`.
 - **Manual/agent playtesting**: [`e2e_tests/agent/`](e2e_tests/agent/) exposes the same stateful Playwright toolkit as a terminal CLI (`npm run agent -- --help`) — hold keys, click-drag, read exact game state (position, HP, scene, active mode) as JSON, and step the Phaser loop frame-by-frame, all without screenshots. See [`docs/AGENT_TOOLKIT.md`](docs/AGENT_TOOLKIT.md).
-- **CI** (GitHub Actions) runs `lint → lint:es → test → build` on every push and PR to `main`.
+- **CI** (GitHub Actions) runs `lint → lint:es → test → build`, Playwright E2E, the chapter gauntlet, and the live agent CLI integration suite on every push and PR to `main`.
 - Run the full gate locally with `npm run ci` before pushing.
 
 ---

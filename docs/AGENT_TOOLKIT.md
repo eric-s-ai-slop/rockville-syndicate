@@ -25,6 +25,23 @@ One-time, if you've never run Playwright here: `npx playwright install chromium`
 
 ## 1. How to run it
 
+### Localized visual or runtime diagnosis
+
+Use this existing workflow before writing a one-off browser script or temporary
+runtime hook:
+
+```bash
+npm run agent:restart-check
+npm run agent -- --chapter <chapter-id-or-title> --diagnostic --repl
+```
+
+Prefer `advance-to scene <index> [beat <index>]` when prior story state matters.
+For a direct jump, use `goto scene <index> [beat <index-or-id>]`; skipping prior
+side effects requires the explicit `--allow-skipped-prerequisites` flag. Inspect
+with `observe --shot`, `screenshot <name> --annotate`, `camera`, `actors`, and
+`logs`. Diagnostic artifacts are labeled completion-ineligible; after a fix,
+run the proportionate validation or full playtest separately.
+
 ```bash
 npm run agent -- [flags] ["command; command; ..."]
 ```
@@ -370,8 +387,9 @@ complete error collection instead of the default 20-error cap. Likewise,
 compact validation receipt.
 
 `agent:check` writes `agent-artifacts/check/validation-receipt.json` using the
-`omega-validation-receipt-v1` schema. It records typecheck, lint, focused tests,
-and build stages, with explicit skipped reasons for report and visual-evidence
+`omega-validation-receipt-v1` schema. It records typecheck, lint, architecture
+boundaries, focused tests, and build stages, with explicit skipped reasons for
+report and visual-evidence
 stages. The first run records an ESLint warning baseline; later receipts split
 pre-existing and newly introduced warnings. Use `npm run agent:restart-check` to
 replace only a verified workspace-owned server on port 3324 and wait for its
@@ -530,13 +548,14 @@ npm run agent -- --chapter "The Spotify Family Insurgency" "advance; press d 100
 - **Chapter Gauntlet Runner.** Running `npm run agent -- --gauntlet` runs a background gauntlet where dialogue is clicked through, and complex minigames are mocked out, verifying that all chapters run successfully to completion without stalling.
   > **WARNING:** The gauntlet validates logic, NOT visuals. Agents MUST still use `screenshot` to manually verify rendering, sprite scaling, and UI layout.
 - **Static Asset Audit.** Running `npm run agent:audit` statically parses and audits all chapters to ensure that all speakers and audio assets mentioned in chapter definitions are correctly defined and exist as static files in the repository.
-- **Compact code validation.** `npm run agent:check -- <changed-file...>` runs typecheck, ESLint, and a safe focused unit set; `npm run check:agent` adds the full unit suite and production build while keeping successful output to one line per stage. Detailed logs stay under ignored `agent-artifacts/check/`.
+- **Compact code validation.** `npm run agent:check -- <changed-file...>` runs typecheck, zero-warning ESLint, dependency-boundary checks, and a safe focused unit set; `npm run check:agent` adds the full server-free unit suite and production build while keeping successful output to one line per stage. Detailed logs stay under ignored `agent-artifacts/check/`. `npm run agent:integration` is separate because its CLI protocol tests require a live dev server.
 - **Chapter scaffolding.** `npm run agent:scaffold-chapter -- <index> <slug>` creates the smallest typed chapter config without registering incomplete content. Finish its assets/music/README entries before adding it to `CHAPTERS`.
 - **Gauntlet runs in CI on every push to main** (the `gauntlet` job in
   `.github/workflows/ci.yml`) via `npm run agent -- --gauntlet --shots`. It
   starts and health-checks `npm run dev` itself (unlike the `e2e` job, this
   isn't a Playwright test, so `webServer` config doesn't apply), runs
-  `npm run agent:audit` first, then uploads the contact sheet + per-scene
+  `npm run agent:audit` first, runs `npm run agent:integration` against the live
+  server, then uploads the contact sheet + per-scene
   screenshots as the `gauntlet-shots` artifact. A stall or `--max-errors`
   budget breach fails the job.
 - **Stabilized screenshots.** Anything meant for comparison or review —

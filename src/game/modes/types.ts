@@ -2,13 +2,15 @@ import Phaser from 'phaser';
 import { BossConfig, CharacterClass } from '../../data/entities';
 import { ChapterConfig } from '../../data/chapters';
 import type { Beat } from '../../data/chapters/types';
-import type { StoryDialoguePayload } from '../ChapterScene';
+import type { StoryDialoguePayload } from '../contracts/story';
 import { AudioController } from '../scene/AudioController';
 
 export interface ModeResult {
   outcome?: 'win' | 'lose' | 'skip';
   data?: unknown;
 }
+
+export type { ModeConfigMap, ModeId } from '../../contracts/mode-configs';
 
 export interface ModeContext {
   player: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;

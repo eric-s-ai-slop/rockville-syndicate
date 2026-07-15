@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Lock, Play, Check, EyeOff } from 'lucide-react';
 import { CHAPTERS, ChapterConfig, MapTheme } from '../data/chapters';
 import { isChapterUnlocked, setFreePlay } from '../game/progress';
@@ -125,9 +125,9 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
   const [sealStates, setSealStates] = useState<Record<string, SealState>>({});
   const [justShattered, setJustShattered] = useState<string | null>(null);
 
-  const sealStateFor = (id: string): SealState => sealStates[id] ?? 'intact';
+  const sealStateFor = useCallback((id: string): SealState => sealStates[id] ?? 'intact', [sealStates]);
 
-  const interactSeal = (id: string) => {
+  const interactSeal = useCallback((id: string) => {
     const state = sealStateFor(id);
     if (state === 'intact') {
       playUi('crack', 0.6);
@@ -138,14 +138,14 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
       setJustShattered(id);
       setTimeout(() => { setJustShattered(null); }, 600);
     }
-  };
+  }, [sealStateFor]);
 
-  const toggleFreePlay = () => {
+  const toggleFreePlay = useCallback(() => {
     const next = !localFreePlay;
     setLocalFreePlay(next);
     setFreePlay(next);
     onFreePlayChange(next);
-  };
+  }, [localFreePlay, onFreePlayChange]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -172,7 +172,7 @@ export default function ChapterSelect({ heroColor, completed, freePlay, onFreePl
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedIndex, completed, localFreePlay, onPick, sealStates]);
+  }, [selectedIndex, completed, localFreePlay, onPick, sealStates, interactSeal, sealStateFor, toggleFreePlay]);
 
   return (
     <div

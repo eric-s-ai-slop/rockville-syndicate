@@ -124,7 +124,8 @@ fix those two problems using machinery that already exists; N4 makes the
 Antigravity driving loop cheaper. Explicitly **deferred, do not build now**:
 the sprite geometry linter (E8 — only if N3's vision review proves too noisy),
 the autonomous LLM loop (I1 — superseded; Antigravity *is* the loop), fuzz,
-parallel gauntlet, AST mapper.
+parallel gauntlet, and a general AST dependency mapper. D5's narrow opt-in
+declaration-range lookup is the intentional limit.
 
 ### N1. Gauntlet in CI with per-scene screenshots (`--shots`) — implemented
 
@@ -543,13 +544,15 @@ scene-field write; unlocks whole test categories (low-HP barks, game-over
 screens, ledger-threshold endings) that currently require grinding. Emits
 `mutates:true` + a state-validity `warning` (rule 9).
 
-### D5. AST Context-Mapping CLI — **P2, descoped**
-Instead of a general AST dependency mapper: ship `npm run agent:map
+### D5. AST Context-Mapping CLI — **P2, implemented narrowly**
+Instead of a general AST dependency mapper, `npm run agent:map
 --target=weapon|boss|mode|chapter` as a **curated, hand-maintained JSON** of
 registration points per domain, **validated by a unit test that checks the
 listed files/symbols still exist** (so it can't silently rot). 90% of the value,
-10% of the machinery. If/when C6's audit moves to `ts-morph` (H1), revisit
-generating this from the AST.
+10% of the machinery. Chapter/mode lookups and `agent:registry` accept an
+opt-in `--symbols` flag that uses the shared `ts-morph` project only to return
+exact declaration ranges. Default output omits ranges to preserve the token
+advantage; this is not a general dependency graph.
 
 ### D6. Telemetry Summarizer — **superseded**
 The vague "semantic YAML summary" is replaced by two concrete tools that

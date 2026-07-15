@@ -15,7 +15,7 @@ export class TemplateMode implements GameMode {
    * Preload assets specific to this minigame mode.
    * This is called automatically by ChapterScene during Phaser preloading.
    */
-  preload(ctx: ModeContext): void {
+  preload(_ctx: ModeContext): void {
     // Example: ctx.load.image('special_item', 'assets/...');
   }
 
@@ -23,7 +23,7 @@ export class TemplateMode implements GameMode {
    * Start the minigame mode execution.
    * Call onComplete exactly once when the minigame resolves (win, lose, or skip).
    */
-  start(ctx: ModeContext, config: any, onComplete: (result: ModeResult) => void): void {
+  start(ctx: ModeContext, _config: unknown, onComplete: (result: ModeResult) => void): void {
     this.ctx = ctx;
     this.onCompleteCallback = onComplete;
 
@@ -63,7 +63,7 @@ export class TemplateMode implements GameMode {
   /**
    * Optional update tick, forwarded from the host scene's update() loop.
    */
-  update(time: number, delta: number): void {
+  update(_time: number, _delta: number): void {
     if (this.spaceKey && Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
       this.resolveMinigame('win');
     }

@@ -145,7 +145,7 @@ export class AudioController {
   public crossfadeToMusic(newKey: string) {
     if (!newKey || !this.scene.cache.audio.exists(newKey)) return;
     const current = this.scene.stageMusic as Phaser.Sound.WebAudioSound | null;
-    if ((current as any)?.key === newKey && current?.isPlaying) return;
+    if (current?.key === newKey && current.isPlaying) return;
 
     // Invalidate any in-flight crossfade from a previous call (e.g. warp/goto firing
     // several crossfades back-to-back) — its delayedCall/tween callbacks below check
@@ -199,7 +199,8 @@ export class AudioController {
         this.scene.bossMusicSting.play();
         this.scene.time.delayedCall(3127, () => {
           const sting = this.scene.bossMusicSting;
-          if (sting && !(sting as any).pendingRemove && sting.isPlaying) {
+          const stingState = sting as (Phaser.Sound.BaseSound & { pendingRemove?: boolean });
+          if (sting && !stingState.pendingRemove && sting.isPlaying) {
             this.scene.tweens.add({
               targets: sting,
               volume: 0,
@@ -246,8 +247,9 @@ export class AudioController {
     // Resume stage music
     if (this.scene.stageMusic) {
       try {
-        if (!(this.scene.stageMusic as any).isPlaying) (this.scene.stageMusic as Phaser.Sound.WebAudioSound).resume();
-        this.scene.tweens.add({ targets: this.scene.stageMusic, volume: this.currentStageMix * getSettings().musicVolume, duration: 900 });
+        const stageMusic = this.scene.stageMusic as Phaser.Sound.WebAudioSound;
+        if (!stageMusic.isPlaying) stageMusic.resume();
+        this.scene.tweens.add({ targets: stageMusic, volume: this.currentStageMix * getSettings().musicVolume, duration: 900 });
       } catch { /* skip */ }
     }
   }

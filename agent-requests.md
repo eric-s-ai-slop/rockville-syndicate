@@ -391,7 +391,7 @@ interface ValidationReceiptV1 {
   ok: boolean;
   changedFiles: string[];
   checks: Array<{
-    name: 'typecheck' | 'eslint' | 'focused-tests' | 'report-audit' | 'visual-evidence';
+    name: 'typecheck' | 'eslint' | 'boundaries' | 'focused-tests' | 'build' | 'report-audit' | 'visual-evidence';
     status: 'passed' | 'failed' | 'skipped';
     durationMs: number;
     reason?: string;

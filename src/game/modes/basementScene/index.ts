@@ -107,9 +107,11 @@ export class BasementSceneMode implements GameMode {
     if (!sprite) return;
 
     const [, nameplate, shadow] = this.ctx.actorSprites[actorId];
+    const nameplateVisual = nameplate as (Phaser.GameObjects.Text | undefined);
+    const shadowVisual = shadow as (Phaser.GameObjects.Image | undefined);
 
     if (opts.flipX !== undefined && (sprite as Phaser.GameObjects.Sprite).setFlipX) {
-      const sx = (sprite as any).x ?? 0;
+      const sx = sprite.x;
       const goingLeft = tx < sx;
       (sprite as Phaser.GameObjects.Sprite).setFlipX(goingLeft);
     }
@@ -122,15 +124,14 @@ export class BasementSceneMode implements GameMode {
       duration,
       ease: 'Sine.easeInOut',
       onUpdate: () => {
-        const s = sprite as any;
-        s.setDepth?.(s.y);
-        if (nameplate) {
-          (nameplate as any).setPosition?.(s.x, s.y - 38);
-          (nameplate as any).setDepth?.(s.y + 200);
+        sprite.setDepth(sprite.y);
+        if (nameplateVisual) {
+          nameplateVisual.setPosition(sprite.x, sprite.y - 38);
+          nameplateVisual.setDepth(sprite.y + 200);
         }
-        if (shadow) {
-          (shadow as any).setPosition?.(s.x, s.y + 18);
-          (shadow as any).setDepth?.(s.y - 1);
+        if (shadowVisual) {
+          shadowVisual.setPosition(sprite.x, sprite.y + 18);
+          shadowVisual.setDepth(sprite.y - 1);
         }
       },
     });

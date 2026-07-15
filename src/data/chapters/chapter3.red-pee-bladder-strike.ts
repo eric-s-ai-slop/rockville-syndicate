@@ -1,5 +1,4 @@
 import { ChapterConfig } from './types';
-import { C } from './palette';
 
 const chapter3: ChapterConfig = {
   id: 'red_pee_bladder',

@@ -4,6 +4,7 @@ import { selectTests } from './check-selection';
 const tests = [
   'src/agentContextMap.test.ts',
   'src/components/GameLayout.test.tsx',
+  'src/components/game/useStoryDialogue.test.ts',
   'src/data/chapters.test.ts',
   'src/data/chapters/chaptersDoc.test.ts',
   'src/data/chapters/types.test.ts',
@@ -16,6 +17,8 @@ const tests = [
   'src/game/modes/groupChat/parser.test.ts',
   'src/game/modes/groupChat/timeline.test.ts',
   'src/game/modes/index.test.ts',
+  'src/game/modes/conformance.test.ts',
+  'src/game/modes/lifecycle.test.ts',
   'src/game/modes/modesDoc.test.ts',
   'src/game/settings.test.ts',
 ];
@@ -53,5 +56,28 @@ describe('selectTests', () => {
     expect(selectTests(['src/game/assets/chapter/origins.ts'], tests).testFiles).toContain('src/game/assets/chapter/chapterAssets.test.ts');
     expect(selectTests(['src/game/scene/contracts.ts'], tests).testFiles).toContain('src/game/scene/contracts.test.ts');
     expect(selectTests(['src/game/scene/ChaseController.ts'], tests).testFiles).toContain('src/game/scene/ChaseController.test.ts');
+  });
+
+  it('keeps shared contract edits focused without losing their cross-layer guards', () => {
+    const modes = selectTests(['src/contracts/mode-configs.ts'], tests);
+    expect(modes.fullSuite).toBe(false);
+    expect(modes.testFiles).toEqual(expect.arrayContaining([
+      'src/game/modes/conformance.test.ts',
+      'src/game/modes/index.test.ts',
+      'src/data/chapters.test.ts',
+    ]));
+
+    const story = selectTests(['src/game/contracts/story.ts'], tests);
+    expect(story.fullSuite).toBe(false);
+    expect(story.testFiles).toEqual(expect.arrayContaining([
+      'src/components/game/useStoryDialogue.test.ts',
+      'src/components/GameLayout.test.tsx',
+    ]));
+  });
+
+  it('uses an adjacent unit test for a focused source edit', () => {
+    const result = selectTests(['src/game/modes/lifecycle.ts'], tests);
+    expect(result.fullSuite).toBe(false);
+    expect(result.testFiles).toContain('src/game/modes/lifecycle.test.ts');
   });
 });

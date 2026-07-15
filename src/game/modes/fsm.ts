@@ -3,7 +3,7 @@
 // booleans scattered across a mode's update() loop with named states, e.g.
 // IDLE | CHASE | ATTACK_MELEE | STUNNED. Framework-agnostic (no Phaser import) —
 // works for a per-enemy FSM (swarmSurvival) or a single boss-level FSM (bossFight).
-export interface FSMState<S extends string> {
+export interface FSMState<_S extends string> {
   /** Runs once when this state becomes current. */
   enter?: () => void;
   /** Runs every tick while this state is current (forward your mode's time/delta). */

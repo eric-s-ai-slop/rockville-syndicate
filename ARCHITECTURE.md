@@ -12,7 +12,7 @@ Project Omega is a story-driven pixel RPG where gameplay consists of linear narr
 
 1. **Separation of Concerns**: React 19 manages the overlay UI (dialogue, choices, QTE prompts, difficulty settings, Hall of Records screen) while Phaser 3.88.2 handles the physical world (camera, physics, sprite animations, collisions).
 2. **Subsystem Delegation**: The main Phaser scene (`ChapterScene.ts`) is the lifecycle host. It delegates to focused systems including `MapBuilder`, `Actors`, `AudioController`, `BeatEngine`, `PlayerController`, `Atmosphere`, `SpriteLoader`, and `ChaseController`. Six systems depend on narrow structural contracts rather than the entire scene class.
-3. **Modular Extensibility (GameModes)**: Combat encounters and custom interactive segments implement the `GameMode` contract and interact with the scene strictly through a controlled `ModeContext` façade.
+3. **Modular Extensibility (GameModes)**: Combat encounters and custom interactive segments implement the `GameMode` contract and interact with the scene strictly through a controlled `ModeContext` façade. `ModeConfigMap` keeps chapter beat configs tied to registered mode IDs.
 4. **Unified Persistence**: All save state — settings, story progress, and Hall of Records history — lives in a single versioned `localStorage` blob (`omega-save-v2`) managed by `src/game/settings.ts`. No new ad-hoc keys.
 
 ---
@@ -24,8 +24,8 @@ Project Omega is a story-driven pixel RPG where gameplay consists of linear narr
 - **Styling**: Tailwind CSS v4 + global custom CSS
 - **Build / Packaging**: Vite (client) + esbuild (server bundle)
 - **Save State**: `localStorage` key `omega-save-v2` — unified blob (settings + progress + Hall of Records)
-- **Tests**: Vitest (500+ unit tests) + Playwright (E2E)
-- **Quality gate**: ESLint 9 + typescript-eslint; GitHub Actions CI runs on every push/PR
+- **Tests**: Vitest (600+ unit tests) + Playwright (E2E); live-server agent CLI tests use a separate Vitest integration config
+- **Quality gate**: zero-warning ESLint 9 + typescript-eslint, dependency-boundary checks, and GitHub Actions CI on every push/PR
 
 ---
 
@@ -101,13 +101,16 @@ Exposes `isInvuln(now)`, `resetDashCooldown()`, `cancelAttackAnim()`, and `playe
 
 ### 3.8 React Bridge Hooks
 
-`components/GameLayout.tsx` hosts Phaser and screen composition. Focused hooks in `components/game/` own story-dialogue and QTE lifecycles. Both mirror callback-bearing state into refs and invoke Phaser side effects outside React state updaters, preserving StrictMode safety.
+`components/GameLayout.tsx` hosts Phaser and screen composition. Focused hooks in `components/game/` own story-dialogue and QTE lifecycles. Both mirror callback-bearing state into refs and invoke Phaser side effects outside React state updaters, preserving StrictMode safety. The shared story payload lives in `game/contracts/story.ts`, keeping the UI bridge independent of the full scene class.
 
 ---
 
 ## 4. The GameMode System (Extensibility)
 
 Interactive elements are separated from the main Phaser engine via the mode registry.
+`src/contracts/mode-configs.ts` is the canonical ID→config map and exports the
+runtime `MODE_IDS` tuple. A conformance test prevents that tuple and the runtime
+registry from drifting apart.
 
 ### 4.1 The `GameMode` Contract
 
@@ -137,6 +140,10 @@ Minigames interact only through `ModeContext`. This façade exposes:
 - **Scenery Maps**: `propSprites`, `poolNameplates`.
 
 To add a new capability to a mode, **extend the façade** with a clear name — don't reach into scene internals.
+
+The host wraps every foreground/background mode completion with
+`onceModeCompletion`, guaranteeing that racing callbacks advance and tear down
+at most once. Modes remain responsible for cleaning up all owned resources.
 
 ---
 
@@ -214,8 +221,9 @@ See [`docs/chapter-pipeline/`](docs/chapter-pipeline/) for the full authoring pi
 
 1. **Copy Template**: `cp -r src/game/modes/_template/ src/game/modes/myMinigame/`
 2. **Implement Lifecycle**: Fill in `id`, `preload`, `start`, `update`, `teardown`.
-3. **Register**: `registerMode(myMinigameMode)` in `src/game/modes/index.ts`.
-4. **Wire to Story**: Add `{ type: 'minigame', modeId: 'myMinigame', config: {...} }` to a chapter's `beats`.
+3. **Declare Config**: Add the exported config interface to `ModeConfigMap` and the ID to `MODE_IDS` in `src/contracts/mode-configs.ts`.
+4. **Register**: `registerMode(myMinigameMode)` in `src/game/modes/index.ts`.
+5. **Wire to Story**: Add `{ type: 'minigame', modeId: 'myMinigame', config: {...} }` to a chapter's `beats`.
 
 See [`docs/ADDING_A_MINIGAME.md`](docs/ADDING_A_MINIGAME.md) for the full guide.
 

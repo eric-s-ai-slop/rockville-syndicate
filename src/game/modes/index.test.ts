@@ -1,17 +1,17 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { registerMode, getMode, listModeIds } from './index';
 import type { GameMode, ModeContext, ModeResult } from './types';
 
 describe('GameMode registry', () => {
   const mockMode1: GameMode = {
     id: 'test-mode-1',
-    start: (ctx: ModeContext, config: unknown, onComplete: (result: ModeResult) => void) => {},
+    start: (_ctx: ModeContext, _config: unknown, _onComplete: (result: ModeResult) => void) => {},
     teardown: () => {}
   };
 
   const mockMode2: GameMode = {
     id: 'test-mode-2',
-    start: (ctx: ModeContext, config: unknown, onComplete: (result: ModeResult) => void) => {},
+    start: (_ctx: ModeContext, _config: unknown, _onComplete: (result: ModeResult) => void) => {},
     teardown: () => {}
   };
 

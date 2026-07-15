@@ -8,7 +8,14 @@ import { FSM } from '../fsm';
 
 type BossAIState = 'CHASE' | 'QTE' | 'DEFEATED';
 
-export class BossFightMode implements GameMode<any> {
+interface BossFightStartConfig {
+  bossId?: string;
+  hideActorId?: string;
+  introLines?: string[];
+  arena?: { x: number; y: number; w: number; h: number };
+}
+
+export class BossFightMode implements GameMode {
   public readonly id = 'bossFight';
 
   private ctx!: ModeContext;
@@ -36,17 +43,19 @@ export class BossFightMode implements GameMode<any> {
     // Assets are preloaded by ChapterScene
   }
 
-  start(ctx: ModeContext, config: any, onComplete: (result: ModeResult) => void) {
+  start(ctx: ModeContext, config: unknown, onComplete: (result: ModeResult) => void) {
     this.ctx = ctx;
     this.onCompleteCallback = onComplete;
     this.isFightActive = true;
 
-    const bossId = config?.bossId ?? BOSSES[ctx.currentLevelIndex % BOSSES.length].id;
-    const actorToHide = config?.hideActorId ?? bossId.replace('boss_', '');
+    const startConfig = (config && typeof config === 'object' ? config : {}) as BossFightStartConfig;
+
+    const bossId = startConfig.bossId ?? BOSSES[ctx.currentLevelIndex % BOSSES.length].id;
+    const actorToHide = startConfig.hideActorId ?? bossId.replace('boss_', '');
     this.ctx.hideActor(actorToHide);
 
     const bossConfig = BOSSES.find(b => b.id === bossId) ?? BOSSES[0];
-    const intro = config?.introLines ?? [];
+    const intro = startConfig.introLines ?? [];
 
     const launchFight = () => {
       ctx.audioController.startBossMusic();
@@ -54,8 +63,8 @@ export class BossFightMode implements GameMode<any> {
       ctx.showLetterbox();
 
       const cam = ctx.cameras.main;
-      const ax = config?.arena ? config.arena.x : ctx.chapter.map.width / 2;
-      const ay = config?.arena ? config.arena.y - (config.arena.h ?? 0) / 2 + 60 : 120;
+      const ax = startConfig.arena ? startConfig.arena.x : ctx.chapter.map.width / 2;
+      const ay = startConfig.arena ? startConfig.arena.y - (startConfig.arena.h ?? 0) / 2 + 60 : 120;
 
       cam.stopFollow();
       cam.pan(ax, ay, 550, 'Sine.easeInOut', true);
@@ -91,7 +100,7 @@ export class BossFightMode implements GameMode<any> {
           ctx.hideLetterbox(300);
           ctx.time.delayedCall(320, () => {
             cam.startFollow(ctx.player, true, 0.1, 0.1);
-            this.summonBossMatch(bossId, config?.arena);
+            this.summonBossMatch(bossId, startConfig.arena);
             if (bossId === 'boss_audrey') {
               ctx.setControlsInverted(true);
               ctx.logMessage('🩸 Red Pee Bladder Syndrome: controls are REVERSED for this entire fight.');
@@ -189,7 +198,6 @@ export class BossFightMode implements GameMode<any> {
     this.ctx.logMessage(`⚠️ BOSS INCOMING: ${config.name} — ${config.title}!`);
 
     const ax = arena ? arena.x : this.ctx.chapter.map.width / 2;
-    const ay = arena ? arena.y : this.ctx.chapter.map.height / 2;
     const spawnX = ax;
     const spawnY = arena ? arena.y - arena.h / 2 + 60 : 120;
 
@@ -234,8 +242,13 @@ export class BossFightMode implements GameMode<any> {
       stroke: '#000000', strokeThickness: 4
     }).setOrigin(0.5).setDepth(10002);
 
-    this.ctx.physics.add.overlap(this.ctx.projectiles, this.ctx.spawnedBoss, (a: any, b: any) => {
-      const projectile = this.ctx.projectiles.contains(a) ? a : b;
+    this.ctx.physics.add.overlap(this.ctx.projectiles, this.ctx.spawnedBoss, (
+      a: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Physics.Arcade.Body | Phaser.Physics.Arcade.StaticBody | Phaser.Tilemaps.Tile,
+      b: Phaser.Types.Physics.Arcade.GameObjectWithBody | Phaser.Physics.Arcade.Body | Phaser.Physics.Arcade.StaticBody | Phaser.Tilemaps.Tile,
+    ) => {
+      const firstObject = a as Phaser.GameObjects.GameObject;
+      const secondObject = b as Phaser.GameObjects.GameObject;
+      const projectile = this.ctx.projectiles.contains(firstObject) ? firstObject : secondObject;
       if (projectile === this.ctx.spawnedBoss) return;
       projectile.destroy();
       const weapon = WEAPONS[this.ctx.currentLevelIndex % WEAPONS.length];

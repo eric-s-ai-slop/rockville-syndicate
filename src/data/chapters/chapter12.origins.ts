@@ -860,7 +860,7 @@ const chapter12: ChapterConfig = {
       config: {
         variant: 'rerun', run: 'voicemail',
         wire: { field1Label: 'NICK F', field2Label: 'JACOB', typing: 'autofill', deadAirHoldMs: 6000 },
-        ring: { left: true, right: true, darkenIsland: { x: 2040, y: 620, w: 300, h: 220 } },
+        ring: { left: true, right: true, durationMs: 6000, darkenIsland: { x: 2040, y: 620, w: 300, h: 220 } },
         leftPhone: LEFT_PHONE, rightPhone: RIGHT_PHONE,
       },
     },
