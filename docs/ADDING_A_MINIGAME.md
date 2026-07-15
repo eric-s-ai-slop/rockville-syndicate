@@ -4,11 +4,17 @@ Adding a new interactive minigame segment is a localized process. Follow this st
 
 ---
 
-## 1. Copy the Template Mode
+## 1. Scaffold the Mode
 
 ```bash
-cp -r src/game/modes/_template/ src/game/modes/myNewMinigame/
+npm run agent:scaffold-mode -- myNewMinigame
 ```
+
+The scaffold copies the template, creates the typed config interface, registers
+the runtime mode and its `ModeConfigMap`/`MODE_IDS` entries, and adds a temporary
+documentation row. Replace the TODOs as you implement the mode. Only copy
+`_template/` manually when deliberately working outside the registered-mode
+workflow.
 
 ## 2. Implement the GameMode Interface
 
@@ -33,10 +39,11 @@ onDialogue(beat: Extract<Beat, { type: 'dialogue' }>): void { ... }
 onCameraPan(beat: Extract<Beat, { type: 'cameraPan' }>): void { ... }
 ```
 
-## 3. Register the Mode
+## 3. Verify the Mode Registration
 
-Add the mode ID/config pair to `ModeConfigMap` and the runtime ID to `MODE_IDS`
-in `src/contracts/mode-configs.ts`, then open `src/game/modes/index.ts` and register:
+The scaffold performs the registration atomically. For a manually-created mode,
+add the mode ID/config pair to `ModeConfigMap` and `MODE_IDS` in
+`src/contracts/mode-configs.ts`, then register it in `src/game/modes/index.ts`:
 
 ```typescript
 import { myNewMinigameMode } from './myNewMinigame';

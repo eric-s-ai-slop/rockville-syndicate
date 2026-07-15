@@ -334,6 +334,7 @@ The dev server (`tsx server.ts`) runs at **`http://localhost:3324`**.
 | `npm run e2e` | Run the Playwright E2E suite |
 | `npm run agent -- --help` | Terminal playtesting CLI — hold keys, drag-mouse, read live game state, step frames (see [`docs/AGENT_TOOLKIT.md`](docs/AGENT_TOOLKIT.md)) |
 | `npm run agent:scaffold-chapter -- <index> <slug>` | Create a minimal typed, intentionally unregistered chapter config |
+| `npm run agent:scaffold-mode -- <id>` | Create a mode with typed config and runtime/registry registration |
 | `npm run clean` | Remove `dist/` and stray `server.js` |
 | `npm run voice:extract` | Extract dialogue lines for the voice-gen pipeline |
 

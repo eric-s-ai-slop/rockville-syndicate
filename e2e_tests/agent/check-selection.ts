@@ -8,6 +8,13 @@ export interface CheckSelection {
 
 const normalize = (file: string) => file.split(path.sep).join('/').replace(/^\.\//, '');
 
+const isExecutableOrBuildInput = (file: string): boolean => {
+  if (file.startsWith('public/')) return true;
+  if (file.startsWith('.github/')) return true;
+  if (/^(server\.ts|index\.html|Dockerfile|Makefile)$/.test(file)) return true;
+  return /\.(?:[cm]?[jt]sx?|json|ya?ml|css|scss|html|svg|sh)$/.test(file);
+};
+
 /** Select the smallest safe Vitest set for a group of changed files. */
 export function selectTests(changedFiles: string[], availableTests: string[]): CheckSelection {
   const available = availableTests.map(normalize);
@@ -144,7 +151,7 @@ export function selectTests(changedFiles: string[], availableTests: string[]): C
       matched = true;
     }
 
-    if (!matched && (file.startsWith('src/') || file.startsWith('e2e_tests/'))) {
+    if (!matched && (file.startsWith('src/') || file.startsWith('e2e_tests/') || isExecutableOrBuildInput(file))) {
       fullSuite = true;
       reasons.add(`${file} has no focused verification rule`);
     }

@@ -80,4 +80,18 @@ describe('selectTests', () => {
     expect(result.fullSuite).toBe(false);
     expect(result.testFiles).toContain('src/game/modes/lifecycle.test.ts');
   });
+
+  it('fails closed to the full suite for executable files outside source roots', () => {
+    for (const file of ['server.ts', 'public/minigames/battleiq/omega-bridge.js', 'scripts/voicegen/extract-lines.ts', '.github/workflows/ci.yml']) {
+      const result = selectTests([file], tests);
+      expect(result.fullSuite, file).toBe(true);
+      expect(result.reasons.join(' ')).toContain('no focused verification rule');
+    }
+  });
+
+  it('leaves documentation-only edits test-skipped instead of pretending they were tested', () => {
+    const result = selectTests(['docs/AGENT_TOOLKIT.md'], tests);
+    expect(result.fullSuite).toBe(false);
+    expect(result.testFiles).toEqual([]);
+  });
 });

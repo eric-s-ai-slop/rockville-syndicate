@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createChapterScaffold } from './chapter-scaffold';
+import { CHAPTERS } from '../../src/data/chapters';
 
 const emit = (value: Record<string, unknown>) => process.stdout.write(`${JSON.stringify(value)}\n`);
 
@@ -14,7 +15,7 @@ function main(): void {
   }
 
   try {
-    const scaffold = createChapterScaffold(index, slug);
+    const scaffold = createChapterScaffold(index, slug, CHAPTERS.map(chapter => chapter.id));
     const target = path.resolve('src/data/chapters', scaffold.fileName);
     if (fs.existsSync(target)) throw new Error(`${path.relative(process.cwd(), target)} already exists`);
     fs.writeFileSync(target, scaffold.source);

@@ -2,7 +2,12 @@ import Phaser from 'phaser';
 import type { GameMode, ModeContext, ModeResult } from '../types';
 import { screenSpace } from '../screenSpace';
 
-export class TemplateMode implements GameMode {
+export interface TemplateModeConfig {
+  /** Replace this marker with the config fields this mode actually consumes. */
+  readonly __template?: never;
+}
+
+export class TemplateMode implements GameMode<TemplateModeConfig> {
   // Unique identifier for the mode, referenced by { type: 'minigame', modeId: 'template' } in chapter configuration.
   id = 'template';
   private ctx!: ModeContext;
@@ -10,6 +15,8 @@ export class TemplateMode implements GameMode {
   private onCompleteCallback: ((result: ModeResult) => void) | null = null;
   private spaceKey: Phaser.Input.Keyboard.Key | null = null;
   private statusText: Phaser.GameObjects.Text | null = null;
+  private modeEnded = false;
+  private completionEvent: Phaser.Time.TimerEvent | null = null;
 
   /**
    * Preload assets specific to this minigame mode.
@@ -23,9 +30,10 @@ export class TemplateMode implements GameMode {
    * Start the minigame mode execution.
    * Call onComplete exactly once when the minigame resolves (win, lose, or skip).
    */
-  start(ctx: ModeContext, _config: unknown, onComplete: (result: ModeResult) => void): void {
+  start(ctx: ModeContext, _config: TemplateModeConfig, onComplete: (result: ModeResult) => void): void {
     this.ctx = ctx;
     this.onCompleteCallback = onComplete;
+    this.modeEnded = false;
 
     // Freeze regular movement while playing if blocking (this is a blocking minigame by default)
     // Note: If running in background (with background: true beat config), do not freeze or block.
@@ -74,9 +82,14 @@ export class TemplateMode implements GameMode {
    * This is called automatically when the minigame resolves or the scene shuts down.
    */
   teardown(): void {
+    this.modeEnded = true;
     if (this.timerEvent) {
       this.timerEvent.destroy();
       this.timerEvent = null;
+    }
+    if (this.completionEvent) {
+      this.completionEvent.destroy();
+      this.completionEvent = null;
     }
     if (this.statusText) {
       this.statusText.destroy();
@@ -90,6 +103,8 @@ export class TemplateMode implements GameMode {
   }
 
   private resolveMinigame(outcome: 'win' | 'lose') {
+    if (this.modeEnded) return;
+    this.modeEnded = true;
     const callback = this.onCompleteCallback;
     if (callback) {
       // Show feedback
@@ -99,7 +114,8 @@ export class TemplateMode implements GameMode {
       }
       
       // Delay slightly before finishing so the user sees the outcome
-      this.ctx.time.delayedCall(800, () => {
+      this.completionEvent = this.ctx.time.delayedCall(800, () => {
+        this.completionEvent = null;
         callback({ outcome });
       });
     }

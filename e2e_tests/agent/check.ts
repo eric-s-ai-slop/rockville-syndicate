@@ -100,6 +100,17 @@ function writeReceipt(ok: boolean, files: string[], eslintOutput = ''): void {
   process.stdout.write(`${JSON.stringify({ cmd: 'validation-receipt', ok, path: path.relative(ROOT, path.join(LOG_DIR, 'validation-receipt.json')) })}\n`);
 }
 
+export function getExplicitFiles(args: string[]): string[] {
+  const reportIndex = args.indexOf('--report');
+  const transcriptIndex = args.indexOf('--transcript');
+  const reportValueIndex = reportIndex >= 0 ? reportIndex + 1 : -1;
+  const transcriptValueIndex = transcriptIndex >= 0 ? transcriptIndex + 1 : -1;
+  const reportPath = reportValueIndex >= 0 ? args[reportValueIndex] : null;
+  const transcriptPath = transcriptValueIndex >= 0 ? args[transcriptValueIndex] : null;
+  const excluded = new Set([reportPath, transcriptPath]);
+  return args.filter((arg, index) => !arg.startsWith('--') && !excluded.has(arg) && index !== reportValueIndex && index !== transcriptValueIndex);
+}
+
 function main(): void {
   const args = process.argv.slice(2);
   verboseOutput = args.includes('--verbose');
@@ -108,8 +119,7 @@ function main(): void {
   const transcriptIndex = args.indexOf('--transcript');
   const reportPath = reportIndex >= 0 ? args[reportIndex + 1] : null;
   const transcriptPath = transcriptIndex >= 0 ? args[transcriptIndex + 1] : null;
-  const excluded = new Set([reportPath, transcriptPath]);
-  const explicitFiles = args.filter((arg, index) => !arg.startsWith('--') && !excluded.has(arg) && index !== reportIndex + 1 && index !== transcriptIndex + 1);
+  const explicitFiles = getExplicitFiles(args);
   const files = explicitFiles.length ? explicitFiles : changedFiles();
   const tests = availableUnitTests();
   const selection = forceFull || files.length === 0
@@ -125,6 +135,7 @@ function main(): void {
   if (selection.testFiles.length) {
     runStage('tests', 'npx', ['vitest', 'run', ...selection.testFiles]);
   } else {
+    receiptChecks.push({ name: 'focused-tests', status: 'skipped', durationMs: 0, reason: 'No focused tests matched and the changed files did not require the full suite.' });
     process.stdout.write('tests      SKIP  no relevant unit tests\n');
   }
   if (selection.fullSuite) runStage('build', 'npm', ['run', 'build', '--silent']);
@@ -138,4 +149,4 @@ function main(): void {
   writeReceipt(true, files, latestEslintOutput);
 }
 
-main();
+if (process.argv[1]?.endsWith('check.ts')) main();

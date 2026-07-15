@@ -7,11 +7,25 @@ Run this after you have:
 
 Work through the checklist in order. Each item links to the exact file to edit.
 
+If the chapter file does not exist yet, start with the agent scaffold:
+
+```bash
+npm run agent:scaffold-chapter -- <index> <kebab-case-slug>
+```
+
+It intentionally creates an unregistered typed shell. Replace its TODO content
+before continuing, then register it in Step 2 when the chapter is ready for
+validation. This keeps the pipeline's manual content review while avoiding
+hand-written filenames and malformed starter configs.
+
 ---
 
 ## 1. CREATE THE CHAPTER FILE
 
-Create `src/data/chapters/chapterN.kebab-name.ts` (e.g. `chapter10.oc-cabin-trip.ts` — dot after the number, kebab-case name, matching the existing files like `chapter8.the-cabin.ts`).
+Use the scaffold from the preflight above to create
+`src/data/chapters/chapterN.kebab-name.ts` (e.g. `chapter10.oc-cabin-trip.ts` —
+dot after the number, kebab-case name, matching the existing files like
+`chapter8.the-cabin.ts`).
 
 Paste in the full `ChapterConfig` from Step 3. Minimum structure:
 

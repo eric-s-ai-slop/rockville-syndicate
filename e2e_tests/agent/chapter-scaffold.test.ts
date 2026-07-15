@@ -15,5 +15,6 @@ describe('createChapterScaffold', () => {
   it('rejects ambiguous inputs', () => {
     expect(() => createChapterScaffold(-1, 'valid-slug')).toThrow(/non-negative integer/);
     expect(() => createChapterScaffold(13, 'Not Valid')).toThrow(/kebab-case/);
+    expect(() => createChapterScaffold(14, 'new-adventure', ['new_adventure'])).toThrow(/already registered/);
   });
 });

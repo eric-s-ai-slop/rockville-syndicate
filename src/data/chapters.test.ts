@@ -29,6 +29,10 @@ describe('chapters data', () => {
     expect(CHAPTERS.length).toBeGreaterThan(0);
   });
 
+  it('chapter ids should be unique', () => {
+    expect(new Set(CHAPTERS.map(chapter => chapter.id)).size).toBe(CHAPTERS.length);
+  });
+
   it('chapters should have valid properties', () => {
     CHAPTERS.forEach(chapter => {
       expect(chapter).toHaveProperty('id');
