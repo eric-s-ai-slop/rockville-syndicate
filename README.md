@@ -68,24 +68,24 @@ Each chapter is a self-contained story beat ripped from real events and lore-ifi
 
 Chapters are declarative config files in [`src/data/chapters/`](src/data/chapters/), registered into the `CHAPTERS` list in [`src/data/chapters/index.ts`](src/data/chapters/index.ts). They unlock sequentially; completing one saves progress to `localStorage`, and a chapter-select map lets you replay any completed chapter.
 
-| # | Title | Theme / Setting | Est. | Boss | Config |
-|---|-------|-----------------|------|------|--------|
-| 0 | Maria Brooke *(Flashback — The Bit)* | Flashback | 6–10 min | — | `chapter0.maria-brooke.ts` |
-| 13 | Ben’s Life *(Flashback)* | 51 Monroe → I-270 scenic overlook | 12–18 min | — | `chapter13.bens-life.ts` |
-| 1 | The Spotify Family Insurgency | Apartment 1522 | 1–3 min | Eric | `chapter1.spotify-insurgency.ts` |
-| 2 | Operation Inertia *(Interlude)* | NYC 1AM highway | 3–5 min | — | `chapter2.operation-inertia.ts` |
-| 3 | The Red Pee Bladder Strike | Shepherd University | 3–5 min | Audrey | `chapter3.red-pee-bladder-strike.ts` |
-| 4 | The Jungle Gym Gambit *(Interlude)* | 1202 Princeton Place | 3–5 min | — | `chapter4.jungle-gym-gambit.ts` |
-| 5 | The Florida Highway Duel | Boca Raton highway | 3–5 min | Jordan | `chapter5.florida-highway-duel.ts` |
-| 5b | Rose *(The Closed System)* | Florida, July 4th | 8–12 min | Maharko | `chapter5b.rose.ts` |
-| 3b | The UMBC Incident *(Act III — The Pariah Event)* | UMBC | 8–12 min | Ben | `chapter3b.umbc-incident.ts` |
-| 6 | Operation Ding Dong Ditch Ben | 12 Watchwater Way | 4–7 min | Ben | `chapter6.ding-dong-ditch-ben.ts` |
-| 7 | The Spain Betrayal | Commons 1522 | 3–5 min | Nick F | `chapter7.spain-betrayal.ts` |
-| 8 | The Cabin *(Epilogue)* | Basye, VA | 5–8 min | — | `chapter8.the-cabin.ts` |
-| 9 | The Suds & Soles Pool Party | Nick F's Backyard | 12–18 min | — | `chapter9.pool-party.ts` |
-| 11 | Cabin From Hell | Shenandoah cabin, July 4th | 20–30 min | — | `chapter11.cabin-from-hell.ts` |
-| 99 | Playtest Fixture *(DEV-only — never ships)* | Rockville Park (synthetic) | 5–8 min | — | `chapterFixture.playtest.ts` |
-| 12 | Rockville Syndicate: Origins *(META)* | Rockville, MD — summer 2024 → tonight | 25–35 min | — | `chapter12.origins.ts` |
+| Order | ID | Title | Kind | Location | Est. | Deployment | Seal | Config |
+|---:|---|---|---|---|---:|---|---|---|
+| 1 | `maria_brooke` | Maria Brooke | flashback | Richard Montgomery High School — Period 4 | 6–10 min | shipping | — | `chapter0.maria-brooke.ts` |
+| 2 | `bens_life` | Ben’s Life | flashback | 51 Monroe → I-270 Scenic Overlook | 12–18 min | shipping | — | `chapter13.bens-life.ts` |
+| 3 | `spotify_insurgency` | The Spotify Family Insurgency | chapter | Commons Apartment 1522 | 1–3 min | shipping | — | `chapter1.spotify-insurgency.ts` |
+| 4 | `nyc_1am_drive` | Operation Inertia | interlude | I-95 Northbound | 3–5 min | shipping | — | `chapter2.operation-inertia.ts` |
+| 5 | `red_pee_bladder` | The Red Pee Bladder Strike | chapter | Shepherd University, WV | 3–5 min | shipping | — | `chapter3.red-pee-bladder-strike.ts` |
+| 6 | `jungle_gym_gambit` | The Jungle Gym Gambit | interlude | Beall Elementary School, Rockville | 3–5 min | shipping | — | `chapter4.jungle-gym-gambit.ts` |
+| 7 | `florida_highway_duel` | The Florida Highway Duel | chapter | Boca Raton, FL | 3–5 min | shipping | — | `chapter5.florida-highway-duel.ts` |
+| 8 | `rose_florida` | Rose | chapter | Boca Raton, FL | 8–12 min | shipping | classified | `chapter5b.rose.ts` |
+| 9 | `umbc_incident` | The UMBC Incident | chapter | UMBC Frat Basement / Parking Lot at Night | 8–12 min | shipping | classified | `chapter3b.umbc-incident.ts` |
+| 10 | `ding_dong_ditch_ben` | Operation Ding Dong Ditch Ben | chapter | 12 Watchwater Way | 4–7 min | shipping | — | `chapter6.ding-dong-ditch-ben.ts` |
+| 11 | `spain_betrayal` | The Spain Betrayal | chapter | Commons 1522 (Group Chat) | 3–5 min | shipping | — | `chapter7.spain-betrayal.ts` |
+| 12 | `cabin_basye` | The Cabin | epilogue | Basye, Virginia | 5–8 min | shipping | — | `chapter8.the-cabin.ts` |
+| 13 | `suds_and_soles_pool_party` | The Suds & Soles Pool Party | chapter | Nick F's Backyard — Rockville, MD | 12–18 min | shipping | — | `chapter9.pool-party.ts` |
+| 14 | `cabin_from_hell_2025` | Cabin From Hell | chapter | Ocean City, MD & Shenandoah, VA | 20–30 min | shipping | — | `chapter11.cabin-from-hell.ts` |
+| 15 | `fixture-playtest` | Playtest Fixture | chapter | Rockville Park (synthetic) | 5–8 min | development | — | `chapterFixture.playtest.ts` |
+| 16 | `origins` | Rockville Syndicate: Origins | chapter | Rockville, MD — summer 2024 → tonight | 25–35 min | shipping | external | `chapter12.origins.ts` |
 
 ---
 
@@ -325,15 +325,16 @@ The dev server (`tsx server.ts`) runs at **`http://localhost:3324`**.
 | `npm run lint:es` | Run ESLint (style/quality gate) |
 | `npm run lint:fix` | Auto-fix ESLint issues |
 | `npm run ci` | Full gate: typecheck + eslint + tests + build |
-| `npm run check:agent` | Same full gate with compact, token-efficient output |
+| `npm run check:agent` | Same full gate with compact, token-efficient output; independent stages use a bounded worker pool and aggregate one receipt (`--concurrency <n>` overrides the default) |
 | `npm run agent:check -- <files...>` | Typecheck/lint plus safe focused tests; unknown cross-cutting files fall back to full |
 | `npm run agent:map -- --target=<domain>` | Emit a compact, curated task brief; chapter/mode IDs can add opt-in `--symbols` ranges |
 | `npm run agent:registry` | Emit the canonical compact chapter/mode inventory; add `--symbols` only when exact declarations are needed |
+| `npm run agent:release-check` | Build the actual Linux Docker image, verify provenance, boot it, and smoke-test `/`, `/api/health`, and `/api/chapters` |
 | `npm run agent:boundaries` | Check content/runtime/UI dependency directions |
 | `npm run agent:integration` | Run live-server CLI protocol tests (requires the dev server on port 3324) |
 | `npm test` | Run the Vitest unit-test suite |
 | `npm run e2e` | Run the Playwright E2E suite |
-| `npm run agent -- --help` | Terminal playtesting CLI — hold keys, drag-mouse, read live game state, step frames (see [`docs/AGENT_TOOLKIT.md`](docs/AGENT_TOOLKIT.md)) |
+| `npm run agent -- --help` | Terminal playtesting CLI — hold keys, drag-mouse, read live game state, step frames; use `--help walkto` or `--help --json walkto` for scoped help (see [`docs/AGENT_TOOLKIT.md`](docs/AGENT_TOOLKIT.md)) |
 | `npm run agent:scaffold-chapter -- <index> <slug>` | Create a minimal typed, intentionally unregistered chapter config |
 | `npm run agent:scaffold-mode -- <id>` | Create a mode with typed config and runtime/registry registration |
 | `npm run clean` | Remove `dist/` and stray `server.js` |
@@ -367,6 +368,18 @@ By default the container listens on port `3324`. To use a custom host port:
 ```bash
 APP_PORT=8080 docker compose up -d --build
 ```
+
+Before publishing, run `npm run agent:release-check` on a host with Docker. It
+removes its temporary image/container and writes a compact receipt under
+`agent-artifacts/release-check/`. Production health also exposes the version,
+Git revision, build time, and `/api/chapters` exposes the shipping-only chapter
+manifest.
+
+The release workflow explicitly sets `OMEGA_DOCKER_CACHE=gha` to use BuildKit's
+GitHub Actions cache for Docker layers, and
+the Dockerfile mounts `/root/.npm` as a cache while preserving the lockfile
+install boundary. Local release checks continue to use the ordinary Docker
+builder when the GitHub cache service is unavailable.
 
 ---
 

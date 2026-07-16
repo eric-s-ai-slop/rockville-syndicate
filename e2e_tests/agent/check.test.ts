@@ -13,4 +13,11 @@ describe('agent check argument routing', () => {
       '--transcript', 'qa/session.jsonl',
     ])).toEqual(['src/game/ChapterScene.ts']);
   });
+
+  it('does not treat the concurrency value as a changed file', () => {
+    expect(getExplicitFiles([
+      'e2e_tests/agent/check.ts',
+      '--concurrency', '2',
+    ])).toEqual(['e2e_tests/agent/check.ts']);
+  });
 });

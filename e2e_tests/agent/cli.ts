@@ -38,6 +38,7 @@ import {
   passiveVisualEventKey,
   persistentEvidenceEvent,
   persistentEvidenceMode,
+  requiresForegroundReviewPause,
   visualEventsFromBeatTrace,
   type PassiveVisualBeatType,
   type PassiveVisualEvent,
@@ -48,6 +49,7 @@ import {
   writeCheckpointManifest,
   type CheckpointManifestV1,
 } from './checkpointManifest';
+import { formatCommandHelp, formatCommandHelpJson, formatGlobalCommandHelp } from './commandHelp';
 import {
   OMEGA_AGENT_PROTOCOL,
   AgentCommand,
@@ -69,6 +71,7 @@ interface Flags {
   keepOpen: boolean;
   slowmo: number;
   help: boolean;
+  helpJson: boolean;
   inline: string | null; // positional command(s), ';'-separated
   seed: number | null;
   record: string | null;
@@ -106,6 +109,7 @@ function parseFlags(argv: string[]): Flags {
     keepOpen: false,
     slowmo: 0,
     help: false,
+    helpJson: false,
     inline: null,
     seed: null,
     record: null,
@@ -136,6 +140,7 @@ function parseFlags(argv: string[]): Flags {
     const a = argv[i];
     switch (a) {
       case '--help': case '-h': f.help = true; break;
+      case '--json': f.helpJson = true; break;
       case '--headed': f.headed = true; break;
       case '--classified': f.classified = true; break;
       case '--keep-open': f.keepOpen = true; break;
@@ -176,6 +181,7 @@ function parseFlags(argv: string[]): Flags {
   if (f.playtestSmoke && !f.gauntlet) {
     throw new Error('--playtest-smoke requires --gauntlet');
   }
+  if (f.helpJson && !f.help) throw new Error('--json is only valid with --help.');
   if (f.diagnostic && f.playtest) {
     throw new Error('--diagnostic cannot be combined with --playtest. Diagnostic evidence is never completion evidence.');
   }
@@ -312,111 +318,7 @@ FLAGS
                         AGENT_TOOLKIT.md for full numbers.
   -h, --help            Show this menu
 
-COMMANDS (one per line; ';' also separates them on a single line)
-  Keyboard (§1)
-    hold <key>                 keydown, held until 'release' (e.g. hold w)
-    release <key>              keyup
-    press <key> [ms]           hold for <ms> then release (e.g. press w 2000 = walk 2s). ms omitted = a tap
-    tap <key>                  discrete down+up (alias: key)
-    releaseall                 release every held key
-  Mouse (§2) — X/Y are viewport CSS pixels
-    mousedown <x> <y> [left|right]
-    mousemove <x> <y>          drag step if a button is held, else a hover
-    mouseup [x] [y] [left|right]
-    click <x> <y> [left|right] [--world]   down+up at one point; --world treats x/y as world
-                               coordinates (like 'state'/'targets' report) instead of viewport
-                               pixels, translated via the same camera math as clickworld (C2)
-    drag <sx> <sy> <ex> <ey> [ms] [--world]   smooth click-drag (e.g. drag 200 300 500 300 400);
-                               --world treats both points as world coordinates (C2)
-  State / bridge (§3)
-    state                      print snapshotGameState() JSON (scene, player, velocity, hp, mode, loop)
-    text                       extract visible text from Phaser canvas and DOM (A2)
-    targets                    dump active walk target and NPCs with screen/world coordinates (A3)
-    observe | obs [--shot]     print composite observation snapshot, incl. console errors/warnings since last observe (A5);
-                               --shot attaches a stabilized screenshot path as "shot" (N3)
-    reviewcheckpoint <id> clear|issue-found|inconclusive <concrete-visual-note>
-                               acknowledge that an emitted visual_checkpoint PNG was inspected;
-                               vague placeholders are rejected. In --playtest, progression is
-                               blocked until every pending checkpoint has a review receipt
-    recordfinding              JSON-only: args are severity, category, title, location,
-                               reproduction, expected, actual, evidence. Records a structured
-                               live finding without editing report prose during the run
-    verdict <bug-reproduced|not-reproduced|not-verified|inconclusive> [note]
-                               assign the investigation verdict used by the generated report
-    dismissfinding <id> <reason>  dismiss a disproven finding while preserving its audit history
-    listfindings               print the current structured finding ledger
-    diff                       like observe, but omits any field unchanged since the last diff/observe call (N4/E5)
-    watch <jsExpr> [timeoutMs] block until a predicate on the live scene is true (scene/game in scope), e.g.
-                               watch "scene.activeHp < 50" 10000 — polls ~100ms in one round-trip, attaches a
-                               final observation on timeout so the stuck state is visible (N4/E6)
-    beat | beats               print current and upcoming narrative beats (A4)
-    skipbeat [n]               force-advance n beats (default 1) past one that can never complete normally (A4)
-    logs | console [clear]     print buffered console errors/warnings/failed requests since boot or last clear (A1)
-    audio                      print playing audio state and master volume (B4)
-    audio assert silent | playing <key> | stopped <key>   scriptable audio assertion, ok:false on violation (G3)
-    camera                     print camera zoom, center, and dimensions (B5)
-    camera zoom <factor>       set camera zoom factor (B5)
-    camera center <x> <y>      center camera on world coordinates (B5)
-    camera fit                 stop follow, zoom+centerOn the whole current-scene map rect (B5)
-    camera follow              restore startFollow(player) at the chapter's configured zoom (B5)
-    goto <sceneIndex>          jump to a specific scene index instantly (B1) — mutates, carries a
-                               "skipped-state" warning: beats before the target scene didn't run
-    savestate [file]           quick-save current state in-memory, or dump to <file> incl. the
-                               omega-save-v2 blob and branch-safety metadata if a path is given (B2)
-    loadstate [file]           quick-restore in-memory state, or restore + re-navigate from <file> (B2)
-    modes                      list every registered minigame mode id (B3)
-    winmode | losemode         force-complete the foreground mode via its own harnessForceComplete (B3/F1)
-    modify hp|ledger|shards <value>  directly set a stat, bypassing normal game logic (D4) — mutates,
-                               carries a "skipped-state" warning
-    choose <index|text>        click a dialogue-choice button by index or fuzzy text match (D3)
-    settings [key] [value]     print live settings, or patch one key via settings.ts's updateSettings (D2)
-    chapterflag [chapterId] [complete|uncomplete|freeplay-on|freeplay-off]   print/set Hall-of-Records
-                               progress via settings.ts (F2); omit args to print current progress
-    anim                       per-actor animation state: key, frame, isPlaying, flipX (E1)
-    depth [worldX worldY]      visible objects sorted by depth; filtered to a world point if given (E2)
-    hitreport <worldX> <worldY>  composite of depth + physics bodies + DOM element at a world point (E3)
-    fx                         camera flash/fade/shake running state + screen-tint effective alpha (E4)
-    walkto <worldX> <worldY> [radius] [maxSeconds]  cheap directional walk (hold + re-evaluate), no
-                               pathfinding — stops in radius or gives up with ok:false (D1) — mutates
-    injectbeat <json>          execute one beat object through the engine's own dispatch (F3) — mutates
-    clickworld <x> <y> [left|right]   convert world coords to viewport pixels and click there (B6)
-    where <x> <y>              print both world and viewport-pixel coordinates for a world point (B6)
-    eval <js>                  run JS in the page, print the result (e.g. eval window.__OMEGA_GAME__.scene.keys.length)
-    screenshot [name] [--annotate]  save a PNG to --out, print its path; --annotate draws each visible
-                               actor's bounding box + name + depth, and the walk target, onto the image (N3)
-    gifstart                  begin a scoped GIF capture mid-session (H6) — for verifying animation/
-                               motion bugs (flicker, stalled walk cycles, misaligned frames) over just
-                               the window you care about, instead of the whole session (see --gif).
-                               Errors (ok:false) instead of crashing if --gif is already capturing the
-                               whole session, or a gifstart capture is already running — mutates
-    gifstop [file]             stop a gifstart capture and assemble it into a GIF, printing the path.
-                               <file> is resolved under --out; omitted defaults to a timestamped
-                               'gif-<timestamp>.gif'. Errors (ok:false) if no gifstart capture is
-                               running. Same ffmpeg-on-PATH soft-fail behavior as --gif (frames are
-                               kept on disk if ffmpeg is missing or fails) — mutates
-  Time (§4)
-    pause | resume             sleep / wake the Phaser loop
-    loop                       print whether the loop is running
-    restart | refresh          reload the page and re-enter --chapter after a React/Phaser unmount
-    step <frames> [fps]        advance exactly <frames> fixed-timestep frames (loop auto-pauses)
-    speed | timescale <num>    set timescale multiplier for physics/tweens/timers (B7)
-  Debug (C1)
-    debug on | off             toggle physics debug graphics
-  Flow / misc
-    advance [maxSeconds]       skip dialogue/intro until the player has free walk control AND no
-                               dialogue line is visible (default 60) (C1). It waits for the first story
-                               beat to begin so the chapter's initial boot window is never mistaken for
-                               free play. It always stops before auto-selecting a dialogue choice and
-                               returns status: 'choice-present'.
-                               On timeout, the failure
-                               line includes a 'diagnostics' dump (beatIndex/type, player vs
-                               walkTarget position + distance, movementFrozen, activeMode, dialogue/
-                               choice visibility) (H3)
-    advance-to scene <index> [beat <index>]  diagnostic-only helper that reuses advance and real
-                               walk input until a requested scene/beat boundary
-    wait <ms>                  sleep <ms> of real time
-    help                       print this menu
-    quit | exit                close the browser and end
+${formatGlobalCommandHelp()}
 
 OTHER SCRIPTS (no browser needed)
   npm run agent:audit                          static asset audit (C6) — audio/image imports, music
@@ -731,6 +633,10 @@ async function advanceToDiagnosticTarget(
 // for scripted/inline sessions where every extra screenshot costs wall time.
 let checkpointCount = 0;
 let lastCheckpointState: CheckpointIdentity | null = null;
+// A required foreground-mode checkpoint owns a pause lease until its review
+// receipt arrives. The prior loop state is part of the lease so reviewing a
+// checkpoint never wakes a session the agent had paused deliberately.
+const checkpointPauseLeases = new Map<number, boolean>();
 
 type PassiveEvidenceStatus = 'captured' | 'missed';
 
@@ -768,6 +674,7 @@ function resetPassiveEvidence(): void {
   passiveContactCount = 0;
   lastDeliveredBeatTraceSequence = 0;
   checkpointFrames.length = 0;
+  checkpointPauseLeases.clear();
 }
 
 function passiveLabel(event: Pick<PassiveVisualEvent, 'sceneIndex' | 'beatIndex' | 'beatType'>): string {
@@ -1187,6 +1094,7 @@ async function maybeEmitCheckpoint(agent: GameAgent, page: Page, flags: Flags): 
   const checkpointId = ++checkpointCount;
   const file = path.resolve(flags.out, `checkpoint-${String(checkpointId).padStart(3, '0')}.png`);
   const receipt = coalesceCheckpointTransitions(transitions);
+  const foregroundCheckpointRequiresReviewPause = flags.playtest && requiresForegroundReviewPause(transitions);
   const complianceModeKind = transitions.some(transition => transition.modeKind === 'foreground')
     ? 'foreground'
     : transitions.some(transition => transition.modeKind === 'background')
@@ -1205,11 +1113,18 @@ async function maybeEmitCheckpoint(agent: GameAgent, page: Page, flags: Flags): 
     foregroundModeBeatIndex: current.foregroundModeBeatIndex,
     backgroundModeId: current.backgroundModeId,
     backgroundModeBeatIndex: current.backgroundModeBeatIndex,
+    loopPausedForReview: false,
   };
+  if (foregroundCheckpointRequiresReviewPause) {
+    const wasRunning = await agent.isLoopRunning();
+    if (wasRunning) await agent.pauseLoop();
+    receiptFields.loopPausedForReview = wasRunning;
+    checkpointPauseLeases.set(checkpointId, wasRunning);
+  }
   try {
     // All transitions observed in this poll describe one rendered state. Take
     // one image and attach the complete transition set to that receipt.
-    await agent.stabilizedScreenshot(file);
+    await agent.stabilizedScreenshot(file, { settle: !foregroundCheckpointRequiresReviewPause });
   } catch (err) {
     // A React/Phaser unmount can happen between the bridge probe and the
     // screenshot. Checkpoint capture is diagnostic and must never take down
@@ -1221,6 +1136,7 @@ async function maybeEmitCheckpoint(agent: GameAgent, page: Page, flags: Flags): 
       error: err instanceof Error ? err.message : String(err),
       ...receiptFields,
     });
+    await resumeAfterCheckpointReview(agent, checkpointId);
     return;
   }
   const manifestPath = await writeCheckpointManifestForImage(
@@ -1261,6 +1177,13 @@ async function maybeEmitCheckpoint(agent: GameAgent, page: Page, flags: Flags): 
     complianceModeKind,
   );
   playtestCoverage.recordCheckpoint(checkpointId, current.sceneIndex, receipt.transitions);
+}
+
+async function resumeAfterCheckpointReview(agent: GameAgent, checkpointId: number): Promise<void> {
+  const wasRunning = checkpointPauseLeases.get(checkpointId);
+  if (wasRunning === undefined) return;
+  checkpointPauseLeases.delete(checkpointId);
+  if (wasRunning) await agent.resumeLoop();
 }
 
 async function restartSession(page: Page, flags: Flags): Promise<void> {
@@ -1395,7 +1318,19 @@ async function runCommand(
     }
 
     switch (verb) {
-      case 'help': process.stdout.write(HELP + '\n'); break;
+      case 'help': {
+        const json = args[0] === '--json';
+        const command = (json ? args[1] : args[0])?.trim();
+        if (!command) {
+          process.stdout.write(HELP + '\n');
+        } else if (json) {
+          process.stdout.write(`${formatCommandHelpJson(command)}\n`);
+        } else {
+          const scoped = formatCommandHelp(command);
+          process.stdout.write(`${scoped ?? `No scoped help is registered for "${command}".`}\n`);
+        }
+        break;
+      }
 
       case 'hold': await agent.holdKey(args[0]); emit({ cmd: 'hold', ok: true, key: args[0] }); break;
       case 'release': await agent.releaseKey(args[0]); emit({ cmd: 'release', ok: true, key: args[0] }); break;
@@ -1580,6 +1515,7 @@ async function runCommand(
         }
         const review = playtestCompliance.reviewCheckpoint(checkpointId, args[1] ?? '', args.slice(2).join(' '));
         playtestCoverage.recordCheckpointReview(checkpointId);
+        await resumeAfterCheckpointReview(agent, checkpointId);
         emit({ cmd: 'reviewcheckpoint', ok: true, review });
         break;
       }
@@ -3268,7 +3204,20 @@ async function readStdin(agent: GameAgent, page: Page, flags: Flags): Promise<vo
 async function main(): Promise<void> {
   const flags = parseFlags(process.argv.slice(2));
   if (flags.help) {
-    process.stdout.write(HELP + '\n');
+    const command = flags.inline?.trim();
+    if (!command) {
+      process.stdout.write(HELP + '\n');
+      return;
+    }
+    const scoped = formatCommandHelp(command.split(/\s+/)[0]);
+    if (flags.helpJson) {
+      process.stdout.write(`${formatCommandHelpJson(command.split(/\s+/)[0])}\n`);
+    } else if (scoped) {
+      process.stdout.write(`${scoped}\n`);
+    } else {
+      process.stdout.write(`No scoped help is registered for "${command}".\n`);
+      process.exitCode = 1;
+    }
     return;
   }
 

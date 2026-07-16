@@ -170,3 +170,63 @@ return it from `/api/health`.
 - The values are injected during the build and cannot become stale through a
   manually maintained source constant.
 - No tokens, repository credentials, host paths, or other secrets are exposed.
+
+## Gemini Requests
+
+### High-Speed "Teleport to Beat" Command
+
+**Observed:** 2026-07-16, when analyzing the agent CLI drive workflow.
+
+Getting to a specific narrative beat in the middle of a chapter requires repeatedly executing `advance` or driving the player manually. Jumps via `goto` require `--allow-skipped-prerequisites` and can bypass critical scene states.
+
+**Request:** Add a `--jump-to-beat <beatId>` boot flag.
+
+**Acceptance criteria:**
+
+- The harness executes the chapter under high timescale (`--speed 3` or higher) with automated dialog-clicking.
+- It resolves choices deterministically or chooses defaults until the target beat is reached.
+- It pauses the loop automatically when the target beat is reached, returning control.
+- This reduces 10+ manual command round-trips to a single boot step.
+
+### AST Reference Investigator (`agent:refs`)
+
+**Observed:** 2026-07-16, when identifying refactoring scopes for shared interfaces/contracts.
+
+To check usages of a contract or interface, agents must grep for references and then read the full files to understand the usage context, which consumes unnecessary tokens.
+
+**Request:** Implement `npm run agent:refs -- --symbol <symbolName>`.
+
+**Acceptance criteria:**
+
+- It uses the existing `ts-morph` AST utility to extract the symbol's signature.
+- It outputs a concise list of file paths with only the exact lines of code where that symbol is referenced.
+- It avoids listing lines of code that do not reference the symbol directly.
+
+### Chapter Dialogue Diffing
+
+**Observed:** 2026-07-16, when reviewing changes to narrative beats.
+
+Chapters are large TypeScript configuration files. A normal `git diff` shows the code syntax changes, which can be noisy for agents checking narrative changes.
+
+**Request:** Implement `npm run agent:diff-story`.
+
+**Acceptance criteria:**
+
+- The script compares the current chapter file against `HEAD`.
+- It prints a structured tree diff of only the *narrative content* (e.g. `"Speaker: Line text"`, choices, or scene shifts), ignoring boilerplate code syntax.
+- The output is optimized for text/token efficiency.
+
+### Direct Node-Only Mode Tester (Browserless)
+
+**Observed:** 2026-07-16, when evaluating the time and resources required to test minigames.
+
+Testing minigame state logic requires spawning a Playwright Chromium instance, which takes ~3–5 seconds to spin up and consumes memory/CPU.
+
+**Request:** Add a mock runner `npm run test:mode <modeId>` that imports the mode class directly into a Node.js shell.
+
+**Acceptance criteria:**
+
+- The runner loads the mode under node.js without opening any browser or launching Playwright.
+- It mocks the `ModeContext` façade.
+- It executes and asserts state transitions programmatically.
+

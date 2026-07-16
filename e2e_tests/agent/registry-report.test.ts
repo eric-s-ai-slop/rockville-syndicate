@@ -12,7 +12,7 @@ describe('registry report inputs', () => {
     const report = buildRegistryReport();
     const json = JSON.stringify(report);
     expect(json).not.toContain('symbolRanges');
-    expect(json.length).toBeLessThan(5000);
+    expect(json.length).toBeLessThan(5600);
     expect(JSON.stringify(buildRegistryReport(true))).toContain('symbolRanges');
   }, 30_000);
 });

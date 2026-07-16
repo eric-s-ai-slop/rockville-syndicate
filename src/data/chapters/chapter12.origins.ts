@@ -397,6 +397,7 @@ const L4_ACTORS: ActorPlacement[] = [
 const chapter12: ChapterConfig = {
   id: 'origins',
   index: 12,
+  deployment: 'shipping',
   title: 'Rockville Syndicate: Origins',
   subtitle: 'The Twelfth Slot',
   location: 'Rockville, MD — summer 2024 → tonight',

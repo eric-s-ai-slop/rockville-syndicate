@@ -6,6 +6,7 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
     branches: [main]
 
@@ -105,3 +106,35 @@ jobs:
         with:
           name: gauntlet-shots
           path: agent-artifacts/gauntlet/
+
+  # Release parity is intentionally required only after merge and for version
+  # tags: it builds the actual Dockerfile and boots the resulting image.
+  release-check:
+    name: Docker Release Parity
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: docker/setup-buildx-action@v4
+      # The release script invokes buildx directly, so expose the runtime
+      # credentials that the gha cache backend otherwise receives from
+      # docker/build-push-action automatically.
+      - uses: crazy-max/ghaction-github-runtime@056b8ec6661ce03a987ab8643a0edc346ae63fe3 # v2
+      - run: npm ci
+      - name: Build and smoke-test production image
+        run: npm run agent:release-check
+        env:
+          OMEGA_DOCKER_CACHE: gha
+      - name: Upload release receipt and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-check
+          path: agent-artifacts/release-check/

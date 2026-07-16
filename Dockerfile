@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.7
+
 # ── Builder ───────────────────────────────────────────────────────────────────
 FROM node:22-alpine AS builder
 
@@ -14,7 +16,9 @@ RUN apk add --no-cache \
     pango-dev
 
 COPY package*.json ./
-RUN npm ci
+# Keep npm's tarball/index cache across BuildKit builds while retaining the
+# lockfile-addressed install layer as the correctness boundary.
+RUN --mount=type=cache,id=omega-npm,target=/root/.npm npm ci --prefer-offline
 
 COPY . .
 RUN npm run build
@@ -38,5 +42,20 @@ COPY --from=builder /app/package.json ./package.json
 EXPOSE 3324
 
 ENV NODE_ENV=production
+
+# Declare volatile provenance inputs only where they are consumed. In
+# particular, OMEGA_BUILD_TIME changes for every release check; declaring it
+# before RUN/COPY would invalidate otherwise reusable runtime layers.
+ARG OMEGA_VERSION
+ARG OMEGA_REVISION
+ARG OMEGA_BUILD_TIME
+
+ENV OMEGA_VERSION=$OMEGA_VERSION \
+    OMEGA_REVISION=$OMEGA_REVISION \
+    OMEGA_BUILD_TIME=$OMEGA_BUILD_TIME
+
+LABEL org.opencontainers.image.version=$OMEGA_VERSION \
+      org.opencontainers.image.revision=$OMEGA_REVISION \
+      org.opencontainers.image.created=$OMEGA_BUILD_TIME
 
 CMD ["node", "dist/server.cjs"]

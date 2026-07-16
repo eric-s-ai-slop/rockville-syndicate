@@ -1,4 +1,4 @@
-import { ChapterConfig } from './types';
+import { ChapterConfig, ChapterDeployment } from './types';
 import chapterFixturePlaytest from './chapterFixture.playtest';
 import chapterMariaBrooke from './chapter0.maria-brooke';
 import chapter1 from './chapter1.spotify-insurgency';
@@ -19,21 +19,8 @@ import chapter13BensLife from './chapter13.bens-life';
 export * from './types';
 export * from './mapValidation';
 
-// DEV-only fixture chapter: exercises every Beat type for the playtest harness.
-// Included in the Vite dev server and the Node/tsx agent CLI (both need it to
-// drive the fixture), excluded from production builds.
-//
-// `import.meta.env` only exists under Vite's transform (browser build + vitest,
-// which also runs through Vite) — under plain `tsx` (e2e_tests/agent/cli.ts)
-// it is `undefined` at runtime, so the `typeof` guard is required to avoid a
-// throw there. Verified: under tsx, `process.env.NODE_ENV` is also `undefined`
-// (not `'production'`), so the fallback correctly evaluates to `true` there too.
-const INCLUDE_FIXTURES =
-  typeof import.meta.env !== 'undefined'
-    ? import.meta.env.DEV
-    : process.env.NODE_ENV !== 'production';
-
-export const CHAPTERS: ChapterConfig[] = [
+/** The complete ordered registry. Runtime lists are derived from this array. */
+export const ALL_CHAPTERS: ChapterConfig[] = [
   chapterMariaBrooke,
   chapter13BensLife,
   chapter1,
@@ -48,9 +35,42 @@ export const CHAPTERS: ChapterConfig[] = [
   chapter8,
   chapter9,
   chapter11,
-  ...(INCLUDE_FIXTURES ? [chapterFixturePlaytest] : []),
+  chapterFixturePlaytest,
   chapter12,
 ];
+
+export const PRODUCTION_CHAPTERS = ALL_CHAPTERS.filter(chapter => chapter.deployment === 'shipping');
+
+export interface ProductionChapterManifestEntry {
+  id: string;
+  index: number;
+  title: string;
+  subtitle: string;
+  kind: ChapterConfig['kind'];
+  deployment: ChapterDeployment;
+  estimatedMinutes: { min: number; max: number };
+  seal: 'classified' | 'external' | null;
+}
+
+/** Small, stable metadata surface for release validation; excludes beats/maps/assets. */
+export const PRODUCTION_CHAPTER_MANIFEST: ProductionChapterManifestEntry[] = PRODUCTION_CHAPTERS.map(chapter => ({
+  id: chapter.id,
+  index: chapter.index,
+  title: chapter.title,
+  subtitle: chapter.subtitle,
+  kind: chapter.kind,
+  deployment: chapter.deployment,
+  estimatedMinutes: chapter.estimatedMinutes!,
+  seal: chapter.seal ?? (chapter.classified ? 'classified' : null),
+}));
+
+const INCLUDE_NON_SHIPPING =
+  typeof import.meta.env !== 'undefined'
+    ? import.meta.env.DEV
+    : process.env.NODE_ENV !== 'production';
+
+/** Player-facing in production; tooling retains internal chapters in dev/tsx. */
+export const CHAPTERS: ChapterConfig[] = INCLUDE_NON_SHIPPING ? ALL_CHAPTERS : PRODUCTION_CHAPTERS;
 
 export function getChapter(id: string): ChapterConfig | undefined {
   return CHAPTERS.find(c => c.id === id);

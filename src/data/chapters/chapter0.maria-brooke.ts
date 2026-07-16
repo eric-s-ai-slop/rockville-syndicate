@@ -4,6 +4,7 @@ import { C } from './palette';
 const chapterMariaBrooke: ChapterConfig = {
   id: 'maria_brooke',
   index: 1,
+  deployment: 'shipping',
   title: 'Maria Brooke',
   subtitle: 'Flashback — The Bit',
   location: 'Richard Montgomery High School — Period 4',

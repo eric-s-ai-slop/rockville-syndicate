@@ -9,7 +9,7 @@ export function buildRegistryReport(includeSymbols = false): { schema: string; c
   const chapters = listRegisteredChapters(root).map(id => {
     const chapter = CHAPTERS.find(item => item.id === id);
     const resolved = resolveChapter(root, map.chapter, id, includeSymbols);
-    return { id, title: chapter?.title, sourceFile: resolved.sourceFile, modeIds: resolved.referencedModeIds, ...(includeSymbols ? { symbolRanges: resolved.symbolRanges } : {}) };
+    return { id, title: chapter?.title, deployment: chapter?.deployment, sourceFile: resolved.sourceFile, modeIds: resolved.referencedModeIds, ...(includeSymbols ? { symbolRanges: resolved.symbolRanges } : {}) };
   });
   const modes = listRegisteredModes(root).map(id => {
     const resolved = resolveMode(root, map.mode, id, includeSymbols);

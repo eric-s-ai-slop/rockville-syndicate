@@ -8,7 +8,14 @@ async function startServer() {
 
   // Health check
   app.get("/api/health", (_req, res) => {
-    res.json({ status: "healthy", timestamp: new Date().toISOString() });
+    res.json({
+      status: "healthy",
+      timestamp: new Date().toISOString(),
+      version: process.env.OMEGA_VERSION ?? null,
+      revision: process.env.OMEGA_REVISION ?? null,
+      builtAt: process.env.OMEGA_BUILD_TIME ?? null,
+      environment: process.env.NODE_ENV ?? "development",
+    });
   });
 
   if (process.env.NODE_ENV !== "production") {
@@ -21,6 +28,9 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
+    app.get("/api/chapters", (_req, res) => {
+      res.sendFile(path.join(distPath, "production-chapters.json"));
+    });
     app.get("*", (_req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });

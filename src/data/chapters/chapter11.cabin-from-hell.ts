@@ -21,6 +21,7 @@ import { C } from './palette';
 const chapter11: ChapterConfig = {
   id: 'cabin_from_hell_2025',
   index: 11,
+  deployment: 'shipping',
   title: 'Cabin From Hell',
   subtitle: 'Act I — The Balcony / Act II — The Siege',
   location: 'Ocean City, MD & Shenandoah, VA',

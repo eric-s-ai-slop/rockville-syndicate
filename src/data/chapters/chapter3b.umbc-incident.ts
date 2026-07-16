@@ -4,6 +4,7 @@ import { C } from './palette';
 const chapter3b: ChapterConfig = {
   id: 'umbc_incident',
   index: 6,
+  deployment: 'shipping',
   title: 'The UMBC Incident',
   subtitle: 'Act III — The Pariah Event',
   location: 'UMBC Frat Basement / Parking Lot at Night',

@@ -149,6 +149,7 @@ const scene8 = scene(
 const chapter13BensLife: ChapterConfig = {
   id: 'bens_life',
   index: 13,
+  deployment: 'shipping',
   title: 'Ben’s Life',
   subtitle: 'The Only Known Man With a Sippy Cup and a Car Battery',
   location: '51 Monroe → I-270 Scenic Overlook',

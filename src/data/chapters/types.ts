@@ -205,6 +205,8 @@ export interface ChapterSceneConfig {
 export interface ChapterConfig {
   id: string;
   index: number;
+  /** Whether this chapter is player-facing or reserved for agent tooling. */
+  deployment: ChapterDeployment;
   title: string;
   subtitle: string;
   location: string;
@@ -247,3 +249,5 @@ export interface ChapterConfig {
   chaseTextureSwaps?: Array<{ propKey: string; targetTexture: string; fallbackTexture?: string }>;
   poolNameplatesConfigs?: Array<{ id: string; key: string; startHidden?: boolean }>;
 }
+
+export type ChapterDeployment = 'shipping' | 'development' | 'internal';

@@ -3,6 +3,7 @@ import { ChapterConfig } from './types';
 const chapter2: ChapterConfig = {
   id: 'nyc_1am_drive',
   index: 2,
+  deployment: 'shipping',
   title: 'Operation Inertia',
   subtitle: 'Interlude I — The Baltimore Checkpoint',
   location: 'I-95 Northbound',

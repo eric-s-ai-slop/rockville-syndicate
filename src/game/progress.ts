@@ -45,15 +45,14 @@ export function resetProgress(): void {
 }
 
 /**
- * A chapter is unlocked if it's the first, the previous playable chapter is
- * complete, or freePlay is on. The DEV fixture is deliberately ignored as a
- * prerequisite so appending it in the menu cannot gate a real story chapter.
+ * A chapter is unlocked if it's the first, the previous shipping chapter is
+ * complete, or freePlay is on. Non-shipping chapters never gate player content.
  */
 export function isChapterUnlocked(chapterId: string, completed: string[], freePlay = false): boolean {
   if (freePlay) return true;
   const idx = CHAPTERS.findIndex(c => c.id === chapterId);
   if (idx <= 0) return true;
-  const prev = CHAPTERS.slice(0, idx).reverse().find(chapter => chapter.id !== 'fixture-playtest');
+  const prev = CHAPTERS.slice(0, idx).reverse().find(chapter => chapter.deployment === 'shipping');
   if (!prev) return true;
   return completed.includes(prev.id);
 }

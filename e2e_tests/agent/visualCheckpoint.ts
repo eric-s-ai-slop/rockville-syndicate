@@ -45,6 +45,15 @@ export interface CheckpointTransition {
   identity: CheckpointIdentity;
 }
 
+/** Required foreground reviews pause only a live mode start/replacement. */
+export function requiresForegroundReviewPause(transitions: CheckpointTransition[]): boolean {
+  return transitions.some((transition) =>
+    transition.modeKind === 'foreground'
+      && transition.modeId !== null
+      && (transition.reason.endsWith(' started') || transition.reason.includes(' replaced by ')),
+  );
+}
+
 export const PASSIVE_VISUAL_BEAT_TYPES = [
   'cameraPan',
   'moveActor',

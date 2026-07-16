@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "build": "vite build && tsx scripts/generate-production-manifest.ts && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
@@ -31,7 +31,8 @@
     "agent:integration": "vitest run --config vitest.integration.config.ts",
     "agent:scaffold-chapter": "tsx e2e_tests/agent/scaffold-chapter.ts",
     "agent:scaffold-mode": "tsx e2e_tests/agent/scaffold-mode.ts",
-    "agent:map": "tsx e2e_tests/agent/context-map.ts"
+    "agent:map": "tsx e2e_tests/agent/context-map.ts",
+    "agent:release-check": "tsx scripts/agent-release-check.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

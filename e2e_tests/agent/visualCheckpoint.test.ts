@@ -8,6 +8,7 @@ import {
   passiveVisualEventKey,
   persistentEvidenceEvent,
   persistentEvidenceMode,
+  requiresForegroundReviewPause,
   visualEventsFromBeatTrace,
   type CheckpointIdentity,
 } from './visualCheckpoint';
@@ -101,6 +102,25 @@ describe('checkpointTransitions', () => {
       modeId: 'benTrivia',
       reason: 'Foreground mode "benTrivia" ended',
     }]);
+  });
+
+  it('pauses foreground starts and replacements, but not ends or background modes', () => {
+    expect(requiresForegroundReviewPause(checkpointTransitions(
+      scene(),
+      scene({ foregroundModeId: 'benTrivia', foregroundModeBeatIndex: 16 }),
+    ))).toBe(true);
+    expect(requiresForegroundReviewPause(checkpointTransitions(
+      scene({ foregroundModeId: 'benTrivia', foregroundModeBeatIndex: 16 }),
+      scene({ foregroundModeId: 'doubleCall', foregroundModeBeatIndex: 4 }),
+    ))).toBe(true);
+    expect(requiresForegroundReviewPause(checkpointTransitions(
+      scene({ foregroundModeId: 'benTrivia', foregroundModeBeatIndex: 16 }),
+      scene(),
+    ))).toBe(false);
+    expect(requiresForegroundReviewPause(checkpointTransitions(
+      scene(),
+      scene({ backgroundModeId: 'poolParty', backgroundModeBeatIndex: 18 }),
+    ))).toBe(false);
   });
 });
 

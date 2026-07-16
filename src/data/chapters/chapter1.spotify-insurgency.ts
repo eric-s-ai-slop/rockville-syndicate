@@ -4,6 +4,7 @@ import { C } from './palette';
 const chapter1: ChapterConfig = {
   id: 'spotify_insurgency',
   index: 1,
+  deployment: 'shipping',
   title: 'The Spotify Family Insurgency',
   subtitle: 'Act I — The Extortion Crisis',
   location: 'Commons Apartment 1522',

@@ -19,7 +19,8 @@ plugins see continuous input exactly like a human's.
 ## Token-efficient repository checks
 
 - `npm run agent:check -- <changed-file...>` runs typecheck, ESLint, and the smallest safe Vitest set. Unknown or cross-cutting source files fall back to the full unit suite.
-- `npm run check:agent` runs the complete typecheck, ESLint, unit, and build gate with compact output. Full stage logs are kept under ignored `agent-artifacts/check/` for failures.
+- `npm run check:agent` runs the complete typecheck, ESLint, unit, and build gate through a bounded concurrent worker pool with compact output. It waits for every stage, aggregates one receipt, and streams separate logs under ignored `agent-artifacts/check/`. The default uses the smaller of five workers or the detected CPU allowance; override it with `--concurrency <n>` or `OMEGA_CHECK_CONCURRENCY` when benchmarking a specific machine.
+- `npm run agent -- --help walkto` prints only that command's syntax, arguments, and one example; add `--json` for machine-readable help.
 - `npm run agent:scaffold-chapter -- <index> <slug>` creates a minimal typed chapter config without registering incomplete content.
 - `npm run agent:scaffold-mode -- <id>` creates a mode from the template and updates its typed config/runtime registries atomically.
 - `npm run agent:boundaries` checks import direction between content, runtime, modes, and UI.

@@ -3,6 +3,7 @@ import { ChapterConfig } from './types';
 const chapter3: ChapterConfig = {
   id: 'red_pee_bladder',
   index: 3,
+  deployment: 'shipping',
   title: 'The Red Pee Bladder Strike',
   subtitle: 'Act II — The 10-Year Phantom Reveals Herself',
   location: 'Shepherd University, WV',

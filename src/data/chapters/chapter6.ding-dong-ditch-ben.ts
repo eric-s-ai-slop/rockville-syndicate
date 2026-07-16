@@ -3,6 +3,7 @@ import { ChapterConfig } from './types';
 const chapter6: ChapterConfig = {
   id: 'ding_dong_ditch_ben',
   index: 7,
+  deployment: 'shipping',
   title: 'Operation Ding Dong Ditch Ben',
   subtitle: 'Act IV — The Pariah Zone',
   location: '12 Watchwater Way',

@@ -4,6 +4,7 @@ import { C } from './palette';
 const chapter8: ChapterConfig = {
   id: 'cabin_basye',
   index: 9,
+  deployment: 'shipping',
   title: 'The Cabin',
   subtitle: 'Epilogue — ARE YOU 291 LIQUID?',
   location: 'Basye, Virginia',

@@ -3,6 +3,7 @@ import { ChapterConfig } from './types';
 const chapter5: ChapterConfig = {
   id: 'florida_highway_duel',
   index: 5,
+  deployment: 'shipping',
   title: 'The Florida Highway Duel',
   subtitle: 'Act III — The Puppetmaster and the Camaro',
   location: 'Boca Raton, FL',

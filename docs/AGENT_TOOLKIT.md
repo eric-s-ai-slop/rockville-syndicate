@@ -217,7 +217,7 @@ Prefer lowercase movement keys.
 | `advance [maxSeconds]` | dismiss ordinary dialogue until something classified happens (default 60s). Always exits with a named `status`: `walk-control` (free play reached), `choice-present` (stops **before** selecting), `walk-target-present` (stops **before** teleporting — inspect `targets`, then real key-driven `walkto`; `walkTarget` is an internal state field, not a command), `mode-active` + `modeId` (a foreground minigame/bossFight beat holds the flow; `background: true` modes never trigger this), `ambient-dialogue` (looping dialogue over free walk control — not a block), or `chapter-ended` (the `endChapter` beat is live). Each result carries the live beat's `{index, type, expectation}`, where `expectation` comes from the exhaustive per-beat-type classification in `e2e_tests/agent/beatClassification.ts` — adding a new beat type to `types.ts` fails `npm run lint` until that map is taught how the playtest loop should treat it. Waits for the first story beat so the chapter boot window isn't mistaken for free play (with a ~5s escape for chapters that genuinely boot into free play). Slow dialogue is not permission to skip beats. On a timeout, the failure JSONL includes a `diagnostics` dump collected from the live scene (`beatIndex`/`beatType`, player vs `walkTarget` position + distance, `movementFrozen`, `activeMode`, and dialogue/choice visibility) so you don't have to guess whether it's a physics, UI, or mode problem (H3) |
 | `replay <file>` | execute commands recorded in `<file>` recreating original timing delays |
 | `wait <ms>` | sleep `<ms>` of real time |
-| `help` | print the menu |
+| `help [command]` | print the full menu, or concise syntax/arguments/one example for a command such as `help walkto`; use `help --json <command>` for machine-readable output |
 | `quit` / `exit` | close the browser and end. In `--playtest`, any non-verified result returns a failed command receipt, `session_summary.ok:false`, and a nonzero process exit: incomplete visual QA, bypassed integrity, or missing terminal coverage. |
 
 ---
@@ -290,6 +290,11 @@ result.
   receipts require visual review but never satisfy foreground-mode bypass
   gates. Look at these; they're where "the game looks wrong" bugs actually
   surface (N3).
+- In `--playtest --checkpoints`, a foreground-mode start or replacement pauses
+  the Phaser loop before capture (`loopPausedForReview:true`). The matching
+  `reviewcheckpoint` resumes the loop only if it was running before the
+  checkpoint; background, passive, scene-load, and mode-end checkpoints retain
+  normal timing.
 - Each successful `visual_checkpoint` includes `manifestPath`, pointing to the
   JSON sidecar next to its PNG. A missing or malformed sidecar is an evidence
   failure; do not infer its context from the screenshot.
@@ -387,12 +392,18 @@ complete error collection instead of the default 20-error cap. Likewise,
 `agent:check --verbose` streams each stage's raw output while retaining the
 compact validation receipt.
 
-`agent:check` writes `agent-artifacts/check/validation-receipt.json` using the
+`agent:check` runs independent validation stages through a bounded concurrent
+worker pool, waits for all children, and writes
+`agent-artifacts/check/validation-receipt.json` using the
 `omega-validation-receipt-v1` schema. It records typecheck, lint, architecture
 boundaries, focused tests, and build stages, with explicit skipped reasons for
 report and visual-evidence
 stages. The first run records an ESLint warning baseline; later receipts split
-pre-existing and newly introduced warnings. Use `npm run agent:restart-check` to
+pre-existing and newly introduced warnings. The receipt also records total wall
+time and configured concurrency. The default pool is capped at five workers
+and never exceeds the detected CPU allowance;
+use `--concurrency <n>` or `OMEGA_CHECK_CONCURRENCY=<n>` for machine-specific
+benchmarking. Use `npm run agent:restart-check` to
 replace only a verified workspace-owned server on port 3324 and wait for its
 health response.
 

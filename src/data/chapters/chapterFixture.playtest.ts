@@ -23,6 +23,7 @@ import { C } from './palette';
 const chapterFixturePlaytest: ChapterConfig = {
   id: 'fixture-playtest',
   index: 99,
+  deployment: 'development',
   title: 'Playtest Fixture',
   subtitle: 'DEV-only — beat vocabulary smoke test',
   location: 'Rockville Park (synthetic)',

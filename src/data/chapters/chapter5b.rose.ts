@@ -18,6 +18,7 @@ import { C } from './palette';
 const chapter5b: ChapterConfig = {
   id: 'rose_florida',
   index: 6,
+  deployment: 'shipping',
   title: 'Rose',
   subtitle: 'Florida, July 4th — The Closed System',
   location: 'Boca Raton, FL',

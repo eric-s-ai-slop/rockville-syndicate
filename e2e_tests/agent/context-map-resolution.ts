@@ -88,18 +88,24 @@ function chapterSources(root: string): RegisteredSource[] {
   const registryFile = 'src/data/chapters/index.ts';
   const source = read(root, registryFile);
   const imports = parseDefaultImports(root, registryFile);
-  const array = source.match(/export const CHAPTERS[\s\S]*?=\s*\[([\s\S]*?)\];/);
-  if (!array) throw new Error(`Unable to locate CHAPTERS registration in ${registryFile}`);
+  const array = source.match(/export const (?:ALL_CHAPTERS|CHAPTERS)[\s\S]*?=\s*\[([\s\S]*?)\];/);
+  if (!array) throw new Error(`Unable to locate chapter registry in ${registryFile}`);
   const registered = new Set<string>();
   for (const alias of array[1].matchAll(/\b([A-Za-z_$][\w$]*)\b/g)) {
     if (imports.has(alias[1])) registered.add(alias[1]);
   }
   const aliases = [...registered];
-  if (aliases.length !== CHAPTERS.length) {
-    throw new Error(`CHAPTERS registry/source import count mismatch: ${CHAPTERS.length} vs ${aliases.length}`);
+  const imported = aliases.map(alias => {
+    const sourceFile = imports.get(alias)!;
+    return { id: sourceId(root, sourceFile), sourceFile };
+  });
+  const byId = new Map(imported.map(entry => [entry.id, entry]));
+  const missing = CHAPTERS.filter(chapter => !byId.has(chapter.id)).map(chapter => chapter.id);
+  if (missing.length > 0) {
+    throw new Error(`CHAPTERS registry/source imports missing: ${missing.join(', ')}`);
   }
-  return CHAPTERS.map((chapter, index) => {
-    const sourceFile = imports.get(aliases[index])!;
+  return CHAPTERS.map(chapter => {
+    const sourceFile = byId.get(chapter.id)!.sourceFile;
     return { id: chapter.id, sourceFile, directory: path.dirname(sourceFile) };
   });
 }

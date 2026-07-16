@@ -4,6 +4,7 @@ import { C } from './palette';
 const chapter7: ChapterConfig = {
   id: 'spain_betrayal',
   index: 8,
+  deployment: 'shipping',
   title: 'The Spain Betrayal',
   subtitle: 'Act V — The Agent Buyback',
   location: 'Commons 1522 (Group Chat)',

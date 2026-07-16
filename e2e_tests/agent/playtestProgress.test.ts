@@ -9,7 +9,7 @@ import { PlaytestProgressWriter, coverageProgress } from './playtestProgress';
 
 const map = { width: 100, height: 100, backdrop: 0, rects: [], labels: [], playerSpawn: { x: 0, y: 0 } };
 const chapter: ChapterConfig = {
-  id: 'progress-test', index: 1, title: 'Progress Test', subtitle: '', location: '', description: '', kind: 'chapter',
+  id: 'progress-test', index: 1, deployment: 'development', title: 'Progress Test', subtitle: '', location: '', description: '', kind: 'chapter',
   map, actors: [], scenes: [{ map, actors: [] }, { map, actors: [] }],
   beats: [
     { type: 'choice', speaker: 'narrator', prompt: 'Choose', options: [{ text: 'A' }, { text: 'B' }] },

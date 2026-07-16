@@ -3,11 +3,11 @@ import { isChapterUnlocked, setFreePlay, loadProgress, rememberHero, markChapter
 
 vi.mock('../data/chapters', () => ({
   CHAPTERS: [
-    { id: 'chapter1' },
-    { id: 'chapter2' },
-    { id: 'chapter3' },
-    { id: 'fixture-playtest' },
-    { id: 'origins' }
+    { id: 'chapter1', deployment: 'shipping' },
+    { id: 'chapter2', deployment: 'shipping' },
+    { id: 'chapter3', deployment: 'shipping' },
+    { id: 'fixture-playtest', deployment: 'development' },
+    { id: 'origins', deployment: 'shipping' }
   ]
 }));
 

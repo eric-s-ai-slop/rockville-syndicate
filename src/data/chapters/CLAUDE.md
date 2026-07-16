@@ -43,6 +43,9 @@ Chapter-select seals: use `classified: true` for the in-world redaction treatmen
 (currently Origins); it retains the two-step interaction but uses the external seal treatment.
 Set `estimatedMinutes: { min, max }` to the approximate first-play duration range shown on the
 chapter-select card (for example, Spotify is `{ min: 1, max: 3 }`).
+Every chapter must also declare `deployment: 'shipping' | 'development' | 'internal'`.
+Use `development` for harness fixtures; only `shipping` chapters enter the production
+player and release manifest.
 
 ## Speakers
 
@@ -75,7 +78,7 @@ sean | alex | leo | benji`. Unknown ids still render
 
 1. Run `npm run agent:scaffold-chapter -- <index> <kebab-case-slug>` (or create `chapterN.slug.ts` manually), then replace its TODO content.
 2. Put chapter-only image keys/URLs in a manifest under `src/game/assets/chapter/` and map the chapter id in its `index.ts`; keep truly shared assets centralized.
-3. Add music or an intentional-silence justification, import + append in [index.ts](index.ts), and add the finished title to the README chapter table.
+3. Add music or an intentional-silence justification, set the deployment classification, import + append in [index.ts](index.ts), and update the canonical README chapter table.
 4. `npm test` — `src/data/chapters.test.ts` content-lints all chapters: dangling `goto`/
    `loseGoto`/`bossId`/`modeId` refs and music coverage.
 5. Playtest at `npm run dev` (port 3324); restart the server after edits (Vite cache).

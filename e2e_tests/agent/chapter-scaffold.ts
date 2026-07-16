@@ -27,6 +27,7 @@ export function createChapterScaffold(index: number, slug: string, existingIds: 
 const ${exportName}: ChapterConfig = {
   id: '${chapterId}',
   index: ${index},
+  deployment: 'shipping',
   title: '${title}',
   subtitle: 'TODO: chapter subtitle',
   location: 'TODO: location',

@@ -13,7 +13,7 @@ vi.mock('phaser', () => {
   };
 });
 
-import { CHAPTERS } from './chapters';
+import { ALL_CHAPTERS, CHAPTERS, PRODUCTION_CHAPTERS, PRODUCTION_CHAPTER_MANIFEST } from './chapters';
 import { BOSSES } from './entities';
 import { getMode } from '../game/modes';
 import { CHAPTER_MUSIC_KEY } from '../game/audio';
@@ -31,6 +31,13 @@ describe('chapters data', () => {
 
   it('chapter ids should be unique', () => {
     expect(new Set(CHAPTERS.map(chapter => chapter.id)).size).toBe(CHAPTERS.length);
+  });
+
+  it('classifies every chapter and keeps the production manifest shipping-only', () => {
+    expect(ALL_CHAPTERS.every(chapter => ['shipping', 'development', 'internal'].includes(chapter.deployment))).toBe(true);
+    expect(PRODUCTION_CHAPTERS.every(chapter => chapter.deployment === 'shipping')).toBe(true);
+    expect(PRODUCTION_CHAPTER_MANIFEST.map(chapter => chapter.id)).toEqual(PRODUCTION_CHAPTERS.map(chapter => chapter.id));
+    expect(PRODUCTION_CHAPTER_MANIFEST.some(chapter => chapter.id === 'fixture-playtest')).toBe(false);
   });
 
   it('keeps flashback chapters grouped before the main story', () => {

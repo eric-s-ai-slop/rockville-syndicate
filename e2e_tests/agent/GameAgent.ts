@@ -437,16 +437,19 @@ export class GameAgent {
    * `--shots`, visual checkpoints) must go through this, not a raw
    * `page.screenshot()` — unstabilized captures land mid-animation and flap
    * between runs, eroding trust in the whole mechanism (C5's known gap).
-   * Plain `screenshot` stays unstabilized on purpose: it documents "what does
+   * Pass `{ settle: false }` when the caller has intentionally paused a timed
+   * mode for review; this captures the exact paused frame without stepping its
+   * clock. Plain `screenshot` stays unstabilized on purpose: it documents "what does
    * the live game look like right now", not "does this match a baseline".
    */
-  async stabilizedScreenshot(filePath: string): Promise<void> {
+  async stabilizedScreenshot(filePath: string, options: { settle?: boolean } = {}): Promise<void> {
     const wasRunning = await this.isLoopRunning();
+    const settle = options.settle !== false;
     const started = Date.now();
     let stable = 0;
     let observed = 0;
     let previous = '';
-    while (Date.now() - started < 750 && stable < 2) {
+    while (settle && Date.now() - started < 750 && stable < 2) {
       await this.stepFrames(1);
       observed++;
       const sample = await this.page.evaluate(() => {
@@ -470,7 +473,7 @@ export class GameAgent {
       else stable = 0;
       previous = sample;
     }
-    this.lastSettling = { framesObserved: observed, elapsedMs: Date.now() - started, timedOut: stable < 2 };
+    this.lastSettling = { framesObserved: observed, elapsedMs: Date.now() - started, timedOut: settle && stable < 2 };
     try {
       await this.page.screenshot({ path: filePath });
       if (!fs.existsSync(filePath)) throw new ScreenshotError('ARTIFACT_NOT_FOUND', `Screenshot was not written: ${filePath}`, filePath, null, 'Check --out permissions and available disk space.');

@@ -4,6 +4,7 @@ import { C } from './palette';
 const chapter4: ChapterConfig = {
   id: 'jungle_gym_gambit',
   index: 4,
+  deployment: 'shipping',
   title: 'The Jungle Gym Gambit',
   subtitle: 'Interlude II — The Three Rules',
   location: 'Beall Elementary School, Rockville',

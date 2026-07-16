@@ -19,6 +19,7 @@ function makeChapter(overrides: Partial<ChapterConfig> & Pick<ChapterConfig, 'be
   return {
     id: 'synthetic',
     index: 0,
+    deployment: 'development',
     title: 'Synthetic',
     subtitle: '',
     location: '',
