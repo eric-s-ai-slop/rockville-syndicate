@@ -35,6 +35,7 @@ const INCLUDE_FIXTURES =
 
 export const CHAPTERS: ChapterConfig[] = [
   chapterMariaBrooke,
+  chapter13BensLife,
   chapter1,
   chapter2,
   chapter3,
@@ -47,7 +48,6 @@ export const CHAPTERS: ChapterConfig[] = [
   chapter8,
   chapter9,
   chapter11,
-  chapter13BensLife,
   ...(INCLUDE_FIXTURES ? [chapterFixturePlaytest] : []),
   chapter12,
 ];

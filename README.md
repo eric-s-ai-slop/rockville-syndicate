@@ -71,6 +71,7 @@ Chapters are declarative config files in [`src/data/chapters/`](src/data/chapter
 | # | Title | Theme / Setting | Est. | Boss | Config |
 |---|-------|-----------------|------|------|--------|
 | 0 | Maria Brooke *(Flashback — The Bit)* | Flashback | 6–10 min | — | `chapter0.maria-brooke.ts` |
+| 13 | Ben’s Life *(Flashback)* | 51 Monroe → I-270 scenic overlook | 12–18 min | — | `chapter13.bens-life.ts` |
 | 1 | The Spotify Family Insurgency | Apartment 1522 | 1–3 min | Eric | `chapter1.spotify-insurgency.ts` |
 | 2 | Operation Inertia *(Interlude)* | NYC 1AM highway | 3–5 min | — | `chapter2.operation-inertia.ts` |
 | 3 | The Red Pee Bladder Strike | Shepherd University | 3–5 min | Audrey | `chapter3.red-pee-bladder-strike.ts` |
@@ -83,7 +84,6 @@ Chapters are declarative config files in [`src/data/chapters/`](src/data/chapter
 | 8 | The Cabin *(Epilogue)* | Basye, VA | 5–8 min | — | `chapter8.the-cabin.ts` |
 | 9 | The Suds & Soles Pool Party | Nick F's Backyard | 12–18 min | — | `chapter9.pool-party.ts` |
 | 11 | Cabin From Hell | Shenandoah cabin, July 4th | 20–30 min | — | `chapter11.cabin-from-hell.ts` |
-| 13 | Ben’s Life | 51 Monroe → I-270 scenic overlook | 12–18 min | — | `chapter13.bens-life.ts` |
 | 99 | Playtest Fixture *(DEV-only — never ships)* | Rockville Park (synthetic) | 5–8 min | — | `chapterFixture.playtest.ts` |
 | 12 | Rockville Syndicate: Origins *(META)* | Rockville, MD — summer 2024 → tonight | 25–35 min | — | `chapter12.origins.ts` |
 

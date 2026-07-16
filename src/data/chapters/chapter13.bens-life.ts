@@ -153,7 +153,7 @@ const chapter13BensLife: ChapterConfig = {
   subtitle: 'The Only Known Man With a Sippy Cup and a Car Battery',
   location: '51 Monroe → I-270 Scenic Overlook',
   description: 'A chronological roast compilation of Ben’s locked doors, impossible plans, and increasingly portable hazards.',
-  kind: 'chapter',
+  kind: 'flashback',
   estimatedMinutes: { min: 12, max: 18 },
   map: scene0.map,
   actors: scene0.actors,

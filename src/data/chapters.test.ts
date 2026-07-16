@@ -33,6 +33,13 @@ describe('chapters data', () => {
     expect(new Set(CHAPTERS.map(chapter => chapter.id)).size).toBe(CHAPTERS.length);
   });
 
+  it('keeps flashback chapters grouped before the main story', () => {
+    const firstMainStoryIndex = CHAPTERS.findIndex(chapter => chapter.kind !== 'flashback');
+    expect(firstMainStoryIndex).toBeGreaterThan(0);
+    expect(CHAPTERS.slice(0, firstMainStoryIndex).map(chapter => chapter.id)).toContain('bens_life');
+    expect(CHAPTERS.slice(firstMainStoryIndex).some(chapter => chapter.kind === 'flashback')).toBe(false);
+  });
+
   it('chapters should have valid properties', () => {
     CHAPTERS.forEach(chapter => {
       expect(chapter).toHaveProperty('id');
