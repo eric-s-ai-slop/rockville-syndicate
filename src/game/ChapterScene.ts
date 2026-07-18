@@ -156,8 +156,6 @@ export default class ChapterScene extends Phaser.Scene {
 
   // Status effects
   private brainrotLevel: number = 0;
-  private subZeroActive: boolean = false;
-  private subZeroActivatedOnce: boolean = false;
   private brainrotBar!: Phaser.GameObjects.Rectangle;
   private brainrotFill!: Phaser.GameObjects.Rectangle;
   private brainrotLabel!: Phaser.GameObjects.Text;
@@ -1245,16 +1243,7 @@ export default class ChapterScene extends Phaser.Scene {
       this.tweens.add({ targets: fx, scale: endScale, alpha: 0, duration: 380, onComplete: () => fx.destroy() });
     } catch {}
 
-    let finalDmg = Math.round(damage * DIFFICULTY_MODS[getSettings().difficulty].playerDamageTaken);
-    if (this.playerClass.id === 'jacob') {
-      if (this.subZeroActive) {
-        finalDmg = Math.floor(damage * 0.5); // Sub-Zero: immune to pain
-      } else {
-        finalDmg = Math.floor(damage * 2.5); // Loss Aversion penalty
-      }
-    } else if (this.playerClass.id === 'nick_h') {
-      finalDmg = Math.floor(damage * 0.4);
-    }
+    const finalDmg = Math.round(damage * DIFFICULTY_MODS[getSettings().difficulty].playerDamageTaken);
 
     // Brainrot from Galaxy Gas Zombie source
     if (source.toLowerCase().includes('zombie') || source.toLowerCase().includes('b12') || source.toLowerCase().includes('galaxy')) {
@@ -1269,14 +1258,6 @@ export default class ChapterScene extends Phaser.Scene {
 
     this.activeHp -= finalDmg;
     this.onHpChange(Math.max(0, this.activeHp));
-
-    // Sub-Zero awakening for Jacob
-    if (this.playerClass.id === 'jacob' && !this.subZeroActivatedOnce) {
-      const hpThreshold = this.playerClass.maxHp * 0.3;
-      if (this.activeHp <= hpThreshold && this.activeHp > 0) {
-        this.activateSubZero();
-      }
-    }
 
     if (this.activeHp > 0) {
       this.playerController.cancelAttackAnim();
@@ -1300,28 +1281,6 @@ export default class ChapterScene extends Phaser.Scene {
       this.setControlsInverted(false);
       this.onGameOver();
     }
-  }
-
-  private activateSubZero() {
-    this.subZeroActive = true;
-    this.subZeroActivatedOnce = true;
-    this.player.setTint(0x38bdf8);
-    this.cameras.main.flash(500, 56, 189, 248);
-    this.cameras.main.shake(600, 0.025);
-    this.onMessageLog('🥷 SUB-ZERO AWAKENED! Jacob enters Mortal Kombat mode. Damage: +50%, Pain: OFF.');
-    this.showBubbleText(this.player, "I'M FUCKING SUBZERO!!!", '#38bdf8');
-    this.showPassiveIconText(this.player.x, this.player.y - 50, 'SUB-ZERO ACTIVATED 🥷', '#38bdf8');
-    // Ice particles burst - Performance Optimization
-    // Bypassed Arcade Physics entirely with a WebGL ParticleEmitter to eliminate GC churn for visual effects
-    const particles = this.add.particles(this.player.x, this.player.y, 'particle_dot', {
-      speed: 200,
-      lifespan: 600,
-      scale: { start: 1.5, end: 0 },
-      tint: 0x38bdf8,
-      emitting: false
-    });
-    particles.explode(8);
-    this.time.delayedCall(700, () => particles.destroy());
   }
 
   // ─── Combat Callbacks ─────────────────────────────────────────────────────

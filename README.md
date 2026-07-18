@@ -44,14 +44,14 @@ Each chapter is a self-contained story beat ripped from real events and lore-ifi
 
 ### Playable Heroes
 
-| Hero | Emoji | BIQ | Specialty |
-|------|-------|-----|-----------|
+| Hero | Emoji | BIQ | Flavor |
+|------|-------|-----|--------|
 | **Eric Huang** | 📊 | 180 | Aura-maximizing analyst |
 | **Nick Farrar** | 🚗 | 85 | Car-brained street racer |
 | **Nick Hedgecock** | 🐔 | 83 | Chicken-barrage tactician |
 | **Jacob Lebby** | ❄️ | 130 | Sub-Zero energy specialist |
 
-**BIQ** (Behavioral Intelligence Quotient) determines starting stats and unlock progression. Class stats, weapons, and loot metadata live in [`src/data/entities/`](src/data/entities/).
+**BIQ** (Behavioral Intelligence Quotient) is a lore rating. Hero selection changes the character, dialogue, and presentation, but all heroes share the same gameplay stats and mechanics. Global difficulty controls the challenge level.
 
 ### Bosses & Antagonists
 

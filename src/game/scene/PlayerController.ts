@@ -106,20 +106,12 @@ export class PlayerController {
     const { scene } = this;
     const { player, playerClass } = scene;
 
-    if (playerClass.id === 'nick_f' && Math.random() < 0.05) {
-      scene.onMessageLog('⚠️ Keys locked in the C55 AMG — dash failed!');
-      this._dashCooldown = true;
-      scene.showBubbleText(player, 'KEYS LOCKED IN C55 AMG 💀', '#ef4444');
-      scene.time.delayedCall(4000, () => { this._dashCooldown = false; });
-      return;
-    }
-
     this._isDashing = true;
     this._dashCooldown = true;
     // i-frames last slightly longer than the dash so the exit frame is safe
     this.playerInvulnUntil = scene.time.now + 260;
 
-    const dashFactor = playerClass.id === 'nick_f' ? 3.0 : 2.2;
+    const dashFactor = 2.2;
     const dashX = vx === 0 && vy === 0 ? playerClass.speed * dashFactor : vx * dashFactor;
     const dashY = vx === 0 && vy === 0 ? 0 : vy * dashFactor;
 
@@ -147,7 +139,7 @@ export class PlayerController {
     }
 
     scene.time.delayedCall(220, () => { this._isDashing = false; });
-    scene.time.delayedCall(playerClass.id === 'nick_f' ? 900 : 1500, () => { this._dashCooldown = false; });
+    scene.time.delayedCall(1500, () => { this._dashCooldown = false; });
   }
 
   // ── Footsteps ─────────────────────────────────────────────────────────────────

@@ -4,30 +4,30 @@
     "id": "origins",
     "title": "Rockville Syndicate: Origins"
   },
-  "status": "running",
-  "overallPercent": 54,
-  "bar": "[███████████░░░░░░░░░] 54%",
+  "status": "incomplete-coverage",
+  "overallPercent": 0,
+  "bar": "[░░░░░░░░░░░░░░░░░░░░] 0%",
   "story": {
-    "currentBeat": 149,
-    "farthestBeat": 149,
+    "currentBeat": null,
+    "farthestBeat": 0,
     "totalBeats": 306,
-    "percent": 49
+    "percent": 0
   },
   "coverage": {
-    "completed": 21,
+    "completed": 0,
     "total": 42,
-    "percent": 50,
+    "percent": 0,
     "breakdown": {
       "scenes": {
-        "completed": 4,
+        "completed": 0,
         "total": 11
       },
       "choices": {
-        "completed": 11,
+        "completed": 0,
         "total": 11
       },
       "walks": {
-        "completed": 4,
+        "completed": 0,
         "total": 6
       },
       "foregroundModes": {
@@ -35,7 +35,7 @@
         "total": 8
       },
       "backgroundModes": {
-        "completed": 2,
+        "completed": 0,
         "total": 5
       },
       "terminal": {
@@ -45,17 +45,15 @@
     }
   },
   "visualQa": {
-    "captured": 16,
-    "reviewed": 15,
-    "pending": [
-      16
-    ],
-    "percent": 94
+    "captured": 0,
+    "reviewed": 0,
+    "pending": [],
+    "percent": 0
   },
   "findings": {
     "open": 0,
     "dismissed": 0,
     "total": 0
   },
-  "updatedAt": "2026-07-15T19:42:44.223Z"
+  "updatedAt": "2026-07-16T23:41:01.158Z"
 }

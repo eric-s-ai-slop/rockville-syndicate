@@ -392,14 +392,14 @@ export default function GameLayout() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2 mb-1">
                             <h3 className="font-bold text-base font-display" style={{ color: selected ? hero.color : '#c8e89a' }}>{hero.name}</h3>
-                            <span className="text-xs font-mono shrink-0" style={{ color: '#8aaa60' }}>BIQ {hero.biq}</span>
+                            <span className="text-xs font-mono shrink-0" style={{ color: '#8aaa60' }}>LORE BIQ {hero.biq}</span>
                           </div>
                           <p className="text-xs mb-2 opacity-70" style={{ color: '#c8e89a' }}>{hero.title}</p>
                           <p className="text-xs leading-relaxed opacity-60" style={{ color: '#c8e89a' }}>{hero.description}</p>
                         </div>
                       </div>
                       <div className="mt-3 pt-3 border-t" style={{ borderColor: '#2a3d18' }}>
-                        <span className="text-[10px] font-mono" style={{ color: hero.color }}>RELIC: {hero.relicName}</span>
+                        <span className="text-[10px] font-mono" style={{ color: hero.color }}>SIGNATURE: {hero.relicName}</span>
                       </div>
                       {selected && (
                         <div className="absolute top-2 right-2 w-2 h-2" style={{ background: hero.color }} />
