@@ -71,7 +71,3 @@ const INCLUDE_NON_SHIPPING =
 
 /** Player-facing in production; tooling retains internal chapters in dev/tsx. */
 export const CHAPTERS: ChapterConfig[] = INCLUDE_NON_SHIPPING ? ALL_CHAPTERS : PRODUCTION_CHAPTERS;
-
-export function getChapter(id: string): ChapterConfig | undefined {
-  return CHAPTERS.find(c => c.id === id);
-}

@@ -55,7 +55,7 @@ fatigue. No new audio assets — reuses the existing 12-voice `DIALOG_BLIP_URL` 
 
 ### 1. Lazy-Loading Chapters (Dynamic Imports)
 **The Problem:** Currently, `src/data/chapters/index.ts` statically imports every single chapter file at boot (e.g. `import chapter11 from './chapter11.cabin-from-hell'`). As the game scales and more massive chapters are added, the initial Javascript bundle size will bloat significantly, leading to slower first-paint times.
-**Reason:** All chapter source combined is ~190 KB, negligible vs. the Phaser runtime. Dynamic imports would complicate the synchronous `getChapter()` lookup without meaningful performance gain.
+**Reason:** All chapter source combined is ~190 KB, negligible vs. the Phaser runtime. Dynamic imports would complicate chapter loading without meaningful performance gain.
 
 ### 8. State-Management Driven Architecture (Zustand/Redux Bridge)
 **The Problem:** Bridging React (UI) and Phaser (Engine) via `useEffect` refs and window object listeners is prone to race conditions and React StrictMode lifecycle double-fire bugs.
