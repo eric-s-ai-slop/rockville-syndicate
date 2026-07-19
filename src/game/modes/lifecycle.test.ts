@@ -20,7 +20,7 @@ describe('mode lifecycle', () => {
 
       complete({ outcome: 'win' });
       complete({ outcome: 'lose' });
-      complete({ outcome: 'win', nextMode: 'someMode' });
+      complete({ outcome: 'win', data: 'someData' });
 
       expect(onComplete).toHaveBeenCalledTimes(1);
       expect(onComplete).toHaveBeenCalledWith({ outcome: 'win' });
