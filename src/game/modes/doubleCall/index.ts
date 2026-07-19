@@ -70,7 +70,7 @@ export interface DoubleCallConfig {
  * the player refuses in Scene 10 (`unsent`), and the phone the player answers in
  * the coda (`reply`). Never emits 'lose' — there is no fail state, only rewind.
  */
-export class DoubleCallMode implements GameMode<DoubleCallConfig> {
+export class DoubleCallMode {
   id = 'doubleCall';
 
   private ctx!: ModeContext;
@@ -885,5 +885,5 @@ function resolveSpeakerLite(id: string): { name: string; emoji: string; color: s
   return table[id] ?? { name: id.toUpperCase(), emoji: '🗨️', color: '#c8e89a' };
 }
 
-export const doubleCallMode = new DoubleCallMode();
+export const doubleCallMode: GameMode<DoubleCallConfig> = new DoubleCallMode();
 export default doubleCallMode;
