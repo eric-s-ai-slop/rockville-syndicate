@@ -30,7 +30,7 @@ const D = 9600;
 
 type Button = { box: Phaser.GameObjects.Rectangle; text: Phaser.GameObjects.Text };
 
-export class BenMemoryGameMode implements GameMode<BenMemoryGameModeConfig> {
+export class BenMemoryGameMode {
   id = 'benMemoryGame';
   harnessForceComplete = (result: ModeResult = { outcome: 'win' }) => {
     this.resolve(result.outcome === 'lose' ? 'lose' : 'win');
@@ -482,5 +482,5 @@ export class BenMemoryGameMode implements GameMode<BenMemoryGameModeConfig> {
   }
 }
 
-export const benMemoryGameMode = new BenMemoryGameMode();
+export const benMemoryGameMode: GameMode<BenMemoryGameModeConfig> = new BenMemoryGameMode();
 export default benMemoryGameMode;
