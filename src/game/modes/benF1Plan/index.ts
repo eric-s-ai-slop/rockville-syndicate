@@ -150,8 +150,11 @@ export class BenF1PlanMode implements GameMode<BenF1PlanModeConfig> {
 
   private bindControls(): void {
     const set = (key: string, pressed: boolean) => {
-      if (!['arrowleft', 'a', 'arrowright', 'd'].includes(key)) return;
-      const direction = ['arrowleft', 'a'].includes(key) ? -1 : 1;
+      let direction = 0;
+      if (key === 'arrowleft' || key === 'a') direction = -1;
+      else if (key === 'arrowright' || key === 'd') direction = 1;
+      else return;
+
       if (pressed) this.balanceInput = direction;
       else if (this.balanceInput === direction) this.balanceInput = 0;
     };
