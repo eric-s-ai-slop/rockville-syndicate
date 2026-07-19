@@ -116,8 +116,25 @@ describe('promptDuration', () => {
     expect(promptDuration(cfg, 7, 16)).toBeLessThan(3500);
   });
 
+  it('calculates exact expected durations with proper Math.round rounding', () => {
+    const cfg = seeded({ perPromptMs: 3000, minPromptMs: 1000 });
+    // total = 4. Indices: 0, 1, 2, 3.
+    // index 1: 3000 + (-2000) * (1/3) = 2333.333... -> 2333
+    // index 2: 3000 + (-2000) * (2/3) = 1666.666... -> 1667
+    expect(promptDuration(cfg, 0, 4)).toBe(3000);
+    expect(promptDuration(cfg, 1, 4)).toBe(2333);
+    expect(promptDuration(cfg, 2, 4)).toBe(1667);
+    expect(promptDuration(cfg, 3, 4)).toBe(1000);
+  });
+
   it('returns the base duration for a single-card round', () => {
     const cfg = seeded({ count: 1 });
     expect(promptDuration(cfg, 0, 1)).toBe(cfg.perPromptMs);
+  });
+
+  it('returns the base duration for zero or negative total cards', () => {
+    const cfg = seeded({ perPromptMs: 2500 });
+    expect(promptDuration(cfg, 0, 0)).toBe(2500);
+    expect(promptDuration(cfg, 0, -1)).toBe(2500);
   });
 });
