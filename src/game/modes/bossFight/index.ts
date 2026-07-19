@@ -17,6 +17,12 @@ interface BossFightStartConfig {
 
 export class BossFightMode implements GameMode {
   public readonly id = 'bossFight';
+  public harnessForceComplete = (result: ModeResult = { outcome: 'win' }) => {
+    this.isFightActive = false;
+    if (this.onCompleteCallback) {
+      this.onCompleteCallback(result);
+    }
+  };
 
   private ctx!: ModeContext;
   private onCompleteCallback?: (result: ModeResult) => void;

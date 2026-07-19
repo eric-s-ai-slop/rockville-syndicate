@@ -16,6 +16,12 @@ describe('getBossPhase', () => {
     expect(getBossPhase(0.32)).toBe(1);
     expect(getBossPhase(0)).toBe(1);
   });
+
+  it('handles edge cases (negative, > 1, NaN)', () => {
+    expect(getBossPhase(-0.1)).toBe(1);
+    expect(getBossPhase(1.5)).toBe(3);
+    expect(getBossPhase(NaN)).toBe(3);
+  });
 });
 
 describe('getPhaseAttackMultiplier', () => {
