@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   getSettings,
   updateSettings,
@@ -180,6 +180,19 @@ describe('updateSettings / saveSettings', () => {
     _reloadFromStorage();
     expect(getSettings().sfxVolume).toBe(0.5);
     expect(getSettings().difficulty).toBe('easy');
+  });
+
+  it('suppresses localStorage errors without crashing', () => {
+    const originalSetItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = vi.fn().mockImplementation(() => {
+      throw new Error('Quota exceeded');
+    });
+
+    try {
+      expect(() => updateSettings({ difficulty: 'hard' })).not.toThrow();
+    } finally {
+      Storage.prototype.setItem = originalSetItem;
+    }
   });
 });
 
