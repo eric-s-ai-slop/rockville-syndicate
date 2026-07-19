@@ -1188,7 +1188,7 @@ export class GameAgent {
   }
 
   /** Launch a specific minigame mode directly. */
-  async launchMinigame(modeId: string, config: any = {}): Promise<void> {
+  async launchMinigame(modeId: string, config: unknown = {}): Promise<void> {
     await this.page.evaluate(({ mId, cfg }) => {
       const game = (window as unknown as { __OMEGA_GAME__?: any }).__OMEGA_GAME__;
       if (!game) throw new Error('Game not initialized');
