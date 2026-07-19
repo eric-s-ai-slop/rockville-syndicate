@@ -12,10 +12,6 @@ export const themeCapabilities: Record<MapTheme, { environment: 'outdoor' | 'ind
   pool_party: { environment: 'outdoor', allowsNatureScatter: false },
 };
 
-export function mapBounds(map: MapConfig) {
-  return { x: 0, y: 0, width: map.width, height: map.height };
-}
-
 export interface EffectiveViewport {
   x: number;
   y: number;
