@@ -106,7 +106,6 @@ Goal: editing one chapter no longer requires opening a 2,330-line file.
 - `src/data/chapters/index.ts` — the **barrel**. Must export the **exact same public surface** the old file did so no consumer changes:
   - Re-export all types/interfaces from `./types` (and `resolveSpeaker`).
   - `export const CHAPTERS: ChapterConfig[] = [chapter1, chapter2, …, chapter9];` (preserve order — order drives the unlock sequence).
-  - `export function getChapter(id: string): ChapterConfig | undefined`.
 - The old import specifier `'../data/chapters'` resolves to the new `index.ts` automatically via Node/TypeScript directory resolution. **Do not change any consumer import.**
 
 **Consumers that must keep working unchanged** (verify each still type-checks after the split):
@@ -288,7 +287,7 @@ src/
   data/
     entities.ts                      # (renamed from src/data.ts — optional but recommended)
     chapters/
-      index.ts                       # barrel: CHAPTERS, getChapter, re-exports all types
+      index.ts                       # barrel: CHAPTERS, re-exports all types
       types.ts                       # Beat (now incl. 'minigame'), ChapterConfig, MapConfig, …
       palette.ts                     # shared color palette const C
       chapter1.spotify-insurgency.ts

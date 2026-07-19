@@ -213,7 +213,7 @@ project-omega_-the-rockville-syndicate/
 │   │   ├── entities/                # Hero/boss stats, weapons, power-ups, loot metadata (barrel index.ts)
 │   │   ├── chapters.test.ts
 │   │   └── chapters/
-│   │       ├── index.ts             # CHAPTERS barrel + getChapter() lookup
+│   │       ├── index.ts             # CHAPTERS barrel
 │   │       ├── types.ts             # Config types (Speaker, MapRect, Beat, ...)
 │   │       ├── palette.ts           # Shared color palette
 │   │       └── chapter*.ts          # Per-chapter configs (0–12 + interludes/fixture)
