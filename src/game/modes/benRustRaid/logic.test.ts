@@ -8,8 +8,26 @@ describe('Ben Rust raid logic', () => {
     expect(waveForElapsed(40)).toBe(3);
   });
 
-  it('makes loud play bring Michael faster', () => {
-    expect(threatRate(90)).toBeGreaterThan(threatRate(10));
+  describe('threatRate', () => {
+    it('makes loud play bring Michael faster', () => {
+      expect(threatRate(90)).toBeGreaterThan(threatRate(10));
+    });
+
+    it('calculates expected rate for valid noise levels', () => {
+      expect(threatRate(0)).toBeCloseTo(2.1);
+      expect(threatRate(50)).toBeCloseTo(3.0);
+      expect(threatRate(100)).toBeCloseTo(3.9);
+    });
+
+    it('clamps noise below 0', () => {
+      expect(threatRate(-10)).toBeCloseTo(2.1);
+      expect(threatRate(-100)).toBeCloseTo(2.1);
+    });
+
+    it('clamps noise above 100', () => {
+      expect(threatRate(110)).toBeCloseTo(3.9);
+      expect(threatRate(500)).toBeCloseTo(3.9);
+    });
   });
 
   it('scores the hidden camera as an optional fifth task', () => {
