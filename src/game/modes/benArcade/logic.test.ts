@@ -15,6 +15,12 @@ describe("Ben arcade simulations", () => {
     expect(target.vx).toBeCloseTo(100);
   });
 
+  it("calculates correct circuit current", () => {
+    expect(circuitCurrent(10, 2)).toBe(5);
+    expect(circuitCurrent(10, 0)).toBe(0);
+    expect(circuitCurrent(10, -5)).toBe(0);
+  });
+
   it("makes short graphite paths brighter and hotter", () => {
     const high = graphiteState(circuitCurrent(3, 1.5), 0, 1);
     const low = graphiteState(circuitCurrent(3, 4), 0, 1);
