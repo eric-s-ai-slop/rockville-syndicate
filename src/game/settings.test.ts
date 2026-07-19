@@ -82,7 +82,7 @@ describe('migration from legacy v1 keys', () => {
     // Clear out any v2 blob
     localStorage.clear();
 
-    const getItemSpy = vi.spyOn(localStorage, 'getItem').mockImplementation((_key) => {
+    const getItemSpy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new Error('Quota Exceeded or DOMException');
     });
 
