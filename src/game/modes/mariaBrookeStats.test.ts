@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { MariaBrookeStats } from './mariaBrookeStats';
+import { MariaBrookeStats, mariaBrookeStats } from './mariaBrookeStats';
 
 describe('MariaBrookeStats', () => {
   let stats: MariaBrookeStats;
@@ -55,5 +55,19 @@ describe('MariaBrookeStats', () => {
     stats.restore(snapshot);
 
     expect(stats.snapshot()).toEqual(snapshot);
+  });
+
+  it('allows manual mutation of public properties', () => {
+    stats.laughs += 1;
+    stats.firstTruthPhase = 'early';
+
+    expect(stats.laughs).toBe(1);
+    expect(stats.firstTruthPhase).toBe('early');
+  });
+});
+
+describe('mariaBrookeStats Singleton', () => {
+  it('should be initialized as an instance of MariaBrookeStats', () => {
+    expect(mariaBrookeStats).toBeInstanceOf(MariaBrookeStats);
   });
 });
