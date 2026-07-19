@@ -1,6 +1,13 @@
 // Dynamic pixel-art sprite sheet preprocessor
 // Automatically detects, crops, and baselines individual sprites from arbitrary layouts
 
+function getColorDistanceSq(r1: number, g1: number, b1: number, r2: number, g2: number, b2: number): number {
+  const dr = r1 - r2;
+  const dg = g1 - g2;
+  const db = b1 - b2;
+  return dr * dr + dg * dg + db * db;
+}
+
 export interface SlicedSpriteSheet {
   canvas: HTMLCanvasElement;
   frameWidth: number;
@@ -65,11 +72,7 @@ export function preprocessShowcaseSheet(
   const toleranceSq = tolerance * tolerance;
   const isBackground = (r: number, g: number, b: number, a: number): boolean => {
     if (a < 50) return true;
-    const dr = r - bgR;
-    const dg = g - bgG;
-    const db = b - bgB;
-    const distSq = dr * dr + dg * dg + db * db;
-    return distSq < toleranceSq; // safe tolerance for compressed images
+    return getColorDistanceSq(r, g, b, bgR, bgG, bgB) < toleranceSq; // safe tolerance for compressed images
   };
 
   // BFS island analysis
@@ -325,18 +328,10 @@ export function preprocessShowcaseSheet(
       const a = data[idx + 3];
       if (a < 50) return true;
 
-      const drBg = r - bgR;
-      const dgBg = g - bgG;
-      const dbBg = b - bgB;
-      const distBgSq = drBg * drBg + dgBg * dgBg + dbBg * dbBg;
-      if (distBgSq < 2025) return true; // 45 * 45
+      if (getColorDistanceSq(r, g, b, bgR, bgG, bgB) < 2025) return true; // 45 * 45
 
       for (const c of cornerColors) {
-        const drC = r - c.r;
-        const dgC = g - c.g;
-        const dbC = b - c.b;
-        const distCornerSq = drC * drC + dgC * dgC + dbC * dbC;
-        if (distCornerSq < 1225) return true; // 35 * 35
+        if (getColorDistanceSq(r, g, b, c.r, c.g, c.b) < 1225) return true; // 35 * 35
       }
       return false;
     };
@@ -662,11 +657,7 @@ export function preprocessColumnFirstSheet(
   const toleranceSq = tolerance * tolerance;
   const isBackground = (r: number, g: number, b: number, a: number): boolean => {
     if (a < 50) return true;
-    const dr = r - bgR;
-    const dg = g - bgG;
-    const db = b - bgB;
-    const distSq = dr * dr + dg * dg + db * db;
-    return distSq < toleranceSq;
+    return getColorDistanceSq(r, g, b, bgR, bgG, bgB) < toleranceSq;
   };
 
   // BFS island detection (same approach as preprocessShowcaseSheet)
@@ -812,11 +803,7 @@ export function preprocessColumnFirstSheet(
       const b = fd[idx + 2];
       const a = fd[idx + 3];
       if (a < 50) return true;
-      const dr = r - bgR;
-      const dg = g - bgG;
-      const db = b - bgB;
-      const distSq = dr * dr + dg * dg + db * db;
-      return distSq < 2025; // 45 * 45
+      return getColorDistanceSq(r, g, b, bgR, bgG, bgB) < 2025; // 45 * 45
     };
 
     // Seed queue with border pixels
@@ -1007,11 +994,7 @@ export function preprocessFemalePoolSheet(
       const b = fd[idx + 2];
       const a = fd[idx + 3];
       if (a < 50) return true;
-      const dr = r - bgR;
-      const dg = g - bgG;
-      const db = b - bgB;
-      const distSq = dr * dr + dg * dg + db * db;
-      return distSq < 2025; // 45 * 45
+      return getColorDistanceSq(r, g, b, bgR, bgG, bgB) < 2025; // 45 * 45
     };
 
     let activeMinX = w, activeMaxX = 0, activeMinY = h, activeMaxY = 0;
@@ -1051,11 +1034,7 @@ export function preprocessFemalePoolSheet(
       const b = afd[idx + 2];
       const a = afd[idx + 3];
       if (a < 50) return true;
-      const dr = r - bgR;
-      const dg = g - bgG;
-      const db = b - bgB;
-      const distSq = dr * dr + dg * dg + db * db;
-      return distSq < 2025; // 45 * 45
+      return getColorDistanceSq(r, g, b, bgR, bgG, bgB) < 2025; // 45 * 45
     };
 
     // Seed queue with border pixels
@@ -1299,11 +1278,7 @@ export function preprocessGirlSilhouetteSheet(img: HTMLImageElement): SlicedSpri
         const r = cellPixels[i];
         const g = cellPixels[i+1];
         const b = cellPixels[i+2];
-        const dr = r - bgR;
-        const dg = g - bgG;
-        const db = b - bgB;
-        const distSq = dr * dr + dg * dg + db * db;
-        if (distSq < 2025 || r > 200) { // Strip light colors / borders
+        if (getColorDistanceSq(r, g, b, bgR, bgG, bgB) < 2025 || r > 200) { // Strip light colors / borders
           cellPixels[i+3] = 0; // Transparent
         }
       }
