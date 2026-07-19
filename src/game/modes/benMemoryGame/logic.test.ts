@@ -2,11 +2,43 @@ import { describe, expect, it } from 'vitest';
 import { clampMeter, exactSelection, nextSequenceStep, poolMissTier } from './logic';
 
 describe('Ben memory game logic', () => {
-  it('accepts only the exact absurd roof plan', () => {
+  describe('exactSelection', () => {
     const plan = ['Pressure cooker', 'M4', '11 hostages'];
-    expect(exactSelection(plan, plan)).toBe(true);
-    expect(exactSelection([...plan, 'Spare key'], plan)).toBe(false);
-    expect(exactSelection(['Screwdriver'], plan)).toBe(false);
+
+    it('returns true for an exact match', () => {
+      expect(exactSelection(plan, plan)).toBe(true);
+    });
+
+    it('returns true for an exact match regardless of order', () => {
+      const outOfOrder = ['11 hostages', 'Pressure cooker', 'M4'];
+      expect(exactSelection(outOfOrder, plan)).toBe(true);
+    });
+
+    it('returns false when selected has more items than required', () => {
+      expect(exactSelection([...plan, 'Spare key'], plan)).toBe(false);
+    });
+
+    it('returns false when selected has fewer items than required', () => {
+      expect(exactSelection(['Pressure cooker', 'M4'], plan)).toBe(false);
+    });
+
+    it('returns false for completely different items', () => {
+      expect(exactSelection(['Screwdriver'], plan)).toBe(false);
+      expect(exactSelection(['A', 'B', 'C'], plan)).toBe(false);
+    });
+
+    it('returns false when selected has same length but different items', () => {
+      const different = ['Pressure cooker', 'M4', 'Fake hostage'];
+      expect(exactSelection(different, plan)).toBe(false);
+    });
+
+    it('handles duplicates in selected iterable correctly', () => {
+      const duplicates = ['Pressure cooker', 'M4', 'M4'];
+      expect(exactSelection(duplicates, plan)).toBe(false);
+
+      const duplicatesAllPresent = ['Pressure cooker', 'M4', '11 hostages', 'M4'];
+      expect(exactSelection(duplicatesAllPresent, plan)).toBe(true);
+    });
   });
 
   it('advances a correct panic combo and penalizes a wrong step without resetting it', () => {
