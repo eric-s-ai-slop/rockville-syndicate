@@ -2,10 +2,21 @@ import { describe, it, expect } from 'vitest';
 import { screenSpace } from './screenSpace';
 import type Phaser from 'phaser';
 
-const cam = (zoom: number, width = 800, height = 600) =>
-  ({ zoom, width, height }) as Phaser.Cameras.Scene2D.Camera;
+const cam = (zoom: number, width = 800, height = 600, scrollX = 0, scrollY = 0) =>
+  ({ zoom, width, height, scrollX, scrollY }) as Phaser.Cameras.Scene2D.Camera;
 
 describe('screenSpace', () => {
+  it('handles fractional zoom correctly', () => {
+    const { z, zx, zy, s } = screenSpace(cam(0.5));
+    expect(z).toBe(0.5);
+    // Center is 400, 300.
+    // zx(100) = 400 + (100 - 400) / 0.5 = 400 - 600 = -200
+    expect(zx(100)).toBe(-200);
+    // zy(50) = 300 + (50 - 300) / 0.5 = 300 - 500 = -200
+    expect(zy(50)).toBe(-200);
+    expect(s(10)).toBe(20);
+  });
+
   it('is the identity at zoom 1', () => {
     const { zx, zy, s } = screenSpace(cam(1));
     expect(zx(123)).toBe(123);
