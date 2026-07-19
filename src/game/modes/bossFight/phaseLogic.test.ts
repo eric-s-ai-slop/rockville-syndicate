@@ -29,4 +29,11 @@ describe('getPhaseAttackMultiplier', () => {
     expect(getPhaseAttackMultiplier(2)).toBe(0.85);
     expect(getPhaseAttackMultiplier(1)).toBe(0.7);
   });
+
+  it('returns 1.0 as a fallback for invalid phases', () => {
+    // Cast to any to simulate invalid runtime data
+    expect(getPhaseAttackMultiplier(0 as any)).toBe(1.0);
+    expect(getPhaseAttackMultiplier(4 as any)).toBe(1.0);
+    expect(getPhaseAttackMultiplier(-1 as any)).toBe(1.0);
+  });
 });
