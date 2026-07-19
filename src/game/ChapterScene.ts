@@ -614,9 +614,12 @@ export default class ChapterScene extends Phaser.Scene {
     this.poolNameplates = new Map();
 
     // Actor sprites
-    Object.values(this.actorSprites).flat().forEach(obj => {
-      try { (obj as Phaser.GameObjects.GameObject).destroy(); } catch {}
-    });
+    for (const key in this.actorSprites) {
+      const sprites = this.actorSprites[key];
+      for (let i = 0; i < sprites.length; i++) {
+        try { (sprites[i] as Phaser.GameObjects.GameObject).destroy(); } catch {}
+      }
+    }
     this.actorSprites = {};
   }
 
