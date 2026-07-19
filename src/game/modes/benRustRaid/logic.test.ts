@@ -4,7 +4,11 @@ import { coverScore, threatRate, waveForElapsed } from './logic';
 describe('Ben Rust raid logic', () => {
   it('escalates through three waves', () => {
     expect(waveForElapsed(0)).toBe(1);
+    expect(waveForElapsed(12.9)).toBe(1);
+    expect(waveForElapsed(13)).toBe(2);
     expect(waveForElapsed(20)).toBe(2);
+    expect(waveForElapsed(26.9)).toBe(2);
+    expect(waveForElapsed(27)).toBe(3);
     expect(waveForElapsed(40)).toBe(3);
   });
 
