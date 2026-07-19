@@ -34,6 +34,31 @@ interface SpriteComponent {
 
 const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
+function processBgQueue(
+  queue: [number, number][],
+  w: number,
+  h: number,
+  isBgMask: Uint8Array,
+  checkIsBackground: (x: number, y: number) => boolean
+) {
+  while (queue.length > 0) {
+    const curr = queue.shift();
+    if (!curr) continue;
+    const [lx, ly] = curr;
+    for (let i = 0; i < 4; i++) {
+      const nx = lx + DIRS[i][0];
+      const ny = ly + DIRS[i][1];
+      if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+        const nIdx = ny * w + nx;
+        if (!isBgMask[nIdx] && checkIsBackground(nx, ny)) {
+          isBgMask[nIdx] = 1;
+          queue.push([nx, ny]);
+        }
+      }
+    }
+  }
+}
+
 export function preprocessShowcaseSheet(
   img: HTMLImageElement,
   characterId: string
@@ -366,22 +391,7 @@ export function preprocessShowcaseSheet(
       }
     }
 
-    while (queue.length > 0) {
-      const curr = queue.shift();
-      if (!curr) continue;
-      const [lx, ly] = curr;
-      for (let i = 0; i < 4; i++) {
-        const nx = lx + DIRS[i][0];
-        const ny = ly + DIRS[i][1];
-        if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
-          const nIdx = ny * w + nx;
-          if (!isBgMask[nIdx] && checkIsBackground(nx, ny)) {
-            isBgMask[nIdx] = 1;
-            queue.push([nx, ny]);
-          }
-        }
-      }
-    }
+    processBgQueue(queue, w, h, isBgMask, checkIsBackground);
 
     // Zero-out background pixels for smooth anti-aliased look
     for (let ly = 0; ly < h; ly++) {
@@ -844,22 +854,7 @@ export function preprocessColumnFirstSheet(
       }
     }
 
-    while (queue.length > 0) {
-      const curr = queue.shift();
-      if (!curr) continue;
-      const [lx, ly] = curr;
-      for (let i = 0; i < 4; i++) {
-        const nx = lx + DIRS[i][0];
-        const ny = ly + DIRS[i][1];
-        if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
-          const nIdx = ny * w + nx;
-          if (!isBgMask[nIdx] && checkIsBackground(nx, ny)) {
-            isBgMask[nIdx] = 1;
-            queue.push([nx, ny]);
-          }
-        }
-      }
-    }
+    processBgQueue(queue, w, h, isBgMask, checkIsBackground);
 
     for (let i = 0; i < fd.length; i += 4) {
       const pixelIdx = i / 4;
@@ -1083,22 +1078,7 @@ export function preprocessFemalePoolSheet(
       }
     }
 
-    while (queue.length > 0) {
-      const curr = queue.shift();
-      if (!curr) continue;
-      const [lx, ly] = curr;
-      for (let i = 0; i < 4; i++) {
-        const nx = lx + DIRS[i][0];
-        const ny = ly + DIRS[i][1];
-        if (nx >= 0 && nx < activeW && ny >= 0 && ny < activeH) {
-          const nIdx = ny * activeW + nx;
-          if (!isBgMask[nIdx] && checkActiveIsBackground(nx, ny)) {
-            isBgMask[nIdx] = 1;
-            queue.push([nx, ny]);
-          }
-        }
-      }
-    }
+    processBgQueue(queue, activeW, activeH, isBgMask, checkActiveIsBackground);
 
     for (let i = 0; i < afd.length; i += 4) {
       const pixelIdx = i / 4;
