@@ -174,10 +174,10 @@ export class BenHazardMode implements GameMode<BenHazardModeConfig> {
 
   private bindControls(): void {
     const set = (key: string, pressed: boolean) => {
-      if (['arrowleft', 'a'].includes(key)) this.direction.x = pressed ? -1 : (this.direction.x < 0 ? 0 : this.direction.x);
-      if (['arrowright', 'd'].includes(key)) this.direction.x = pressed ? 1 : (this.direction.x > 0 ? 0 : this.direction.x);
-      if (['arrowup', 'w'].includes(key)) this.direction.y = pressed ? -1 : (this.direction.y < 0 ? 0 : this.direction.y);
-      if (['arrowdown', 's'].includes(key)) this.direction.y = pressed ? 1 : (this.direction.y > 0 ? 0 : this.direction.y);
+      if (key === 'arrowleft' || key === 'a') this.direction.x = pressed ? -1 : (this.direction.x < 0 ? 0 : this.direction.x);
+      else if (key === 'arrowright' || key === 'd') this.direction.x = pressed ? 1 : (this.direction.x > 0 ? 0 : this.direction.x);
+      else if (key === 'arrowup' || key === 'w') this.direction.y = pressed ? -1 : (this.direction.y < 0 ? 0 : this.direction.y);
+      else if (key === 'arrowdown' || key === 's') this.direction.y = pressed ? 1 : (this.direction.y > 0 ? 0 : this.direction.y);
     };
     this.keyDown = (event) => { set(event.key.toLowerCase(), true); };
     this.keyUp = (event) => { set(event.key.toLowerCase(), false); };
