@@ -234,6 +234,7 @@ export class BenRustRaidMode extends BenArcadeMode<BenRustRaidConfig> {
     this.addBackdrop(ASSETS.bedroom);
     this.phaseTrack(this.ctx.add.rectangle(this.ss.zx(460), this.ss.zy(46), this.ss.s(920), this.ss.s(92), 0x020617, 0.82)
       .setScrollFactor(0).setDepth(D + 3));
+    this.showLockAlert();
     this.player = { x: 716, y: 260 };
     this.playerImage = this.phaseTrack(this.ctx.add.image(this.ss.zx(this.player.x), this.ss.zy(this.player.y), ASSETS.panic)
       .setDisplaySize(this.ss.s(56), this.ss.s(111)).setScrollFactor(0).setDepth(D + 9));
@@ -257,6 +258,27 @@ export class BenRustRaidMode extends BenArcadeMode<BenRustRaidConfig> {
       .setOrigin(0, 0.5).setScrollFactor(0).setDepth(D + 12).setStrokeStyle(this.ss.s(1), 0x94a3b8));
     this.interactionBar = this.phaseTrack(this.ctx.add.rectangle(this.ss.zx(360), this.ss.zy(614), this.ss.s(200), this.ss.s(8), 0xfacc15, 1)
       .setOrigin(0, 0.5).setScale(0, 1).setScrollFactor(0).setDepth(D + 13)) as Phaser.GameObjects.Rectangle;
+  }
+
+  private showLockAlert(): void {
+    const panel = this.phaseTrack(this.ctx.add.rectangle(this.ss.zx(460), this.ss.zy(344), this.ss.s(760), this.ss.s(166), 0x450a0a, 0.94)
+      .setScrollFactor(0).setDepth(D + 20).setStrokeStyle(this.ss.s(4), 0xfca5a5, 0.95));
+    const headline = this.phaseTrack(this.ctx.label(this.ss.zx(460), this.ss.zy(332), 'MICHEAL IS PICKING MY LOCK', {
+      fontSize: `${this.ss.s(29)}px`, color: '#fef2f2', fontStyle: 'bold', align: 'center',
+      stroke: '#1c0505', strokeThickness: this.ss.s(8),
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(D + 21));
+    const instruction = this.phaseTrack(this.ctx.label(this.ss.zx(460), this.ss.zy(386), 'GET THE COMPUTER QUIET. THEN GET IN BED.', {
+      fontSize: `${this.ss.s(13)}px`, color: '#fecaca', fontStyle: 'bold', align: 'center',
+      stroke: '#1c0505', strokeThickness: this.ss.s(4),
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(D + 21));
+    this.after(1800, () => {
+      this.ctx.tweens.add({
+        targets: [panel, headline, instruction],
+        alpha: 0,
+        duration: 450,
+        onComplete: () => [panel, headline, instruction].forEach((object) => object.destroy()),
+      });
+    });
   }
 
   private updatePanic(dt: number): void {

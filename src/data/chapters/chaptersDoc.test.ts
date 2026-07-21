@@ -64,7 +64,7 @@ describe('chapters CLAUDE.md reference doc', () => {
   it('keeps the development fixture out of the production-facing catalog', () => {
     const readme = readFileSync(join(dir, '../../../README.md'), 'utf-8');
     expect(readme).toContain('| 15 | `fixture-playtest` | Playtest Fixture | chapter | Rockville Park (synthetic) | 5–8 min | development | — | `chapterFixture.playtest.ts` |');
-    expect(readme).toContain('| 16 | `origins` | Rockville Syndicate: Origins | chapter | Rockville, MD — summer 2024 → tonight | 25–35 min | shipping | external | `chapter12.origins.ts` |');
+    expect(readme).toContain('| 16 | `origins` | Rockville Syndicate: Origins | chapter | Rockville, MD — summer 2024 → tonight | 16–22 min | shipping | external | `chapter12.origins.ts` |');
     expect(readme).not.toContain('fixture-playtest` | Playtest Fixture | chapter | Rockville Park (synthetic) | 5–8 min | shipping');
   });
 });

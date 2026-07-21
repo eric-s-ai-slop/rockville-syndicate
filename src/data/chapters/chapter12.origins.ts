@@ -4,11 +4,8 @@ import { ChapterConfig, MapConfig, ActorPlacement } from './types';
 // CHAPTER 12 — ORIGINS
 // "Rockville Syndicate: Origins" — the only story Eric never pitched.
 //
-// Build translated straight from docs/chapter-pipeline/working/origins/
-// (09_build_handoff.md is authoritative; 07_mechanics.md for the doubleCall mode;
-// 08_maps.md for every coordinate below; 06_scenes/*.md for the prose beats are
-// distilled from). Do not deviate from verbatim lines or protected silences
-// without checking those docs first.
+// Built from the original chapter-pipeline handoff, then tightened in the
+// shipping script. The source file is canonical for dialogue and timing.
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // ─── L0 — Eric's room, present day (scenes[0] cold open, scenes[10] coda) ──────
@@ -405,7 +402,7 @@ const chapter12: ChapterConfig = {
     'The only story Eric never pitched. Two phones ring at the same time, all era, ' +
     'in frame, and everyone believes the wrong caller. Play it together.',
   kind: 'chapter',
-  estimatedMinutes: { min: 25, max: 35 },
+  estimatedMinutes: { min: 16, max: 22 },
   seal: 'external',
   protagonistOverride: 'eric',
   quietEnd: true,
@@ -433,7 +430,7 @@ const chapter12: ChapterConfig = {
     // SCENE 0 — "The Last Save Slot" (scenes[0], L0) — no music, no narrator.
     // ═══════════════════════════════════════════════════════════════════════
     { type: 'screenTint', color: 0x000014, alpha: 0.35, durationMs: 800 },
-    { type: 'wait', ms: 1800 },
+    { type: 'wait', ms: 900 },
     {
       type: 'minigame', modeId: 'doubleCall', background: false,
       config: {
@@ -442,9 +439,8 @@ const chapter12: ChapterConfig = {
       },
     },
     { type: 'dialogue', speaker: 'eric', lines: ['So. The summer Maharko left for Florida. What happened was, I simply—'] },
-    { type: 'wait', ms: 2400 }, // PROTECTED — the pause after "I simply—"
+    { type: 'wait', ms: 1400 },
     { type: 'dialogue', speaker: 'eric', lines: ["You're going to laugh at the first part."] },
-    { type: 'wait', ms: 1000 },
     { type: 'dialogue', speaker: 'eric', lines: ['You should. It was funny. That was never the problem.'] },
     { type: 'sfx', key: 'ui_select' },
     { type: 'screenTint', color: 0x000000, alpha: 1.0, durationMs: 600 },
@@ -461,38 +457,16 @@ const chapter12: ChapterConfig = {
     {
       type: 'dialogue', speaker: 'narrator', lines: [
         'Summer 2024. Rockville Pike, three in the morning.',
-        "The McDonald's on the Pike never fully closes and never fully opens. It exists around the clock in a third state — lights on, floor wet, one employee on headset who has chosen, wisely, to believe the lobby is empty.",
-        'Tonight, the lobby is not empty.',
+        "The McDonald's on the Pike is lights on, floor wet, one employee wisely pretending the lobby is empty.",
       ],
     },
-    { type: 'walkTo', x: 450, y: 480, markerLabel: 'the lobby' },
     { type: 'walkTo', x: 330, y: 320, markerLabel: 'the booth by the window' },
-    { type: 'dialogue', speaker: 'narrator', lines: ['Why are they here? The official record says nothing. The parking lot, if you could depose it, would say slightly more.'] },
     { type: 'dialogue', speaker: 'nick_f', lines: ["Okay, so it's like two in the morning—"] },
     { type: 'dialogue', speaker: 'nick_h', lines: ['Three.'] },
     { type: 'dialogue', speaker: 'nick_f', lines: ["—it's three in the morning, and we're just posted at the McDonald's, right? For no reason. That's important. There was no reason."] },
-    { type: 'dialogue', speaker: 'narrator', lines: ["You're getting this night the way everyone got this night: secondhand. The Nicks tell it well. They've had practice."] },
     { type: 'dialogue', speaker: 'maharko', lines: ["This location has the best Sprite in the county. That's a fact. I'm not discussing it."] },
     { type: 'dialogue', speaker: 'nick_h', lines: ["It's the carbonation."] },
     { type: 'dialogue', speaker: 'maharko', lines: ["It's the carbonation."] },
-    // M1, glance #1 — upgraded per the FUN AUDIT: the player picks how to watch,
-    // never what gets said. All options converge on the same scored result.
-    {
-      type: 'choice', speaker: 'narrator', prompt: 'Nick H checks whether it scored.',
-      options: [
-        { text: "[ Watch Maharko's face. ]", reactionSpeaker: 'narrator', reactionLines: ['(a single nose-exhale.)'] },
-        { text: '[ Watch Nick H watch him. ]', reactionSpeaker: 'narrator', reactionLines: ['(a single nose-exhale.)'] },
-        { text: "[ You already know how this lands. ]", reactionSpeaker: 'narrator', reactionLines: ['(a single nose-exhale.)'] },
-      ],
-    },
-    { type: 'dialogue', speaker: 'nick_f', lines: ['Honestly the ice hits different here too, I feel like the Pike locations just care more, like as a region—'] },
-    {
-      type: 'choice', speaker: 'narrator', prompt: 'Nick F rallies for another one.',
-      options: [
-        { text: '[ Watch for the exhale. ]', reactionSpeaker: 'narrator', reactionLines: ['(nothing.)'] },
-        { text: '[ Watch Nick F not get it. ]', reactionSpeaker: 'narrator', reactionLines: ['(nothing.)'] },
-      ],
-    },
     { type: 'dialogue', speaker: 'narrator', lines: ['Then: headlights.'] },
     { type: 'cameraPan', x: 470, y: 660, durationMs: 1200, holdMs: 1400 },
     { type: 'sfx', key: 'sfx_door_open' },
@@ -508,12 +482,10 @@ const chapter12: ChapterConfig = {
       ],
     },
     { type: 'dialogue', speaker: 'nick_f', lines: ['JACOB? No. No way. NO way.'] },
-    { type: 'dialogue', speaker: 'narrator', lines: ["The warmth is real. Keep that somewhere safe. It's real, and it will not help."] },
-    { type: 'dialogue', speaker: 'narrator', lines: ['There is room in the booth. There has been room in the booth for about a year.', '(Nobody moves over.)'] },
+    { type: 'dialogue', speaker: 'narrator', lines: ["The warmth is real. It will not help.", 'There is room in the booth. Nobody moves over.'] },
     { type: 'dialogue', speaker: 'nick_f', lines: ["What are you doing here, man?! It's three in the morning!"] },
     { type: 'dialogue', speaker: 'jacob', lines: ['Chris was hungry. I was up anyway, so I drove us.'] },
     { type: 'dialogue', speaker: 'nick_h', lines: ['At least he drove himself.'] },
-    { type: 'dialogue', speaker: 'nick_f', lines: ["No, that's honestly so responsible—"] },
     { type: 'dialogue', speaker: 'nick_h', lines: ["But like — who's at a McDonald's at three in the morning, man?"] },
     // M1, glance #3 — the detonation.
     {
@@ -526,9 +498,7 @@ const chapter12: ChapterConfig = {
     // Chris walks himself to the counter to order — he's the only one of the
     // group who's here for the food, not the bit.
     { type: 'moveActor', id: 'chris_rivas', x: 700, y: 190, durationMs: 1300 },
-    { type: 'walkTo', x: 700, y: 200, markerLabel: 'the counter' },
-    { type: 'dialogue', speaker: 'narrator', lines: ['At the counter, Chris orders. He orders like a person who knew his order in the car.'] },
-    { type: 'dialogue', speaker: 'chris_rivas', lines: ['(says thank you to the cashier — once at the start, once at the end)'] },
+    { type: 'dialogue', speaker: 'narrator', lines: ['Chris orders like a person who knew his order in the car. He says thank you twice.'] },
     { type: 'dialogue', speaker: 'nick_f', lines: ["Who's the friend?"] },
     { type: 'dialogue', speaker: 'jacob', lines: ["That's Chris. We're not really — he lives near me. He was hungry, so."] },
     { type: 'dialogue', speaker: 'narrator', lines: ['The same move, one rung down. Nobody at the table notices, because from inside a ladder all anyone ever looks is up.'] },
@@ -536,16 +506,15 @@ const chapter12: ChapterConfig = {
     { type: 'dialogue', speaker: 'jacob', lines: ["I don't think that's true. I have a job this summer. I'm taking a stats class. People change. I don't think I'm the same."] },
     { type: 'dialogue', speaker: 'narrator', lines: ["For the record: it wasn't a bit. / For the other record — the one this group actually keeps — it was."] },
     { type: 'dialogue', speaker: 'chris_rivas', lines: ['Jacob. Food.'] },
-    { type: 'dialogue', speaker: 'narrator', lines: ['(Nobody is charting it yet.)'] },
     { type: 'dialogue', speaker: 'jacob', lines: ["We're around all summer. If you guys are ever doing something — I'm around."] },
     { type: 'dialogue', speaker: 'nick_f', lines: ['Yes. Dude. For sure. For sure, for sure.'] },
-    { type: 'dialogue', speaker: 'narrator', lines: ['Nick F means it the way you mean things at three in the morning: completely, and not at all.'] },
+    { type: 'dialogue', speaker: 'narrator', lines: ['Nick F means it completely, and not at all.'] },
     { type: 'cameraPan', x: 470, y: 660, durationMs: 1200, holdMs: 1600 },
     // He walks himself back out the door he walked in through — the clean exit.
     { type: 'moveActor', id: 'chris_rivas', x: 470, y: 560, durationMs: 1000 },
     { type: 'dialogue', speaker: 'narrator', lines: ['That is the last time the group ever sees Chris Rivas. He got his food. He said thank you twice. As exits from this story go, his is the clean one.'] },
     { type: 'hideActor', id: 'chris_rivas' },
-    { type: 'wait', ms: 1800 },
+    { type: 'wait', ms: 900 },
     { type: 'dialogue', speaker: 'nick_f', lines: ['BRO.'] },
     { type: 'dialogue', speaker: 'nick_h', lines: ['The stats class.'] },
     { type: 'dialogue', speaker: 'nick_f', lines: ["'I'm around all summer' — bro, he came BACK to say it. He had the food. He was OUT. He came back—"] },
@@ -572,33 +541,23 @@ const chapter12: ChapterConfig = {
         'Why are they here? For no reason. That\'s important. There was no reason.',
       ],
     },
-    { type: 'dialogue', speaker: 'narrator', lines: ['You know Eric.'] },
-    { type: 'dialogue', speaker: 'nick_f', lines: ["Okay, so it's like two in the morning—"] },
-    { type: 'dialogue', speaker: 'nick_h', lines: ['Three.'] },
-    { type: 'dialogue', speaker: 'nick_f', lines: ["—it's three in the morning, and we're just posted at the McDonald's, right? For no reason. That's important. There was no reason."] },
-    { type: 'dialogue', speaker: 'narrator', lines: ['You\'ve heard this before. You heard it laid over the night itself, a scene ago. This is the room it was recorded in.'] },
-    { type: 'dialogue', speaker: 'nick_f', lines: ["And the door goes — and I look up — and it's JACOB. Keys in his hand. Three in the morning. And some — there's a whole other kid with him, doesn't say a word, orders food like it's noon—"] },
+    { type: 'dialogue', speaker: 'narrator', lines: ['You know Eric. You have already heard the story. This is the room where it became a trophy.'] },
+    { type: 'dialogue', speaker: 'nick_f', lines: ["So Jacob walks in at three in the morning, keys in his hand, with a kid who orders food like it's noon—"] },
     { type: 'dialogue', speaker: 'nick_h', lines: ['Says thank you twice.'] },
-    { type: 'dialogue', speaker: 'nick_f', lines: ['Says thank you TWICE. And Jacob just — he comes over, right, and he plants at the end of the table, and he goes—'] },
-    { type: 'dialogue', speaker: 'nick_f', lines: ["'Chris was hungry. I was up anyway, so I drove us.'"] },
-    { type: 'dialogue', speaker: 'nick_h', lines: ['And then the stats class.'] },
-    { type: 'dialogue', speaker: 'nick_f', lines: ["THE STATS CLASS. Bro, Maharko goes — Maharko looks at him dead in the eye and goes, 'You're the same as junior year, bro' — and Jacob, no hesitation, starts listing EVIDENCE. He's got a job this summer. He's taking a stats class. People change."] },
+    { type: 'dialogue', speaker: 'nick_f', lines: ["—then Maharko says, 'You're the same as junior year,' and Jacob starts listing evidence. Job. Stats class. People change."] },
     { type: 'dialogue', speaker: 'nick_h', lines: ['Closing arguments. At the McDonald\'s.'] },
     { type: 'dialogue', speaker: 'eric', lines: ['Wait — go back. He had the food. He was out the door. And he came back in?'] },
     { type: 'dialogue', speaker: 'nick_f', lines: ["Came BACK. Full turnaround. Comes all the way back to the table to go—", "'We're around all summer. If you guys are ever doing something — I'm around.'"] },
-    { type: 'dialogue', speaker: 'nick_h', lines: ['Around, twice.'] },
-    { type: 'dialogue', speaker: 'eric', lines: ['And he drove himself.'] },
-    { type: 'dialogue', speaker: 'nick_f', lines: ['Drove himself! His own car! Signaled on the way out — Nick watched him do it — signaled, at three in the morning, to nobody—'] },
+    { type: 'dialogue', speaker: 'nick_h', lines: ['Around, twice. And he signaled on the way out. To nobody.'] },
     { type: 'dialogue', speaker: 'nick_h', lines: ["And that's the funniest part, though. Like — think about it. WHO is at a McDonald's at three in the morning?"] },
     { type: 'dialogue', speaker: 'nick_f', lines: ['On a Tuesday.'] },
-    { type: 'dialogue', speaker: 'narrator', lines: ['It is one in the morning. The car is parked outside a closed 7-Eleven. It is, technically, a Friday.', 'Nobody in the car runs the numbers.'] },
+    { type: 'dialogue', speaker: 'narrator', lines: ['It is one in the morning outside a closed 7-Eleven. Technically, a Friday. Nobody runs the numbers.'] },
     { type: 'dialogue', speaker: 'nick_f', lines: ["And then Maharko — this is the part — Maharko waits till he's gone, right, waits till the car pulls out, and just goes—", "'He'd come back tomorrow if you texted him.'"] },
     { type: 'dialogue', speaker: 'narrator', lines: ["Eric's laugh comes half a beat late."] },
     { type: 'dialogue', speaker: 'eric', lines: ['Who else have you told?'] },
-    { type: 'dialogue', speaker: 'nick_f', lines: ['Bro, everyone. This story kills. I told my brother. He doesn\'t know who Jacob is and it still killed.'] },
-    { type: 'dialogue', speaker: 'nick_h', lines: ["It works without context. That's how you know it's good."] },
-    { type: 'dialogue', speaker: 'narrator', lines: ["It's a good story. It gets a little better every time they tell it.", "It never occurs to either of them that it's worth anything."] },
-    { type: 'cameraPan', x: 470, y: 380, durationMs: 700, holdMs: 3200 }, // PROTECTED — nothing plays over the held back seat
+    { type: 'dialogue', speaker: 'nick_f', lines: ['Bro, everyone. This story kills even without context.'] },
+    { type: 'dialogue', speaker: 'narrator', lines: ["It's a good story. It gets better every time they tell it. It never occurs to them that it might be worth something."] },
+    { type: 'cameraPan', x: 470, y: 380, durationMs: 700, holdMs: 1800 },
     { type: 'changeScene', sceneIndex: 3, transitionMs: 500 },
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -606,76 +565,45 @@ const chapter12: ChapterConfig = {
     // ═══════════════════════════════════════════════════════════════════════
     {
       type: 'dialogue', speaker: 'narrator', lines: [
-        'A few days later.',
-        "Two bedrooms, eleven-forty on a Wednesday night. On the left: Nick F's room. On the right: Jacob's room.",
-        'Between them: nothing. Rockville, presumably.',
+        "A few days later. Two bedrooms, eleven-forty on a Wednesday night. Nick F on the left. Jacob on the right. Between them: nothing. Rockville, presumably.",
       ],
     },
     { type: 'walkTo', x: 560, y: 620 },
-    { type: 'dialogue', speaker: 'narrator', lines: ['The left room you could reconstruct from sound alone: a gaming chair that cost more than the desk it sits at, a monitor doing most of the lighting, a hoodie on the floor still holding the shape of its owner.'] },
-    { type: 'walkTo', x: 1840, y: 620 },
-    // The player stops in the corridor just west of Jacob's island. Hold the
-    // camera on the room for the tour instead of snapping back to that gap.
-    { type: 'cameraPan', x: 2040, y: 620, durationMs: 900, holdMs: 1200, resumeFollow: false },
-    { type: 'dialogue', speaker: 'narrator', lines: ["The right room is made. That's the word for it. The bed is made — at eleven-forty at night, the bed is made. On the desk there is a stats textbook, open, a highlighter lying in the gutter of the spine. Car keys on a hook by the door, because the keys have a hook."] },
+    { type: 'dialogue', speaker: 'narrator', lines: ["Nick's room is monitor glow and a hoodie on the floor."] },
+    { type: 'cameraPan', x: 2040, y: 620, durationMs: 1200, holdMs: 700, resumeFollow: false },
+    { type: 'dialogue', speaker: 'narrator', lines: ["Jacob's bed is made. Stats book open. Car keys on their hook."] },
     // Recurrence 1 — the founding text.
     {
       type: 'minigame', modeId: 'doubleCall', background: true,
       config: { variant: 'ringOnly', leftPhone: LEFT_PHONE, rightPhone: RIGHT_PHONE, ring: { left: true, right: true, callerIdLeft: 'JACOB', durationMs: 5200 } },
     },
-    { type: 'dialogue', speaker: 'narrator', lines: ['Then — at the same moment — a phone lights up in each one, and both of them start ringing.'] },
-    { type: 'cameraPan', x: 360, y: 620, durationMs: 1400, holdMs: 1800 },
-    { type: 'cameraPan', x: 2040, y: 620, durationMs: 2600, holdMs: 1800, resumeFollow: false },
+    { type: 'dialogue', speaker: 'narrator', lines: ['At the same moment, both phones ring.'] },
+    { type: 'cameraPan', x: 360, y: 620, durationMs: 1000, holdMs: 700 },
+    { type: 'cameraPan', x: 2040, y: 620, durationMs: 1600, holdMs: 700, resumeFollow: false },
     { type: 'dialogue', speaker: 'nick_f', lines: ['Jacob?'] },
     { type: 'dialogue', speaker: 'jacob', lines: ["Hey. Hi. What's up?"] },
     { type: 'dialogue', speaker: 'nick_f', lines: ['What\'s up with YOU, man. You called me.'] },
-    { type: 'dialogue', speaker: 'jacob', lines: ['No — you called me. My phone rang, and it was your name, so I picked it up. That\'s the whole thing that happened on my end.'] },
+    { type: 'dialogue', speaker: 'jacob', lines: ['No — you called me. My phone rang with your name, so I picked up.'] },
     { type: 'dialogue', speaker: 'nick_f', lines: ['Why would I call you?'] },
     { type: 'dialogue', speaker: 'jacob', lines: ["I don't know why. That's why I answered by saying 'what's up.'"] },
     { type: 'dialogue', speaker: 'nick_f', lines: ['Okay. Okay, Jacob. Good talk.'] },
     { type: 'dialogue', speaker: 'nick_f', lines: ['bro why did jacob call me'] },
     { type: 'dialogue', speaker: 'eric', lines: ['what did he want'] },
-    { type: 'dialogue', speaker: 'nick_f', lines: ['NOTHING bro'] },
-    { type: 'dialogue', speaker: 'nick_f', lines: ['he said I called HIM'] },
+    { type: 'dialogue', speaker: 'nick_f', lines: ['NOTHING bro. he said I called HIM'] },
     { type: 'dialogue', speaker: 'nick_h', lines: ['he just wanted to hear your voice'] },
     { type: 'dialogue', speaker: 'nick_f', lines: ['STOP'] },
-    {
-      type: 'choice', speaker: 'narrator', prompt: 'The chat settles what this was.',
-      options: [
-        { text: 'he just misses you guys', reactionSpeaker: 'narrator', reactionLines: ['The chat agrees. It always agrees.'] },
-        { text: 'he wanted to hear your voice', reactionSpeaker: 'narrator', reactionLines: ['The chat agrees. It always agrees.'] },
-      ],
-    },
-    { type: 'dialogue', speaker: 'narrator', lines: ['It feels like a Wednesday.'] },
+    { type: 'dialogue', speaker: 'narrator', lines: ['The chat agrees: he just misses them. It feels like a Wednesday.'] },
     {
       type: 'dialogue', speaker: 'narrator', lines: [
         'It happens again the next week. Then twice in one night. Then not at all for nine days — long enough for someone to type it like reporting a ceasefire —',
       ],
     },
     { type: 'dialogue', speaker: 'nick_h', lines: ["jacob's been quiet"] },
-    { type: 'dialogue', speaker: 'narrator', lines: ['— and then three in one week. One of the three, in full: both phones ring. Both islands answer. Nobody says anything.'] },
-    // Recurrence 2 — the silent call.
-    {
-      type: 'minigame', modeId: 'doubleCall', background: true,
-      config: { variant: 'ringOnly', leftPhone: LEFT_PHONE, rightPhone: RIGHT_PHONE, ring: { left: true, right: true, callerIdLeft: 'JACOB', durationMs: 4200 } },
-    },
-    { type: 'wait', ms: 2500 }, // PROTECTED — two bedrooms breathing
-    { type: 'dialogue', speaker: 'nick_f', lines: ['…I can hear you, bro.'] },
-    { type: 'dialogue', speaker: 'jacob', lines: ['You called me. You go first.'] },
-    { type: 'dialogue', speaker: 'nick_f', lines: ['Unbelievable.'] },
-    { type: 'dialogue', speaker: 'nick_f', lines: ['he did it again'] },
-    { type: 'dialogue', speaker: 'nick_f', lines: ['called and said NOTHING for like a full minute'] },
-    {
-      type: 'choice', speaker: 'narrator', prompt: 'The chat settles what this was.',
-      options: [
-        { text: 'he panicked', reactionSpeaker: 'narrator', reactionLines: ['The model holds either way.'] },
-        { text: "he's committed to the bit", reactionSpeaker: 'narrator', reactionLines: ['The model holds either way.'] },
-      ],
-    },
+    { type: 'dialogue', speaker: 'narrator', lines: ['— then three in one week. Sometimes both answer and nobody speaks. Nick reports that Jacob panicked. The model holds.'] },
     {
       type: 'dialogue', speaker: 'narrator', lines: [
-        'By October, the calls are an institution, and the group has a complete working model of Jacob: he calls because he misses them; he says nothing because he panics; he denies it because he\'s committed to the bit.',
-        'They built it together, out of the parts of him that arrived by phone. Jacob has never once been consulted on it.',
+        'By October, the calls are an institution. Jacob calls because he misses them, says nothing because he panics, denies it because he is committed to the bit.',
+        'The group built a complete Jacob without ever consulting Jacob.',
       ],
     },
     // Recurrence 3 — the voicemail masterpiece.
@@ -714,31 +642,27 @@ const chapter12: ChapterConfig = {
     // ═══════════════════════════════════════════════════════════════════════
     // SCENE 4 — "The Wrong Man Confesses For You" (scenes[3] continued)
     // ═══════════════════════════════════════════════════════════════════════
-    { type: 'dialogue', speaker: 'narrator', lines: ["October, still. A Sunday, late. The two rooms again. Then the left phone rings — and for the first time all era, the screen doesn't say JACOB."] },
-    { type: 'dialogue', speaker: 'narrator', lines: ['The screen says BEN.'] },
-    { type: 'dialogue', speaker: 'narrator', lines: ['You know Ben. Or — the group used to know Ben. He used to be around. Then he was around less. Nobody remembers deciding that, either.'] },
+    { type: 'dialogue', speaker: 'narrator', lines: ["October. The left phone rings, and for the first time the screen doesn't say JACOB. It says BEN — someone who used to be around."] },
     { type: 'dialogue', speaker: 'nick_f', lines: ['…Ben?'] },
-    { type: 'dialogue', speaker: 'ben', lines: ["Yeah. Hey. Sorry — I know it's late."] },
     { type: 'dialogue', speaker: 'ben', lines: ["Is something going on with Jacob?"] },
     { type: 'dialogue', speaker: 'nick_f', lines: ["What do you mean, what's going on with Jacob?"] },
-    { type: 'dialogue', speaker: 'ben', lines: ['He keeps calling me, man. A lot. Fourteen times since Tuesday — I counted, that\'s not a guess. I pick up, there\'s nothing. I call him back, he swears he never called me. Every single time.'] },
+    { type: 'dialogue', speaker: 'ben', lines: ['Fourteen calls since Tuesday. I pick up, there\'s nothing. I call back, he swears he never called.'] },
     { type: 'dialogue', speaker: 'nick_f', lines: ['Why would Jacob be calling YOU?'] },
     { type: 'dialogue', speaker: 'ben', lines: ["That's my whole point. He wouldn't. I barely know the guy.", "Somebody's making this happen. And I think it's you guys."] },
-    { type: 'dialogue', speaker: 'nick_f', lines: ['Ben. Bro. Listen to what you\'re saying. Why would we make Jacob call you? How would that even work?'] },
+    { type: 'dialogue', speaker: 'nick_f', lines: ['Why would we make Jacob call you? How would that even work?'] },
     { type: 'dialogue', speaker: 'ben', lines: ["I don't know how it works. I know the shape of it. That's all I'm telling you — I know the shape."] },
     {
       type: 'minigame', modeId: 'doubleCall', background: true,
       config: { variant: 'ringOnly', rightPhone: RIGHT_PHONE, ring: { left: false, right: true, durationMs: 3000 } },
     },
-    { type: 'cameraPan', x: 2040, y: 620, durationMs: 2600, holdMs: 2400, resumeFollow: false },
-    { type: 'dialogue', speaker: 'ben', lines: ["He's calling me again. Right now — do you hear that? I'm holding the phone up. That's him. While I'm on with you, telling you it's happening, it's happening."] },
+    { type: 'cameraPan', x: 2040, y: 620, durationMs: 1600, holdMs: 1200, resumeFollow: false },
+    { type: 'dialogue', speaker: 'ben', lines: ["He's calling again. Right now. While I'm telling you it's happening, it's happening."] },
     { type: 'dialogue', speaker: 'narrator', lines: ['He looks tired.'] },
     { type: 'dialogue', speaker: 'nick_f', lines: ['This is insane.'] },
-    { type: 'dialogue', speaker: 'ben', lines: ["It's not funny. Whatever this is. Just—", '—whoever\'s doing it. Tell them I asked them to stop. You don\'t have to believe me. Just tell them I asked.'] },
+    { type: 'dialogue', speaker: 'ben', lines: ["It's not funny. Whoever's doing it, tell them I asked them to stop."] },
     { type: 'dialogue', speaker: 'nick_f', lines: ["There's no 'them,' bro."] },
     { type: 'dialogue', speaker: 'ben', lines: ['Yeah. Okay. Good night, Nick.'] },
     { type: 'dialogue', speaker: 'nick_f', lines: ['Bro Ben just called me'] },
-    { type: 'dialogue', speaker: 'narrator', lines: ['(The reply comes fast.)'] },
     { type: 'dialogue', speaker: 'eric', lines: ['why'] },
     { type: 'dialogue', speaker: 'eric', lines: ['💀'] },
     { type: 'dialogue', speaker: 'nick_f', lines: ['Apperantly Jacob is spamming him and he thinks were causing it'] },
@@ -755,27 +679,25 @@ const chapter12: ChapterConfig = {
         'For the other record —',
       ],
     },
-    { type: 'cameraPan', x: 1200, y: 620, durationMs: 2200, holdMs: 2600 }, // PROTECTED — the held empty dark
+    { type: 'cameraPan', x: 1200, y: 620, durationMs: 1600, holdMs: 1600 },
     { type: 'dialogue', speaker: 'narrator', lines: ['There is nothing there.'] },
-    { type: 'wait', ms: 1600 },
+    { type: 'wait', ms: 800 },
     { type: 'changeScene', sceneIndex: 4, transitionMs: 400 }, // the hidden cut, camera on black
 
     // ═══════════════════════════════════════════════════════════════════════
     // SCENE 5 — "The Third Island" (scenes[4], L2_ACT2) — THE REVEAL.
     // From here to the Scene 11 question, every narration beat is narrator_eric.
     // ═══════════════════════════════════════════════════════════════════════
-    { type: 'wait', ms: 1200 },
+    { type: 'wait', ms: 600 },
     { type: 'stopAllAudio', fadeMs: 0 }, // a CUT, not a fade
     { type: 'dialogue', speaker: 'narrator', lines: ['For the other record—'] },
     { type: 'dialogue', speaker: 'narrator_eric', lines: ['—there is no other record.', "There's mine."] }, // THE HANDOFF
     {
       type: 'dialogue', speaker: 'narrator_eric', lines: [
-        'A minute ago I told you there was nothing there.',
-        'Twelve chapters of this game, and that is the one lie I have ever told you to your face. That one.',
-        'Everything else, I just let you believe.',
+        'A minute ago I told you there was nothing there. That was the one lie. Everything else, I just let you believe.',
       ],
     },
-    { type: 'cameraPan', x: 1200, y: 1150, durationMs: 3800, holdMs: 2000 }, // THE REVEAL PAN
+    { type: 'cameraPan', x: 1200, y: 1150, durationMs: 2600, holdMs: 1400 },
     {
       type: 'dialogue', speaker: 'narrator_eric', lines: [
         'I told you once what was between them. Nothing, I said. Rockville, presumably.',
@@ -784,50 +706,45 @@ const chapter12: ChapterConfig = {
     },
     {
       type: 'dialogue', speaker: 'narrator_eric', lines: [
-        'Which is accurate, for the record. That\'s what was in here. A guy.',
-        'No admin. No plan, no process, no eras, no \'simply.\' All of that got built later — you build the office after you find out what the work is. I was a guy at a desk with a browser tab open.',
+        'No admin. No plan. Just a guy at a desk with a browser tab open.',
       ],
     },
     {
       type: 'dialogue', speaker: 'narrator_eric', lines: [
-        "The monitor. One tab. A website with a gray, dated interface — the kind of site that has looked five years old for fifteen years. This game is not going to tell you its name. It did one thing: you give it two phone numbers, and it rings them both, and it stitches the two lines together — so that each phone lights up with the other one's name, and neither one placed the call.",
+        "The site took two phone numbers, rang both, and stitched the lines together. Each phone showed the other's name. Neither person placed the call.",
       ],
     },
     {
       type: 'dialogue', speaker: 'narrator_eric', lines: [
-        "I'd known about it for years. No target, no plan. I just knew it existed, the way you know where the fire axe is.",
-        "Then two guys I knew came back from a McDonald's with a story, and told it to the back seat of a parked car, and the part of me that laughs went to bed that night. The other part sat down here.",
+        "Then two friends came back from McDonald's with a story. The part of me that laughed went to bed. The other part sat down here.",
       ],
     },
     { type: 'walkTo', x: 1200, y: 1180, markerLabel: 'Sit down.' },
-    { type: 'dialogue', speaker: 'narrator_eric', lines: ['This is the part you do. Not watch — do. Take your time. The chapter will wait. It\'s been waiting two years.'] },
+    { type: 'dialogue', speaker: 'narrator_eric', lines: ['This is the part you do. Sit down. Type the numbers.'] },
     {
       type: 'minigame', modeId: 'doubleCall', background: false,
       config: {
         variant: 'founding',
-        wire: { field1Label: 'NICK F', field2Label: 'JACOB', typing: 'full', blindWaitMs: 6000, ringPanMs: 5200 },
+        wire: { field1Label: 'NICK F', field2Label: 'JACOB', typing: 'full', blindWaitMs: 3500, ringPanMs: 3200 },
         typedReply: [{ kind: 'auto', text: 'what did he want' }],
         leftPhone: LEFT_PHONE, rightPhone: RIGHT_PHONE,
       },
     },
     {
       type: 'dialogue', speaker: 'narrator_eric', lines: [
-        'The founding document. I told you that already, back when I was the group chat — I said it doesn\'t feel like one, it feels like a Wednesday.',
-        "It's a receipt. It was always a receipt. Delivery confirmed.",
+        "The founding document. It didn't feel like one. It felt like a Wednesday.",
       ],
     },
     {
       type: 'dialogue', speaker: 'narrator_eric', lines: [
-        'The question I knew the answer to. I\'d like to tell you it felt like lying. It felt like nothing. Four words, and they kept the story going, and the story was the point.',
-        'So here is the motive, on the record, in the words I actually used at the time: I thought I could milk a lot more content out of Jacob than just letting them meet him once.',
-        "That's it. That's the founding principle of everything this game calls a syndicate. Not hate. Not loneliness. Not revenge. Content.",
-        'I saw so much potential in this.',
+        'I knew the answer. Four words kept the story going, and the story was the point.',
+        'My motive, in the words I used then: I could milk more content out of Jacob than letting them meet him once.',
+        "That's the founding principle. Not hate. Not revenge. Content.",
       ],
     },
     {
       type: 'dialogue', speaker: 'narrator_eric', lines: [
-        'So now you know the thing Act I knew and didn\'t say. Both phones rang; you watched them ring; the proof was on screen the entire time — and you read a story over it instead.',
-        'You believed the wrong caller. Which — I want to be fair to you — is exactly what everyone did.',
+        'Both phones rang. The proof was on screen, and you read a story over it instead. You believed the wrong caller. Everyone did.',
       ],
     },
     { type: 'dialogue', speaker: 'narrator_eric', lines: ['(He does not close the tab.)'] },
@@ -835,54 +752,8 @@ const chapter12: ChapterConfig = {
     // ═══════════════════════════════════════════════════════════════════════
     // SCENE 6 — "Dead Air, With Applause" (scenes[4] continued)
     // ═══════════════════════════════════════════════════════════════════════
-    {
-      type: 'dialogue', speaker: 'narrator_eric', lines: [
-        'So now we do the era again. Same nights. Same lines — I\'m not changing a word; the words are the evidence. The only thing different is where you\'re sitting.',
-      ],
-    },
-    {
-      type: 'dialogue', speaker: 'narrator_eric', lines: [
-        'People imagine a schedule. There was no schedule. Once a week, on average — bursty. If you\'re looking for the reason each call happened on the night it happened: there was no reason. That\'s important.',
-        'The cause is sitting in your chair.',
-      ],
-    },
-    {
-      type: 'minigame', modeId: 'doubleCall', background: false,
-      config: { variant: 'rerun', run: 'routine', wire: { field1Label: 'NICK F', field2Label: 'JACOB', typing: 'full' } },
-    },
-    { type: 'dialogue', speaker: 'nick_h', lines: ["jacob's been quiet"] },
-    {
-      type: 'dialogue', speaker: 'narrator_eric', lines: [
-        "He hadn't gone quiet. I'd had a busy week.",
-        "Every silence I produced got filed under his personality. He 'missed them.' He 'was committed to the bit.' He 'went quiet.' The man had weather, and the weather was me.",
-      ],
-    },
-    { type: 'dialogue', speaker: 'narrator_eric', lines: ['Now the night you already know. You can see that. The operator couldn\'t. Type the numbers anyway. He did.'] },
-    {
-      type: 'minigame', modeId: 'doubleCall', background: false,
-      config: {
-        variant: 'rerun', run: 'voicemail',
-        wire: { field1Label: 'NICK F', field2Label: 'JACOB', typing: 'autofill', deadAirHoldMs: 6000 },
-        ring: { left: true, right: true, durationMs: 6000, darkenIsland: { x: 2040, y: 620, w: 300, h: 220 } },
-        leftPhone: LEFT_PHONE, rightPhone: RIGHT_PHONE,
-      },
-    },
-    { type: 'dialogue', speaker: 'nick_f', lines: ['He just called me and had a voice script to pretend i went to his voicemail'] },
-    { type: 'dialogue', speaker: 'nick_h', lines: ['at least he was creative'] },
-    { type: 'dialogue', speaker: 'nick_h', lines: ['but how do you not have anything better to do'] },
-    {
-      type: 'dialogue', speaker: 'narrator_eric', lines: [
-        'The one act of respect this group ever paid Jacob was applause for dead air. They heard nothing, and they decided the nothing was brilliant.',
-        'Give this group nothing, and they will invent a whole man out of it. And then they will grade him.',
-      ],
-    },
-    {
-      type: 'dialogue', speaker: 'narrator_eric', lines: [
-        'Inventory of that night, for the record. Jacob: did nothing, and wasn\'t there. Nick H: graded him for it. And a third guy, at a desk, arranging a phone call between a video game and an empty bedroom.',
-        'One of the three of us did not have anything better to do.',
-      ],
-    },
-    { type: 'dialogue', speaker: 'narrator_eric', lines: ["Then there's the other night.", "Field two — field two is not Nick F's number tonight. The contact card says BEN."] },
+    { type: 'dialogue', speaker: 'narrator_eric', lines: ["The calls continued without a schedule. A busy week for me became 'Jacob's been quiet.' Dead air became creativity. Give the group nothing, and it will invent a whole man — then grade him."] },
+    { type: 'dialogue', speaker: 'narrator_eric', lines: ["One night, field two wasn't Nick F. It was BEN."] },
     {
       type: 'minigame', modeId: 'doubleCall', background: false,
       config: {
@@ -893,16 +764,15 @@ const chapter12: ChapterConfig = {
     },
     {
       type: 'dialogue', speaker: 'narrator_eric', lines: [
-        "That's the whole play. That is the entire counterintelligence apparatus of an eight-month operation: play dumb in four characters and let the room do the rest.",
-        'There was Ben — alone, correct, at the bottom of the ladder — and the room had a policy for correct people at the bottom of the ladder.',
+        "That's the whole play: play dumb in four characters and let the room do the rest.",
+        'Ben was correct, and the room had a policy for correct people at the bottom of the ladder.',
       ],
     },
     { type: 'dialogue', speaker: 'nick_f', lines: ['Apperantly Jacob is spamming him and he thinks were causing it'] },
     { type: 'dialogue', speaker: 'nick_f', lines: ['Bro Jacob is a LOSER'] },
     {
       type: 'dialogue', speaker: 'narrator_eric', lines: [
-        'I watched it happen live. Not "found out about later" — watched. I read Ben\'s accusation, correct in every particular but one, and I watched it bounce off contempt and land on Jacob, and I added a skull.',
-        "You've now done everything I did. Notice how little of it felt like anything. Not that it was cruel. That it was easy.",
+        "I watched Ben's accusation bounce off contempt and land on Jacob, and I added a skull. You've done everything I did. Notice how easy it was.",
       ],
     },
     {
@@ -916,73 +786,63 @@ const chapter12: ChapterConfig = {
     // ═══════════════════════════════════════════════════════════════════════
     // SCENE 7 — "The Call Logs" (scenes[5], L1 booth)
     // ═══════════════════════════════════════════════════════════════════════
-    { type: 'dialogue', speaker: 'narrator_eric', lines: ['Mid-era. Deep enough in that nobody dates things anymore. A booth you know.'] },
+    { type: 'dialogue', speaker: 'narrator_eric', lines: ['Mid-era. A booth you know. All four seats are taken.'] },
     {
       type: 'dialogue', speaker: 'narrator_eric', lines: [
-        'All four seats are taken. Nobody offered it to him tonight — at some point, offering stopped being a thing that had to happen.',
-        'First time this chapter has put me in a room with him. Nick F: knew Jacob kept calling him. Nick H: knew the bit was the group\'s best-running show. Jacob: knew — exactly, precisely, correctly — that something in the world was rigged.',
-        'And the end of the table knew everything, and had a Sprite.',
+        'Nobody offered Jacob a seat tonight. At some point, offering stopped being necessary.',
+        'Jacob knew the world was rigged. At the end of the table, I knew everything and had a Sprite.',
       ],
     },
     { type: 'dialogue', speaker: 'nick_f', lines: ['Oh — wait. Jacob. Bro. Real question. Are you ever going to tell us what the calls are? It\'s been months, man. What is the bit?'] },
-    { type: 'dialogue', speaker: 'jacob', lines: ['There\'s no bit. I\'ve told you this every time. I have never called you. Not once. My phone rings, it\'s your name on it, I pick it up — and then you tell everyone I called you.'] },
+    { type: 'dialogue', speaker: 'jacob', lines: ['There\'s no bit. My phone rings with your name, I pick up, and then you tell everyone I called you.'] },
     { type: 'dialogue', speaker: 'nick_f', lines: ['Why would I be calling YOU, bro?'] },
-    { type: 'dialogue', speaker: 'jacob', lines: ['Why would I be calling YOU? Do you hear it? It\'s the same question. It is exactly the same question — and when you ask it, it\'s obvious, and when I ask it, it\'s funny.'] },
+    { type: 'dialogue', speaker: 'jacob', lines: ['Why would I be calling YOU? It\'s the same question. When you ask it, it\'s obvious. When I ask it, it\'s funny.'] },
     {
       type: 'dialogue', speaker: 'narrator_eric', lines: [
-        'He was heated. We logged it as delivery. By then there was no version of Jacob that arrived at this table as information. And I knew the true thing, and I was in the booth.',
+        'He was heated. We logged it as delivery. I knew the truth, and I was in the booth.',
       ],
     },
     { type: 'dialogue', speaker: 'jacob', lines: ["I'm not doing a bit."] },
     { type: 'dialogue', speaker: 'nick_h', lines: ["That's the bit."] },
-    { type: 'dialogue', speaker: 'jacob', lines: ['Okay. Fine. Look — I\'ll show you. Call logs.', 'Incoming. Every single one of them — incoming, your name, the date, the time. Months of it. It\'s thirty seconds. Look at it one time, and then tell me I called you.'] },
+    { type: 'dialogue', speaker: 'jacob', lines: ['Fine. Call logs. Every one says incoming — your name, date, time. Look once, then tell me I called you.'] },
     { type: 'dialogue', speaker: 'nick_f', lines: ["Bro. Nobody wants to see your phone. It's fine. We love the bit."] },
     { type: 'dialogue', speaker: 'nick_h', lines: ['The prep is crazy.'] },
     {
       type: 'dialogue', speaker: 'narrator_eric', lines: [
-        'And that\'s the whole trial. Evidence offered, never entered. Somebody asks whether Maharko\'s right that the Sprite in Florida is worse, and the table moves to carbonation — which is somehow always where this table goes when the truth is out on it.',
+        'Evidence offered, never entered. The table moves to carbonation.',
       ],
     },
     { type: 'dialogue', speaker: 'jacob', lines: ['Then one more.'] },
     {
       type: 'dialogue', speaker: 'narrator_eric', lines: [
-        'Say it. Whatever you\'re saying at your screen right now — that\'s the one. Three words would have done it. \'Show me the logs.\' Not a confession. Not even a risk. Curiosity, performed once, in public.',
-        'I had the three words. I have had them every night for two years.',
+        "Three words would have done it: 'Show me the logs.' I had them. I said nothing.",
       ],
     },
-    { type: 'cameraPan', x: 215, y: 240, durationMs: 800, holdMs: 8000 }, // THE SILENCE — PROTECTED
+    { type: 'cameraPan', x: 215, y: 240, durationMs: 800, holdMs: 4000 },
     { type: 'dialogue', speaker: 'narrator_eric', lines: ['(Jacob puts the phone away. And then he stays.)'] },
     {
       type: 'dialogue', speaker: 'narrator_eric', lines: [
-        'Jacob was never fooled. Not for a day. He knew the world was rigged; he said so, repeatedly, with heat, in complete sentences, and he offered the receipts. He was not deceived. He was disbelieved.',
-        'The trick was never protected by cleverness. Two fields and a gray button. A child could have caught it. The trick was protected by contempt.',
-        'I built the machine. I never built the shield. The shield was already at the table when I sat down.',
+        'Jacob was never fooled. He offered receipts. He was not deceived; he was disbelieved.',
+        'The trick was protected by contempt. I built the machine. The shield was already at the table.',
       ],
     },
-    { type: 'dialogue', speaker: 'narrator_eric', lines: ['Two men, both outside, both correct, both offering the receipts up the ladder with both hands. Neither of them ever found out about the other.'] },
-    {
-      type: 'dialogue', speaker: 'narrator_eric', lines: [
-        'It was also friendship. Both of those are true at once, and nobody at that table will ever have to choose between them — except one.',
-        'He got two years to choose. He built a video game instead.',
-      ],
-    },
-    { type: 'cameraPan', x: 215, y: 240, durationMs: 800, holdMs: 3200 },
+    { type: 'dialogue', speaker: 'narrator_eric', lines: ['Ben and Jacob were both correct. Neither ever found out about the other. It was also friendship. Both are true. I got two years to choose, and built a video game instead.'] },
+    { type: 'cameraPan', x: 215, y: 240, durationMs: 800, holdMs: 1800 },
     { type: 'changeScene', sceneIndex: 6, transitionMs: 600 },
 
     // ═══════════════════════════════════════════════════════════════════════
     // SCENE 8 — "First Time For Everybody" (scenes[6] roof → scenes[7] booth)
     // ═══════════════════════════════════════════════════════════════════════
     { type: 'screenTint', color: 0x0a1030, alpha: 0.38 },
-    { type: 'dialogue', speaker: 'narrator_eric', lines: ['This one is out of order. It belongs weeks before the booth. I had to work up to it. The first hangout.'] },
+    { type: 'dialogue', speaker: 'narrator_eric', lines: ['Weeks before the booth: the first hangout.'] },
     { type: 'cameraPan', x: 770, y: 285, durationMs: 600, holdMs: 900 },
-    { type: 'dialogue', speaker: 'narrator_eric', lines: ['The invitation had gone out from the group — the whole chat, all our names on it. He wasn\'t lured out by one guy. He was invited by an institution.'] },
+    { type: 'dialogue', speaker: 'narrator_eric', lines: ['The whole group invited him.'] },
     { type: 'cameraPan', x: 470, y: 660, durationMs: 1200, holdMs: 1000 },
     { type: 'sfx', key: 'sfx_door_open' },
     {
       type: 'dialogue', speaker: 'narrator_eric', lines: [
-        'A man drives himself — correctly, signaling, to an audience of nobody — to a dark park, because the people who had spent a season making him the bit invited him, all together, at last.',
-        'Call it his initiation if you want the warm word. I\'ll say the other one: it was a hazing, and he supplied his own transportation to it.',
-        'And here is the thing that will not resolve tonight, or ever: it was also, start to finish, a genuinely good night. Both of those. Keep both hands full.',
+        'The people who made Jacob the bit invited him to a dark park. It was an initiation and a hazing.',
+        'It was also a genuinely good night. Keep both things.',
       ],
     },
     { type: 'cameraPan', x: 770, y: 300, durationMs: 900 },
@@ -996,13 +856,10 @@ const chapter12: ChapterConfig = {
     { type: 'dialogue', speaker: 'eric', lines: ['Same, for what it\'s worth. First one.'] },
     {
       type: 'dialogue', speaker: 'narrator_eric', lines: [
-        "It wasn't my first time. Everyone on that roof knew it wasn't, except the one person the sentence was for.",
-        "I can get it down to two candidates, both real. One: camouflage — matching his inexperience was the best cover available. Two: kindness — I moved down to where he was standing so the bottom rung would have two people on it.",
-        "I know which one you want it to be. So do I. I'm not going to pick. I could not do a kind thing that wasn't also cover, and I could not run cover without meaning some of it. That's not a confession about me; that's the water this whole group drinks.",
+        "It wasn't my first time. I said it for him — maybe as cover, maybe as kindness. I can't separate them anymore.",
       ],
     },
     { type: 'dialogue', speaker: 'jacob', lines: ['These are my hands. I know that. But I\'m really knowing it right now.'] },
-    { type: 'dialogue', speaker: 'narrator_eric', lines: ['(Both of those, one more time, and I promise that\'s the last time I\'ll say it: from here you count them yourself.)'] },
     { type: 'changeScene', sceneIndex: 7, transitionMs: 600 },
 
     { type: 'dialogue', speaker: 'narrator_eric', lines: ['No vote, no toast. One night the geometry just includes you.'] },
@@ -1010,18 +867,16 @@ const chapter12: ChapterConfig = {
     { type: 'dialogue', speaker: 'narrator_eric', lines: ['(Not Jacob\'s.)'] },
     { type: 'dialogue', speaker: 'maharko', lines: ['no way you guys are acc hanging out with jacob he is such a loser'] },
     { type: 'dialogue', speaker: 'nick_f', lines: ["i don't think he's a loser, but he's def not a winner"] },
-    { type: 'cameraPan', x: 215, y: 240, durationMs: 800, holdMs: 3500 }, // PROTECTED — both things, one frame
+    { type: 'cameraPan', x: 215, y: 240, durationMs: 800, holdMs: 1800 },
     {
       type: 'dialogue', speaker: 'narrator_eric', lines: [
-        'Maharko first, because it\'s the easy one to misread: he wasn\'t escalating. That\'s loyalty, quoted verbatim, by the only founder who wasn\'t in the room when everyone quietly stopped enforcing it.',
-        'Now Nick F\'s answer. It\'s built like fairness. Not a loser — he\'s defending him. Def not a winner — he\'s filing him. That is the machine at cruising altitude. That sentence was the era\'s version of love, and it was also the other thing, at the same time, in the same eleven words. What it is still like.',
+        "Maharko calls it loyalty. Nick F's answer sounds like a defense and files Jacob in the same breath. That was the era's version of love.",
       ],
     },
     { type: 'cameraPan', x: 470, y: 660, durationMs: 1200 },
     {
       type: 'dialogue', speaker: 'narrator_eric', lines: [
-        'He was on that roof because of me. I made him invitable, and I did it for content, and the night you just watched was the project going well.',
-        'It was a good night. Real, all of it, all the way down. It was also a yield. Both. The whole time. That\'s the chapter. From here on, it\'s just the paperwork.',
+        'I made him invitable for content. The good night was real. It was also the project going well.',
       ],
     },
     { type: 'changeScene', sceneIndex: 8, transitionMs: 700 },
@@ -1029,26 +884,24 @@ const chapter12: ChapterConfig = {
     // ═══════════════════════════════════════════════════════════════════════
     // SCENE 9 — "The Capital" (scenes[8], L2_CHAT)
     // ═══════════════════════════════════════════════════════════════════════
-    { type: 'dialogue', speaker: 'narrator_eric', lines: ['One more thing got built that year. It\'s the biggest thing in this story, and it has no location, so I\'ll show it to you the only way it can be shown.'] },
+    { type: 'dialogue', speaker: 'narrator_eric', lines: ['One more thing got built that year: a group chat.'] },
     { type: 'dialogue', speaker: 'narrator_eric', lines: ['electric vehicle squad'] },
     {
       type: 'minigame', modeId: 'doubleCall', background: false,
       config: {
         variant: 'capital',
-        capital: { oldThreadName: 'electric vehicle squad', newThreadName: 'Sub Zero Squad', memberCount: 6, driftMs: 12000, postRenameHoldMs: 8000 },
+        capital: { oldThreadName: 'electric vehicle squad', newThreadName: 'Sub Zero Squad', memberCount: 6, driftMs: 7000, postRenameHoldMs: 4000 },
       },
     },
     {
       type: 'dialogue', speaker: 'narrator_eric', lines: [
-        'You know that chat. It\'s on your phone. Your actual phone — the one next to you right now.',
-        'It just became everything else on top, the way a fort becomes a city, and nobody was ever told. Now you have been.',
+        'You know that chat. It became everything else on top, and nobody was ever told.',
       ],
     },
-    { type: 'wait', ms: 2000 },
+    { type: 'wait', ms: 800 },
     {
       type: 'dialogue', speaker: 'narrator_eric', lines: [
-        "If you were waiting for the moment of no return, it wasn't a call and it wasn't a night. It was a rename.",
-        'The machine had a capital now. The next thing it stopped needing was me.',
+        "The moment of no return wasn't a call. It was a rename. The machine had a capital; next it stopped needing me.",
       ],
     },
     { type: 'changeScene', sceneIndex: 9, transitionMs: 700 },
@@ -1056,21 +909,18 @@ const chapter12: ChapterConfig = {
     // ═══════════════════════════════════════════════════════════════════════
     // SCENE 10 — "Self-Sustaining" (scenes[9], L2_WINTER)
     // ═══════════════════════════════════════════════════════════════════════
-    { type: 'dialogue', speaker: 'narrator_eric', lines: ['February 2025. Last one. The era doesn\'t end with an event. Here is everything that was in the pockets.'] },
-    { type: 'dialogue', speaker: 'narrator_eric', lines: ['A Tuesday.'] },
-    { type: 'dialogue', speaker: 'narrator_eric', lines: ['The bit, running clean, with the machine nowhere in sight. Watch. This is me, on the record, in the chat:'] },
+    { type: 'dialogue', speaker: 'narrator_eric', lines: ['February 2025. A Tuesday. The bit runs without the machine:'] },
     { type: 'dialogue', speaker: 'eric', lines: ['bro i was just taking a walk getting something for my girl and then GUESS WHO I SEE WALK TO THE FIVE GUYS'] },
     { type: 'dialogue', speaker: 'eric', lines: ['WHO TREKS TO MCDONALDS AT 3 AM'] },
     { type: 'dialogue', speaker: 'nick_f', lines: ['IS IT THE BIG L?'] },
     {
       type: 'dialogue', speaker: 'narrator_eric', lines: [
-        'Read the caps. That\'s me at performance pitch. Now read the craft. He was walking into a Five Guys. I typed McDonald\'s anyway. By February the bit didn\'t run on facts. It ran on the seat.',
-        'And "the Big L." We had a name for him. With a definite article, like a landmark. He was IN by then, and the name was still on the books, and I was still feeding it.',
-        'I was on an errand for someone I loved when I sent it. Both currents, one sidewalk, no machine required. The machine had done its work: the work was me.',
+        "He was walking into Five Guys. I typed McDonald's. By February the bit didn't run on facts; it ran on the seat.",
+        'Jacob was in, the name remained, and I kept feeding it. The machine had done its work: the work was me.',
       ],
     },
-    { type: 'wait', ms: 1500 },
-    { type: 'dialogue', speaker: 'narrator_eric', lines: ['Now the part you\'re actually here for, which is the part where nothing happens.'] },
+    { type: 'wait', ms: 700 },
+    { type: 'dialogue', speaker: 'narrator_eric', lines: ['Then, nothing happens.'] },
     {
       type: 'minigame', modeId: 'doubleCall', background: false,
       config: {
@@ -1081,22 +931,17 @@ const chapter12: ChapterConfig = {
     },
     {
       type: 'dialogue', speaker: 'narrator_eric', lines: [
-        'Here\'s what the calls were for — the only job they ever had: keep Jacob arriving.',
-        'It had become a self-sustaining system.',
-        'The operator inspected the output, found the process no longer required him, and initiated shutdown.',
+        'The calls had one job: keep Jacob arriving. By then, the system sustained itself.',
       ],
     },
     {
       type: 'dialogue', speaker: 'narrator_eric', lines: [
-        'The calls stopped that month. Now the important part. Here is everything that happened next:',
-        'Nothing.',
-        'They were weather. The weather cleared, and you don\'t text the chat about a clear day. He was never even acquitted. Some of you had it on the books until about an hour ago.',
+        'The calls stopped that month. Nothing happened. The weather cleared, and nobody announced a clear day. Jacob was never acquitted.',
       ],
     },
     {
       type: 'dialogue', speaker: 'narrator_eric', lines: [
-        'Don\'t hand me anything for the call I didn\'t place. Walking away from a machine you built, after it works, isn\'t stopping. It\'s shipping.',
-        'The product was live. The system sustained itself. The author signed off — without, it goes without saying, signing.',
+        "Walking away from a machine after it works isn't stopping. It's shipping.",
       ],
     },
     { type: 'screenTint', color: 0x000000, alpha: 1.0, durationMs: 1200 },
@@ -1106,21 +951,21 @@ const chapter12: ChapterConfig = {
     // SCENE 11 — "Does It Matter" — THE CODA (scenes[10], L0)
     // ═══════════════════════════════════════════════════════════════════════
     { type: 'screenTint', color: 0x000014, alpha: 0.35, durationMs: 800 },
-    { type: 'wait', ms: 1500 },
+    { type: 'wait', ms: 800 },
     { type: 'dialogue', speaker: 'eric', lines: ['So. The summer Maharko left for Florida. What happened was—'] },
-    { type: 'wait', ms: 1400 },
+    { type: 'wait', ms: 800 },
     {
       type: 'dialogue', speaker: 'eric', lines: [
-        "—I did it. The calls were me. Both phones, every time, all eight months. Jacob never called anyone. Nobody ever called anyone. There was a website, and there was me, and I thought he'd be good content.",
+        "—I did it. Both phones, every time, all eight months. Jacob never called anyone. There was a website, me, and the thought that he'd be good content.",
         'And he was.',
         "That's the whole sentence. It was never long. It was just heavy.",
       ],
     },
-    { type: 'wait', ms: 1200 },
+    { type: 'wait', ms: 700 },
     { type: 'dialogue', speaker: 'eric', lines: ['You were made.', 'Does it matter?'] }, // narrator retires after this
     { type: 'stopAllAudio', fadeMs: 400 },
     { type: 'screenTint', color: 0x000000, alpha: 0.55, durationMs: 2000 },
-    { type: 'wait', ms: 25000 }, // THE LONG HOLD — PROTECTED, deliberately over-long
+    { type: 'wait', ms: 9000 },
     { type: 'sfx', key: 'sfx_phone_buzz' },
     {
       type: 'minigame', modeId: 'doubleCall', background: false,
@@ -1130,7 +975,7 @@ const chapter12: ChapterConfig = {
           threadHeader: 'Sub Zero Squad',
           incoming: { sender: 'JACOB', text: 'who tryna go to mcdonalds tn?' },
           reply: { kind: 'exact', text: 'omw' },
-          codaExit: { doorPoint: { x: 350, y: 505 }, finalHoldMs: 4000 },
+          codaExit: { doorPoint: { x: 350, y: 505 }, finalHoldMs: 2500 },
         },
       },
     },
