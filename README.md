@@ -363,6 +363,11 @@ cd rockville-syndicate
 docker compose up -d --build
 ```
 
+Within the current VPS, we can just call
+```bash
+sudo deploy-game
+```
+
 By default the container listens on port `3324`. To use a custom host port:
 
 ```bash
