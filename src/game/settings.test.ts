@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   getSettings,
   updateSettings,
@@ -76,6 +76,25 @@ describe('migration from legacy v1 keys', () => {
     _reloadFromStorage();
     expect(getSettings()).toEqual(DEFAULT_SETTINGS);
     expect(getProgress().completedChapters).toEqual([]);
+  });
+
+  it('safely handles readLegacy localStorage errors', () => {
+    // Clear out any v2 blob
+    localStorage.clear();
+
+    const getItemSpy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('Quota Exceeded or DOMException');
+    });
+
+    try {
+      // Because readLegacy wraps getItem in try/catch, it should return null
+      // for all keys, resulting in a fallback to defaults rather than crashing.
+      expect(() => _reloadFromStorage()).not.toThrow();
+      expect(getSettings()).toEqual(DEFAULT_SETTINGS);
+      expect(getProgress().completedChapters).toEqual([]);
+    } finally {
+      getItemSpy.mockRestore();
+    }
   });
 });
 
