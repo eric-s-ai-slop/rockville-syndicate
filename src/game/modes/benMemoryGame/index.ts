@@ -12,6 +12,8 @@ import {
   type BenMemoryScenario,
 } from './logic';
 
+const LABEL_PREFIX_REGEX = /^\[.\] /;
+
 export interface BenMemoryGameModeConfig {
   scenario?: BenMemoryScenario;
   title?: string;
@@ -208,7 +210,7 @@ export class BenMemoryGameMode implements GameMode<BenMemoryGameModeConfig> {
       if (this.rustPhase !== 'play') return;
       this.rustProgress = clampMeter(this.rustProgress + action.rust);
       this.volume = clampMeter(this.volume + action.volume);
-      this.feedback?.setText(action.volume > 20 ? 'BEN HAS FORGOTTEN HE HAS A BEDROOM DOOR' : action.label.replace(/^\[.\] /, '')).setColor(action.volume > 20 ? '#fb7185' : '#86efac');
+      this.feedback?.setText(action.volume > 20 ? 'BEN HAS FORGOTTEN HE HAS A BEDROOM DOOR' : action.label.replace(LABEL_PREFIX_REGEX, '')).setColor(action.volume > 20 ? '#fb7185' : '#86efac');
       try { this.ctx.sound.play('ui_select'); } catch { /* optional */ }
     }));
     this.listener = (event) => {
