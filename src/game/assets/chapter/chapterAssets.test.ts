@@ -2,14 +2,24 @@ import { describe, expect, it } from 'vitest';
 import { CHAPTER_ASSETS, getChapterAssets } from '.';
 
 describe('chapter asset manifests', () => {
-  it('returns only the selected chapter manifest', () => {
-    expect(getChapterAssets('maria_brooke').map(asset => asset.key)).toEqual([
-      'stage_wj_classroom',
-      'stage_wj_track',
-    ]);
-    expect(getChapterAssets('origins').map(asset => asset.key)).toContain('prop_dialer_site');
-    expect(getChapterAssets('spotify_insurgency')).toEqual([]);
-    expect(getChapterAssets('unknown_chapter')).toEqual([]);
+  describe('getChapterAssets', () => {
+    it('returns only the selected chapter manifest', () => {
+      expect(getChapterAssets('maria_brooke').map(asset => asset.key)).toEqual([
+        'stage_wj_classroom',
+        'stage_wj_track',
+      ]);
+      expect(getChapterAssets('origins').map(asset => asset.key)).toContain('prop_dialer_site');
+    });
+
+    it('returns the EMPTY_MANIFEST singleton for unknown or empty chapter IDs', () => {
+      const empty1 = getChapterAssets('spotify_insurgency');
+      const empty2 = getChapterAssets('unknown_chapter');
+      const empty3 = getChapterAssets('');
+
+      expect(empty1).toEqual([]);
+      expect(empty1).toBe(empty2);
+      expect(empty1).toBe(empty3);
+    });
   });
 
   it('does not register the same Phaser key twice within a chapter', () => {
