@@ -38,12 +38,16 @@ const ASSERTION_KEYWORDS = [
   'should', 'tell', 'truth', 'wrong', 'lie', 'warn', 'honest', 'expose',
 ];
 
+const JOKE_TOKENS_REGEX = new RegExp(JOKE_TOKENS.join('|'), 'i');
+const JOKE_EMOJI_REGEX = new RegExp(JOKE_EMOJI.join('|'));
+const ASSERTION_KEYWORDS_REGEX = new RegExp(ASSERTION_KEYWORDS.join('|'), 'i');
+
 export function parseMessage(msg: string): ParseResult {
   const lower = msg.toLowerCase();
 
-  const hasJokeToken = JOKE_TOKENS.some(t => lower.includes(t));
-  const hasJokeEmoji = JOKE_EMOJI.some(e => msg.includes(e));
-  const hasAssertion = ASSERTION_KEYWORDS.some(k => lower.includes(k));
+  const hasJokeToken = JOKE_TOKENS_REGEX.test(lower);
+  const hasJokeEmoji = JOKE_EMOJI_REGEX.test(msg);
+  const hasAssertion = ASSERTION_KEYWORDS_REGEX.test(lower);
 
   // Direct keyword hit
   for (const kw of TRUE_KEYWORDS) {
