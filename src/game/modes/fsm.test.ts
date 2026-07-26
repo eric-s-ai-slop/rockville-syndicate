@@ -14,6 +14,7 @@ describe('FSM', () => {
 
     expect(fsm.state).toBe('IDLE');
     expect(fsm.is('IDLE')).toBe(true);
+    expect(fsm.is('ATTACK')).toBe(false);
     expect(enterFn).toHaveBeenCalledOnce();
   });
 
@@ -96,5 +97,41 @@ describe('FSM', () => {
     });
 
     expect(() => fsm.update(100, 16)).not.toThrow();
+  });
+
+  it('should support full sequences of multiple state transitions, calling lifecycle hooks correctly', () => {
+    const order: string[] = [];
+
+    const fsm = new FSM<TestState>('IDLE', {
+      IDLE: {
+        enter: () => order.push('IDLE enter'),
+        exit: () => order.push('IDLE exit'),
+        update: () => order.push('IDLE update')
+      },
+      ATTACK: {
+        enter: () => order.push('ATTACK enter'),
+        exit: () => order.push('ATTACK exit'),
+        update: () => order.push('ATTACK update')
+      },
+      DEAD: {
+        enter: () => order.push('DEAD enter'),
+        exit: () => order.push('DEAD exit'),
+        update: () => order.push('DEAD update')
+      }
+    });
+
+    expect(order).toEqual(['IDLE enter']);
+
+    fsm.update(10, 16);
+    expect(order).toEqual(['IDLE enter', 'IDLE update']);
+
+    fsm.transition('ATTACK');
+    expect(order).toEqual(['IDLE enter', 'IDLE update', 'IDLE exit', 'ATTACK enter']);
+
+    fsm.update(20, 16);
+    expect(order).toEqual(['IDLE enter', 'IDLE update', 'IDLE exit', 'ATTACK enter', 'ATTACK update']);
+
+    fsm.transition('DEAD');
+    expect(order).toEqual(['IDLE enter', 'IDLE update', 'IDLE exit', 'ATTACK enter', 'ATTACK update', 'ATTACK exit', 'DEAD enter']);
   });
 });
