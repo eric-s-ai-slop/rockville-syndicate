@@ -189,3 +189,158 @@ export function extractStringRecord(filePath: string, exportName: string): Recor
   }
   return out;
 }
+
+export interface SymbolReferenceEntry {
+  file: string;
+  line: number;
+  lineText: string;
+}
+
+export interface SymbolInvestigationResult {
+  symbolName: string;
+  declarationFile: string;
+  declarationLine: number;
+  declarationExcerpt: string;
+  references: SymbolReferenceEntry[];
+}
+
+function getCanonicalSymbol(sym: import('ts-morph').Symbol): import('ts-morph').Symbol {
+  let cur = sym;
+  while (cur.getAliasedSymbol()) {
+    const next = cur.getAliasedSymbol();
+    if (!next || next === cur) break;
+    cur = next;
+  }
+  return cur;
+}
+
+function getSymbolForDecl(node: Node, tc: import('ts-morph').TypeChecker): import('ts-morph').Symbol | undefined {
+  let sym = node.getSymbol();
+  if (!sym && (node as any).getNameNode) {
+    const nameNode = (node as any).getNameNode();
+    if (nameNode) sym = nameNode.getSymbol();
+  }
+  if (!sym) sym = tc.getSymbolAtLocation(node);
+  return sym ? getCanonicalSymbol(sym) : undefined;
+}
+
+const toRepoPath = (filePath: string): string => path.relative(process.cwd(), filePath).split(path.sep).join('/');
+
+/**
+ * Investigate references to a symbol across the project using AST parsing.
+ * Resolves symbol declarations, extracts concise signature excerpt, and lists
+ * all exact source lines referencing the resolved symbol (excluding declaration lines).
+ */
+export function investigateSymbol(symbolName: string): SymbolInvestigationResult {
+  const project = getProject();
+  const tc = project.getTypeChecker();
+
+  const groups = new Map<any, Node[]>();
+
+  for (const sf of project.getSourceFiles()) {
+    const filePath = sf.getFilePath();
+    if (filePath.includes('/node_modules/') || filePath.includes('\\node_modules\\')) continue;
+    if (!sf.getFullText().includes(symbolName)) continue;
+
+    sf.forEachDescendant((node) => {
+      if (typeof (node as any).getName === 'function') {
+        const name = (node as any).getName();
+        if (name === symbolName) {
+          if (
+            Node.isVariableDeclaration(node) ||
+            Node.isFunctionDeclaration(node) ||
+            Node.isClassDeclaration(node) ||
+            Node.isInterfaceDeclaration(node) ||
+            Node.isTypeAliasDeclaration(node) ||
+            Node.isEnumDeclaration(node) ||
+            Node.isEnumMember(node) ||
+            Node.isPropertyDeclaration(node) ||
+            Node.isPropertySignature(node) ||
+            Node.isMethodDeclaration(node) ||
+            Node.isMethodSignature(node) ||
+            Node.isParameterDeclaration(node) ||
+            Node.isModuleDeclaration(node) ||
+            Node.isBindingElement(node) ||
+            Node.isGetAccessorDeclaration(node) ||
+            Node.isSetAccessorDeclaration(node) ||
+            Node.isImportEqualsDeclaration(node)
+          ) {
+            const sym = getSymbolForDecl(node, tc);
+            if (sym) {
+              const compilerSym = (sym as any).compilerSymbol;
+              const list = groups.get(compilerSym) || [];
+              list.push(node);
+              groups.set(compilerSym, list);
+            }
+          }
+        }
+      }
+    });
+  }
+
+  if (groups.size === 0) {
+    throw new Error(`Symbol "${symbolName}" cannot be resolved in the codebase.`);
+  }
+
+  if (groups.size > 1) {
+    const locations: string[] = [];
+    for (const nodes of groups.values()) {
+      const first = nodes[0];
+      const p = toRepoPath(first.getSourceFile().getFilePath());
+      locations.push(`${p}:${first.getStartLineNumber()}`);
+    }
+    const sample = locations.slice(0, 5).join(', ');
+    const more = locations.length > 5 ? `, ... and ${locations.length - 5} more` : '';
+    throw new Error(`Symbol "${symbolName}" is ambiguous across ${groups.size} unrelated declarations (${sample}${more}).`);
+  }
+
+  const declNodes = groups.values().next().value!;
+  const primaryDecl = declNodes[0];
+  const primarySf = primaryDecl.getSourceFile();
+  const dFile = toRepoPath(primarySf.getFilePath());
+  const dLine = primaryDecl.getStartLineNumber();
+  const dExcerpt = primarySf.getFullText().split(/\r?\n/)[dLine - 1].trim();
+
+  const declarationLines = new Set<string>();
+  for (const n of declNodes) {
+    const file = toRepoPath(n.getSourceFile().getFilePath());
+    declarationLines.add(`${file}:${n.getStartLineNumber()}`);
+    const sym = getSymbolForDecl(n, tc);
+    for (const d of sym?.getDeclarations() || []) {
+      const df = toRepoPath(d.getSourceFile().getFilePath());
+      declarationLines.add(`${df}:${d.getStartLineNumber()}`);
+    }
+  }
+
+  const refTarget = (primaryDecl as any).getNameNode ? (primaryDecl as any).getNameNode() : primaryDecl;
+  const refSymbols = refTarget.findReferences();
+
+  const references: SymbolReferenceEntry[] = [];
+  const seenLines = new Set<string>();
+
+  for (const rs of refSymbols) {
+    for (const r of rs.getReferences()) {
+      const rFile = toRepoPath(r.getSourceFile().getFilePath());
+      if (rFile.includes('node_modules')) continue;
+      const rLine = r.getNode().getStartLineNumber();
+      const key = `${rFile}:${rLine}`;
+
+      if (declarationLines.has(key)) continue;
+      if (seenLines.has(key)) continue;
+      seenLines.add(key);
+
+      const lineText = r.getSourceFile().getFullText().split(/\r?\n/)[rLine - 1].trim();
+      references.push({ file: rFile, line: rLine, lineText });
+    }
+  }
+
+  references.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
+
+  return {
+    symbolName,
+    declarationFile: dFile,
+    declarationLine: dLine,
+    declarationExcerpt: dExcerpt,
+    references,
+  };
+}

@@ -18,6 +18,7 @@
     "e2e": "playwright test",
     "agent": "tsx e2e_tests/agent/cli.ts",
     "agent:audit": "tsx e2e_tests/agent/audit.ts",
+    "agent:refs": "tsx e2e_tests/agent/agent-refs.ts",
     "agent:validate-chapter": "tsx e2e_tests/agent/validate-chapter.ts",
     "agent:transcript": "tsx e2e_tests/agent/transcript.ts",
     "agent:verify-report": "tsx e2e_tests/agent/verify-playtest-report.ts",
@@ -32,7 +33,8 @@
     "agent:scaffold-chapter": "tsx e2e_tests/agent/scaffold-chapter.ts",
     "agent:scaffold-mode": "tsx e2e_tests/agent/scaffold-mode.ts",
     "agent:map": "tsx e2e_tests/agent/context-map.ts",
-    "agent:release-check": "tsx scripts/agent-release-check.ts"
+    "agent:release-check": "tsx scripts/agent-release-check.ts",
+    "agent:publish-preflight": "tsx scripts/agent-publish-preflight.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

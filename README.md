@@ -85,7 +85,7 @@ Chapters are declarative config files in [`src/data/chapters/`](src/data/chapter
 | 13 | `suds_and_soles_pool_party` | The Suds & Soles Pool Party | chapter | Nick F's Backyard — Rockville, MD | 12–18 min | shipping | — | `chapter9.pool-party.ts` |
 | 14 | `cabin_from_hell_2025` | Cabin From Hell | chapter | Ocean City, MD & Shenandoah, VA | 20–30 min | shipping | — | `chapter11.cabin-from-hell.ts` |
 | 15 | `fixture-playtest` | Playtest Fixture | chapter | Rockville Park (synthetic) | 5–8 min | development | — | `chapterFixture.playtest.ts` |
-| 16 | `origins` | Rockville Syndicate: Origins | chapter | Rockville, MD — summer 2024 → tonight | 25–35 min | shipping | external | `chapter12.origins.ts` |
+| 16 | `origins` | Rockville Syndicate: Origins | chapter | Rockville, MD — summer 2024 → tonight | 16–22 min | shipping | external | `chapter12.origins.ts` |
 
 ---
 
